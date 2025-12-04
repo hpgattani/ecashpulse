@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Zap, Menu, X, User, Wallet } from 'lucide-react';
-import ProfileModal from './ProfileModal';
+import { Zap, Menu, X, Scale } from 'lucide-react';
+import DisputeModal from './DisputeModal';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isDisputeOpen, setIsDisputeOpen] = useState(false);
 
   return (
     <>
@@ -56,22 +56,13 @@ const Header = () => {
             {/* Desktop Actions */}
             <div className="hidden md:flex items-center gap-3">
               <Button
-                variant="glass"
+                variant="glow"
                 size="sm"
-                onClick={() => setIsProfileOpen(true)}
+                onClick={() => setIsDisputeOpen(true)}
                 className="gap-2"
               >
-                <Wallet className="w-4 h-4" />
-                Connect Wallet
-              </Button>
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => setIsProfileOpen(true)}
-                className="gap-2"
-              >
-                <User className="w-4 h-4" />
-                Profile
+                <Scale className="w-4 h-4" />
+                AI Dispute Resolution
               </Button>
             </div>
 
@@ -104,31 +95,22 @@ const Header = () => {
                 <a href="#how-it-works" className="text-muted-foreground hover:text-foreground transition-colors">
                   How It Works
                 </a>
-                <div className="flex gap-2 pt-2">
-                  <Button
-                    variant="glass"
-                    size="sm"
-                    onClick={() => setIsProfileOpen(true)}
-                    className="flex-1"
-                  >
-                    Connect Wallet
-                  </Button>
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={() => setIsProfileOpen(true)}
-                    className="flex-1"
-                  >
-                    Profile
-                  </Button>
-                </div>
+                <Button
+                  variant="glow"
+                  size="sm"
+                  onClick={() => setIsDisputeOpen(true)}
+                  className="gap-2 mt-2"
+                >
+                  <Scale className="w-4 h-4" />
+                  AI Dispute Resolution
+                </Button>
               </nav>
             </motion.div>
           )}
         </div>
       </motion.header>
 
-      <ProfileModal isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />
+      <DisputeModal isOpen={isDisputeOpen} onClose={() => setIsDisputeOpen(false)} />
     </>
   );
 };
