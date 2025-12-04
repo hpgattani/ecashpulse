@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, TrendingUp, Shield, Zap } from 'lucide-react';
+import { ArrowRight, Shield, Zap } from 'lucide-react';
 
 const Hero = () => {
   return (
@@ -64,33 +64,31 @@ const Hero = () => {
             </Button>
           </motion.div>
 
-          {/* Stats */}
+          {/* Wallet Info */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.9 }}
-            className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8"
+            className="flex flex-wrap items-center justify-center gap-4"
           >
-            {[
-              { label: 'Total Volume', value: '$12.5M', icon: TrendingUp },
-              { label: 'Active Markets', value: '156', icon: Zap },
-              { label: 'Total Traders', value: '8.2K', icon: Shield },
-              { label: 'Avg Fee', value: '0.1%', icon: Zap },
-            ].map((stat, index) => (
-              <motion.div
-                key={stat.label}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 1 + index * 0.1 }}
-                className="glass-card p-4 md:p-6"
-              >
-                <stat.icon className="w-5 h-5 text-primary mb-2 mx-auto" />
-                <div className="text-2xl md:text-3xl font-display font-bold text-foreground">
-                  {stat.value}
-                </div>
-                <div className="text-sm text-muted-foreground">{stat.label}</div>
-              </motion.div>
-            ))}
+            <a 
+              href="https://cashtab.com" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="glass-card px-6 py-3 flex items-center gap-2 hover:border-primary/50 transition-colors"
+            >
+              <Zap className="w-5 h-5 text-primary" />
+              <span className="text-foreground font-medium">Pay with Cashtab</span>
+            </a>
+            <a 
+              href="https://marlinwallet.com" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="glass-card px-6 py-3 flex items-center gap-2 hover:border-primary/50 transition-colors"
+            >
+              <Shield className="w-5 h-5 text-accent" />
+              <span className="text-foreground font-medium">Pay with Marlin</span>
+            </a>
           </motion.div>
         </div>
       </div>
