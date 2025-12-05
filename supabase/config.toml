@@ -1,1 +1,10 @@
 project_id = "ctfqkbbauvznzmznmjdt"
+
+[functions.ai-dispute]
+verify_jwt = false
+
+[functions.process-bet]
+verify_jwt = false
+
+[functions.confirm-transaction]
+verify_jwt = false
