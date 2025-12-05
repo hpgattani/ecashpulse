@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.monitor-escrow]
 verify_jwt = false
+
+[functions.update-profile]
+verify_jwt = false

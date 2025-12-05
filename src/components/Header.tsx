@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Zap, Menu, X, Scale, Wallet, LogOut, TrendingUp } from 'lucide-react';
+import { Zap, Menu, X, Scale, Wallet, LogOut, TrendingUp, User } from 'lucide-react';
 import DisputeModal from './DisputeModal';
+import { ProfileModal } from './ProfileModal';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   DropdownMenu,
@@ -16,7 +17,8 @@ import {
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDisputeOpen, setIsDisputeOpen] = useState(false);
-  const { user, logout } = useAuth();
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const { user, profile, logout } = useAuth();
   const navigate = useNavigate();
 
   const truncateAddress = (address: string) => {
@@ -92,10 +94,14 @@ const Header = () => {
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm" className="gap-2">
                       <Wallet className="w-4 h-4" />
-                      {truncateAddress(user.ecash_address)}
+                      {profile?.display_name || truncateAddress(user.ecash_address)}
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem onClick={() => setIsProfileOpen(true)}>
+                      <User className="w-4 h-4 mr-2" />
+                      Edit Profile
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => navigate('/my-bets')}>
                       <TrendingUp className="w-4 h-4 mr-2" />
                       My Bets
@@ -206,6 +212,7 @@ const Header = () => {
       </motion.header>
 
       <DisputeModal isOpen={isDisputeOpen} onClose={() => setIsDisputeOpen(false)} />
+      <ProfileModal open={isProfileOpen} onOpenChange={setIsProfileOpen} />
     </>
   );
 };
