@@ -1,12 +1,28 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Zap, Menu, X, Scale } from 'lucide-react';
+import { Zap, Menu, X, Scale, Wallet, LogOut, TrendingUp } from 'lucide-react';
 import DisputeModal from './DisputeModal';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDisputeOpen, setIsDisputeOpen] = useState(false);
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const truncateAddress = (address: string) => {
+    if (address.length <= 20) return address;
+    return `${address.slice(0, 12)}...${address.slice(-6)}`;
+  };
 
   return (
     <>
@@ -19,26 +35,27 @@ const Header = () => {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16 md:h-20">
             {/* Logo */}
-            <motion.a
-              href="/"
-              className="flex items-center gap-2 group"
-              whileHover={{ scale: 1.02 }}
-            >
-              <div className="relative">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                  <Zap className="w-5 h-5 text-primary-foreground" />
+            <Link to="/" className="flex items-center gap-2 group">
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                className="flex items-center gap-2"
+              >
+                <div className="relative">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                    <Zap className="w-5 h-5 text-primary-foreground" />
+                  </div>
+                  <div className="absolute inset-0 rounded-xl bg-primary/30 blur-xl group-hover:blur-2xl transition-all" />
                 </div>
-                <div className="absolute inset-0 rounded-xl bg-primary/30 blur-xl group-hover:blur-2xl transition-all" />
-              </div>
-              <div className="flex flex-col">
-                <span className="font-display font-bold text-lg md:text-xl text-foreground">
-                  eCash<span className="text-primary">Pulse</span>
-                </span>
-                <span className="text-[10px] text-muted-foreground -mt-1 hidden md:block">
-                  Predict the Future
-                </span>
-              </div>
-            </motion.a>
+                <div className="flex flex-col">
+                  <span className="font-display font-bold text-lg md:text-xl text-foreground">
+                    eCash<span className="text-primary">Pulse</span>
+                  </span>
+                  <span className="text-[10px] text-muted-foreground -mt-1 hidden md:block">
+                    Predict the Future
+                  </span>
+                </div>
+              </motion.div>
+            </Link>
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-8">
@@ -51,6 +68,11 @@ const Header = () => {
               <a href="#how-it-works" className="text-muted-foreground hover:text-foreground transition-colors">
                 How It Works
               </a>
+              {user && (
+                <Link to="/my-bets" className="text-muted-foreground hover:text-foreground transition-colors">
+                  My Bets
+                </Link>
+              )}
             </nav>
 
             {/* Desktop Actions */}
@@ -62,8 +84,35 @@ const Header = () => {
                 className="gap-2"
               >
                 <Scale className="w-4 h-4" />
-                AI Dispute Resolution
+                AI Dispute
               </Button>
+              
+              {user ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-2">
+                      <Wallet className="w-4 h-4" />
+                      {truncateAddress(user.ecash_address)}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem onClick={() => navigate('/my-bets')}>
+                      <TrendingUp className="w-4 h-4 mr-2" />
+                      My Bets
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={logout} className="text-destructive">
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Logout
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <Button size="sm" onClick={() => navigate('/auth')}>
+                  <Wallet className="w-4 h-4 mr-2" />
+                  Connect
+                </Button>
+              )}
             </div>
 
             {/* Mobile Menu Button */}
@@ -95,15 +144,61 @@ const Header = () => {
                 <a href="#how-it-works" className="text-muted-foreground hover:text-foreground transition-colors">
                   How It Works
                 </a>
-                <Button
-                  variant="glow"
-                  size="sm"
-                  onClick={() => setIsDisputeOpen(true)}
-                  className="gap-2 mt-2"
-                >
-                  <Scale className="w-4 h-4" />
-                  AI Dispute Resolution
-                </Button>
+                {user && (
+                  <Link 
+                    to="/my-bets" 
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    My Bets
+                  </Link>
+                )}
+                <div className="flex flex-col gap-2 pt-2">
+                  <Button
+                    variant="glow"
+                    size="sm"
+                    onClick={() => {
+                      setIsDisputeOpen(true);
+                      setIsMenuOpen(false);
+                    }}
+                    className="gap-2"
+                  >
+                    <Scale className="w-4 h-4" />
+                    AI Dispute
+                  </Button>
+                  
+                  {user ? (
+                    <div className="space-y-2">
+                      <p className="text-xs text-muted-foreground font-mono px-2">
+                        {truncateAddress(user.ecash_address)}
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full gap-2"
+                        onClick={() => {
+                          logout();
+                          setIsMenuOpen(false);
+                        }}
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Logout
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      size="sm"
+                      className="w-full gap-2"
+                      onClick={() => {
+                        navigate('/auth');
+                        setIsMenuOpen(false);
+                      }}
+                    >
+                      <Wallet className="w-4 h-4" />
+                      Connect
+                    </Button>
+                  )}
+                </div>
               </nav>
             </motion.div>
           )}

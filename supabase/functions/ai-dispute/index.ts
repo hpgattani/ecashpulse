@@ -1,96 +1,191 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-serve(async (req) => {
+// Rate limiting map (simple in-memory)
+const rateLimitMap = new Map<string, number[]>();
+const RATE_LIMIT = 10; // requests per window
+const RATE_WINDOW = 60000; // 1 minute
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const requests = rateLimitMap.get(ip) || [];
+  const recentRequests = requests.filter(t => now - t < RATE_WINDOW);
+  
+  if (recentRequests.length >= RATE_LIMIT) {
+    return false;
+  }
+  
+  recentRequests.push(now);
+  rateLimitMap.set(ip, recentRequests);
+  return true;
+}
+
+// Message validation
+interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+function validateMessages(messages: unknown): { valid: boolean; error?: string; data?: Message[] } {
+  if (!Array.isArray(messages)) {
+    return { valid: false, error: 'Messages must be an array' };
+  }
+  
+  if (messages.length === 0) {
+    return { valid: false, error: 'Messages array cannot be empty' };
+  }
+  
+  if (messages.length > 20) {
+    return { valid: false, error: 'Too many messages (max 20)' };
+  }
+  
+  const validatedMessages: Message[] = [];
+  
+  for (const msg of messages) {
+    if (typeof msg !== 'object' || msg === null) {
+      return { valid: false, error: 'Each message must be an object' };
+    }
+    
+    const { role, content } = msg as { role?: unknown; content?: unknown };
+    
+    if (role !== 'user' && role !== 'assistant') {
+      return { valid: false, error: 'Message role must be "user" or "assistant"' };
+    }
+    
+    if (typeof content !== 'string') {
+      return { valid: false, error: 'Message content must be a string' };
+    }
+    
+    if (content.length > 4000) {
+      return { valid: false, error: 'Message content too long (max 4000 characters)' };
+    }
+    
+    // Sanitize content - remove potential prompt injection patterns
+    const sanitizedContent = content
+      .replace(/\[\s*system\s*\]/gi, '[filtered]')
+      .replace(/\[\s*ignore\s*previous\s*instructions?\s*\]/gi, '[filtered]')
+      .trim();
+    
+    validatedMessages.push({ role, content: sanitizedContent });
+  }
+  
+  return { valid: true, data: validatedMessages };
+}
+
+Deno.serve(async (req) => {
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Get client IP for rate limiting
+  const clientIP = req.headers.get('x-forwarded-for')?.split(',')[0] || 
+                   req.headers.get('cf-connecting-ip') || 
+                   'unknown';
+
+  // Check rate limit
+  if (!checkRateLimit(clientIP)) {
+    console.log(`Rate limit exceeded for IP: ${clientIP}`);
+    return new Response(
+      JSON.stringify({ error: 'Too many requests. Please wait a moment.' }),
+      { 
+        status: 429, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+  }
+
   try {
-    const { messages } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY is not configured');
+    // Parse and validate request body
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON in request body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    console.log('Processing dispute resolution request with', messages.length, 'messages');
+    if (typeof body !== 'object' || body === null) {
+      return new Response(
+        JSON.stringify({ error: 'Request body must be an object' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const { messages } = body as { messages?: unknown };
+    
+    // Validate messages
+    const validation = validateMessages(messages);
+    if (!validation.valid || !validation.data) {
+      return new Response(
+        JSON.stringify({ error: validation.error }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`Processing AI dispute request from IP: ${clientIP}, messages: ${validation.data.length}`);
+
+    // System prompt for the AI dispute resolver
+    const systemPrompt = `You are an impartial AI judge for eCash Pulse prediction markets. Your role is to help resolve disputes about prediction market outcomes.
+
+Guidelines:
+- Be objective and fair in your analysis
+- Consider all evidence presented
+- Reference official sources when possible
+- Explain your reasoning clearly
+- If the outcome is unclear, suggest waiting for more information
+
+You can only discuss matters related to prediction market outcomes and disputes. Do not engage with off-topic requests.`;
+
+    // Use Lovable AI API
+    const response = await fetch('https://ai-gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${Deno.env.get('LOVABLE_API_KEY')}`,
       },
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
         messages: [
-          {
-            role: 'system',
-            content: `You are an AI dispute resolution assistant for eCash Pulse, a prediction market platform. Your role is to:
-
-1. **Fact-Check Claims**: Verify predictions and outcomes using your knowledge. Be clear about what you know vs. what you're uncertain about.
-
-2. **Resolve Disputes**: When users have disagreements about prediction outcomes, provide neutral, evidence-based analysis.
-
-3. **Provide Sources**: When possible, reference well-known events, statistics, or facts that support your conclusions.
-
-4. **Be Transparent**: If something is uncertain or you don't have reliable information, say so clearly.
-
-5. **Stay Neutral**: Don't take sides in disputes. Present facts objectively.
-
-Important guidelines:
-- Be concise but thorough
-- Use clear, simple language
-- If a prediction is about a future event, explain that you cannot verify outcomes of future events
-- For past events, provide factual information with confidence levels
-- Always maintain a helpful, professional tone`
-          },
-          ...messages
+          { role: 'system', content: systemPrompt },
+          ...validation.data
         ],
+        max_tokens: 1000,
+        temperature: 0.7,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('AI gateway error:', response.status, errorText);
+      console.error('AI API error:', response.status, errorText);
       
       if (response.status === 429) {
-        return new Response(JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }), {
-          status: 429,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: 'Service temporarily unavailable.' }), {
-          status: 402,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+        return new Response(
+          JSON.stringify({ error: 'AI service is busy. Please try again in a moment.' }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
       
-      throw new Error(`AI gateway error: ${response.status}`);
+      throw new Error(`AI API error: ${response.status}`);
     }
 
     const data = await response.json();
-    const aiResponse = data.choices?.[0]?.message?.content || 'I was unable to process your request.';
+    const aiMessage = data.choices?.[0]?.message?.content || 'Unable to process your request.';
 
-    console.log('Successfully generated response');
-
-    return new Response(JSON.stringify({ response: aiResponse }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ response: aiMessage }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
 
   } catch (error) {
     console.error('Error in ai-dispute function:', error);
-    return new Response(JSON.stringify({ 
-      error: error instanceof Error ? error.message : 'An unexpected error occurred' 
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ error: 'An error occurred processing your request.' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
 });

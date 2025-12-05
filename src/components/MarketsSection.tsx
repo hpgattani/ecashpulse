@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { predictions } from '@/data/predictions';
+import { usePredictions } from '@/hooks/usePredictions';
 import PredictionCard from './PredictionCard';
 import MarketFilters from './MarketFilters';
+import { Loader2 } from 'lucide-react';
 
 const MarketsSection = () => {
   const [activeCategory, setActiveCategory] = useState('all');
+  const { predictions, loading, error } = usePredictions();
 
   const filteredPredictions = activeCategory === 'all'
     ? predictions
@@ -43,18 +45,38 @@ const MarketsSection = () => {
           />
         </motion.div>
 
-        {/* Markets Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredPredictions.map((prediction, index) => (
-            <PredictionCard
-              key={prediction.id}
-              prediction={prediction}
-              index={index}
-            />
-          ))}
-        </div>
+        {/* Loading State */}
+        {loading && (
+          <div className="flex justify-center py-16">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          </div>
+        )}
 
-        {filteredPredictions.length === 0 && (
+        {/* Error State */}
+        {error && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center py-16"
+          >
+            <p className="text-destructive">Failed to load markets. Please try again.</p>
+          </motion.div>
+        )}
+
+        {/* Markets Grid */}
+        {!loading && !error && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredPredictions.map((prediction, index) => (
+              <PredictionCard
+                key={prediction.id}
+                prediction={prediction}
+                index={index}
+              />
+            ))}
+          </div>
+        )}
+
+        {!loading && !error && filteredPredictions.length === 0 && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

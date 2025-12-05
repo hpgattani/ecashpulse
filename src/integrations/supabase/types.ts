@@ -14,7 +14,164 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      bets: {
+        Row: {
+          amount: number
+          confirmed_at: string | null
+          created_at: string
+          id: string
+          payout_amount: number | null
+          payout_tx_hash: string | null
+          position: Database["public"]["Enums"]["bet_position"]
+          prediction_id: string
+          status: Database["public"]["Enums"]["bet_status"]
+          tx_hash: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          confirmed_at?: string | null
+          created_at?: string
+          id?: string
+          payout_amount?: number | null
+          payout_tx_hash?: string | null
+          position: Database["public"]["Enums"]["bet_position"]
+          prediction_id: string
+          status?: Database["public"]["Enums"]["bet_status"]
+          tx_hash?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          confirmed_at?: string | null
+          created_at?: string
+          id?: string
+          payout_amount?: number | null
+          payout_tx_hash?: string | null
+          position?: Database["public"]["Enums"]["bet_position"]
+          prediction_id?: string
+          status?: Database["public"]["Enums"]["bet_status"]
+          tx_hash?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bets_prediction_id_fkey"
+            columns: ["prediction_id"]
+            isOneToOne: false
+            referencedRelation: "predictions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      platform_fees: {
+        Row: {
+          amount: number
+          bet_id: string | null
+          created_at: string
+          id: string
+          tx_hash: string | null
+        }
+        Insert: {
+          amount: number
+          bet_id?: string | null
+          created_at?: string
+          id?: string
+          tx_hash?: string | null
+        }
+        Update: {
+          amount?: number
+          bet_id?: string | null
+          created_at?: string
+          id?: string
+          tx_hash?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_fees_bet_id_fkey"
+            columns: ["bet_id"]
+            isOneToOne: false
+            referencedRelation: "bets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      predictions: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          end_date: string
+          escrow_address: string
+          id: string
+          image_url: string | null
+          no_pool: number
+          resolved_at: string | null
+          status: Database["public"]["Enums"]["prediction_status"]
+          title: string
+          updated_at: string
+          yes_pool: number
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          end_date: string
+          escrow_address: string
+          id?: string
+          image_url?: string | null
+          no_pool?: number
+          resolved_at?: string | null
+          status?: Database["public"]["Enums"]["prediction_status"]
+          title: string
+          updated_at?: string
+          yes_pool?: number
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          end_date?: string
+          escrow_address?: string
+          id?: string
+          image_url?: string | null
+          no_pool?: number
+          resolved_at?: string | null
+          status?: Database["public"]["Enums"]["prediction_status"]
+          title?: string
+          updated_at?: string
+          yes_pool?: number
+        }
+        Relationships: []
+      }
+      users: {
+        Row: {
+          created_at: string
+          ecash_address: string
+          id: string
+          last_login_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          ecash_address: string
+          id?: string
+          last_login_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          ecash_address?: string
+          id?: string
+          last_login_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +180,9 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      bet_position: "yes" | "no"
+      bet_status: "pending" | "confirmed" | "won" | "lost" | "refunded"
+      prediction_status: "active" | "resolved_yes" | "resolved_no" | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +309,10 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      bet_position: ["yes", "no"],
+      bet_status: ["pending", "confirmed", "won", "lost", "refunded"],
+      prediction_status: ["active", "resolved_yes", "resolved_no", "cancelled"],
+    },
   },
 } as const

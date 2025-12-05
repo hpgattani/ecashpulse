@@ -1,9 +1,23 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Prediction } from '@/types/prediction';
 import { Button } from '@/components/ui/button';
 import { TrendingUp, TrendingDown, Clock, Users } from 'lucide-react';
 import BetModal from './BetModal';
+
+interface Prediction {
+  id: string;
+  question: string;
+  description: string;
+  category: 'crypto' | 'politics' | 'sports' | 'tech' | 'entertainment';
+  yesOdds: number;
+  noOdds: number;
+  volume: number;
+  endDate: string;
+  image?: string;
+  trending?: boolean;
+  change24h?: number;
+  escrowAddress?: string;
+}
 
 interface PredictionCardProps {
   prediction: Prediction;
@@ -17,7 +31,8 @@ const PredictionCard = ({ prediction, index }: PredictionCardProps) => {
   const formatVolume = (vol: number) => {
     if (vol >= 1000000) return `$${(vol / 1000000).toFixed(1)}M`;
     if (vol >= 1000) return `$${(vol / 1000).toFixed(0)}K`;
-    return `$${vol}`;
+    if (vol >= 1) return `$${vol.toFixed(2)}`;
+    return `$${vol.toFixed(4)}`;
   };
 
   const formatDate = (dateStr: string) => {
