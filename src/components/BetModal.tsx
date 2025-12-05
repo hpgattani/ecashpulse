@@ -261,7 +261,7 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md z-50 p-3 sm:p-4"
           >
-            <div className="glass-card glow-primary p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
+            <div className="bg-card border border-border rounded-xl shadow-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
               <div className="flex items-start justify-between mb-4">
                 <div>
                   <h2 className="font-display font-bold text-lg sm:text-xl text-foreground mb-1">
@@ -307,7 +307,7 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
                       onChange={(e) => setBetAmount(e.target.value)}
                       min="1"
                       step="1"
-                      className="text-lg font-semibold"
+                      className="text-lg font-semibold h-12"
                     />
                   </div>
 
@@ -330,7 +330,7 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
                   )}
 
                   <Button
-                    className="w-full"
+                    className="w-full h-12 text-base font-semibold"
                     onClick={createBetAndShowPayButton}
                     disabled={isCreatingBet || !betAmount || parseFloat(betAmount) < 1}
                   >
@@ -340,39 +340,38 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
                         Preparing...
                       </>
                     ) : (
-                      `Continue to Pay ${betAmount || '0'} XEC`
+                      `Bet ${betAmount || '0'} XEC`
                     )}
                   </Button>
                 </div>
               ) : (
                 /* Step 2: PayButton */
                 <div className="space-y-4">
-                  {isPolling && (
-                    <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/10 text-primary text-sm">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Waiting for payment...</span>
-                    </div>
-                  )}
-
-                  {/* PayButton Container */}
-                  <div className="flex flex-col items-center gap-3">
-                    <p className="text-sm text-muted-foreground">
-                      Pay <span className="text-foreground font-semibold">{betAmount} XEC</span> to confirm your bet:
+                  <div className="p-4 rounded-lg bg-muted/80 border border-border">
+                    <p className="text-sm text-center text-muted-foreground mb-4">
+                      Pay <span className="text-foreground font-bold text-lg">{betAmount} XEC</span> to confirm:
                     </p>
+                    
+                    {/* PayButton Container - only rendered when pendingBetId exists */}
                     <div 
                       ref={payButtonRef} 
-                      className="w-full flex justify-center min-h-[50px] [&_.paybutton]:min-w-[200px]"
+                      className="flex justify-center [&_.paybutton]:min-w-[180px] [&_.paybutton-primary]:rounded-lg"
                     />
+                    
+                    {isPolling && (
+                      <div className="flex items-center justify-center gap-2 mt-3 text-primary text-xs">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        <span>Waiting for payment...</span>
+                      </div>
+                    )}
                   </div>
 
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     className="w-full"
-                    onClick={() => {
-                      resetModal();
-                    }}
+                    onClick={resetModal}
                   >
-                    Cancel & Go Back
+                    ← Go Back
                   </Button>
                 </div>
               )}
