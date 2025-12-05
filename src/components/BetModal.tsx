@@ -93,18 +93,31 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
 
   // Render PayButton when modal opens and amount changes
   useEffect(() => {
-    if (!isOpen || !payButtonRef.current || !user || !sessionToken || betSuccess) return;
+    if (!isOpen || !payButtonRef.current || !user || !sessionToken || betSuccess) {
+      // Clear container when modal closes
+      if (payButtonRef.current) {
+        payButtonRef.current.innerHTML = '';
+      }
+      return;
+    }
 
     const amount = parseFloat(betAmount) || 0;
-    if (amount <= 0) return;
+    if (amount <= 0) {
+      payButtonRef.current.innerHTML = '';
+      return;
+    }
 
+    // Clear existing content first
     payButtonRef.current.innerHTML = '';
 
     const renderButton = () => {
       if (!payButtonRef.current) return;
       
+      // Ensure container is empty before rendering
+      payButtonRef.current.innerHTML = '';
+      
       const buttonContainer = document.createElement('div');
-      buttonContainer.id = `paybutton-${prediction.id}`;
+      buttonContainer.id = `paybutton-${prediction.id}-${Date.now()}`;
       payButtonRef.current.appendChild(buttonContainer);
 
       if ((window as any).PayButton) {
@@ -144,7 +157,14 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
       }
     };
 
-    setTimeout(renderButton, 100);
+    const timeoutId = setTimeout(renderButton, 100);
+    
+    return () => {
+      clearTimeout(timeoutId);
+      if (payButtonRef.current) {
+        payButtonRef.current.innerHTML = '';
+      }
+    };
   }, [isOpen, betAmount, user, sessionToken, prediction.id, position, betSuccess]);
 
   if (!user || !sessionToken) {

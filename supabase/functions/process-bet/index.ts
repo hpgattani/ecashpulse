@@ -153,6 +153,32 @@ Deno.serve(async (req) => {
       amount: feeAmount,
     });
 
+    // Update prediction pool when bet is confirmed
+    if (tx_hash) {
+      const { data: currentPrediction } = await supabase
+        .from('predictions')
+        .select('yes_pool, no_pool')
+        .eq('id', prediction_id)
+        .single();
+
+      if (currentPrediction) {
+        const updateData = position === 'yes' 
+          ? { yes_pool: (currentPrediction.yes_pool || 0) + betAmount, updated_at: new Date().toISOString() }
+          : { no_pool: (currentPrediction.no_pool || 0) + betAmount, updated_at: new Date().toISOString() };
+        
+        const { error: updateError } = await supabase
+          .from('predictions')
+          .update(updateData)
+          .eq('id', prediction_id);
+
+        if (updateError) {
+          console.error('Error updating prediction pool:', updateError);
+        } else {
+          console.log(`Updated ${position}_pool for prediction ${prediction_id}`);
+        }
+      }
+    }
+
     console.log(`Bet created: ${bet.id} for user ${user_id}, ${position} @ ${betAmount} XEC`);
 
     return new Response(
