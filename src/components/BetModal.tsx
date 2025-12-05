@@ -86,13 +86,35 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
     setIsCreatingBet(false);
   };
 
-  // Load PayButton script on mount
+  // Load PayButton script and track when it's ready
+  const [payButtonReady, setPayButtonReady] = useState(false);
+  
   useEffect(() => {
+    const checkPayButton = () => {
+      if ((window as any).PayButton) {
+        setPayButtonReady(true);
+        return true;
+      }
+      return false;
+    };
+
+    if (checkPayButton()) return;
+
     if (!document.querySelector('script[src*="paybutton"]')) {
       const script = document.createElement('script');
       script.src = 'https://unpkg.com/@paybutton/paybutton/dist/paybutton.js';
       script.async = true;
+      script.onload = () => {
+        // Wait a bit for PayButton to initialize
+        setTimeout(checkPayButton, 100);
+      };
       document.body.appendChild(script);
+    } else {
+      // Script exists, check periodically
+      const interval = setInterval(() => {
+        if (checkPayButton()) clearInterval(interval);
+      }, 100);
+      setTimeout(() => clearInterval(interval), 5000);
     }
   }, []);
 
@@ -125,10 +147,8 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
 
       setPendingBetId(data.bet_id);
       setIsPolling(true);
+      setIsCreatingBet(false);
 
-      // Render PayButton after bet is created
-      setTimeout(() => renderPayButton(data.bet_id), 100);
-      
     } catch (error: any) {
       console.error('Error creating bet:', error);
       toast({
@@ -140,31 +160,26 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
     }
   };
 
-  const renderPayButton = (betId: string) => {
-    if (!payButtonRef.current || !user) return;
+  // Render PayButton when pendingBetId is set
+  useEffect(() => {
+    if (!pendingBetId || !payButtonRef.current || !user) return;
 
-    // Clear previous button
-    payButtonRef.current.innerHTML = '';
-    
     const amount = parseFloat(betAmount) || 0;
     if (amount <= 0) return;
 
-    // Create PayButton element with attributes
-    const payButton = document.createElement('div');
-    payButton.className = 'paybutton';
-    payButton.setAttribute('to', ESCROW_ADDRESS);
-    payButton.setAttribute('amount', amount.toString());
-    payButton.setAttribute('text', 'Bet');
-    payButton.setAttribute('hover-text', 'Predict');
-    payButton.setAttribute('success-text', 'You bet!');
-    payButton.setAttribute('op-return', `ECASHPULSE:${prediction.id}:${position}:${user.id}`);
-    
-    payButtonRef.current.appendChild(payButton);
+    // Clear previous
+    payButtonRef.current.innerHTML = '';
 
-    // Use PayButton API if available
-    if ((window as any).PayButton) {
-      try {
-        (window as any).PayButton.render(payButton, {
+    const renderButton = () => {
+      if (!payButtonRef.current) return;
+      
+      // Create the button container
+      const buttonContainer = document.createElement('div');
+      buttonContainer.id = `paybutton-${pendingBetId}`;
+      payButtonRef.current.appendChild(buttonContainer);
+
+      if ((window as any).PayButton) {
+        (window as any).PayButton.render(buttonContainer, {
           to: ESCROW_ADDRESS,
           amount: amount,
           currency: 'XEC',
@@ -175,16 +190,15 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
           theme: {
             palette: {
               primary: position === 'yes' ? '#10b981' : '#ef4444',
-              secondary: '#1a1a2e',
+              secondary: '#1e293b',
               tertiary: '#ffffff'
             }
           },
           onSuccess: async (txid: string) => {
             console.log('PayButton success:', txid);
-            // Auto-confirm the bet
             try {
               await supabase.functions.invoke('confirm-transaction', {
-                body: { bet_id: betId, tx_hash: txid },
+                body: { bet_id: pendingBetId, tx_hash: txid },
               });
               toast({
                 title: 'Bet Confirmed!',
@@ -197,13 +211,24 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
             }
           }
         });
-      } catch (error) {
-        console.error('PayButton render error:', error);
+      } else {
+        // Fallback: create HTML button
+        buttonContainer.innerHTML = `
+          <div class="paybutton" 
+            to="${ESCROW_ADDRESS}" 
+            amount="${amount}"
+            text="Bet"
+            hover-text="Predict"
+            success-text="You bet!"
+            op-return="ECASHPULSE:${prediction.id}:${position}:${user.id}"
+          ></div>
+        `;
       }
-    }
-    
-    setIsCreatingBet(false);
-  };
+    };
+
+    // Small delay to ensure DOM is ready
+    setTimeout(renderButton, 50);
+  }, [pendingBetId, betAmount, user, prediction.id, position, toast, onClose]);
 
   if (!user) {
     return (
@@ -261,7 +286,7 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md z-50 p-3 sm:p-4"
           >
-            <div className="bg-card border border-border rounded-xl shadow-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
+            <div className="glass-card glow-primary p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
               <div className="flex items-start justify-between mb-4">
                 <div>
                   <h2 className="font-display font-bold text-lg sm:text-xl text-foreground mb-1">
