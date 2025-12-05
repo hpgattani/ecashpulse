@@ -137,9 +137,9 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="fixed inset-x-4 top-1/2 -translate-y-1/2 mx-auto max-w-md z-50"
+            className="fixed inset-x-4 top-4 bottom-4 mx-auto max-w-md z-50 flex items-center"
           >
-            <div className="glass-card glow-primary p-4 sm:p-6">
+            <div className="glass-card glow-primary p-4 sm:p-6 w-full max-h-full overflow-y-auto">
               <div className="flex items-start justify-between mb-4">
                 <div>
                   <h2 className="font-display font-bold text-lg sm:text-xl text-foreground mb-1">
@@ -209,7 +209,7 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
                 {/* PayButton Container */}
                 <div 
                   ref={payButtonRef} 
-                  className="flex justify-center [&_.paybutton]:min-w-[180px] [&_.paybutton-primary]:rounded-lg"
+                  className="flex justify-center py-2 [&_.paybutton]:min-w-[180px] [&_.paybutton-primary]:rounded-lg"
                 />
               </div>
 

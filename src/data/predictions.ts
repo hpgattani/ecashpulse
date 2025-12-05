@@ -97,9 +97,9 @@ export const predictions: Prediction[] = [
 export const categories = [
   { id: 'all', name: 'All Markets', icon: '🌐' },
   { id: 'crypto', name: 'Crypto', icon: '₿' },
+  { id: 'elections', name: 'Elections', icon: '🗳️' },
   { id: 'politics', name: 'Politics', icon: '🏛️' },
   { id: 'economics', name: 'Economics', icon: '📈' },
   { id: 'sports', name: 'Sports', icon: '⚽' },
   { id: 'tech', name: 'Tech', icon: '🚀' },
-  { id: 'entertainment', name: 'Entertainment', icon: '🎬' },
 ];
