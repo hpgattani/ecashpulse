@@ -5,16 +5,20 @@ interface User {
   id: string;
   ecash_address: string;
   created_at: string;
+  last_login_at?: string | null;
 }
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (ecashAddress: string) => Promise<{ error: string | null }>;
+  login: (ecashAddress: string, signature?: string) => Promise<{ error: string | null }>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Message to sign for authentication (like eCashChat)
+export const AUTH_MESSAGE = "Sign this message to verify your eCash address for eCashPulse";
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -31,6 +35,14 @@ const isValidEcashAddress = (address: string): boolean => {
   // Also allow legacy format starting with 'q'
   const legacyRegex = /^q[a-z0-9]{41}$/;
   return ecashRegex.test(address.toLowerCase()) || legacyRegex.test(address.toLowerCase());
+};
+
+// Basic signature validation (format check)
+const isValidSignatureFormat = (signature: string): boolean => {
+  if (!signature || signature.length < 80) return false;
+  // Signatures are typically base64 encoded
+  const base64Regex = /^[A-Za-z0-9+/]+=*$/;
+  return base64Regex.test(signature.trim());
 };
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -50,11 +62,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(false);
   }, []);
 
-  const login = async (ecashAddress: string): Promise<{ error: string | null }> => {
+  const login = async (ecashAddress: string, signature?: string): Promise<{ error: string | null }> => {
     const trimmedAddress = ecashAddress.trim().toLowerCase();
     
     if (!isValidEcashAddress(trimmedAddress)) {
-      return { error: 'Invalid eCash address format. Please enter a valid address.' };
+      return { error: 'Invalid eCash address format. Please enter a valid address starting with "ecash:"' };
+    }
+
+    // If signature provided, validate its format
+    if (signature && !isValidSignatureFormat(signature)) {
+      return { error: 'Invalid signature format. Please sign the message with your eCash wallet.' };
     }
 
     try {

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Info, AlertCircle, Loader2, Copy, CheckCircle2 } from 'lucide-react';
+import { X, Info, AlertCircle, Loader2, Copy, CheckCircle2, Calculator } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
@@ -26,6 +26,15 @@ interface BetModalProps {
   position: 'yes' | 'no';
 }
 
+// Declare PayButton global
+declare global {
+  interface Window {
+    PayButton?: {
+      render: (element: HTMLElement, config: any) => void;
+    };
+  }
+}
+
 const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
   const payButtonRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
@@ -33,16 +42,36 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
   const { toast } = useToast();
   const [txHash, setTxHash] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [betAmount, setBetAmount] = useState('');
+  const [betAmount, setBetAmount] = useState('100');
   const [pendingBetId, setPendingBetId] = useState<string | null>(null);
   const [isPolling, setIsPolling] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [payButtonLoaded, setPayButtonLoaded] = useState(false);
 
   const copyAddress = async () => {
     await navigator.clipboard.writeText(ESCROW_ADDRESS);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  // Calculate potential payout
+  const currentOdds = position === 'yes' ? prediction.yesOdds : prediction.noOdds;
+  const winMultiplier = currentOdds > 0 ? (100 / currentOdds) : 1;
+  const potentialPayout = betAmount ? (parseFloat(betAmount) * winMultiplier).toFixed(2) : '0';
+  const potentialProfit = betAmount ? ((parseFloat(betAmount) * winMultiplier) - parseFloat(betAmount)).toFixed(2) : '0';
+
+  // Load PayButton script
+  useEffect(() => {
+    if (!document.querySelector('script[src*="paybutton"]')) {
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/@paybutton/paybutton/dist/paybutton.js';
+      script.async = true;
+      script.onload = () => setPayButtonLoaded(true);
+      document.body.appendChild(script);
+    } else {
+      setPayButtonLoaded(true);
+    }
+  }, []);
 
   // Poll for automatic payment detection
   const pollForPayment = useCallback(async (betId: string) => {
@@ -64,7 +93,7 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
         onClose();
         setPendingBetId(null);
         setTxHash('');
-        setBetAmount('');
+        setBetAmount('100');
       }
     } catch (error) {
       console.error('Poll error:', error);
@@ -83,41 +112,42 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
     };
   }, [isPolling, pendingBetId, pollForPayment]);
 
+  // Render PayButton after bet is created
   useEffect(() => {
-    if (isOpen && payButtonRef.current && user && betAmount) {
-      payButtonRef.current.innerHTML = '';
-      
-      const payButton = document.createElement('div');
-      payButton.className = 'paybutton';
-      payButton.setAttribute('to', ESCROW_ADDRESS);
-      payButton.setAttribute('amount', betAmount);
-      payButton.setAttribute('text', `Pay ${betAmount} XEC`);
-      payButton.setAttribute('hover-text', 'Send eCash');
-      payButton.setAttribute('success-text', 'Payment Sent!');
-      payButton.setAttribute('theme', JSON.stringify({
-        palette: {
-          primary: position === 'yes' ? '#10b981' : '#ef4444',
-          secondary: '#1a1a2e',
-          tertiary: '#ffffff'
-        }
-      }));
-      payButton.setAttribute('op-return', `ECASHPULSE:${prediction.id}:${position}:${user.id}`);
-      
-      payButtonRef.current.appendChild(payButton);
+    if (!isOpen || !payButtonRef.current || !user || !pendingBetId || !betAmount || !payButtonLoaded) return;
 
-      if (!document.querySelector('script[src*="paybutton"]')) {
-        const script = document.createElement('script');
-        script.src = 'https://unpkg.com/@paybutton/paybutton/dist/paybutton.js';
-        script.async = true;
-        document.body.appendChild(script);
-      } else if ((window as any).PayButton) {
-        (window as any).PayButton.render(payButton, {
+    // Clear previous button
+    payButtonRef.current.innerHTML = '';
+    
+    const amount = parseFloat(betAmount) || 0;
+    if (amount <= 0) return;
+
+    // Create PayButton element
+    const payButton = document.createElement('div');
+    payButton.className = 'paybutton';
+    payButton.setAttribute('to', ESCROW_ADDRESS);
+    payButton.setAttribute('amount', amount.toString());
+    payButton.setAttribute('text', `Pay ${amount} XEC`);
+    payButton.setAttribute('hover-text', 'Send eCash');
+    payButton.setAttribute('success-text', 'Payment Sent!');
+    
+    // Add OP_RETURN data for matching
+    const opReturn = `ECASHPULSE:${prediction.id}:${position}:${user.id}`;
+    payButton.setAttribute('op-return', opReturn);
+    
+    payButtonRef.current.appendChild(payButton);
+
+    // Render with PayButton API if available
+    if (window.PayButton) {
+      try {
+        window.PayButton.render(payButton, {
           to: ESCROW_ADDRESS,
-          amount: parseFloat(betAmount) || 0,
-          text: `Pay ${betAmount} XEC`,
+          amount: amount,
+          currency: 'XEC',
+          text: `Pay ${amount} XEC`,
           hoverText: 'Send eCash',
           successText: 'Payment Sent!',
-          opReturn: `ECASHPULSE:${prediction.id}:${position}:${user.id}`,
+          opReturn: opReturn,
           theme: {
             palette: {
               primary: position === 'yes' ? '#10b981' : '#ef4444',
@@ -126,12 +156,21 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
             }
           },
           onSuccess: (txid: string) => {
+            console.log('PayButton success:', txid);
+            setTxHash(txid);
+            // Auto-confirm
+            confirmWithTxHash(txid);
+          },
+          onTransaction: (txid: string) => {
+            console.log('PayButton transaction:', txid);
             setTxHash(txid);
           }
         });
+      } catch (error) {
+        console.error('PayButton render error:', error);
       }
     }
-  }, [isOpen, position, user, prediction.id, betAmount]);
+  }, [isOpen, position, user, prediction.id, betAmount, pendingBetId, payButtonLoaded]);
 
   const createPendingBet = async () => {
     if (!user || !betAmount || parseFloat(betAmount) < 1) {
@@ -164,7 +203,7 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
       
       toast({
         title: 'Bet Created',
-        description: `Send ${betAmount} XEC to the escrow address to confirm.`,
+        description: `Send ${betAmount} XEC using PayButton below to confirm.`,
       });
     } catch (error: any) {
       console.error('Error creating bet:', error);
@@ -178,8 +217,10 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
     }
   };
 
-  const confirmWithTxHash = async () => {
-    if (!pendingBetId || !txHash.trim()) {
+  const confirmWithTxHash = async (hash?: string) => {
+    const txToConfirm = hash || txHash.trim();
+    
+    if (!pendingBetId || !txToConfirm) {
       toast({
         title: 'Missing Information',
         description: 'Please create a bet first and provide the transaction hash.',
@@ -194,7 +235,7 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
       const { data, error } = await supabase.functions.invoke('confirm-transaction', {
         body: {
           bet_id: pendingBetId,
-          tx_hash: txHash.trim(),
+          tx_hash: txToConfirm,
         },
       });
 
@@ -202,13 +243,13 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
 
       toast({
         title: 'Bet Confirmed!',
-        description: `Your ${position.toUpperCase()} bet has been confirmed.`,
+        description: `Your ${position.toUpperCase()} bet of ${betAmount} XEC has been confirmed.`,
       });
 
       onClose();
       setPendingBetId(null);
       setTxHash('');
-      setBetAmount('');
+      setBetAmount('100');
       setIsPolling(false);
     } catch (error: any) {
       console.error('Error confirming bet:', error);
@@ -295,29 +336,22 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
                 </Button>
               </div>
 
-              <div className="p-4 rounded-lg bg-muted/50 mb-6">
+              {/* Prediction Info */}
+              <div className="p-3 sm:p-4 rounded-lg bg-muted/50 mb-4">
                 <h3 className="font-medium text-foreground mb-2 text-sm">{prediction.question}</h3>
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Your Position:</span>
                     <span className={position === 'yes' ? 'text-emerald-400 font-semibold' : 'text-red-400 font-semibold'}>
-                      {position.toUpperCase()} ({position === 'yes' ? prediction.yesOdds : prediction.noOdds}%)
+                      {position.toUpperCase()} ({currentOdds}%)
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Win Multiplier:</span>
                     <span className="text-primary font-semibold">
-                      {(100 / (position === 'yes' ? prediction.yesOdds : prediction.noOdds)).toFixed(2)}x
+                      {winMultiplier.toFixed(2)}x
                     </span>
                   </div>
-                  {betAmount && parseFloat(betAmount) > 0 && (
-                    <div className="flex items-center justify-between border-t border-border/50 pt-2 mt-2">
-                      <span className="text-muted-foreground">Potential Payout:</span>
-                      <span className="text-emerald-400 font-bold text-lg">
-                        {((parseFloat(betAmount) * 100) / (position === 'yes' ? prediction.yesOdds : prediction.noOdds)).toFixed(2)} XEC
-                      </span>
-                    </div>
-                  )}
                 </div>
               </div>
 
@@ -335,7 +369,7 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
               </div>
 
               {!pendingBetId ? (
-                <div className="space-y-4 mb-6">
+                <div className="space-y-4 mb-4">
                   <div>
                     <label className="text-sm text-muted-foreground mb-1 block">
                       Bet Amount (XEC)
@@ -350,6 +384,26 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
                     />
                   </div>
 
+                  {/* Payout Calculator */}
+                  {betAmount && parseFloat(betAmount) > 0 && (
+                    <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Calculator className="w-4 h-4 text-emerald-400" />
+                        <span className="text-sm font-medium text-emerald-400">If you win:</span>
+                      </div>
+                      <div className="space-y-1 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Total Payout:</span>
+                          <span className="text-emerald-400 font-bold">{potentialPayout} XEC</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Profit:</span>
+                          <span className="text-emerald-400 font-semibold">+{potentialProfit} XEC</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <Button
                     className="w-full"
                     onClick={createPendingBet}
@@ -361,12 +415,12 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
                         Creating Bet...
                       </>
                     ) : (
-                      'Create Bet'
+                      `Bet ${betAmount || '0'} XEC on ${position.toUpperCase()}`
                     )}
                   </Button>
                 </div>
               ) : (
-                <div className="space-y-4 mb-6">
+                <div className="space-y-4 mb-4">
                   {isPolling && (
                     <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-500/10 text-emerald-400 text-sm">
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -374,17 +428,20 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
                     </div>
                   )}
 
-                  <div ref={payButtonRef} className="flex justify-center min-h-[60px]" />
+                  {/* PayButton Container */}
+                  <div 
+                    ref={payButtonRef} 
+                    className="flex justify-center min-h-[50px] [&_.paybutton]:w-full"
+                  />
 
-                  <div className="text-center text-sm text-muted-foreground">or</div>
+                  <div className="text-center text-xs text-muted-foreground">
+                    or enter TX hash manually
+                  </div>
 
                   <div>
-                    <label className="text-sm text-muted-foreground mb-1 block">
-                      Manual TX Hash Confirmation
-                    </label>
                     <Input
                       type="text"
-                      placeholder="Paste your TX hash"
+                      placeholder="Paste your TX hash after sending"
                       value={txHash}
                       onChange={(e) => setTxHash(e.target.value)}
                       className="font-mono text-xs"
@@ -393,7 +450,7 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
 
                   <Button
                     className="w-full"
-                    onClick={confirmWithTxHash}
+                    onClick={() => confirmWithTxHash()}
                     disabled={isSubmitting || !txHash.trim()}
                     variant="secondary"
                   >
@@ -413,7 +470,7 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
                 <Info className="w-3 h-3 sm:w-4 sm:h-4 text-primary mt-0.5 flex-shrink-0" />
                 <div className="text-muted-foreground text-[11px] sm:text-sm">
                   <p className="mb-1">1% platform fee applies to all bets.</p>
-                  <p>Your bet will be auto-confirmed when payment is detected.</p>
+                  <p>Payment is auto-confirmed when detected on blockchain.</p>
                 </div>
               </div>
             </div>
