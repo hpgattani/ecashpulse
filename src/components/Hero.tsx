@@ -55,11 +55,21 @@ const Hero = () => {
             transition={{ delay: 0.7 }}
             className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-16 px-4 sm:px-0"
           >
-            <Button variant="glow" size="lg" className="w-full sm:w-auto sm:size-xl text-sm sm:text-base px-6 sm:px-8 py-3 sm:py-4">
+            <Button 
+              variant="glow" 
+              size="lg" 
+              className="w-full sm:w-auto text-base px-8 py-4 h-auto"
+              onClick={() => document.getElementById('markets')?.scrollIntoView({ behavior: 'smooth' })}
+            >
               Start Trading
-              <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
+              <ArrowRight className="w-5 h-5" />
             </Button>
-            <Button variant="glass" size="lg" className="w-full sm:w-auto sm:size-xl text-sm sm:text-base px-6 sm:px-8 py-3 sm:py-4">
+            <Button 
+              variant="glass" 
+              size="lg" 
+              className="w-full sm:w-auto text-base px-8 py-4 h-auto"
+              onClick={() => document.getElementById('trending')?.scrollIntoView({ behavior: 'smooth' })}
+            >
               Explore Markets
             </Button>
           </motion.div>
