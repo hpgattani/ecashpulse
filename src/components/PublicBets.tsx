@@ -115,38 +115,38 @@ const PublicBets = () => {
   }
 
   return (
-    <div className="glass-card p-6">
-      <h3 className="font-display font-bold text-lg text-foreground mb-4 flex items-center gap-2">
-        <TrendingUp className="w-5 h-5 text-primary" />
+    <div className="glass-card p-4 sm:p-6">
+      <h3 className="font-display font-bold text-base sm:text-lg text-foreground mb-4 flex items-center gap-2">
+        <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
         Recent Bets (Transparent)
       </h3>
       
-      <div className="space-y-3 max-h-[400px] overflow-y-auto">
+      <div className="space-y-2 sm:space-y-3 max-h-[350px] sm:max-h-[400px] overflow-y-auto">
         {bets.map((bet, index) => (
           <motion.div
             key={bet.id}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05 }}
-            className="p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+            className="p-2 sm:p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
           >
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 {bet.position === 'yes' ? (
-                  <TrendingUp className="w-4 h-4 text-emerald-400" />
+                  <TrendingUp className="w-4 h-4 text-emerald-400 flex-shrink-0" />
                 ) : (
-                  <TrendingDown className="w-4 h-4 text-red-400" />
+                  <TrendingDown className="w-4 h-4 text-red-400 flex-shrink-0" />
                 )}
                 <span className={`font-semibold text-sm ${
                   bet.position === 'yes' ? 'text-emerald-400' : 'text-red-400'
                 }`}>
                   {bet.position.toUpperCase()}
                 </span>
-                <span className="text-foreground font-medium">
+                <span className="text-foreground font-medium text-sm">
                   {formatAmount(bet.amount)}
                 </span>
               </div>
-              <Badge variant={bet.status === 'confirmed' ? 'default' : 'secondary'} className="text-xs">
+              <Badge variant={bet.status === 'confirmed' ? 'default' : 'secondary'} className="text-xs w-fit">
                 {bet.status === 'confirmed' ? (
                   <><CheckCircle2 className="w-3 h-3 mr-1" /> Confirmed</>
                 ) : (
@@ -155,10 +155,16 @@ const PublicBets = () => {
               </Badge>
             </div>
             
+            {bet.predictions?.title && (
+              <p className="text-xs text-foreground/80 mb-2 line-clamp-1">
+                {bet.predictions.title}
+              </p>
+            )}
+            
             <div className="text-xs text-muted-foreground space-y-1">
-              <div className="flex items-center justify-between">
-                <span>Wallet: {bet.users ? formatAddress(bet.users.ecash_address) : 'Unknown'}</span>
-                <span>{formatTime(bet.created_at)}</span>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                <span className="truncate">Wallet: {bet.users ? formatAddress(bet.users.ecash_address) : 'Unknown'}</span>
+                <span className="text-muted-foreground/70">{formatTime(bet.created_at)}</span>
               </div>
               
               {bet.tx_hash && (
@@ -166,10 +172,12 @@ const PublicBets = () => {
                   href={`https://explorer.e.cash/tx/${bet.tx_hash}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-primary hover:underline"
+                  className="flex items-center gap-1 text-primary hover:underline break-all"
                 >
-                  <span className="font-mono">{bet.tx_hash.slice(0, 16)}...{bet.tx_hash.slice(-8)}</span>
-                  <ExternalLink className="w-3 h-3" />
+                  <span className="font-mono text-[10px] sm:text-xs">
+                    TX: {bet.tx_hash.slice(0, 12)}...{bet.tx_hash.slice(-6)}
+                  </span>
+                  <ExternalLink className="w-3 h-3 flex-shrink-0" />
                 </a>
               )}
             </div>

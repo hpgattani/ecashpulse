@@ -276,44 +276,60 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md z-50 p-4"
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md z-50 p-3 sm:p-4"
           >
-            <div className="glass-card glow-primary p-6 max-h-[90vh] overflow-y-auto">
-              <div className="flex items-start justify-between mb-6">
+            <div className="glass-card glow-primary p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
+              <div className="flex items-start justify-between mb-4 sm:mb-6">
                 <div>
-                  <h2 className="font-display font-bold text-xl text-foreground mb-1">
+                  <h2 className="font-display font-bold text-lg sm:text-xl text-foreground mb-1">
                     Place Your Bet
                   </h2>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-xs sm:text-sm text-muted-foreground">
                     Betting <span className={position === 'yes' ? 'text-emerald-400 font-semibold' : 'text-red-400 font-semibold'}>
                       {position.toUpperCase()}
                     </span>
                   </p>
                 </div>
-                <Button variant="ghost" size="icon" onClick={onClose}>
-                  <X className="w-5 h-5" />
+                <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 sm:h-10 sm:w-10">
+                  <X className="w-4 h-4 sm:w-5 sm:h-5" />
                 </Button>
               </div>
 
               <div className="p-4 rounded-lg bg-muted/50 mb-6">
                 <h3 className="font-medium text-foreground mb-2 text-sm">{prediction.question}</h3>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Current Odds:</span>
-                  <span className={position === 'yes' ? 'text-emerald-400 font-semibold' : 'text-red-400 font-semibold'}>
-                    {position === 'yes' ? prediction.yesOdds : prediction.noOdds}%
-                  </span>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Your Position:</span>
+                    <span className={position === 'yes' ? 'text-emerald-400 font-semibold' : 'text-red-400 font-semibold'}>
+                      {position.toUpperCase()} ({position === 'yes' ? prediction.yesOdds : prediction.noOdds}%)
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Win Multiplier:</span>
+                    <span className="text-primary font-semibold">
+                      {(100 / (position === 'yes' ? prediction.yesOdds : prediction.noOdds)).toFixed(2)}x
+                    </span>
+                  </div>
+                  {betAmount && parseFloat(betAmount) > 0 && (
+                    <div className="flex items-center justify-between border-t border-border/50 pt-2 mt-2">
+                      <span className="text-muted-foreground">Potential Payout:</span>
+                      <span className="text-emerald-400 font-bold text-lg">
+                        {((parseFloat(betAmount) * 100) / (position === 'yes' ? prediction.yesOdds : prediction.noOdds)).toFixed(2)} XEC
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Escrow Address */}
-              <div className="p-3 rounded-lg bg-primary/10 mb-4">
-                <p className="text-xs text-muted-foreground mb-1">Send XEC to:</p>
-                <div className="flex items-center gap-2">
-                  <code className="text-xs text-primary font-mono flex-1 break-all">
+              <div className="p-2 sm:p-3 rounded-lg bg-primary/10 mb-4">
+                <p className="text-[10px] sm:text-xs text-muted-foreground mb-1">Send XEC to:</p>
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <code className="text-[9px] sm:text-xs text-primary font-mono flex-1 break-all leading-relaxed">
                     {ESCROW_ADDRESS}
                   </code>
-                  <Button variant="ghost" size="icon" onClick={copyAddress} className="h-8 w-8">
-                    {copied ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                  <Button variant="ghost" size="icon" onClick={copyAddress} className="h-7 w-7 sm:h-8 sm:w-8 flex-shrink-0">
+                    {copied ? <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4 text-emerald-400" /> : <Copy className="w-3 h-3 sm:w-4 sm:h-4" />}
                   </Button>
                 </div>
               </div>
@@ -393,9 +409,9 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
                 </div>
               )}
 
-              <div className="flex items-start gap-2 p-3 rounded-lg bg-primary/10 text-sm">
-                <Info className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
-                <div className="text-muted-foreground">
+              <div className="flex items-start gap-2 p-2 sm:p-3 rounded-lg bg-primary/10 text-xs sm:text-sm">
+                <Info className="w-3 h-3 sm:w-4 sm:h-4 text-primary mt-0.5 flex-shrink-0" />
+                <div className="text-muted-foreground text-[11px] sm:text-sm">
                   <p className="mb-1">1% platform fee applies to all bets.</p>
                   <p>Your bet will be auto-confirmed when payment is detected.</p>
                 </div>
