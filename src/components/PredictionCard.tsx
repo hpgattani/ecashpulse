@@ -8,7 +8,7 @@ interface Prediction {
   id: string;
   question: string;
   description: string;
-  category: 'crypto' | 'politics' | 'sports' | 'tech' | 'entertainment';
+  category: 'crypto' | 'politics' | 'sports' | 'tech' | 'entertainment' | 'economics';
   yesOdds: number;
   noOdds: number;
   volume: number;
@@ -47,6 +47,7 @@ const PredictionCard = ({ prediction, index }: PredictionCardProps) => {
       sports: '⚽',
       tech: '🚀',
       entertainment: '🎬',
+      economics: '📈',
     };
     return emojis[category] || '🌐';
   };
