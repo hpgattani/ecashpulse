@@ -8,8 +8,22 @@ interface User {
   last_login_at?: string | null;
 }
 
+interface Profile {
+  id: string;
+  user_id: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  bio: string | null;
+  total_bets: number;
+  total_wins: number;
+  total_volume: number;
+  created_at: string;
+  updated_at: string;
+}
+
 interface AuthContextType {
   user: User | null;
+  profile: Profile | null;
   loading: boolean;
   login: (ecashAddress: string, signature?: string) => Promise<{ error: string | null }>;
   logout: () => void;
@@ -47,16 +61,22 @@ const isValidSignatureFormat = (signature: string): boolean => {
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Check for stored session
     const storedUser = localStorage.getItem('ecash_user');
+    const storedProfile = localStorage.getItem('ecash_profile');
     if (storedUser) {
       try {
         setUser(JSON.parse(storedUser));
+        if (storedProfile) {
+          setProfile(JSON.parse(storedProfile));
+        }
       } catch {
         localStorage.removeItem('ecash_user');
+        localStorage.removeItem('ecash_profile');
       }
     }
     setLoading(false);
@@ -90,8 +110,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const userData = data.user as User;
+      const profileData = data.profile as Profile | null;
+      
       setUser(userData);
+      setProfile(profileData);
       localStorage.setItem('ecash_user', JSON.stringify(userData));
+      if (profileData) {
+        localStorage.setItem('ecash_profile', JSON.stringify(profileData));
+      }
       return { error: null };
     } catch (err) {
       console.error('Login error:', err);
@@ -101,11 +127,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = () => {
     setUser(null);
+    setProfile(null);
     localStorage.removeItem('ecash_user');
+    localStorage.removeItem('ecash_profile');
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, profile, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

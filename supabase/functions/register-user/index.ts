@@ -63,12 +63,20 @@ Deno.serve(async (req) => {
         .update({ last_login_at: new Date().toISOString() })
         .eq('id', existingUser.id);
       
+      // Fetch profile
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', existingUser.id)
+        .maybeSingle();
+      
       console.log(`User ${existingUser.id} logged in`);
       
       return new Response(
         JSON.stringify({ 
           success: true, 
           user: existingUser,
+          profile,
           isNew: false
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -90,12 +98,20 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Fetch the auto-created profile
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', newUser.id)
+      .maybeSingle();
+
     console.log(`New user created: ${newUser.id}`);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         user: newUser,
+        profile,
         isNew: true
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
