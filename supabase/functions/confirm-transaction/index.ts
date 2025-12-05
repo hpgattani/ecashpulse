@@ -8,6 +8,57 @@ const corsHeaders = {
 const ESCROW_ADDRESS = 'ecash:qr6pwzt7glvmq6ryr4305kat0vnv2wy69qjxpdwz5a';
 const CHRONIK_URL = 'https://chronik.be.cash/xec';
 
+// Convert eCash cashaddr to P2PKH outputScript hex
+// For q-type (P2PKH) addresses: 76a914<20-byte-hash>88ac
+function addressToOutputScript(address: string): string | null {
+  try {
+    // Remove ecash: prefix
+    const addr = address.replace('ecash:', '');
+    
+    // Cashaddr uses a specific character set
+    const CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+    
+    // Decode cashaddr to get the hash
+    let data: number[] = [];
+    for (let i = 0; i < addr.length; i++) {
+      const charIndex = CHARSET.indexOf(addr[i].toLowerCase());
+      if (charIndex === -1) return null;
+      data.push(charIndex);
+    }
+    
+    // Skip the type byte (first 5-bit value after removing checksum)
+    // The checksum is 8 characters (40 bits)
+    const payloadEnd = data.length - 8;
+    const payload5bit = data.slice(0, payloadEnd);
+    
+    // Convert 5-bit groups to 8-bit bytes
+    let acc = 0;
+    let bits = 0;
+    const payload8bit: number[] = [];
+    
+    for (const value of payload5bit) {
+      acc = (acc << 5) | value;
+      bits += 5;
+      while (bits >= 8) {
+        bits -= 8;
+        payload8bit.push((acc >> bits) & 0xff);
+      }
+    }
+    
+    // First byte is version/type, rest is the 20-byte hash
+    if (payload8bit.length < 21) return null;
+    
+    const hash = payload8bit.slice(1, 21);
+    const hashHex = hash.map(b => b.toString(16).padStart(2, '0')).join('');
+    
+    // P2PKH script: OP_DUP OP_HASH160 <20-byte-hash> OP_EQUALVERIFY OP_CHECKSIG
+    return `76a914${hashHex}88ac`;
+  } catch (error) {
+    console.error('Address conversion error:', error);
+    return null;
+  }
+}
+
 interface ChronikTx {
   txid: string;
   outputs: Array<{
@@ -19,7 +70,7 @@ interface ChronikTx {
   };
 }
 
-async function verifyTransaction(txHash: string, expectedAmount: number): Promise<{ 
+async function verifyTransaction(txHash: string, expectedAmount: number, escrowScript: string): Promise<{ 
   verified: boolean; 
   actualAmount?: number;
   error?: string 
@@ -33,20 +84,35 @@ async function verifyTransaction(txHash: string, expectedAmount: number): Promis
     
     const tx: ChronikTx = await response.json();
     
+    // Find output that goes to escrow address with correct amount
     let foundAmount = 0;
+    let foundEscrowOutput = false;
+    
     for (const output of tx.outputs) {
       const outputValue = parseInt(output.value);
-      if (outputValue >= expectedAmount * 0.99) {
-        foundAmount = outputValue;
-        break;
+      
+      // CRITICAL: Verify output goes to escrow address
+      if (output.outputScript === escrowScript) {
+        foundEscrowOutput = true;
+        if (outputValue >= expectedAmount * 0.99) {
+          foundAmount = outputValue;
+          break;
+        }
       }
+    }
+    
+    if (!foundEscrowOutput) {
+      return { 
+        verified: false, 
+        error: 'Transaction does not send funds to escrow address' 
+      };
     }
     
     if (foundAmount < expectedAmount * 0.99) {
       return { 
         verified: false, 
         actualAmount: foundAmount,
-        error: `Amount mismatch: expected ${expectedAmount}, got ${foundAmount}` 
+        error: `Amount to escrow insufficient: expected ${expectedAmount}, got ${foundAmount}` 
       };
     }
     
@@ -86,6 +152,16 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Convert escrow address to outputScript for verification
+    const escrowScript = addressToOutputScript(ESCROW_ADDRESS);
+    if (!escrowScript) {
+      console.error('Failed to convert escrow address to script');
+      return new Response(
+        JSON.stringify({ error: 'Server configuration error' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Get bet details
     const { data: bet, error: betError } = await supabase
       .from('bets')
@@ -122,10 +198,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Verify transaction
-    const verification = await verifyTransaction(tx_hash, bet.amount);
+    // Verify transaction with destination check
+    const verification = await verifyTransaction(tx_hash, bet.amount, escrowScript);
     
     if (!verification.verified) {
+      console.log(`Transaction verification failed for bet ${bet_id}: ${verification.error}`);
       return new Response(
         JSON.stringify({ error: verification.error || 'Transaction verification failed' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -149,7 +226,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Bet ${bet_id} confirmed with tx ${tx_hash}`);
+    console.log(`Bet ${bet_id} confirmed with tx ${tx_hash} - verified escrow destination`);
 
     return new Response(
       JSON.stringify({ 

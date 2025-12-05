@@ -1,5 +1,8 @@
 project_id = "ctfqkbbauvznzmznmjdt"
 
+[functions.register-user]
+verify_jwt = false
+
 [functions.ai-dispute]
 verify_jwt = false
 

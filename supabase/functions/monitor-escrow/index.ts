@@ -8,10 +8,45 @@ const corsHeaders = {
 // The official escrow address
 const ESCROW_ADDRESS = 'ecash:qr6pwzt7glvmq6ryr4305kat0vnv2wy69qjxpdwz5a';
 
-interface ChronikUtxo {
-  txid: string;
-  outIdx: number;
-  value: string;
+// Convert eCash cashaddr to P2PKH outputScript hex
+function addressToOutputScript(address: string): string | null {
+  try {
+    const addr = address.replace('ecash:', '');
+    const CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+    
+    let data: number[] = [];
+    for (let i = 0; i < addr.length; i++) {
+      const charIndex = CHARSET.indexOf(addr[i].toLowerCase());
+      if (charIndex === -1) return null;
+      data.push(charIndex);
+    }
+    
+    const payloadEnd = data.length - 8;
+    const payload5bit = data.slice(0, payloadEnd);
+    
+    let acc = 0;
+    let bits = 0;
+    const payload8bit: number[] = [];
+    
+    for (const value of payload5bit) {
+      acc = (acc << 5) | value;
+      bits += 5;
+      while (bits >= 8) {
+        bits -= 8;
+        payload8bit.push((acc >> bits) & 0xff);
+      }
+    }
+    
+    if (payload8bit.length < 21) return null;
+    
+    const hash = payload8bit.slice(1, 21);
+    const hashHex = hash.map(b => b.toString(16).padStart(2, '0')).join('');
+    
+    return `76a914${hashHex}88ac`;
+  } catch (error) {
+    console.error('Address conversion error:', error);
+    return null;
+  }
 }
 
 interface ChronikTx {
@@ -34,11 +69,8 @@ interface ChronikTx {
 // Get recent transactions to the escrow address
 async function getRecentTransactions(): Promise<ChronikTx[]> {
   try {
-    // Convert address to script hash for Chronik API
-    // For q-type addresses, remove prefix and use as-is
     const addressHash = ESCROW_ADDRESS.replace('ecash:', '');
     
-    // Fetch transaction history for the address
     const response = await fetch(
       `https://chronik.be.cash/xec/address/${addressHash}/history?page=0&pageSize=50`
     );
@@ -65,6 +97,16 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Convert escrow address to outputScript for verification
+    const escrowScript = addressToOutputScript(ESCROW_ADDRESS);
+    if (!escrowScript) {
+      console.error('Failed to convert escrow address to script');
+      return new Response(
+        JSON.stringify({ error: 'Server configuration error' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Get all pending bets
     const { data: pendingBets, error: betsError } = await supabase
@@ -109,10 +151,20 @@ Deno.serve(async (req) => {
         continue; // Skip already used transactions
       }
 
-      // Find transaction amount to escrow
-      let txAmount = 0;
+      // CRITICAL: Find transaction amount that specifically goes to escrow address
+      let txAmountToEscrow = 0;
       for (const output of tx.outputs) {
-        txAmount = Math.max(txAmount, parseInt(output.value));
+        // Verify this output goes to the escrow address
+        if (output.outputScript === escrowScript) {
+          txAmountToEscrow = parseInt(output.value);
+          break; // Found the escrow output
+        }
+      }
+
+      // Skip if no amount was sent to escrow
+      if (txAmountToEscrow === 0) {
+        console.log(`Transaction ${tx.txid} has no output to escrow address, skipping`);
+        continue;
       }
 
       // Find a matching pending bet (within 1% tolerance)
@@ -120,7 +172,7 @@ Deno.serve(async (req) => {
         const expectedAmount = bet.amount;
         
         // Check if amount matches (within 1% for fees)
-        if (txAmount >= expectedAmount * 0.99 && txAmount <= expectedAmount * 1.01) {
+        if (txAmountToEscrow >= expectedAmount * 0.99 && txAmountToEscrow <= expectedAmount * 1.01) {
           // Confirm this bet
           const { error: updateError } = await supabase
             .from('bets')
@@ -137,10 +189,10 @@ Deno.serve(async (req) => {
             confirmations.push({
               bet_id: bet.id,
               tx_hash: tx.txid,
-              amount: txAmount
+              amount: txAmountToEscrow
             });
             usedTxHashes.add(tx.txid);
-            console.log(`Auto-confirmed bet ${bet.id} with tx ${tx.txid}`);
+            console.log(`Auto-confirmed bet ${bet.id} with tx ${tx.txid} - verified escrow destination`);
             
             // Remove from pending list
             const betIndex = pendingBets.indexOf(bet);
