@@ -1,27 +1,43 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
-import { Zap, Wallet, ArrowRight, AlertCircle } from 'lucide-react';
+import { Zap, Wallet, ArrowRight, AlertCircle, Shield, HelpCircle, Copy, CheckCircle2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useAuth } from '@/contexts/AuthContext';
+import { Textarea } from '@/components/ui/textarea';
+import { useAuth, AUTH_MESSAGE } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
 const Auth = () => {
   const [address, setAddress] = useState('');
+  const [signature, setSignature] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { login } = useAuth();
+  const [showSignatureHelp, setShowSignatureHelp] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const { user, login } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
+
+  const copyMessage = async () => {
+    await navigator.clipboard.writeText(AUTH_MESSAGE);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setIsLoading(true);
 
-    const result = await login(address);
+    const result = await login(address, signature || undefined);
     
     if (result.error) {
       setError(result.error);
@@ -29,9 +45,70 @@ const Auth = () => {
     } else {
       toast({
         title: 'Welcome!',
-        description: 'You have successfully logged in.',
+        description: signature ? 'Wallet verified and connected!' : 'Connected (unverified)',
       });
       navigate('/');
+    }
+  };
+
+  // Try to connect with Cashtab extension
+  const connectWithCashtab = async () => {
+    try {
+      // Check if Cashtab extension is available
+      const cashtab = (window as any).cashtab;
+      if (!cashtab) {
+        toast({
+          title: 'Cashtab Not Found',
+          description: 'Please install the Cashtab browser extension',
+          variant: 'destructive',
+        });
+        window.open('https://chromewebstore.google.com/detail/cashtab/obldfcmebhllhjlhjbnghaipekcppeag', '_blank');
+        return;
+      }
+
+      setIsLoading(true);
+      setError(null);
+      
+      // Request address from Cashtab
+      const addressResponse = await cashtab.request({ method: 'getAddress' });
+      if (addressResponse?.address) {
+        setAddress(addressResponse.address);
+        
+        // Request signature
+        try {
+          const signResponse = await cashtab.request({
+            method: 'signMessage',
+            params: { message: AUTH_MESSAGE }
+          });
+          
+          if (signResponse?.signature) {
+            setSignature(signResponse.signature);
+            
+            // Auto-login with verified signature
+            const result = await login(addressResponse.address, signResponse.signature);
+            if (result.error) {
+              setError(result.error);
+            } else {
+              toast({
+                title: 'Welcome!',
+                description: 'Wallet verified and connected!',
+              });
+              navigate('/');
+            }
+          }
+        } catch (signError) {
+          // User declined signing, still set the address
+          toast({
+            title: 'Address Retrieved',
+            description: 'You can still login without signature verification',
+          });
+        }
+      }
+    } catch (error: any) {
+      console.error('Cashtab error:', error);
+      setError(error.message || 'Failed to connect with Cashtab');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -68,8 +145,33 @@ const Auth = () => {
                 Connect with eCash
               </h1>
               <p className="text-muted-foreground text-sm">
-                Enter your eCash address to login or create an account
+                Sign in with your eCash address (like eCashChat)
               </p>
+            </div>
+
+            {/* Cashtab Button */}
+            <Button
+              type="button"
+              onClick={connectWithCashtab}
+              disabled={isLoading}
+              className="w-full mb-4 bg-[#0074C2] hover:bg-[#005a99] text-white"
+            >
+              <img 
+                src="https://cashtab.com/cashtab_xec.png" 
+                alt="Cashtab" 
+                className="w-5 h-5 mr-2"
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              />
+              Sign in with Cashtab
+            </Button>
+
+            <div className="relative mb-4">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-card px-2 text-muted-foreground">or sign in manually</span>
+              </div>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -80,10 +182,74 @@ const Auth = () => {
                 <Input
                   id="address"
                   type="text"
-                  placeholder="ecash:qz2708636snqhsxu8wnlka78h6fdp77ar59jrf5035"
+                  placeholder="ecash:qr..."
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
                   className="w-full font-mono text-sm"
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label htmlFor="signature" className="text-sm font-medium text-foreground flex items-center gap-1">
+                    Signature
+                    <button
+                      type="button"
+                      onClick={() => setShowSignatureHelp(!showSignatureHelp)}
+                      className="text-muted-foreground hover:text-primary"
+                    >
+                      <HelpCircle className="w-4 h-4" />
+                    </button>
+                  </label>
+                  <span className="text-xs text-muted-foreground">(Optional)</span>
+                </div>
+
+                {showSignatureHelp && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="mb-3 p-3 rounded-lg bg-muted/50 text-xs text-muted-foreground space-y-2"
+                  >
+                    <p className="font-medium text-foreground">How to verify (like eCashChat):</p>
+                    <ol className="list-decimal list-inside space-y-1">
+                      <li>Open Cashtab or Electrum ABC wallet</li>
+                      <li>Go to "Sign Message" feature</li>
+                      <li>Copy this message:</li>
+                    </ol>
+                    <div className="flex items-center gap-2 p-2 bg-background rounded">
+                      <code className="flex-1 text-[10px] break-all">{AUTH_MESSAGE}</code>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={copyMessage}
+                        className="h-6 w-6 flex-shrink-0"
+                      >
+                        {copied ? <CheckCircle2 className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                      </Button>
+                    </div>
+                    <ol className="list-decimal list-inside space-y-1" start={4}>
+                      <li>Sign with your address</li>
+                      <li>Paste the signature below</li>
+                    </ol>
+                    <a 
+                      href="https://www.ecashchat.com" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-primary hover:underline mt-2"
+                    >
+                      See how eCashChat does it <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </motion.div>
+                )}
+
+                <Textarea
+                  id="signature"
+                  placeholder="Paste your signature here..."
+                  value={signature}
+                  onChange={(e) => setSignature(e.target.value)}
+                  className="font-mono text-xs min-h-[60px]"
                   disabled={isLoading}
                 />
               </div>
@@ -99,6 +265,19 @@ const Auth = () => {
                 </motion.div>
               )}
 
+              {/* Security Warning */}
+              {!signature && address && (
+                <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                  <div className="flex gap-2">
+                    <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                    <div className="text-xs text-amber-200/80">
+                      <p className="font-medium text-amber-400 mb-1">Unverified Login</p>
+                      <p>Without a signature, we can't verify wallet ownership. Sign the message for secure login.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <Button
                 type="submit"
                 className="w-full"
@@ -108,7 +287,8 @@ const Auth = () => {
                   'Connecting...'
                 ) : (
                   <>
-                    Continue
+                    {signature ? <Shield className="w-4 h-4 mr-2" /> : null}
+                    {signature ? 'Verify & Connect' : 'Connect'}
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </>
                 )}
@@ -119,12 +299,12 @@ const Auth = () => {
               <p className="text-xs text-muted-foreground text-center">
                 Don't have an eCash wallet?{' '}
                 <a
-                  href="https://e.cash/wallets"
+                  href="https://cashtab.com"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary hover:underline"
                 >
-                  Get one here
+                  Get Cashtab
                 </a>
               </p>
             </div>
