@@ -118,10 +118,19 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
               tertiary: '#ffffff'
             }
           },
-          onSuccess: (txid: string) => {
-            console.log('PayButton success, txid:', txid);
-            recordBet(txid);
-          },
+                          onSuccess: (txResult: any) => {
+                            console.log('PayButton success, result:', txResult);
+                            // Extract just the hash - PayButton returns object with hash property
+                            let txHash: string | undefined;
+                            if (typeof txResult === 'string') {
+                              txHash = txResult;
+                            } else if (txResult?.hash) {
+                              txHash = txResult.hash;
+                            } else if (txResult?.txid) {
+                              txHash = txResult.txid;
+                            }
+                            recordBet(txHash);
+                          },
           onError: (error: any) => {
             console.error('PayButton error:', error);
             toast.error('Payment failed', {

@@ -52,18 +52,11 @@ const PublicBets = () => {
 
   const fetchBets = async () => {
     try {
-      const { data, error } = await supabase
-        .from('bets')
-        .select(`
-          *,
-          users(ecash_address),
-          predictions(title)
-        `)
-        .order('created_at', { ascending: false })
-        .limit(20);
+      // Use edge function to bypass RLS for public visibility
+      const { data, error } = await supabase.functions.invoke('get-public-bets');
 
       if (error) throw error;
-      setBets((data as Bet[]) || []);
+      setBets((data?.bets as Bet[]) || []);
     } catch (error) {
       console.error('Error fetching bets:', error);
     } finally {
