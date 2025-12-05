@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Zap, Github, ExternalLink } from 'lucide-react';
+import { Zap, Github, ExternalLink, Twitter } from 'lucide-react';
 
 const Footer = () => {
   return (
@@ -25,6 +25,14 @@ const Footer = () => {
               The decentralized prediction market built on eCash. Trade on real-world events with instant settlements and near-zero fees.
             </p>
             <div className="flex items-center gap-4">
+              <a
+                href="https://x.com/eCashPulse"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Twitter className="w-5 h-5" />
+              </a>
               <a
                 href="https://github.com/paybutton"
                 target="_blank"
