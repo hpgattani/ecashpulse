@@ -5,16 +5,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Validation schemas
+const ESCROW_ADDRESS = 'ecash:qr6pwzt7glvmq6ryr4305kat0vnv2wy69qjxpdwz5a';
+const PLATFORM_FEE_PERCENT = 0.01;
+
 function isValidUUID(str: string): boolean {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   return uuidRegex.test(str);
-}
-
-function isValidTxHash(str: string): boolean {
-  // eCash tx hash is 64 hex characters
-  const txRegex = /^[0-9a-f]{64}$/i;
-  return txRegex.test(str);
 }
 
 Deno.serve(async (req) => {
@@ -29,7 +25,7 @@ Deno.serve(async (req) => {
     );
 
     const body = await req.json();
-    const { user_id, prediction_id, position, amount, tx_hash } = body;
+    const { user_id, prediction_id, position, amount } = body;
 
     // Validate inputs
     if (!user_id || !isValidUUID(user_id)) {
@@ -53,9 +49,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (typeof amount !== 'number' || amount < 100 || amount > 1000000000) {
+    const betAmount = typeof amount === 'number' ? amount : parseInt(amount);
+    if (isNaN(betAmount) || betAmount < 100 || betAmount > 1000000000) {
       return new Response(
-        JSON.stringify({ error: 'Invalid amount (min 1 XEC, max 10M XEC)' }),
+        JSON.stringify({ error: 'Amount must be between 100 XEC and 10M XEC' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -102,72 +99,46 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Create bet
-    const betData: {
-      user_id: string;
-      prediction_id: string;
-      position: string;
-      amount: number;
-      status: string;
-      tx_hash?: string;
-      confirmed_at?: string;
-    } = {
-      user_id,
-      prediction_id,
-      position,
-      amount,
-      status: tx_hash ? 'confirmed' : 'pending',
-    };
-
-    if (tx_hash) {
-      if (!isValidTxHash(tx_hash)) {
-        return new Response(
-          JSON.stringify({ error: 'Invalid transaction hash format' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      betData.tx_hash = tx_hash;
-      betData.confirmed_at = new Date().toISOString();
-    }
-
+    // Create bet with pending status
     const { data: bet, error: betError } = await supabase
       .from('bets')
-      .insert(betData)
+      .insert({
+        user_id,
+        prediction_id,
+        position,
+        amount: betAmount,
+        status: 'pending'
+      })
       .select()
       .single();
 
     if (betError) {
       console.error('Error creating bet:', betError);
-      
-      // Check for duplicate tx_hash
-      if (betError.code === '23505') {
-        return new Response(
-          JSON.stringify({ error: 'Transaction already recorded' }),
-          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
       return new Response(
         JSON.stringify({ error: 'Failed to create bet' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // If confirmed, calculate and record platform fee (1%)
-    if (tx_hash && bet) {
-      const feeAmount = Math.floor(amount * 0.01);
-      await supabase
-        .from('platform_fees')
-        .insert({
-          bet_id: bet.id,
-          amount: feeAmount,
-        });
-    }
+    // Record platform fee (1%)
+    const feeAmount = Math.floor(betAmount * PLATFORM_FEE_PERCENT);
+    await supabase.from('platform_fees').insert({
+      bet_id: bet.id,
+      amount: feeAmount,
+    });
 
-    console.log(`Bet created: ${bet.id} for user ${user_id}, prediction ${prediction_id}, ${position} @ ${amount} satoshis`);
+    console.log(`Bet created: ${bet.id} for user ${user_id}, ${position} @ ${betAmount} XEC`);
 
     return new Response(
-      JSON.stringify({ success: true, bet }),
+      JSON.stringify({ 
+        success: true, 
+        bet_id: bet.id,
+        amount: betAmount,
+        position,
+        escrow_address: ESCROW_ADDRESS,
+        platform_fee: feeAmount,
+        message: `Send ${betAmount} XEC to ${ESCROW_ADDRESS} to confirm your bet`
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 

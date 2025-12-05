@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.confirm-transaction]
 verify_jwt = false
+
+[functions.monitor-escrow]
+verify_jwt = false
