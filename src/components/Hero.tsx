@@ -53,13 +53,13 @@ const Hero = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.7 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16"
+            className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-16 px-4 sm:px-0"
           >
-            <Button variant="glow" size="xl" className="w-full sm:w-auto">
+            <Button variant="glow" size="lg" className="w-full sm:w-auto sm:size-xl text-sm sm:text-base px-6 sm:px-8 py-3 sm:py-4">
               Start Trading
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
             </Button>
-            <Button variant="glass" size="xl" className="w-full sm:w-auto">
+            <Button variant="glass" size="lg" className="w-full sm:w-auto sm:size-xl text-sm sm:text-base px-6 sm:px-8 py-3 sm:py-4">
               Explore Markets
             </Button>
           </motion.div>
