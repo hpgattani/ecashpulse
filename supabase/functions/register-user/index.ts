@@ -12,6 +12,13 @@ function isValidEcashAddress(address: string): boolean {
   return ecashRegex.test(address.toLowerCase()) || legacyRegex.test(address.toLowerCase());
 }
 
+// Generate a secure random token
+function generateSessionToken(): string {
+  const array = new Uint8Array(32);
+  crypto.getRandomValues(array);
+  return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -56,6 +63,9 @@ Deno.serve(async (req) => {
       );
     }
 
+    let userData;
+    let isNew = false;
+
     if (existingUser) {
       // Update last login
       await supabase
@@ -63,56 +73,70 @@ Deno.serve(async (req) => {
         .update({ last_login_at: new Date().toISOString() })
         .eq('id', existingUser.id);
       
-      // Fetch profile
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', existingUser.id)
-        .maybeSingle();
-      
+      userData = existingUser;
       console.log(`User ${existingUser.id} logged in`);
-      
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          user: existingUser,
-          profile,
-          isNew: false
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    } else {
+      // Create new user
+      const { data: newUser, error: insertError } = await supabase
+        .from('users')
+        .insert({ ecash_address: trimmedAddress })
+        .select()
+        .single();
+
+      if (insertError || !newUser) {
+        console.error('Error creating user:', insertError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to create account' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      userData = newUser;
+      isNew = true;
+      console.log(`New user created: ${newUser.id}`);
     }
 
-    // Create new user
-    const { data: newUser, error: insertError } = await supabase
-      .from('users')
-      .insert({ ecash_address: trimmedAddress })
-      .select()
-      .single();
+    // Generate session token
+    const sessionToken = generateSessionToken();
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
 
-    if (insertError || !newUser) {
-      console.error('Error creating user:', insertError);
+    // Delete any existing sessions for this user (single session per user)
+    await supabase
+      .from('sessions')
+      .delete()
+      .eq('user_id', userData.id);
+
+    // Create new session
+    const { error: sessionError } = await supabase
+      .from('sessions')
+      .insert({
+        user_id: userData.id,
+        token: sessionToken,
+        expires_at: expiresAt.toISOString()
+      });
+
+    if (sessionError) {
+      console.error('Error creating session:', sessionError);
       return new Response(
-        JSON.stringify({ error: 'Failed to create account' }),
+        JSON.stringify({ error: 'Failed to create session' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Fetch the auto-created profile
+    // Fetch profile
     const { data: profile } = await supabase
       .from('profiles')
       .select('*')
-      .eq('user_id', newUser.id)
+      .eq('user_id', userData.id)
       .maybeSingle();
-
-    console.log(`New user created: ${newUser.id}`);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        user: newUser,
+        user: userData,
         profile,
-        isNew: true
+        session_token: sessionToken,
+        isNew
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

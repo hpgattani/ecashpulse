@@ -15,7 +15,7 @@ interface ProfileModalProps {
 }
 
 export const ProfileModal = ({ open, onOpenChange }: ProfileModalProps) => {
-  const { user, profile, updateProfile } = useAuth();
+  const { user, profile, sessionToken, updateProfile } = useAuth();
   const [displayName, setDisplayName] = useState(profile?.display_name || '');
   const [bio, setBio] = useState(profile?.bio || '');
   const [saving, setSaving] = useState(false);
@@ -29,13 +29,13 @@ export const ProfileModal = ({ open, onOpenChange }: ProfileModalProps) => {
   }, [open, profile]);
 
   const handleSave = async () => {
-    if (!user) return;
+    if (!user || !sessionToken) return;
     
     setSaving(true);
     try {
       const { data, error } = await supabase.functions.invoke('update-profile', {
         body: { 
-          user_id: user.id,
+          session_token: sessionToken,
           display_name: displayName.trim() || null,
           bio: bio.trim() || null
         }
@@ -51,9 +51,9 @@ export const ProfileModal = ({ open, onOpenChange }: ProfileModalProps) => {
       } else {
         throw new Error(data?.error || 'Failed to update profile');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error updating profile:', err);
-      toast.error('Failed to update profile');
+      toast.error(err.message || 'Failed to update profile');
     } finally {
       setSaving(false);
     }
@@ -112,7 +112,7 @@ export const ProfileModal = ({ open, onOpenChange }: ProfileModalProps) => {
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={saving}>
+          <Button onClick={handleSave} disabled={saving || !sessionToken}>
             <Save className="w-4 h-4 mr-2" />
             {saving ? 'Saving...' : 'Save'}
           </Button>
