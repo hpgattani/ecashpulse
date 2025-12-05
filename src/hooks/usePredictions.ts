@@ -62,9 +62,9 @@ export const usePredictions = () => {
   useEffect(() => {
     fetchPredictions();
 
-    // Subscribe to realtime updates
-    const channel = supabase
-      .channel('predictions-channel')
+    // Subscribe to realtime updates on predictions
+    const predictionsChannel = supabase
+      .channel('predictions-realtime')
       .on(
         'postgres_changes',
         {
@@ -72,14 +72,45 @@ export const usePredictions = () => {
           schema: 'public',
           table: 'predictions',
         },
-        () => {
+        (payload) => {
+          console.log('Prediction update:', payload);
+          // Update predictions instantly
+          if (payload.eventType === 'UPDATE' && payload.new) {
+            setPredictions(prev => 
+              prev.map(p => 
+                p.id === payload.new.id 
+                  ? transformPrediction(payload.new as DBPrediction)
+                  : p
+              )
+            );
+          } else {
+            fetchPredictions();
+          }
+        }
+      )
+      .subscribe();
+
+    // Subscribe to bets to update pools in real-time
+    const betsChannel = supabase
+      .channel('bets-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'bets',
+        },
+        (payload) => {
+          console.log('Bet update:', payload);
+          // Refetch predictions when bets change to get updated pools
           fetchPredictions();
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(predictionsChannel);
+      supabase.removeChannel(betsChannel);
     };
   }, []);
 
