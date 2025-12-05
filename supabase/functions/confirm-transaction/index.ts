@@ -5,8 +5,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Chronik API endpoint for eCash
-const CHRONIK_URL = 'https://chronik.e.cash';
+const ESCROW_ADDRESS = 'ecash:qr6pwzt7glvmq6ryr4305kat0vnv2wy69qjxpdwz5a';
+const CHRONIK_URL = 'https://chronik.be.cash/xec';
 
 interface ChronikTx {
   txid: string;
@@ -16,62 +16,44 @@ interface ChronikTx {
   }>;
   block?: {
     height: number;
-    timestamp: string;
   };
 }
 
-async function verifyTransaction(txHash: string, expectedAddress: string, expectedAmount: number): Promise<{
-  valid: boolean;
-  confirmed: boolean;
-  amount?: number;
-  error?: string;
+async function verifyTransaction(txHash: string, expectedAmount: number): Promise<{ 
+  verified: boolean; 
+  actualAmount?: number;
+  error?: string 
 }> {
   try {
     const response = await fetch(`${CHRONIK_URL}/tx/${txHash}`);
     
     if (!response.ok) {
-      if (response.status === 404) {
-        return { valid: false, confirmed: false, error: 'Transaction not found' };
-      }
-      throw new Error(`Chronik API error: ${response.status}`);
+      return { verified: false, error: 'Transaction not found on blockchain' };
     }
-
-    const tx: ChronikTx = await response.json();
     
-    // Convert eCash address to script hash for comparison
-    // For simplicity, we'll check if any output matches expected amount
-    // In production, you'd want to decode the address properly
+    const tx: ChronikTx = await response.json();
     
     let foundAmount = 0;
     for (const output of tx.outputs) {
       const outputValue = parseInt(output.value);
-      // Check if output is close to expected amount (allowing for small variations)
       if (outputValue >= expectedAmount * 0.99) {
         foundAmount = outputValue;
         break;
       }
     }
-
-    if (foundAmount === 0) {
+    
+    if (foundAmount < expectedAmount * 0.99) {
       return { 
-        valid: false, 
-        confirmed: false, 
-        error: 'Transaction amount does not match expected bet amount' 
+        verified: false, 
+        actualAmount: foundAmount,
+        error: `Amount mismatch: expected ${expectedAmount}, got ${foundAmount}` 
       };
     }
-
-    // Check if transaction is confirmed (has block info)
-    const isConfirmed = !!tx.block;
-
-    return {
-      valid: true,
-      confirmed: isConfirmed,
-      amount: foundAmount,
-    };
-
+    
+    return { verified: true, actualAmount: foundAmount };
   } catch (error) {
-    console.error('Error verifying transaction:', error);
-    return { valid: false, confirmed: false, error: 'Failed to verify transaction' };
+    console.error('Transaction verification error:', error);
+    return { verified: false, error: 'Failed to verify transaction' };
   }
 }
 
@@ -81,28 +63,33 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { bet_id, tx_hash } = await req.json();
 
-    // Validate inputs
-    if (!bet_id || !tx_hash) {
+    // Validate bet_id
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!bet_id || !uuidRegex.test(bet_id)) {
       return new Response(
-        JSON.stringify({ error: 'bet_id and tx_hash are required' }),
+        JSON.stringify({ error: 'Invalid bet_id format' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Get the bet
+    // Validate tx_hash
+    if (!tx_hash || typeof tx_hash !== 'string' || !/^[0-9a-f]{64}$/i.test(tx_hash)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid transaction hash' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Get bet details
     const { data: bet, error: betError } = await supabase
       .from('bets')
-      .select(`
-        *,
-        prediction:predictions(escrow_address)
-      `)
+      .select('id, amount, status, user_id, prediction_id')
       .eq('id', bet_id)
       .single();
 
@@ -120,16 +107,27 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Verify transaction on blockchain
-    const verification = await verifyTransaction(
-      tx_hash,
-      (bet as any).prediction?.escrow_address || '',
-      bet.amount
-    );
+    // Check if tx_hash is already used
+    const { data: existingBet } = await supabase
+      .from('bets')
+      .select('id')
+      .eq('tx_hash', tx_hash)
+      .neq('id', bet_id)
+      .maybeSingle();
 
-    if (!verification.valid) {
+    if (existingBet) {
       return new Response(
-        JSON.stringify({ error: verification.error || 'Invalid transaction' }),
+        JSON.stringify({ error: 'Transaction already used for another bet' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Verify transaction
+    const verification = await verifyTransaction(tx_hash, bet.amount);
+    
+    if (!verification.verified) {
+      return new Response(
+        JSON.stringify({ error: verification.error || 'Transaction verification failed' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -138,43 +136,34 @@ Deno.serve(async (req) => {
     const { error: updateError } = await supabase
       .from('bets')
       .update({
-        tx_hash,
         status: 'confirmed',
-        confirmed_at: new Date().toISOString(),
-        amount: verification.amount || bet.amount,
+        tx_hash: tx_hash,
+        confirmed_at: new Date().toISOString()
       })
       .eq('id', bet_id);
 
     if (updateError) {
-      console.error('Error updating bet:', updateError);
       return new Response(
-        JSON.stringify({ error: 'Failed to update bet' }),
+        JSON.stringify({ error: 'Failed to confirm bet' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    // Record platform fee (1%)
-    const feeAmount = Math.floor((verification.amount || bet.amount) * 0.01);
-    await supabase
-      .from('platform_fees')
-      .insert({
-        bet_id,
-        amount: feeAmount,
-      });
 
     console.log(`Bet ${bet_id} confirmed with tx ${tx_hash}`);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        confirmed: verification.confirmed,
-        amount: verification.amount 
+        message: 'Bet confirmed successfully',
+        bet_id,
+        tx_hash,
+        amount: verification.actualAmount
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error('Error in confirm-transaction function:', error);
+    console.error('Confirm transaction error:', error);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
