@@ -284,9 +284,9 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md z-50 p-3 sm:p-4"
+            className="fixed inset-x-4 top-1/2 -translate-y-1/2 mx-auto max-w-md z-50"
           >
-            <div className="glass-card glow-primary p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
+            <div className="glass-card glow-primary p-4 sm:p-6">
               <div className="flex items-start justify-between mb-4">
                 <div>
                   <h2 className="font-display font-bold text-lg sm:text-xl text-foreground mb-1">
