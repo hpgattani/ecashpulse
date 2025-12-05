@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,10 +15,18 @@ interface ProfileModalProps {
 }
 
 export const ProfileModal = ({ open, onOpenChange }: ProfileModalProps) => {
-  const { user, profile } = useAuth();
+  const { user, profile, updateProfile } = useAuth();
   const [displayName, setDisplayName] = useState(profile?.display_name || '');
   const [bio, setBio] = useState(profile?.bio || '');
   const [saving, setSaving] = useState(false);
+
+  // Sync state when profile changes or modal opens
+  useEffect(() => {
+    if (open) {
+      setDisplayName(profile?.display_name || '');
+      setBio(profile?.bio || '');
+    }
+  }, [open, profile]);
 
   const handleSave = async () => {
     if (!user) return;
@@ -35,20 +43,11 @@ export const ProfileModal = ({ open, onOpenChange }: ProfileModalProps) => {
 
       if (error) throw error;
       
-      if (data?.success) {
-        // Update local storage
-        const storedProfile = localStorage.getItem('ecash_profile');
-        if (storedProfile) {
-          const parsed = JSON.parse(storedProfile);
-          parsed.display_name = displayName.trim() || null;
-          parsed.bio = bio.trim() || null;
-          localStorage.setItem('ecash_profile', JSON.stringify(parsed));
-        }
-        
+      if (data?.success && data?.profile) {
+        // Update context and localStorage via AuthContext
+        updateProfile(data.profile);
         toast.success('Profile updated successfully!');
         onOpenChange(false);
-        // Reload to reflect changes
-        window.location.reload();
       } else {
         throw new Error(data?.error || 'Failed to update profile');
       }

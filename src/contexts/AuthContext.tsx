@@ -27,6 +27,7 @@ interface AuthContextType {
   loading: boolean;
   login: (ecashAddress: string, signature?: string) => Promise<{ error: string | null }>;
   logout: () => void;
+  updateProfile: (newProfile: Profile) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -132,8 +133,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem('ecash_profile');
   };
 
+  const updateProfile = (newProfile: Profile) => {
+    setProfile(newProfile);
+    localStorage.setItem('ecash_profile', JSON.stringify(newProfile));
+  };
+
   return (
-    <AuthContext.Provider value={{ user, profile, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, profile, loading, login, logout, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );
