@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
     );
 
     const body = await req.json();
-    const { user_id, prediction_id, position, amount } = body;
+    const { user_id, prediction_id, position, amount, tx_hash } = body;
 
     // Validate inputs
     if (!user_id || !isValidUUID(user_id)) {
@@ -107,7 +107,9 @@ Deno.serve(async (req) => {
         prediction_id,
         position,
         amount: betAmount,
-        status: 'pending'
+        status: tx_hash ? 'confirmed' : 'pending',
+        tx_hash: tx_hash || null,
+        confirmed_at: tx_hash ? new Date().toISOString() : null
       })
       .select()
       .single();
