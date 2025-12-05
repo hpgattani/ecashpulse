@@ -69,19 +69,22 @@ const MyBets = () => {
   const fetchBets = async () => {
     if (!user) return;
 
-    const { data, error } = await supabase
-      .from('bets')
-      .select(`
-        *,
-        prediction:predictions(title, status, end_date, yes_pool, no_pool)
-      `)
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+    try {
+      // Use edge function to bypass RLS (since we use custom auth)
+      const { data, error } = await supabase.functions.invoke('get-user-bets', {
+        body: { user_id: user.id }
+      });
 
-    if (error) {
-      console.error('Error fetching bets:', error);
-    } else {
-      setBets((data as unknown as BetWithPrediction[]) || []);
+      if (error) {
+        console.error('Error fetching bets:', error);
+        return;
+      }
+
+      if (data?.bets) {
+        setBets(data.bets as unknown as BetWithPrediction[]);
+      }
+    } catch (err) {
+      console.error('Error fetching bets:', err);
     }
     setLoading(false);
   };
