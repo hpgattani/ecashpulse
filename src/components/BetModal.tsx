@@ -1,14 +1,11 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Info, AlertCircle, Loader2, Calculator } from 'lucide-react';
+import { X, Info, AlertCircle, Calculator } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 
-// Official escrow address
 const ESCROW_ADDRESS = 'ecash:qr6pwzt7glvmq6ryr4305kat0vnv2wy69qjxpdwz5a';
 
 interface Prediction {
@@ -30,11 +27,7 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
   const payButtonRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
   const [betAmount, setBetAmount] = useState('100');
-  const [pendingBetId, setPendingBetId] = useState<string | null>(null);
-  const [isPolling, setIsPolling] = useState(false);
-  const [isCreatingBet, setIsCreatingBet] = useState(false);
 
   // Calculate potential payout
   const currentOdds = position === 'yes' ? prediction.yesOdds : prediction.noOdds;
@@ -42,140 +35,30 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
   const potentialPayout = betAmount ? (parseFloat(betAmount) * winMultiplier).toFixed(2) : '0';
   const potentialProfit = betAmount ? ((parseFloat(betAmount) * winMultiplier) - parseFloat(betAmount)).toFixed(2) : '0';
 
-  // Poll for automatic payment detection
-  const pollForPayment = useCallback(async (betId: string) => {
-    if (!betId) return;
-    
-    try {
-      const { data: bet } = await supabase
-        .from('bets')
-        .select('status, tx_hash')
-        .eq('id', betId)
-        .single();
-
-      if (bet?.status === 'confirmed') {
-        setIsPolling(false);
-        toast({
-          title: 'Bet Confirmed!',
-          description: `Your ${position.toUpperCase()} bet has been confirmed.`,
-        });
-        onClose();
-        resetModal();
-      }
-    } catch (error) {
-      console.error('Poll error:', error);
-    }
-  }, [toast, onClose, position]);
-
+  // Load PayButton script
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    
-    if (isPolling && pendingBetId) {
-      interval = setInterval(() => pollForPayment(pendingBetId), 5000);
-    }
-    
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [isPolling, pendingBetId, pollForPayment]);
-
-  const resetModal = () => {
-    setPendingBetId(null);
-    setBetAmount('100');
-    setIsPolling(false);
-    setIsCreatingBet(false);
-  };
-
-  // Load PayButton script and track when it's ready
-  const [payButtonReady, setPayButtonReady] = useState(false);
-  
-  useEffect(() => {
-    const checkPayButton = () => {
-      if ((window as any).PayButton) {
-        setPayButtonReady(true);
-        return true;
-      }
-      return false;
-    };
-
-    if (checkPayButton()) return;
-
     if (!document.querySelector('script[src*="paybutton"]')) {
       const script = document.createElement('script');
       script.src = 'https://unpkg.com/@paybutton/paybutton/dist/paybutton.js';
       script.async = true;
-      script.onload = () => {
-        // Wait a bit for PayButton to initialize
-        setTimeout(checkPayButton, 100);
-      };
       document.body.appendChild(script);
-    } else {
-      // Script exists, check periodically
-      const interval = setInterval(() => {
-        if (checkPayButton()) clearInterval(interval);
-      }, 100);
-      setTimeout(() => clearInterval(interval), 5000);
     }
   }, []);
 
-  // Create pending bet and render PayButton
-  const createBetAndShowPayButton = async () => {
-    if (!user || !betAmount || parseFloat(betAmount) < 1) {
-      toast({
-        title: 'Amount Required',
-        description: 'Please enter a bet amount (minimum 1 XEC).',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setIsCreatingBet(true);
-
-    try {
-      const amountSatoshis = Math.round(parseFloat(betAmount) * 100);
-
-      const { data, error } = await supabase.functions.invoke('process-bet', {
-        body: {
-          user_id: user.id,
-          prediction_id: prediction.id,
-          position,
-          amount: amountSatoshis,
-        },
-      });
-
-      if (error) throw error;
-
-      setPendingBetId(data.bet_id);
-      setIsPolling(true);
-      setIsCreatingBet(false);
-
-    } catch (error: any) {
-      console.error('Error creating bet:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to create bet.',
-        variant: 'destructive',
-      });
-      setIsCreatingBet(false);
-    }
-  };
-
-  // Render PayButton when pendingBetId is set
+  // Render PayButton when modal opens and amount changes
   useEffect(() => {
-    if (!pendingBetId || !payButtonRef.current || !user) return;
+    if (!isOpen || !payButtonRef.current || !user) return;
 
     const amount = parseFloat(betAmount) || 0;
     if (amount <= 0) return;
 
-    // Clear previous
     payButtonRef.current.innerHTML = '';
 
     const renderButton = () => {
       if (!payButtonRef.current) return;
       
-      // Create the button container
       const buttonContainer = document.createElement('div');
-      buttonContainer.id = `paybutton-${pendingBetId}`;
+      buttonContainer.id = `paybutton-${prediction.id}`;
       payButtonRef.current.appendChild(buttonContainer);
 
       if ((window as any).PayButton) {
@@ -186,49 +69,19 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
           text: 'Bet',
           hoverText: 'Predict',
           successText: 'You bet!',
-          opReturn: `ECASHPULSE:${prediction.id}:${position}:${user.id}`,
           theme: {
             palette: {
               primary: position === 'yes' ? '#10b981' : '#ef4444',
               secondary: '#1e293b',
               tertiary: '#ffffff'
             }
-          },
-          onSuccess: async (txid: string) => {
-            console.log('PayButton success:', txid);
-            try {
-              await supabase.functions.invoke('confirm-transaction', {
-                body: { bet_id: pendingBetId, tx_hash: txid },
-              });
-              toast({
-                title: 'Bet Confirmed!',
-                description: `Your ${position.toUpperCase()} bet of ${betAmount} XEC is confirmed!`,
-              });
-              onClose();
-              resetModal();
-            } catch (err) {
-              console.error('Auto-confirm error:', err);
-            }
           }
         });
-      } else {
-        // Fallback: create HTML button
-        buttonContainer.innerHTML = `
-          <div class="paybutton" 
-            to="${ESCROW_ADDRESS}" 
-            amount="${amount}"
-            text="Bet"
-            hover-text="Predict"
-            success-text="You bet!"
-            op-return="ECASHPULSE:${prediction.id}:${position}:${user.id}"
-          ></div>
-        `;
       }
     };
 
-    // Small delay to ensure DOM is ready
-    setTimeout(renderButton, 50);
-  }, [pendingBetId, betAmount, user, prediction.id, position, toast, onClose]);
+    setTimeout(renderButton, 100);
+  }, [isOpen, betAmount, user, prediction.id, position]);
 
   if (!user) {
     return (
@@ -318,94 +171,53 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
                 </div>
               </div>
 
-              {!pendingBetId ? (
-                /* Step 1: Enter Amount */
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm text-muted-foreground mb-1.5 block">
-                      Bet Amount (XEC)
-                    </label>
-                    <Input
-                      type="number"
-                      placeholder="Enter amount"
-                      value={betAmount}
-                      onChange={(e) => setBetAmount(e.target.value)}
-                      min="1"
-                      step="1"
-                      className="text-lg font-semibold h-12"
-                    />
-                  </div>
+              {/* Bet Amount */}
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm text-muted-foreground mb-1.5 block">
+                    Bet Amount (XEC)
+                  </label>
+                  <Input
+                    type="number"
+                    placeholder="Enter amount"
+                    value={betAmount}
+                    onChange={(e) => setBetAmount(e.target.value)}
+                    min="1"
+                    step="1"
+                    className="text-lg font-semibold h-12"
+                  />
+                </div>
 
-                  {/* Payout Preview */}
-                  {betAmount && parseFloat(betAmount) > 0 && (
-                    <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Calculator className="w-4 h-4 text-emerald-400" />
-                        <span className="text-sm font-medium text-emerald-400">If you win:</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Total Payout:</span>
-                        <span className="text-emerald-400 font-bold">{potentialPayout} XEC</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Profit:</span>
-                        <span className="text-emerald-400">+{potentialProfit} XEC</span>
-                      </div>
+                {/* Payout Preview */}
+                {betAmount && parseFloat(betAmount) > 0 && (
+                  <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Calculator className="w-4 h-4 text-emerald-400" />
+                      <span className="text-sm font-medium text-emerald-400">If you win:</span>
                     </div>
-                  )}
-
-                  <Button
-                    className="w-full h-12 text-base font-semibold"
-                    onClick={createBetAndShowPayButton}
-                    disabled={isCreatingBet || !betAmount || parseFloat(betAmount) < 1}
-                  >
-                    {isCreatingBet ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Preparing...
-                      </>
-                    ) : (
-                      `Bet ${betAmount || '0'} XEC`
-                    )}
-                  </Button>
-                </div>
-              ) : (
-                /* Step 2: PayButton */
-                <div className="space-y-4">
-                  <div className="p-4 rounded-lg bg-muted/80 border border-border">
-                    <p className="text-sm text-center text-muted-foreground mb-4">
-                      Pay <span className="text-foreground font-bold text-lg">{betAmount} XEC</span> to confirm:
-                    </p>
-                    
-                    {/* PayButton Container - only rendered when pendingBetId exists */}
-                    <div 
-                      ref={payButtonRef} 
-                      className="flex justify-center [&_.paybutton]:min-w-[180px] [&_.paybutton-primary]:rounded-lg"
-                    />
-                    
-                    {isPolling && (
-                      <div className="flex items-center justify-center gap-2 mt-3 text-primary text-xs">
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                        <span>Waiting for payment...</span>
-                      </div>
-                    )}
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Total Payout:</span>
+                      <span className="text-emerald-400 font-bold">{potentialPayout} XEC</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Profit:</span>
+                      <span className="text-emerald-400">+{potentialProfit} XEC</span>
+                    </div>
                   </div>
+                )}
 
-                  <Button
-                    variant="ghost"
-                    className="w-full"
-                    onClick={resetModal}
-                  >
-                    ← Go Back
-                  </Button>
-                </div>
-              )}
+                {/* PayButton Container */}
+                <div 
+                  ref={payButtonRef} 
+                  className="flex justify-center [&_.paybutton]:min-w-[180px] [&_.paybutton-primary]:rounded-lg"
+                />
+              </div>
 
               {/* Info */}
               <div className="flex items-start gap-2 p-2 rounded-lg bg-primary/10 text-xs mt-4">
                 <Info className="w-3 h-3 text-primary mt-0.5 flex-shrink-0" />
                 <div className="text-muted-foreground">
-                  1% platform fee applies. Payment auto-confirms on blockchain.
+                  1% platform fee applies. Payments are processed on-chain.
                 </div>
               </div>
             </div>
