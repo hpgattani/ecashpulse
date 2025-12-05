@@ -25,7 +25,9 @@ Deno.serve(async (req) => {
     );
 
     const body = await req.json();
+    console.log('Received body:', JSON.stringify(body));
     const { user_id, prediction_id, position, amount, tx_hash } = body;
+    console.log(`Processing bet: user=${user_id}, prediction=${prediction_id}, position=${position}, amount=${amount}, tx_hash=${tx_hash}`);
 
     // Validate inputs
     if (!user_id || !isValidUUID(user_id)) {
