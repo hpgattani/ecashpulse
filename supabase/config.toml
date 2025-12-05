@@ -17,3 +17,9 @@ verify_jwt = false
 
 [functions.update-profile]
 verify_jwt = false
+
+[functions.get-user-bets]
+verify_jwt = false
+
+[functions.get-public-bets]
+verify_jwt = false
