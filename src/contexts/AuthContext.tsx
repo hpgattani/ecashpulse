@@ -69,13 +69,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Check for stored session
     const storedUser = localStorage.getItem('ecash_user');
     const storedProfile = localStorage.getItem('ecash_profile');
+    console.log('AuthContext: Loading from localStorage', { storedUser, storedProfile });
     if (storedUser) {
       try {
-        setUser(JSON.parse(storedUser));
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
         if (storedProfile) {
-          setProfile(JSON.parse(storedProfile));
+          const parsedProfile = JSON.parse(storedProfile);
+          console.log('AuthContext: Loaded profile', parsedProfile);
+          setProfile(parsedProfile);
         }
-      } catch {
+      } catch (e) {
+        console.error('AuthContext: Error parsing stored data', e);
         localStorage.removeItem('ecash_user');
         localStorage.removeItem('ecash_profile');
       }
