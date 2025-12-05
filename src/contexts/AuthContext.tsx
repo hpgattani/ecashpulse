@@ -75,42 +75,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
-      // Check if user exists or create new
-      const { data: existingUser, error: fetchError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('ecash_address', trimmedAddress)
-        .maybeSingle();
+      // Use edge function for registration/login (RLS blocks direct access)
+      const { data, error } = await supabase.functions.invoke('register-user', {
+        body: { ecash_address: trimmedAddress }
+      });
 
-      if (fetchError) {
-        console.error('Fetch error:', fetchError);
-        return { error: 'Failed to check user. Please try again.' };
+      if (error) {
+        console.error('Registration error:', error);
+        return { error: 'Failed to authenticate. Please try again.' };
       }
 
-      let userData: User;
-
-      if (existingUser) {
-        // Update last login
-        await supabase
-          .from('users')
-          .update({ last_login_at: new Date().toISOString() })
-          .eq('id', existingUser.id);
-        userData = existingUser as User;
-      } else {
-        // Create new user
-        const { data: newUser, error: insertError } = await supabase
-          .from('users')
-          .insert({ ecash_address: trimmedAddress })
-          .select()
-          .single();
-
-        if (insertError || !newUser) {
-          console.error('Insert error:', insertError);
-          return { error: 'Failed to create account. Please try again.' };
-        }
-        userData = newUser as User;
+      if (!data?.success || !data?.user) {
+        return { error: data?.error || 'Failed to authenticate. Please try again.' };
       }
 
+      const userData = data.user as User;
       setUser(userData);
       localStorage.setItem('ecash_user', JSON.stringify(userData));
       return { error: null };
