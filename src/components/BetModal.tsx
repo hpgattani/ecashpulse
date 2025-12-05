@@ -27,7 +27,7 @@ interface BetModalProps {
 
 const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
   const payButtonRef = useRef<HTMLDivElement>(null);
-  const { user } = useAuth();
+  const { user, sessionToken } = useAuth();
   const navigate = useNavigate();
   const [betAmount, setBetAmount] = useState('100');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -41,13 +41,13 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
 
   // Record bet in database after successful payment
   const recordBet = async (txHash?: string) => {
-    if (!user) return;
+    if (!user || !sessionToken) return;
     
     setIsProcessing(true);
     try {
       const { data, error } = await supabase.functions.invoke('process-bet', {
         body: {
-          user_id: user.id,
+          session_token: sessionToken,
           prediction_id: prediction.id,
           position,
           amount: Math.round(parseFloat(betAmount) * 100), // Convert to satoshis
@@ -56,6 +56,10 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
       });
 
       if (error) throw error;
+      
+      if (data?.error) {
+        throw new Error(data.error);
+      }
       
       setBetSuccess(true);
       toast.success('Bet placed successfully!', {
@@ -89,7 +93,7 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
 
   // Render PayButton when modal opens and amount changes
   useEffect(() => {
-    if (!isOpen || !payButtonRef.current || !user || betSuccess) return;
+    if (!isOpen || !payButtonRef.current || !user || !sessionToken || betSuccess) return;
 
     const amount = parseFloat(betAmount) || 0;
     if (amount <= 0) return;
@@ -118,19 +122,18 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
               tertiary: '#ffffff'
             }
           },
-                          onSuccess: (txResult: any) => {
-                            console.log('PayButton success, result:', txResult);
-                            // Extract just the hash - PayButton returns object with hash property
-                            let txHash: string | undefined;
-                            if (typeof txResult === 'string') {
-                              txHash = txResult;
-                            } else if (txResult?.hash) {
-                              txHash = txResult.hash;
-                            } else if (txResult?.txid) {
-                              txHash = txResult.txid;
-                            }
-                            recordBet(txHash);
-                          },
+          onSuccess: (txResult: any) => {
+            console.log('PayButton success, result:', txResult);
+            let txHash: string | undefined;
+            if (typeof txResult === 'string') {
+              txHash = txResult;
+            } else if (txResult?.hash) {
+              txHash = txResult.hash;
+            } else if (txResult?.txid) {
+              txHash = txResult.txid;
+            }
+            recordBet(txHash);
+          },
           onError: (error: any) => {
             console.error('PayButton error:', error);
             toast.error('Payment failed', {
@@ -142,9 +145,9 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
     };
 
     setTimeout(renderButton, 100);
-  }, [isOpen, betAmount, user, prediction.id, position, betSuccess]);
+  }, [isOpen, betAmount, user, sessionToken, prediction.id, position, betSuccess]);
 
-  if (!user) {
+  if (!user || !sessionToken) {
     return (
       <AnimatePresence>
         {isOpen && (

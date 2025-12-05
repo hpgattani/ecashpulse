@@ -5,9 +5,37 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-function isValidUUID(str: string): boolean {
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  return uuidRegex.test(str);
+async function validateSession(supabase: any, sessionToken: string | null | undefined) {
+  if (!sessionToken || typeof sessionToken !== 'string') {
+    return { valid: false, error: 'Session token is required' };
+  }
+
+  const trimmedToken = sessionToken.trim();
+  if (trimmedToken.length !== 64) {
+    return { valid: false, error: 'Invalid session token format' };
+  }
+
+  const { data: session, error } = await supabase
+    .from('sessions')
+    .select('user_id, expires_at')
+    .eq('token', trimmedToken)
+    .maybeSingle();
+
+  if (error || !session) {
+    return { valid: false, error: 'Invalid or expired session' };
+  }
+
+  if (new Date(session.expires_at) < new Date()) {
+    await supabase.from('sessions').delete().eq('token', trimmedToken);
+    return { valid: false, error: 'Session expired' };
+  }
+
+  await supabase
+    .from('sessions')
+    .update({ last_used_at: new Date().toISOString() })
+    .eq('token', trimmedToken);
+
+  return { valid: true, userId: session.user_id };
 }
 
 Deno.serve(async (req) => {
@@ -22,28 +50,18 @@ Deno.serve(async (req) => {
     );
 
     const body = await req.json();
-    const { user_id } = body;
+    const { session_token } = body;
 
-    if (!user_id || !isValidUUID(user_id)) {
+    // Validate session and get authenticated user_id
+    const sessionResult = await validateSession(supabase, session_token);
+    if (!sessionResult.valid) {
       return new Response(
-        JSON.stringify({ error: 'Invalid user_id' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: sessionResult.error }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Verify user exists
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('id', user_id)
-      .single();
-
-    if (userError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'User not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    const user_id = sessionResult.userId;
 
     // Fetch user's bets with prediction details
     const { data: bets, error: betsError } = await supabase

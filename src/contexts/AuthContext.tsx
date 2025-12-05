@@ -24,8 +24,9 @@ interface Profile {
 interface AuthContextType {
   user: User | null;
   profile: Profile | null;
+  sessionToken: string | null;
   loading: boolean;
-  login: (ecashAddress: string, signature?: string) => Promise<{ error: string | null }>;
+  login: (ecashAddress: string) => Promise<{ error: string | null }>;
   logout: () => void;
   updateProfile: (newProfile: Profile) => void;
 }
@@ -52,56 +53,46 @@ const isValidEcashAddress = (address: string): boolean => {
   return ecashRegex.test(address.toLowerCase()) || legacyRegex.test(address.toLowerCase());
 };
 
-// Basic signature validation (format check)
-const isValidSignatureFormat = (signature: string): boolean => {
-  if (!signature || signature.length < 80) return false;
-  // Signatures are typically base64 encoded
-  const base64Regex = /^[A-Za-z0-9+/]+=*$/;
-  return base64Regex.test(signature.trim());
-};
-
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Check for stored session
     const storedUser = localStorage.getItem('ecash_user');
     const storedProfile = localStorage.getItem('ecash_profile');
-    console.log('AuthContext: Loading from localStorage', { storedUser, storedProfile });
-    if (storedUser) {
+    const storedToken = localStorage.getItem('ecash_session_token');
+    
+    if (storedUser && storedToken) {
       try {
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
+        setSessionToken(storedToken);
         if (storedProfile) {
           const parsedProfile = JSON.parse(storedProfile);
-          console.log('AuthContext: Loaded profile', parsedProfile);
           setProfile(parsedProfile);
         }
       } catch (e) {
         console.error('AuthContext: Error parsing stored data', e);
         localStorage.removeItem('ecash_user');
         localStorage.removeItem('ecash_profile');
+        localStorage.removeItem('ecash_session_token');
       }
     }
     setLoading(false);
   }, []);
 
-  const login = async (ecashAddress: string, signature?: string): Promise<{ error: string | null }> => {
+  const login = async (ecashAddress: string): Promise<{ error: string | null }> => {
     const trimmedAddress = ecashAddress.trim().toLowerCase();
     
     if (!isValidEcashAddress(trimmedAddress)) {
       return { error: 'Invalid eCash address format. Please enter a valid address starting with "ecash:"' };
     }
 
-    // If signature provided, validate its format
-    if (signature && !isValidSignatureFormat(signature)) {
-      return { error: 'Invalid signature format. Please sign the message with your eCash wallet.' };
-    }
-
     try {
-      // Use edge function for registration/login (RLS blocks direct access)
+      // Use edge function for registration/login
       const { data, error } = await supabase.functions.invoke('register-user', {
         body: { ecash_address: trimmedAddress }
       });
@@ -111,16 +102,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return { error: 'Failed to authenticate. Please try again.' };
       }
 
-      if (!data?.success || !data?.user) {
+      if (!data?.success || !data?.user || !data?.session_token) {
         return { error: data?.error || 'Failed to authenticate. Please try again.' };
       }
 
       const userData = data.user as User;
       const profileData = data.profile as Profile | null;
+      const token = data.session_token as string;
       
       setUser(userData);
       setProfile(profileData);
+      setSessionToken(token);
+      
       localStorage.setItem('ecash_user', JSON.stringify(userData));
+      localStorage.setItem('ecash_session_token', token);
       if (profileData) {
         localStorage.setItem('ecash_profile', JSON.stringify(profileData));
       }
@@ -134,8 +129,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = () => {
     setUser(null);
     setProfile(null);
+    setSessionToken(null);
     localStorage.removeItem('ecash_user');
     localStorage.removeItem('ecash_profile');
+    localStorage.removeItem('ecash_session_token');
   };
 
   const updateProfile = (newProfile: Profile) => {
@@ -144,7 +141,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, login, logout, updateProfile }}>
+    <AuthContext.Provider value={{ user, profile, sessionToken, loading, login, logout, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );

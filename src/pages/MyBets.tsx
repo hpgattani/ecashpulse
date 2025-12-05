@@ -29,7 +29,7 @@ interface BetWithPrediction {
 }
 
 const MyBets = () => {
-  const { user, loading: authLoading } = useAuth();
+  const { user, sessionToken, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [bets, setBets] = useState<BetWithPrediction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,7 +41,7 @@ const MyBets = () => {
   }, [user, authLoading, navigate]);
 
   useEffect(() => {
-    if (user) {
+    if (user && sessionToken) {
       fetchBets();
       // Subscribe to realtime updates
       const channel = supabase
@@ -64,15 +64,15 @@ const MyBets = () => {
         supabase.removeChannel(channel);
       };
     }
-  }, [user]);
+  }, [user, sessionToken]);
 
   const fetchBets = async () => {
-    if (!user) return;
+    if (!user || !sessionToken) return;
 
     try {
-      // Use edge function to bypass RLS (since we use custom auth)
+      // Use edge function with session token for authentication
       const { data, error } = await supabase.functions.invoke('get-user-bets', {
-        body: { user_id: user.id }
+        body: { session_token: sessionToken }
       });
 
       if (error) {
