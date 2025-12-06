@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import MyBets from "./pages/MyBets";
 import Admin from "./pages/Admin";
+import Token from "./pages/Token";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const App = () => (
               <Route path="/auth" element={<Auth />} />
               <Route path="/my-bets" element={<MyBets />} />
               <Route path="/admin" element={<Admin />} />
+              <Route path="/token" element={<Token />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
