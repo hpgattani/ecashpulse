@@ -1,3 +1,5 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -5,21 +7,43 @@ const corsHeaders = {
 
 // Rate limiting map (simple in-memory)
 const rateLimitMap = new Map<string, number[]>();
-const RATE_LIMIT = 10; // requests per window
+const RATE_LIMIT_AUTH = 20; // Higher limit for authenticated users
+const RATE_LIMIT_ANON = 5; // Lower limit for unauthenticated users
 const RATE_WINDOW = 60000; // 1 minute
 
-function checkRateLimit(ip: string): boolean {
+function checkRateLimit(ip: string, isAuthenticated: boolean): boolean {
   const now = Date.now();
-  const requests = rateLimitMap.get(ip) || [];
+  const limit = isAuthenticated ? RATE_LIMIT_AUTH : RATE_LIMIT_ANON;
+  const key = `${ip}:${isAuthenticated ? 'auth' : 'anon'}`;
+  const requests = rateLimitMap.get(key) || [];
   const recentRequests = requests.filter(t => now - t < RATE_WINDOW);
   
-  if (recentRequests.length >= RATE_LIMIT) {
+  if (recentRequests.length >= limit) {
     return false;
   }
   
   recentRequests.push(now);
-  rateLimitMap.set(ip, recentRequests);
+  rateLimitMap.set(key, recentRequests);
   return true;
+}
+
+// Session validation
+async function validateSession(supabase: any, sessionToken: string | null): Promise<{ valid: boolean; userId?: string }> {
+  if (!sessionToken || typeof sessionToken !== 'string' || sessionToken.trim().length !== 64) {
+    return { valid: false };
+  }
+
+  const { data: session, error } = await supabase
+    .from('sessions')
+    .select('user_id, expires_at')
+    .eq('token', sessionToken.trim())
+    .maybeSingle();
+
+  if (error || !session || new Date(session.expires_at) < new Date()) {
+    return { valid: false };
+  }
+
+  return { valid: true, userId: session.user_id };
 }
 
 // Message validation
@@ -80,14 +104,37 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Initialize Supabase client
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
+
   // Get client IP for rate limiting
   const clientIP = req.headers.get('x-forwarded-for')?.split(',')[0] || 
                    req.headers.get('cf-connecting-ip') || 
                    'unknown';
 
-  // Check rate limit
-  if (!checkRateLimit(clientIP)) {
-    console.log(`Rate limit exceeded for IP: ${clientIP}`);
+  // Check for session token (optional but affects rate limits)
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return new Response(
+      JSON.stringify({ error: 'Invalid JSON in request body' }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  const { session_token, messages } = body as { session_token?: string; messages?: unknown };
+  
+  // Validate session if provided
+  const sessionResult = await validateSession(supabase, session_token || null);
+  const isAuthenticated = sessionResult.valid;
+
+  // Check rate limit (stricter for unauthenticated users)
+  if (!checkRateLimit(clientIP, isAuthenticated)) {
+    console.log(`Rate limit exceeded for IP: ${clientIP}, authenticated: ${isAuthenticated}`);
     return new Response(
       JSON.stringify({ error: 'Too many requests. Please wait a moment.' }),
       { 
@@ -98,26 +145,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Parse and validate request body
-    let body: unknown;
-    try {
-      body = await req.json();
-    } catch {
-      return new Response(
-        JSON.stringify({ error: 'Invalid JSON in request body' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (typeof body !== 'object' || body === null) {
-      return new Response(
-        JSON.stringify({ error: 'Request body must be an object' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const { messages } = body as { messages?: unknown };
-    
     // Validate messages
     const validation = validateMessages(messages);
     if (!validation.valid || !validation.data) {
