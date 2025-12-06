@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.get-public-bets]
 verify_jwt = false
+
+[functions.paybutton-webhook]
+verify_jwt = false
