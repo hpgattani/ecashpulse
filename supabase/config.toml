@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.get-public-bets]
 verify_jwt = false
+
+[functions.sync-escrow-transactions]
+verify_jwt = false
