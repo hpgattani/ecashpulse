@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Zap, Menu, X, Scale, Wallet, LogOut, TrendingUp, User } from 'lucide-react';
+import { Zap, Menu, X, Scale, Wallet, LogOut, TrendingUp, User, Coins } from 'lucide-react';
 import DisputeModal from './DisputeModal';
 import { ProfileModal } from './ProfileModal';
 import { useAuth } from '@/contexts/AuthContext';
@@ -70,6 +70,10 @@ const Header = () => {
               <a href="#how-it-works" className="text-muted-foreground hover:text-foreground transition-colors">
                 How It Works
               </a>
+              <Link to="/token" className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+                <Coins className="w-3.5 h-3.5" />
+                Token
+              </Link>
               {user && (
                 <Link to="/my-bets" className="text-muted-foreground hover:text-foreground transition-colors">
                   My Bets
@@ -150,6 +154,14 @@ const Header = () => {
                 <a href="#how-it-works" className="text-muted-foreground hover:text-foreground transition-colors">
                   How It Works
                 </a>
+                <Link 
+                  to="/token" 
+                  className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <Coins className="w-3.5 h-3.5" />
+                  Token
+                </Link>
                 {user && (
                   <Link 
                     to="/my-bets" 
