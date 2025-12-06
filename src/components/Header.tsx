@@ -72,7 +72,7 @@ const Header = () => {
               </a>
               <Link to="/token" className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
                 <Coins className="w-3.5 h-3.5" />
-                Token
+                $XPULSE
               </Link>
               {user && (
                 <Link to="/my-bets" className="text-muted-foreground hover:text-foreground transition-colors">
@@ -160,7 +160,7 @@ const Header = () => {
                   onClick={() => setIsMenuOpen(false)}
                 >
                   <Coins className="w-3.5 h-3.5" />
-                  Token
+                  $XPULSE
                 </Link>
                 {user && (
                   <Link 
