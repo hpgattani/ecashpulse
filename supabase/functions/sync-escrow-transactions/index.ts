@@ -5,9 +5,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Use the REST API endpoint which returns JSON
 const CHRONIK_URL = 'https://chronik.e.cash';
 // Correct script hash for ecash:qr6pwzt7glvmq6ryr4305kat0vnv2wy69qjxpdwz5a
-// The hash is f41c25f91b66c1a1903ac5f4b757d8d9a7113a28 (from p2pkh address)
 const ESCROW_SCRIPT_HASH = 'f41c25f91b66c1a1903ac5f4b757d8d9a7113a28';
 
 interface ChronikTx {
@@ -16,12 +16,14 @@ interface ChronikTx {
   outputs: { value: string; outputScript: string }[];
 }
 
-// Fetch recent transactions from Chronik
+// Fetch recent transactions from Chronik - use Accept header for JSON
 async function fetchRecentTransactions(limit = 50): Promise<ChronikTx[]> {
   try {
     const url = `${CHRONIK_URL}/script/p2pkh/${ESCROW_SCRIPT_HASH}/history?page=0&page_size=${limit}`;
     console.log('[sync-escrow] Fetching from:', url);
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      headers: { 'Accept': 'application/json' }
+    });
     if (!response.ok) {
       const text = await response.text();
       console.error('[sync-escrow] Chronik error response:', text);
@@ -36,15 +38,21 @@ async function fetchRecentTransactions(limit = 50): Promise<ChronikTx[]> {
   }
 }
 
-// Get transaction details
+// Get transaction details - use Accept header for JSON
 async function getTransactionDetails(txid: string): Promise<ChronikTx | null> {
   try {
-    const response = await fetch(`${CHRONIK_URL}/tx/${txid}`);
+    const url = `${CHRONIK_URL}/tx/${txid}`;
+    console.log('[sync-escrow] Fetching tx details:', url);
+    const response = await fetch(url, {
+      headers: { 'Accept': 'application/json' }
+    });
     if (!response.ok) {
-      console.log('[sync-escrow] TX not found:', txid);
+      console.log('[sync-escrow] TX not found, status:', response.status);
       return null;
     }
-    return await response.json();
+    const data = await response.json();
+    console.log('[sync-escrow] TX details received:', data.txid);
+    return data;
   } catch (error) {
     console.error('[sync-escrow] Failed to get tx details:', error);
     return null;
@@ -145,7 +153,7 @@ Deno.serve(async (req) => {
       let escrowAmount = 0;
       for (const output of txDetails.outputs) {
         // Check if output script matches escrow address (p2pkh script with our hash)
-        if (output.outputScript.includes(ESCROW_SCRIPT_HASH)) {
+        if (output.outputScript && output.outputScript.includes(ESCROW_SCRIPT_HASH)) {
           escrowAmount += parseInt(output.value);
         }
       }
