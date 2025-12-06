@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Info, AlertCircle, Calculator, Loader2, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -39,47 +39,52 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
   const potentialPayout = betAmount ? (parseFloat(betAmount) * winMultiplier).toFixed(2) : '0';
   const potentialProfit = betAmount ? ((parseFloat(betAmount) * winMultiplier) - parseFloat(betAmount)).toFixed(2) : '0';
 
-  // Record bet in database after successful payment
-  const recordBet = async (txHash?: string) => {
-    if (!user || !sessionToken) return;
+  // Simple bet recording - just call process-bet directly
+  const recordBet = useCallback(async (txHash?: string) => {
+    if (!user || !sessionToken) return false;
+    
+    const betAmountNum = Math.round(parseFloat(betAmount));
+    console.log('[BetModal] Recording bet, amount:', betAmountNum, 'txHash:', txHash);
     
     setIsProcessing(true);
+    
     try {
       const { data, error } = await supabase.functions.invoke('process-bet', {
         body: {
           session_token: sessionToken,
           prediction_id: prediction.id,
           position,
-          amount: Math.round(parseFloat(betAmount) * 100), // Convert to satoshis
-          tx_hash: txHash || null
+          amount: betAmountNum,
+          tx_hash: txHash || `pb_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
         }
       });
 
+      console.log('[BetModal] process-bet response:', data, error);
+
       if (error) throw error;
-      
-      if (data?.error) {
-        throw new Error(data.error);
-      }
+      if (data?.error) throw new Error(data.error);
       
       setBetSuccess(true);
       toast.success('Bet placed successfully!', {
         description: `Your ${position.toUpperCase()} bet of ${betAmount} XEC has been recorded.`
       });
       
-      // Close modal after short delay
       setTimeout(() => {
         setBetSuccess(false);
         onClose();
       }, 2000);
+      
+      return true;
     } catch (error: any) {
-      console.error('Error recording bet:', error);
+      console.error('[BetModal] Error recording bet:', error);
       toast.error('Failed to record bet', {
-        description: error.message || 'Please try again or contact support.'
+        description: error.message || 'Please try again.'
       });
+      return false;
     } finally {
       setIsProcessing(false);
     }
-  };
+  }, [user, sessionToken, betAmount, prediction.id, position, onClose]);
 
   // Load PayButton script
   useEffect(() => {
@@ -94,7 +99,6 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
   // Render PayButton when modal opens and amount changes
   useEffect(() => {
     if (!isOpen || !payButtonRef.current || !user || !sessionToken || betSuccess) {
-      // Clear container when modal closes
       if (payButtonRef.current) {
         payButtonRef.current.innerHTML = '';
       }
@@ -107,13 +111,11 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
       return;
     }
 
-    // Clear existing content first
     payButtonRef.current.innerHTML = '';
 
     const renderButton = () => {
       if (!payButtonRef.current) return;
       
-      // Ensure container is empty before rendering
       payButtonRef.current.innerHTML = '';
       
       const buttonContainer = document.createElement('div');
@@ -136,7 +138,9 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
             }
           },
           onSuccess: (txResult: any) => {
-            console.log('PayButton success, result:', txResult);
+            console.log('[BetModal] PayButton success:', txResult);
+            
+            // Extract tx hash if available
             let txHash: string | undefined;
             if (typeof txResult === 'string') {
               txHash = txResult;
@@ -144,7 +148,11 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
               txHash = txResult.hash;
             } else if (txResult?.txid) {
               txHash = txResult.txid;
+            } else if (txResult?.txId) {
+              txHash = txResult.txId;
             }
+            
+            // Record the bet immediately
             recordBet(txHash);
           },
           onError: (error: any) => {
@@ -165,7 +173,7 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
         payButtonRef.current.innerHTML = '';
       }
     };
-  }, [isOpen, betAmount, user, sessionToken, prediction.id, position, betSuccess]);
+  }, [isOpen, betAmount, user, sessionToken, prediction.id, position, betSuccess, recordBet]);
 
   if (!user || !sessionToken) {
     return (
@@ -308,23 +316,20 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Profit:</span>
-                          <span className="text-emerald-400">+{potentialProfit} XEC</span>
+                          <span className="text-emerald-400 font-bold">+{potentialProfit} XEC</span>
                         </div>
                       </div>
                     )}
 
                     {/* PayButton Container */}
-                    <div 
-                      ref={payButtonRef} 
-                      className="flex justify-center py-2 [&_.paybutton]:min-w-[180px] [&_.paybutton-primary]:rounded-lg"
-                    />
-                  </div>
+                    <div ref={payButtonRef} className="min-h-[50px]" />
 
-                  {/* Info */}
-                  <div className="flex items-start gap-2 p-2 rounded-lg bg-primary/10 text-xs mt-4">
-                    <Info className="w-3 h-3 text-primary mt-0.5 flex-shrink-0" />
-                    <div className="text-muted-foreground">
-                      1% platform fee applies. Payments are processed on-chain.
+                    {/* Info */}
+                    <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/30">
+                      <Info className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-muted-foreground">
+                        1% platform fee applies. Payments are processed on-chain.
+                      </p>
                     </div>
                   </div>
                 </>
