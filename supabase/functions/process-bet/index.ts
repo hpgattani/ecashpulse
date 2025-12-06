@@ -88,9 +88,9 @@ Deno.serve(async (req) => {
     }
 
     const betAmount = typeof amount === 'number' ? amount : parseInt(amount);
-    if (isNaN(betAmount) || betAmount < 100 || betAmount > 1000000000) {
+    if (isNaN(betAmount) || betAmount < 1 || betAmount > 1000000000) {
       return new Response(
-        JSON.stringify({ error: 'Amount must be between 100 XEC and 10M XEC' }),
+        JSON.stringify({ error: 'Amount must be between 1 XEC and 10M XEC' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
