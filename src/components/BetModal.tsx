@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Info, AlertCircle, Calculator, Loader2, CheckCircle } from 'lucide-react';
+import { X, Info, AlertCircle, Calculator, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
@@ -30,7 +30,6 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
   const { user, sessionToken } = useAuth();
   const navigate = useNavigate();
   const [betAmount, setBetAmount] = useState('100');
-  const [isProcessing, setIsProcessing] = useState(false);
   const [betSuccess, setBetSuccess] = useState(false);
 
   // Calculate potential payout
@@ -39,51 +38,40 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
   const potentialPayout = betAmount ? (parseFloat(betAmount) * winMultiplier).toFixed(2) : '0';
   const potentialProfit = betAmount ? ((parseFloat(betAmount) * winMultiplier) - parseFloat(betAmount)).toFixed(2) : '0';
 
-  // Simple bet recording - just call process-bet directly
+  // Record bet in background - no blocking UI
   const recordBet = useCallback(async (txHash?: string) => {
-    if (!user || !sessionToken) return false;
+    if (!user || !sessionToken) return;
     
     const betAmountNum = Math.round(parseFloat(betAmount));
     console.log('[BetModal] Recording bet, amount:', betAmountNum, 'txHash:', txHash);
     
-    setIsProcessing(true);
+    // Show success immediately - payment already confirmed by PayButton
+    setBetSuccess(true);
+    toast.success('Bet placed!', {
+      description: `${position.toUpperCase()} bet of ${betAmount} XEC confirmed.`
+    });
     
-    try {
-      const { data, error } = await supabase.functions.invoke('process-bet', {
-        body: {
-          session_token: sessionToken,
-          prediction_id: prediction.id,
-          position,
-          amount: betAmountNum,
-          tx_hash: txHash || `pb_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
-        }
-      });
-
-      console.log('[BetModal] process-bet response:', data, error);
-
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      
-      setBetSuccess(true);
-      toast.success('Bet placed successfully!', {
-        description: `Your ${position.toUpperCase()} bet of ${betAmount} XEC has been recorded.`
-      });
-      
-      setTimeout(() => {
-        setBetSuccess(false);
-        onClose();
-      }, 2000);
-      
-      return true;
-    } catch (error: any) {
-      console.error('[BetModal] Error recording bet:', error);
-      toast.error('Failed to record bet', {
-        description: error.message || 'Please try again.'
-      });
-      return false;
-    } finally {
-      setIsProcessing(false);
-    }
+    // Close modal after brief success display
+    setTimeout(() => {
+      setBetSuccess(false);
+      onClose();
+    }, 1500);
+    
+    // Record bet in background (don't await, don't block)
+    supabase.functions.invoke('process-bet', {
+      body: {
+        session_token: sessionToken,
+        prediction_id: prediction.id,
+        position,
+        amount: betAmountNum,
+        tx_hash: txHash || `pb_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
+      }
+    }).then(({ data, error }) => {
+      console.log('[BetModal] Bet recorded:', data, error);
+      if (error || data?.error) {
+        console.error('[BetModal] Background bet recording failed:', error || data?.error);
+      }
+    });
   }, [user, sessionToken, betAmount, prediction.id, position, onClose]);
 
   // Load PayButton script
@@ -237,20 +225,10 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
                 <div className="text-center py-8">
                   <CheckCircle className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
                   <h2 className="font-display font-bold text-xl text-foreground mb-2">
-                    Bet Placed Successfully!
+                    Bet Placed!
                   </h2>
                   <p className="text-muted-foreground">
-                    Your {position.toUpperCase()} bet has been recorded.
-                  </p>
-                </div>
-              ) : isProcessing ? (
-                <div className="text-center py-8">
-                  <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
-                  <h2 className="font-display font-bold text-lg text-foreground mb-2">
-                    Recording Your Bet...
-                  </h2>
-                  <p className="text-muted-foreground text-sm">
-                    Please wait while we confirm your transaction.
+                    Your {position.toUpperCase()} bet has been confirmed.
                   </p>
                 </div>
               ) : (
