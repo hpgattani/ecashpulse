@@ -45,33 +45,41 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
     const betAmountNum = Math.round(parseFloat(betAmount));
     console.log('[BetModal] Recording bet, amount:', betAmountNum, 'txHash:', txHash);
     
-    // Show success immediately - payment already confirmed by PayButton
-    setBetSuccess(true);
-    toast.success('Bet placed!', {
-      description: `${position.toUpperCase()} bet of ${betAmount} XEC confirmed.`
-    });
-    
-    // Close modal after brief success display
-    setTimeout(() => {
-      setBetSuccess(false);
-      onClose();
-    }, 1500);
-    
-    // Record bet in background (don't await, don't block)
-    supabase.functions.invoke('process-bet', {
-      body: {
-        session_token: sessionToken,
-        prediction_id: prediction.id,
-        position,
-        amount: betAmountNum,
-        tx_hash: txHash || `pb_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
-      }
-    }).then(({ data, error }) => {
-      console.log('[BetModal] Bet recorded:', data, error);
+    try {
+      const { data, error } = await supabase.functions.invoke('process-bet', {
+        body: {
+          session_token: sessionToken,
+          prediction_id: prediction.id,
+          position,
+          amount: betAmountNum,
+          tx_hash: txHash || `pb_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
+        }
+      });
+
+      console.log('[BetModal] process-bet response:', data, error);
+
       if (error || data?.error) {
-        console.error('[BetModal] Background bet recording failed:', error || data?.error);
+        console.error('[BetModal] Bet recording failed:', error || data?.error);
+        toast.error('Bet recording failed', {
+          description: data?.error || error?.message || 'Please try again'
+        });
+        return;
       }
-    });
+
+      // Only show success after backend confirms
+      setBetSuccess(true);
+      toast.success('Bet placed!', {
+        description: `${position.toUpperCase()} bet of ${betAmount} XEC confirmed.`
+      });
+      
+      setTimeout(() => {
+        setBetSuccess(false);
+        onClose();
+      }, 1500);
+    } catch (err: any) {
+      console.error('[BetModal] Error:', err);
+      toast.error('Failed to place bet', { description: err.message });
+    }
   }, [user, sessionToken, betAmount, prediction.id, position, onClose]);
 
   // Load PayButton script
