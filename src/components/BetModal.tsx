@@ -113,7 +113,7 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
     console.log('[BetModal] Stored failed transaction for recovery:', txHash);
   };
 
-  // Record bet using sync-escrow-transactions function
+  // Record bet using sync-escrow-transactions function with retries
   const recordBetWithVerification = useCallback(async (txHash: string) => {
     if (!user || !sessionToken) return false;
     
@@ -121,45 +121,75 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
     console.log('[BetModal] Recording bet with tx:', txHash, 'amount:', betAmountNum);
     
     setIsProcessing(true);
-    try {
-      // Try sync-escrow-transactions which verifies on blockchain
-      const { data, error } = await supabase.functions.invoke('sync-escrow-transactions', {
-        body: {
-          tx_hash: txHash,
-          prediction_id: prediction.id,
-          position,
-          amount: betAmountNum,
-          session_token: sessionToken,
-          user_id: user.id
+    
+    // Retry with increasing delays - Explorer API needs time to index
+    const delays = [2000, 3000, 5000, 8000, 10000]; // 2s, 3s, 5s, 8s, 10s delays
+    let lastError: any = null;
+    
+    for (let attempt = 0; attempt <= delays.length; attempt++) {
+      try {
+        console.log(`[BetModal] Attempt ${attempt + 1} to record bet`);
+        
+        const { data, error } = await supabase.functions.invoke('sync-escrow-transactions', {
+          body: {
+            tx_hash: txHash,
+            prediction_id: prediction.id,
+            position,
+            amount: betAmountNum,
+            session_token: sessionToken,
+            user_id: user.id
+          }
+        });
+
+        console.log('[BetModal] sync-escrow response:', data, error);
+
+        if (error) throw error;
+        
+        // Check if tx not found - we should retry
+        if (data?.error?.includes('not found')) {
+          throw new Error(data.error);
         }
-      });
-
-      console.log('[BetModal] sync-escrow response:', data, error);
-
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      
-      setBetSuccess(true);
-      toast.success('Bet placed successfully!', {
-        description: `Your ${position.toUpperCase()} bet of ${betAmount} XEC has been recorded.`
-      });
-      
-      setTimeout(() => {
-        setBetSuccess(false);
-        onClose();
-      }, 2000);
-      
-      return true;
-    } catch (error: any) {
-      console.error('[BetModal] Error recording bet:', error);
-      storeFailedTransaction(txHash, betAmountNum);
-      toast.error('Failed to record bet', {
-        description: 'Payment received. Bet will be recorded automatically. TX: ' + txHash.slice(0, 8) + '...'
-      });
-      return false;
-    } finally {
-      setIsProcessing(false);
+        
+        if (data?.success || data?.bet_id) {
+          setBetSuccess(true);
+          toast.success('Bet placed successfully!', {
+            description: `Your ${position.toUpperCase()} bet of ${betAmount} XEC has been recorded.`
+          });
+          
+          setTimeout(() => {
+            setBetSuccess(false);
+            onClose();
+          }, 2000);
+          
+          setIsProcessing(false);
+          return true;
+        }
+        
+        // If we got data but no success, it might be an error
+        if (data?.error) {
+          throw new Error(data.error);
+        }
+        
+      } catch (error: any) {
+        console.log(`[BetModal] Attempt ${attempt + 1} failed:`, error.message);
+        lastError = error;
+        
+        // If we have more retries, wait and try again
+        if (attempt < delays.length) {
+          console.log(`[BetModal] Waiting ${delays[attempt]}ms before retry...`);
+          await new Promise(resolve => setTimeout(resolve, delays[attempt]));
+        }
+      }
     }
+    
+    // All retries exhausted
+    console.error('[BetModal] All attempts failed:', lastError);
+    storeFailedTransaction(txHash, betAmountNum);
+    toast.error('Failed to record bet', {
+      description: 'Payment received. Bet will be recorded automatically. TX: ' + txHash.slice(0, 8) + '...'
+    });
+    setIsProcessing(false);
+    return false;
   }, [user, sessionToken, betAmount, prediction.id, position, onClose]);
 
   // Start polling for transaction after PayButton success
