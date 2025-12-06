@@ -6,8 +6,9 @@ const corsHeaders = {
 };
 
 const CHRONIK_URL = 'https://chronik.e.cash';
-const ESCROW_ADDRESS = 'ecash:qr6pwzt7glvmq6ryr4305kat0vnv2wy69qjxpdwz5a';
-const ESCROW_SCRIPT_HASH = 'r6pwzt7glvmq6ryr4305kat0vnv2wy69q';
+// Correct script hash for ecash:qr6pwzt7glvmq6ryr4305kat0vnv2wy69qjxpdwz5a
+// The hash is f41c25f91b66c1a1903ac5f4b757d8d9a7113a28 (from p2pkh address)
+const ESCROW_SCRIPT_HASH = 'f41c25f91b66c1a1903ac5f4b757d8d9a7113a28';
 
 interface ChronikTx {
   txid: string;
@@ -18,16 +19,19 @@ interface ChronikTx {
 // Fetch recent transactions from Chronik
 async function fetchRecentTransactions(limit = 50): Promise<ChronikTx[]> {
   try {
-    const response = await fetch(
-      `${CHRONIK_URL}/script/p2pkh/${ESCROW_SCRIPT_HASH}/history?page=0&page_size=${limit}`
-    );
+    const url = `${CHRONIK_URL}/script/p2pkh/${ESCROW_SCRIPT_HASH}/history?page=0&page_size=${limit}`;
+    console.log('[sync-escrow] Fetching from:', url);
+    const response = await fetch(url);
     if (!response.ok) {
+      const text = await response.text();
+      console.error('[sync-escrow] Chronik error response:', text);
       throw new Error(`Chronik API error: ${response.status}`);
     }
     const data = await response.json();
+    console.log('[sync-escrow] Received txs:', data.txs?.length || 0);
     return data.txs || [];
   } catch (error) {
-    console.error('Failed to fetch from Chronik:', error);
+    console.error('[sync-escrow] Failed to fetch from Chronik:', error);
     return [];
   }
 }
@@ -36,12 +40,37 @@ async function fetchRecentTransactions(limit = 50): Promise<ChronikTx[]> {
 async function getTransactionDetails(txid: string): Promise<ChronikTx | null> {
   try {
     const response = await fetch(`${CHRONIK_URL}/tx/${txid}`);
-    if (!response.ok) return null;
+    if (!response.ok) {
+      console.log('[sync-escrow] TX not found:', txid);
+      return null;
+    }
     return await response.json();
   } catch (error) {
-    console.error('Failed to get tx details:', error);
+    console.error('[sync-escrow] Failed to get tx details:', error);
     return null;
   }
+}
+
+// Validate session and return user_id
+async function validateSession(supabase: any, sessionToken: string): Promise<string | null> {
+  if (!sessionToken || sessionToken.length !== 64) return null;
+  
+  const { data: session, error } = await supabase
+    .from('sessions')
+    .select('user_id, expires_at')
+    .eq('token', sessionToken.trim())
+    .maybeSingle();
+
+  if (error || !session) return null;
+  if (new Date(session.expires_at) < new Date()) return null;
+
+  // Update last used
+  await supabase
+    .from('sessions')
+    .update({ last_used_at: new Date().toISOString() })
+    .eq('token', sessionToken.trim());
+
+  return session.user_id;
 }
 
 Deno.serve(async (req) => {
@@ -58,26 +87,32 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const { tx_hash, prediction_id, position, amount, session_token, user_id } = body;
 
-    console.log('[sync-escrow] Request:', { tx_hash, prediction_id, position, amount, user_id: user_id?.slice(0, 8) });
+    console.log('[sync-escrow] Request received:', { 
+      tx_hash: tx_hash?.slice(0, 16), 
+      prediction_id: prediction_id?.slice(0, 8), 
+      position, 
+      amount,
+      has_session: !!session_token,
+      has_user_id: !!user_id
+    });
 
     // Mode 1: Verify and record a specific transaction
-    if (tx_hash && prediction_id && position && amount && (session_token || user_id)) {
-      // Validate session if provided
+    if (tx_hash && prediction_id && position && amount) {
+      // Validate user
       let validUserId = user_id;
-      if (session_token && !user_id) {
-        const { data: session } = await supabase
-          .from('sessions')
-          .select('user_id')
-          .eq('token', session_token)
-          .maybeSingle();
-        
-        if (!session) {
-          return new Response(
-            JSON.stringify({ error: 'Invalid session' }),
-            { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
+      if (session_token) {
+        const sessionUserId = await validateSession(supabase, session_token);
+        if (sessionUserId) {
+          validUserId = sessionUserId;
         }
-        validUserId = session.user_id;
+      }
+
+      if (!validUserId) {
+        console.log('[sync-escrow] No valid user ID');
+        return new Response(
+          JSON.stringify({ error: 'Authentication required' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
 
       // Check if bet already exists with this tx_hash
@@ -96,25 +131,26 @@ Deno.serve(async (req) => {
       }
 
       // Verify transaction on blockchain
+      console.log('[sync-escrow] Verifying TX on blockchain:', tx_hash);
       const txDetails = await getTransactionDetails(tx_hash);
       if (!txDetails) {
-        console.log('[sync-escrow] Transaction not found on blockchain:', tx_hash);
+        console.log('[sync-escrow] Transaction not found on blockchain yet');
         return new Response(
           JSON.stringify({ error: 'Transaction not found on blockchain. It may still be propagating.' }),
           { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      // Verify amount sent to escrow
+      // Verify amount sent to escrow - look for outputs to our address
       let escrowAmount = 0;
       for (const output of txDetails.outputs) {
-        // Check if output script matches escrow address
-        if (output.outputScript.includes('76a914') && output.outputScript.includes('f41c25f91b66c1a1903ac5f4b757d8d9a7113a28')) {
+        // Check if output script matches escrow address (p2pkh script with our hash)
+        if (output.outputScript.includes(ESCROW_SCRIPT_HASH)) {
           escrowAmount += parseInt(output.value);
         }
       }
-      const escrowXec = escrowAmount / 100;
-      console.log('[sync-escrow] TX verified. Escrow amount:', escrowXec, 'XEC');
+      const escrowXec = escrowAmount / 100; // Convert satoshis to XEC
+      console.log('[sync-escrow] TX verified. Escrow amount:', escrowXec, 'XEC, Expected:', amount);
 
       // Check prediction exists and is active
       const { data: prediction, error: predError } = await supabase
@@ -124,6 +160,7 @@ Deno.serve(async (req) => {
         .single();
 
       if (predError || !prediction) {
+        console.log('[sync-escrow] Prediction not found:', prediction_id);
         return new Response(
           JSON.stringify({ error: 'Prediction not found' }),
           { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -137,14 +174,16 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Create the bet
+      // Create the bet - use the actual amount received on chain
+      const betAmount = Math.round(escrowXec > 0 ? escrowXec : amount);
+      
       const { data: bet, error: betError } = await supabase
         .from('bets')
         .insert({
           user_id: validUserId,
           prediction_id,
           position,
-          amount: Math.round(amount),
+          amount: betAmount,
           status: 'confirmed',
           tx_hash,
           confirmed_at: new Date().toISOString()
@@ -160,16 +199,16 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Record platform fee
-      const feeAmount = Math.floor(amount * 0.01);
+      // Record platform fee (1%)
+      const feeAmount = Math.floor(betAmount * 0.01);
       await supabase.from('platform_fees').insert({
         bet_id: bet.id,
         amount: feeAmount,
       });
 
-      console.log('[sync-escrow] Bet created successfully:', bet.id);
+      console.log('[sync-escrow] Bet created successfully:', bet.id, 'amount:', betAmount);
       return new Response(
-        JSON.stringify({ success: true, bet_id: bet.id, amount: bet.amount }),
+        JSON.stringify({ success: true, bet_id: bet.id, amount: betAmount }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -205,7 +244,7 @@ Deno.serve(async (req) => {
     );
 
   } catch (error: any) {
-    console.error('[sync-escrow] Error:', error);
+    console.error('[sync-escrow] Error:', error?.message, error?.stack);
     return new Response(
       JSON.stringify({ error: 'Internal server error', details: error?.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
