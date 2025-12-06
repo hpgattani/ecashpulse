@@ -57,13 +57,17 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
   // Get recent transactions to escrow address
   const getRecentEscrowTransactions = async (): Promise<any[]> => {
     try {
-      // Escrow address hash for p2pkh
+      // Correct script hash for ecash:qr6pwzt7glvmq6ryr4305kat0vnv2wy69qjxpdwz5a
       const scriptHash = 'f41c25f91b66c1a1903ac5f4b757d8d9a7113a28';
-      const response = await fetch(
-        `${CHRONIK_URL}/script/p2pkh/${scriptHash}/history?page=0&page_size=5`
-      );
-      if (!response.ok) return [];
+      const url = `${CHRONIK_URL}/script/p2pkh/${scriptHash}/history?page=0&page_size=10`;
+      console.log('[BetModal] Fetching escrow txs from:', url);
+      const response = await fetch(url);
+      if (!response.ok) {
+        console.error('[BetModal] Chronik response not ok:', response.status);
+        return [];
+      }
       const data = await response.json();
+      console.log('[BetModal] Got escrow txs:', data.txs?.length || 0);
       return data.txs || [];
     } catch (error) {
       console.error('[BetModal] Failed to fetch escrow txs:', error);
