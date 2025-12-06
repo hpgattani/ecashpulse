@@ -309,7 +309,7 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
                     )}
 
                     {/* PayButton Container */}
-                    <div ref={payButtonRef} className="min-h-[50px]" />
+                    <div ref={payButtonRef} className="min-h-[50px] flex justify-center" />
 
                     {/* Info */}
                     <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/30">
