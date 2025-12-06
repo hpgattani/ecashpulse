@@ -1,12 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Info, AlertCircle, Calculator, Loader2, CheckCircle } from 'lucide-react';
+import { X, Info, AlertCircle, Calculator, Loader2, CheckCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+
+const CHRONIK_URL = 'https://chronik.e.cash';
 
 const ESCROW_ADDRESS = 'ecash:qr6pwzt7glvmq6ryr4305kat0vnv2wy69qjxpdwz5a';
 
@@ -39,27 +41,57 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
   const potentialPayout = betAmount ? (parseFloat(betAmount) * winMultiplier).toFixed(2) : '0';
   const potentialProfit = betAmount ? ((parseFloat(betAmount) * winMultiplier) - parseFloat(betAmount)).toFixed(2) : '0';
 
-  // Retry helper with exponential backoff
-  const retryWithBackoff = async <T,>(
-    fn: () => Promise<T>,
-    maxRetries: number = 5,
-    baseDelay: number = 1000
-  ): Promise<T> => {
-    let lastError: Error | null = null;
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-      try {
-        return await fn();
-      } catch (error: any) {
-        lastError = error;
-        console.log(`Attempt ${attempt + 1} failed:`, error.message);
-        if (attempt < maxRetries - 1) {
-          const delay = baseDelay * Math.pow(2, attempt);
-          console.log(`Retrying in ${delay}ms...`);
-          await new Promise(resolve => setTimeout(resolve, delay));
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastKnownTxRef = useRef<string | null>(null);
+
+  // Verify transaction on blockchain using Chronik
+  const verifyTransactionOnChain = async (txHash: string): Promise<boolean> => {
+    try {
+      const response = await fetch(`${CHRONIK_URL}/tx/${txHash}`);
+      return response.ok;
+    } catch {
+      return false;
+    }
+  };
+
+  // Get recent transactions to escrow address
+  const getRecentEscrowTransactions = async (): Promise<any[]> => {
+    try {
+      // Escrow address hash for p2pkh
+      const scriptHash = 'f41c25f91b66c1a1903ac5f4b757d8d9a7113a28';
+      const response = await fetch(
+        `${CHRONIK_URL}/script/p2pkh/${scriptHash}/history?page=0&page_size=5`
+      );
+      if (!response.ok) return [];
+      const data = await response.json();
+      return data.txs || [];
+    } catch (error) {
+      console.error('[BetModal] Failed to fetch escrow txs:', error);
+      return [];
+    }
+  };
+
+  // Find matching transaction for our bet amount
+  const findMatchingTransaction = async (expectedAmount: number): Promise<string | null> => {
+    const txs = await getRecentEscrowTransactions();
+    console.log('[BetModal] Checking recent txs for amount:', expectedAmount, 'txs:', txs.length);
+    
+    for (const tx of txs) {
+      // Skip if we've already processed this
+      if (tx.txid === lastKnownTxRef.current) continue;
+      
+      // Check if any output matches our expected amount (with 1% tolerance for fees)
+      for (const output of tx.outputs || []) {
+        const outputAmount = parseInt(output.value) / 100; // Convert sats to XEC
+        const tolerance = expectedAmount * 0.05; // 5% tolerance
+        
+        if (Math.abs(outputAmount - expectedAmount) <= tolerance) {
+          console.log('[BetModal] Found matching tx:', tx.txid, 'amount:', outputAmount);
+          return tx.txid;
         }
       }
     }
-    throw lastError;
+    return null;
   };
 
   // Store failed transaction for recovery
@@ -74,62 +106,108 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
       userId: user?.id
     });
     localStorage.setItem('failedBetTransactions', JSON.stringify(failedTxs));
-    console.log('Stored failed transaction for recovery:', txHash);
+    console.log('[BetModal] Stored failed transaction for recovery:', txHash);
   };
 
-  // Record bet in database after successful payment
-  const recordBet = async (txHash?: string) => {
-    if (!user || !sessionToken) return;
+  // Record bet using sync-escrow-transactions function
+  const recordBetWithVerification = useCallback(async (txHash: string) => {
+    if (!user || !sessionToken) return false;
     
     const betAmountNum = Math.round(parseFloat(betAmount));
+    console.log('[BetModal] Recording bet with tx:', txHash, 'amount:', betAmountNum);
     
     setIsProcessing(true);
     try {
-      const result = await retryWithBackoff(async () => {
-        const { data, error } = await supabase.functions.invoke('process-bet', {
-          body: {
-            session_token: sessionToken,
-            prediction_id: prediction.id,
-            position,
-            amount: betAmountNum, // XEC amount directly, not satoshis
-            tx_hash: txHash || null
-          }
-        });
+      // Try sync-escrow-transactions which verifies on blockchain
+      const { data, error } = await supabase.functions.invoke('sync-escrow-transactions', {
+        body: {
+          tx_hash: txHash,
+          prediction_id: prediction.id,
+          position,
+          amount: betAmountNum,
+          session_token: sessionToken,
+          user_id: user.id
+        }
+      });
 
-        if (error) throw error;
-        if (data?.error) throw new Error(data.error);
-        
-        return data;
-      }, 5, 1000);
+      console.log('[BetModal] sync-escrow response:', data, error);
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       
       setBetSuccess(true);
       toast.success('Bet placed successfully!', {
         description: `Your ${position.toUpperCase()} bet of ${betAmount} XEC has been recorded.`
       });
       
-      // Close modal after short delay
       setTimeout(() => {
         setBetSuccess(false);
         onClose();
       }, 2000);
-    } catch (error: any) {
-      console.error('Error recording bet after retries:', error);
       
-      // Store transaction for recovery if we have a tx hash
-      if (txHash) {
-        storeFailedTransaction(txHash, betAmountNum);
-        toast.error('Failed to record bet', {
-          description: 'Your payment was received. The bet will be recorded automatically. TX: ' + txHash.slice(0, 12) + '...'
-        });
-      } else {
-        toast.error('Failed to record bet', {
-          description: error.message || 'Please try again or contact support.'
-        });
-      }
+      return true;
+    } catch (error: any) {
+      console.error('[BetModal] Error recording bet:', error);
+      storeFailedTransaction(txHash, betAmountNum);
+      toast.error('Failed to record bet', {
+        description: 'Payment received. Bet will be recorded automatically. TX: ' + txHash.slice(0, 8) + '...'
+      });
+      return false;
     } finally {
       setIsProcessing(false);
     }
-  };
+  }, [user, sessionToken, betAmount, prediction.id, position, onClose]);
+
+  // Start polling for transaction after PayButton success
+  const startTransactionPolling = useCallback(async (providedTxHash?: string) => {
+    const betAmountNum = Math.round(parseFloat(betAmount));
+    console.log('[BetModal] Starting transaction polling, providedTx:', providedTxHash);
+    
+    setIsProcessing(true);
+
+    // If we have a tx hash from PayButton, verify and record
+    if (providedTxHash) {
+      const exists = await verifyTransactionOnChain(providedTxHash);
+      if (exists) {
+        await recordBetWithVerification(providedTxHash);
+        return;
+      }
+    }
+
+    // Otherwise, poll for matching transaction
+    let attempts = 0;
+    const maxAttempts = 30; // 30 seconds max
+    
+    pollingIntervalRef.current = setInterval(async () => {
+      attempts++;
+      console.log('[BetModal] Polling attempt', attempts);
+      
+      const matchingTx = await findMatchingTransaction(betAmountNum);
+      
+      if (matchingTx) {
+        clearInterval(pollingIntervalRef.current!);
+        pollingIntervalRef.current = null;
+        lastKnownTxRef.current = matchingTx;
+        await recordBetWithVerification(matchingTx);
+      } else if (attempts >= maxAttempts) {
+        clearInterval(pollingIntervalRef.current!);
+        pollingIntervalRef.current = null;
+        setIsProcessing(false);
+        toast.error('Transaction not detected', {
+          description: 'Please check your wallet to confirm the payment was sent.'
+        });
+      }
+    }, 1000);
+  }, [betAmount, recordBetWithVerification]);
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
+  }, []);
 
   // Load PayButton script
   useEffect(() => {
@@ -185,18 +263,26 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
               tertiary: '#ffffff'
             }
           },
-          onSuccess: (txResult: any) => {
-            console.log('PayButton success, result:', txResult);
-            let txHash: string | undefined;
-            if (typeof txResult === 'string') {
-              txHash = txResult;
-            } else if (txResult?.hash) {
-              txHash = txResult.hash;
-            } else if (txResult?.txid) {
-              txHash = txResult.txid;
-            }
-            recordBet(txHash);
-          },
+                        onSuccess: (txResult: any) => {
+                            console.log('[BetModal] PayButton success, result:', JSON.stringify(txResult));
+                            let txHash: string | undefined;
+                            
+                            // Try to extract tx hash from various formats
+                            if (typeof txResult === 'string') {
+                              txHash = txResult;
+                            } else if (txResult?.hash) {
+                              txHash = txResult.hash;
+                            } else if (txResult?.txid) {
+                              txHash = txResult.txid;
+                            } else if (txResult?.txId) {
+                              txHash = txResult.txId;
+                            } else if (txResult?.transaction?.hash) {
+                              txHash = txResult.transaction.hash;
+                            }
+                            
+                            // Always start polling - either with tx hash or by looking for matching amount
+                            startTransactionPolling(txHash);
+                          },
           onError: (error: any) => {
             console.error('PayButton error:', error);
             toast.error('Payment failed', {
