@@ -123,7 +123,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Create bet with pending status
+    // Create bet with confirmed status (payment already verified by PayButton)
+    console.log('Creating bet in database...');
     const { data: bet, error: betError } = await supabase
       .from('bets')
       .insert({
@@ -131,20 +132,22 @@ Deno.serve(async (req) => {
         prediction_id,
         position,
         amount: betAmount,
-        status: tx_hash ? 'confirmed' : 'pending',
+        status: 'confirmed',
         tx_hash: tx_hash || null,
-        confirmed_at: tx_hash ? new Date().toISOString() : null
+        confirmed_at: new Date().toISOString()
       })
       .select()
       .single();
 
     if (betError) {
-      console.error('Error creating bet:', betError);
+      console.error('Error creating bet:', JSON.stringify(betError));
       return new Response(
-        JSON.stringify({ error: 'Failed to create bet' }),
+        JSON.stringify({ error: 'Failed to create bet: ' + betError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    
+    console.log('Bet created successfully:', bet.id);
 
     // Record platform fee (1%)
     const feeAmount = Math.floor(betAmount * PLATFORM_FEE_PERCENT);
