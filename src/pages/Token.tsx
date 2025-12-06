@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, ExternalLink, Coins, Users, Vote, Shield, Zap } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Coins, Users, Vote, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -18,28 +18,23 @@ const Token = () => {
     },
     {
       icon: Coins,
-      title: 'Fee Discounts',
-      description: 'Hold tokens to receive reduced trading fees on all prediction markets.',
-    },
-    {
-      icon: Shield,
-      title: 'Staking Rewards',
-      description: 'Stake your tokens to earn a share of platform fees and rewards.',
+      title: 'Revenue Airdrops',
+      description: 'Receive airdrops from a portion of platform revenue distributed to token holders.',
     },
     {
       icon: Users,
       title: 'Community Access',
-      description: 'Exclusive access to community events, early features, and airdrops.',
+      description: 'Exclusive access to community events, early features, and special perks.',
     },
   ];
 
   return (
     <>
       <Helmet>
-        <title>PULSE Token - eCash Pulse Governance Token</title>
+        <title>$XPULSE - eCash Pulse Governance Token</title>
         <meta
           name="description"
-          content="PULSE is the governance and utility token for eCash Pulse prediction markets. Vote on proposals, earn rewards, and shape the future of decentralized predictions."
+          content="$XPULSE is the governance and utility token for eCash Pulse prediction markets. Vote on proposals, receive airdrops, and shape the future of decentralized predictions."
         />
       </Helmet>
 
@@ -85,19 +80,19 @@ const Token = () => {
               </Badge>
               
               <h1 className="font-display text-4xl md:text-6xl font-bold text-foreground mb-4">
-                PULSE <span className="text-primary">Token</span>
+                <span className="text-primary">$XPULSE</span>
               </h1>
               
               <p className="text-lg md:text-xl text-muted-foreground mb-8">
-                The governance and utility token powering eCash Pulse prediction markets. 
-                Shape the future of decentralized predictions.
+                The governance and utility token powering eCash Pulse prediction markets.
+                Vote on proposals, receive revenue airdrops, and shape the future.
               </p>
 
               <div className="flex flex-wrap justify-center gap-4">
                 <Button asChild size="lg" className="gap-2">
                   <a href={CASHTAB_URL} target="_blank" rel="noopener noreferrer">
                     <Coins className="w-5 h-5" />
-                    Get PULSE Token
+                    Get $XPULSE
                   </a>
                 </Button>
                 <Button variant="outline" size="lg" asChild>
@@ -118,8 +113,8 @@ const Token = () => {
             >
               <Card className="glass-card border-border/30 mb-12">
                 <CardHeader>
-                  <CardTitle>Token Details</CardTitle>
-                  <CardDescription>Official PULSE token information</CardDescription>
+                  <CardTitle>eCash Pulse Token Details</CardTitle>
+                  <CardDescription>Official $XPULSE token information</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="grid gap-4">
@@ -128,6 +123,10 @@ const Token = () => {
                       <code className="text-xs md:text-sm font-mono text-foreground break-all">
                         {TOKEN_ID}
                       </code>
+                    </div>
+                    <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30">
+                      <span className="text-muted-foreground">Ticker</span>
+                      <span className="font-medium text-foreground">$XPULSE</span>
                     </div>
                     <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30">
                       <span className="text-muted-foreground">Token Type</span>
@@ -197,7 +196,7 @@ const Token = () => {
                 Ready to Get Started?
               </h2>
               <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
-                Acquire PULSE tokens through Cashtab wallet and join the eCash Pulse community.
+                Acquire $XPULSE tokens through Cashtab wallet and join the eCash Pulse community.
               </p>
               <Button asChild size="lg" className="gap-2">
                 <a href={CASHTAB_URL} target="_blank" rel="noopener noreferrer">
