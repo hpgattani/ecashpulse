@@ -162,7 +162,6 @@ const Auth = () => {
       text: 'Verify Wallet',
       hoverText: `Pay ${AUTH_AMOUNT} XEC`,
       onSuccess: handleSuccess,
-      randomSatoshis: true, // Prevent payment collision
       theme: {
         palette: {
           primary: '#0AC18E',
