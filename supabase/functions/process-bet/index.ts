@@ -96,11 +96,14 @@ Deno.serve(async (req) => {
     }
 
     // Verify prediction exists and is active
+    console.log('Checking prediction...');
     const { data: prediction, error: predError } = await supabase
       .from('predictions')
       .select('id, status, end_date')
       .eq('id', prediction_id)
-      .single();
+      .maybeSingle();
+
+    console.log('Prediction query result:', prediction ? 'found' : 'not found', predError ? predError.message : 'no error');
 
     if (predError || !prediction) {
       return new Response(
