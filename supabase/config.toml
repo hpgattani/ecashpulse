@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.validate-session]
 verify_jwt = false
+
+[functions.fetch-trending-topics]
+verify_jwt = false

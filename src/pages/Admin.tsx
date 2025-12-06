@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
-import { ArrowLeft, TrendingUp, TrendingDown, ExternalLink, Users, DollarSign, Clock, CheckCircle2, Shield, User } from 'lucide-react';
+import { ArrowLeft, TrendingUp, TrendingDown, ExternalLink, Users, DollarSign, Clock, CheckCircle2, Shield, User, Sparkles, RefreshCw, Target } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 
@@ -44,14 +45,29 @@ interface UserWithProfile {
   } | null;
 }
 
+interface Prediction {
+  id: string;
+  title: string;
+  description: string | null;
+  category: string;
+  status: string;
+  end_date: string;
+  yes_pool: number;
+  no_pool: number;
+  created_at: string;
+}
+
 const Admin = () => {
   const [bets, setBets] = useState<BetWithDetails[]>([]);
   const [users, setUsers] = useState<UserWithProfile[]>([]);
+  const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [loading, setLoading] = useState(true);
   const [usersLoading, setUsersLoading] = useState(true);
+  const [predictionsLoading, setPredictionsLoading] = useState(true);
+  const [fetchingTopics, setFetchingTopics] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkingAdmin, setCheckingAdmin] = useState(true);
-  const { user } = useAuth();
+  const { user, sessionToken } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -87,6 +103,7 @@ const Admin = () => {
     if (isAdmin) {
       fetchAllBets();
       fetchAllUsers();
+      fetchAllPredictions();
       
       const channel = supabase
         .channel('admin-bets')
@@ -96,6 +113,9 @@ const Admin = () => {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => {
           fetchAllUsers();
         })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'predictions' }, () => {
+          fetchAllPredictions();
+        })
         .subscribe();
 
       return () => {
@@ -103,6 +123,54 @@ const Admin = () => {
       };
     }
   }, [isAdmin]);
+
+  const fetchAllPredictions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('predictions')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setPredictions((data as Prediction[]) || []);
+    } catch (error) {
+      console.error('Error fetching predictions:', error);
+    } finally {
+      setPredictionsLoading(false);
+    }
+  };
+
+  const fetchTrendingTopics = async () => {
+    if (!sessionToken) {
+      toast.error('Session expired. Please log in again.');
+      return;
+    }
+
+    setFetchingTopics(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fetch-trending-topics`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ session_token: sessionToken }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch trending topics');
+      }
+
+      toast.success(`Created ${data.created} new predictions!`);
+      fetchAllPredictions();
+    } catch (error) {
+      console.error('Error fetching trending topics:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to fetch trending topics');
+    } finally {
+      setFetchingTopics(false);
+    }
+  };
 
   const fetchAllBets = async () => {
     try {
@@ -285,9 +353,9 @@ const Admin = () => {
               </motion.div>
             </div>
 
-            {/* Tabs for Bets and Users */}
+            {/* Tabs for Bets, Users, and Predictions */}
             <Tabs defaultValue="bets" className="space-y-4">
-              <TabsList className="grid w-full max-w-md grid-cols-2">
+              <TabsList className="grid w-full max-w-xl grid-cols-3">
                 <TabsTrigger value="bets" className="gap-2">
                   <TrendingUp className="w-4 h-4" />
                   All Bets
@@ -295,6 +363,10 @@ const Admin = () => {
                 <TabsTrigger value="users" className="gap-2">
                   <Users className="w-4 h-4" />
                   All Users
+                </TabsTrigger>
+                <TabsTrigger value="predictions" className="gap-2">
+                  <Target className="w-4 h-4" />
+                  Predictions
                 </TabsTrigger>
               </TabsList>
 
@@ -461,6 +533,96 @@ const Admin = () => {
                               </td>
                               <td className="p-4 text-sm text-muted-foreground">
                                 {u.last_login_at ? formatDate(u.last_login_at) : '-'}
+                              </td>
+                            </motion.tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="predictions">
+                <div className="glass-card overflow-hidden">
+                  <div className="p-4 border-b border-border flex items-center justify-between">
+                    <h2 className="font-display font-bold text-lg text-foreground">All Predictions</h2>
+                    <Button 
+                      onClick={fetchTrendingTopics}
+                      disabled={fetchingTopics}
+                      className="gap-2"
+                    >
+                      {fetchingTopics ? (
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Sparkles className="w-4 h-4" />
+                      )}
+                      {fetchingTopics ? 'Fetching...' : 'Fetch Trending Topics'}
+                    </Button>
+                  </div>
+                  
+                  {predictionsLoading ? (
+                    <div className="p-8 text-center">
+                      <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full mx-auto" />
+                    </div>
+                  ) : predictions.length === 0 ? (
+                    <div className="p-8 text-center text-muted-foreground">
+                      No predictions yet. Click "Fetch Trending Topics" to generate some!
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-muted/30">
+                          <tr className="text-left text-sm text-muted-foreground">
+                            <th className="p-4">Title</th>
+                            <th className="p-4">Category</th>
+                            <th className="p-4">Status</th>
+                            <th className="p-4">Yes Pool</th>
+                            <th className="p-4">No Pool</th>
+                            <th className="p-4">End Date</th>
+                            <th className="p-4">Created</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {predictions.map((p, index) => (
+                            <motion.tr
+                              key={p.id}
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              transition={{ delay: index * 0.02 }}
+                              className="hover:bg-muted/20"
+                            >
+                              <td className="p-4">
+                                <p className="text-foreground text-sm max-w-md truncate">{p.title}</p>
+                                {p.description && (
+                                  <p className="text-muted-foreground text-xs truncate max-w-md">{p.description}</p>
+                                )}
+                              </td>
+                              <td className="p-4">
+                                <Badge variant="outline">{p.category}</Badge>
+                              </td>
+                              <td className="p-4">
+                                <Badge className={
+                                  p.status === 'active' 
+                                    ? 'bg-emerald-500/20 text-emerald-400' 
+                                    : p.status.startsWith('resolved') 
+                                      ? 'bg-primary/20 text-primary'
+                                      : 'bg-muted text-muted-foreground'
+                                }>
+                                  {p.status}
+                                </Badge>
+                              </td>
+                              <td className="p-4 text-emerald-400 font-medium">
+                                {formatAmount(p.yes_pool)}
+                              </td>
+                              <td className="p-4 text-red-400 font-medium">
+                                {formatAmount(p.no_pool)}
+                              </td>
+                              <td className="p-4 text-sm text-muted-foreground">
+                                {new Date(p.end_date).toLocaleDateString()}
+                              </td>
+                              <td className="p-4 text-sm text-muted-foreground">
+                                {formatDate(p.created_at)}
                               </td>
                             </motion.tr>
                           ))}
