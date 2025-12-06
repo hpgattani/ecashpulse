@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
@@ -6,11 +6,18 @@ import { Zap, AlertCircle, Loader2, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { PayButton } from '@paybutton/react';
 
 // Platform auth wallet - receives verification payments
 const AUTH_WALLET = 'ecash:qr6pwzt7glvmq6ryr4305kat0vnv2wy69qjxpdwz5a';
 const AUTH_AMOUNT = 5.46; // XEC amount for verification
+
+declare global {
+  interface Window {
+    PayButton?: {
+      render: (element: HTMLElement, config: Record<string, unknown>) => void;
+    };
+  }
+}
 
 interface PayButtonTransaction {
   hash: string;
@@ -28,45 +35,84 @@ const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [authSuccess, setAuthSuccess] = useState(false);
+  const [scriptLoaded, setScriptLoaded] = useState(false);
+  const payButtonRef = useRef<HTMLDivElement>(null);
   const { user, login } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Load PayButton script
+  useEffect(() => {
+    const existingScript = document.querySelector('script[src*="paybutton"]');
+    if (existingScript) {
+      setScriptLoaded(true);
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://unpkg.com/@nichanank/paybutton/dist/paybutton.js';
+    script.async = true;
+    script.onload = () => setScriptLoaded(true);
+    document.body.appendChild(script);
+  }, []);
+
+  // Render PayButton when script is loaded
+  useEffect(() => {
+    if (!scriptLoaded || !payButtonRef.current || !window.PayButton || user || isLoading) return;
+
+    // Clear previous content
+    payButtonRef.current.innerHTML = '';
+
+    const handleSuccess = async (transaction: PayButtonTransaction) => {
+      console.log('Auth payment successful:', transaction);
+      
+      const senderAddress = transaction.inputAddresses?.[0];
+      
+      if (!senderAddress) {
+        setError('Could not detect sender wallet address. Please try again.');
+        return;
+      }
+
+      setIsLoading(true);
+      setError(null);
+      
+      const result = await login(senderAddress, transaction.hash);
+      
+      if (result.error) {
+        setError(result.error);
+        setIsLoading(false);
+      } else {
+        setAuthSuccess(true);
+        toast({
+          title: 'Welcome!',
+          description: 'Wallet verified and connected to eCash Pulse',
+        });
+        setTimeout(() => navigate('/'), 1500);
+      }
+    };
+
+    window.PayButton.render(payButtonRef.current, {
+      to: AUTH_WALLET,
+      amount: AUTH_AMOUNT,
+      currency: 'XEC',
+      text: 'Verify Wallet',
+      hoverText: `Pay ${AUTH_AMOUNT} XEC`,
+      onSuccess: handleSuccess,
+      theme: {
+        palette: {
+          primary: '#0AC18E',
+          secondary: '#1a1a2e',
+          tertiary: '#ffffff'
+        }
+      }
+    });
+  }, [scriptLoaded, user, isLoading, login, navigate, toast]);
 
   useEffect(() => {
     if (user) {
       navigate('/');
     }
   }, [user, navigate]);
-
-  const handlePaymentSuccess = async (transaction: PayButtonTransaction) => {
-    console.log('Payment successful:', transaction);
-    
-    // Get the sender's address from inputAddresses
-    const senderAddress = transaction.inputAddresses?.[0];
-    
-    if (!senderAddress) {
-      setError('Could not detect sender wallet address. Please try again.');
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-    
-    // Use the sender's address to authenticate
-    const result = await login(senderAddress, transaction.hash);
-    
-    if (result.error) {
-      setError(result.error);
-      setIsLoading(false);
-    } else {
-      setAuthSuccess(true);
-      toast({
-        title: 'Welcome!',
-        description: 'Wallet verified and connected to eCash Pulse',
-      });
-      setTimeout(() => navigate('/'), 1500);
-    }
-  };
 
   if (authSuccess) {
     return (
@@ -142,24 +188,9 @@ const Auth = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                {/* PayButton for authentication */}
-                <div className="flex justify-center">
-                  <PayButton
-                    to={AUTH_WALLET}
-                    amount={AUTH_AMOUNT}
-                    currency="XEC"
-                    text="Verify Wallet"
-                    hoverText={`Pay ${AUTH_AMOUNT} XEC`}
-                    onSuccess={handlePaymentSuccess}
-                    theme={{
-                      palette: {
-                        primary: '#0AC18E',
-                        secondary: '#1a1a2e',
-                        tertiary: '#ffffff',
-                        logo: '#0AC18E'
-                      }
-                    }}
-                  />
+                {/* PayButton container */}
+                <div className="flex justify-center min-h-[50px]">
+                  <div ref={payButtonRef} />
                 </div>
 
                 <div className="text-center text-xs text-muted-foreground space-y-1">
