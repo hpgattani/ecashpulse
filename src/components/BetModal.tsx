@@ -42,8 +42,9 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
   const recordBet = useCallback(async (txHash?: string) => {
     if (!user || !sessionToken) return;
     
-    const betAmountNum = Math.round(parseFloat(betAmount));
-    console.log('[BetModal] Recording bet, amount:', betAmountNum, 'txHash:', txHash);
+    const betAmountXec = parseFloat(betAmount);
+    const betAmountSatoshis = Math.round(betAmountXec * 100); // Convert XEC to satoshis (1 XEC = 100 satoshis)
+    console.log('[BetModal] Recording bet, amount XEC:', betAmountXec, 'satoshis:', betAmountSatoshis, 'txHash:', txHash);
     
     try {
       const { data, error } = await supabase.functions.invoke('process-bet', {
@@ -51,7 +52,7 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
           session_token: sessionToken,
           prediction_id: prediction.id,
           position,
-          amount: betAmountNum,
+          amount: betAmountSatoshis,
           tx_hash: txHash || `pb_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
         }
       });
