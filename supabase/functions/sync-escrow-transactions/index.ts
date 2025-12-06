@@ -5,58 +5,78 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Use the REST API endpoint which returns JSON
-const CHRONIK_URL = 'https://chronik.e.cash';
-// Correct script hash for ecash:qr6pwzt7glvmq6ryr4305kat0vnv2wy69qjxpdwz5a
-const ESCROW_SCRIPT_HASH = 'f41c25f91b66c1a1903ac5f4b757d8d9a7113a28';
+// Use eCash Explorer API (returns proper JSON)
+const ECASH_EXPLORER_API = 'https://explorer.e.cash/api';
+const ESCROW_ADDRESS = 'ecash:qr6pwzt7glvmq6ryr4305kat0vnv2wy69qjxpdwz5a';
 
-interface ChronikTx {
+interface ExplorerTx {
   txid: string;
-  timeFirstSeen: number;
-  outputs: { value: string; outputScript: string }[];
+  vin: { value: string; addr?: string }[];
+  vout: { value: string; scriptPubKey: { addresses?: string[] } }[];
+  blockheight?: number;
+  time?: number;
 }
 
-// Fetch recent transactions from Chronik - use Accept header for JSON
-async function fetchRecentTransactions(limit = 50): Promise<ChronikTx[]> {
+// Fetch transaction details from eCash Explorer API
+async function getTransactionFromExplorer(txid: string): Promise<ExplorerTx | null> {
   try {
-    const url = `${CHRONIK_URL}/script/p2pkh/${ESCROW_SCRIPT_HASH}/history?page=0&page_size=${limit}`;
-    console.log('[sync-escrow] Fetching from:', url);
-    const response = await fetch(url, {
-      headers: { 'Accept': 'application/json' }
-    });
+    const url = `${ECASH_EXPLORER_API}/tx/${txid}`;
+    console.log('[sync-escrow] Fetching from explorer:', url);
+    
+    const response = await fetch(url);
     if (!response.ok) {
-      const text = await response.text();
-      console.error('[sync-escrow] Chronik error response:', text);
-      throw new Error(`Chronik API error: ${response.status}`);
+      console.log('[sync-escrow] Explorer tx not found, status:', response.status);
+      return null;
     }
+    
     const data = await response.json();
-    console.log('[sync-escrow] Received txs:', data.txs?.length || 0);
-    return data.txs || [];
+    console.log('[sync-escrow] Explorer tx found:', data.txid);
+    return data;
   } catch (error) {
-    console.error('[sync-escrow] Failed to fetch from Chronik:', error);
+    console.error('[sync-escrow] Failed to get tx from explorer:', error);
+    return null;
+  }
+}
+
+// Get recent transactions for the escrow address
+async function getRecentTransactionsFromExplorer(limit = 20): Promise<ExplorerTx[]> {
+  try {
+    const url = `${ECASH_EXPLORER_API}/txs?address=${ESCROW_ADDRESS}&pageNum=0`;
+    console.log('[sync-escrow] Fetching recent txs from explorer:', url);
+    
+    const response = await fetch(url);
+    if (!response.ok) {
+      console.log('[sync-escrow] Explorer history failed, status:', response.status);
+      return [];
+    }
+    
+    const data = await response.json();
+    console.log('[sync-escrow] Explorer returned', data.txs?.length || 0, 'transactions');
+    return (data.txs || []).slice(0, limit);
+  } catch (error) {
+    console.error('[sync-escrow] Failed to get history from explorer:', error);
     return [];
   }
 }
 
-// Get transaction details - use Accept header for JSON
-async function getTransactionDetails(txid: string): Promise<ChronikTx | null> {
-  try {
-    const url = `${CHRONIK_URL}/tx/${txid}`;
-    console.log('[sync-escrow] Fetching tx details:', url);
-    const response = await fetch(url, {
-      headers: { 'Accept': 'application/json' }
-    });
-    if (!response.ok) {
-      console.log('[sync-escrow] TX not found, status:', response.status);
-      return null;
+// Calculate amount sent to escrow address in XEC
+function calculateEscrowAmount(tx: ExplorerTx): number {
+  let totalXec = 0;
+  
+  for (const output of tx.vout) {
+    const addresses = output.scriptPubKey?.addresses || [];
+    
+    for (const addr of addresses) {
+      // Compare addresses (handle with or without prefix)
+      const normalizedAddr = addr.includes(':') ? addr : `ecash:${addr}`;
+      if (normalizedAddr === ESCROW_ADDRESS) {
+        // Value in explorer API is in XEC as a string
+        totalXec += parseFloat(output.value);
+      }
     }
-    const data = await response.json();
-    console.log('[sync-escrow] TX details received:', data.txid);
-    return data;
-  } catch (error) {
-    console.error('[sync-escrow] Failed to get tx details:', error);
-    return null;
   }
+  
+  return totalXec;
 }
 
 // Validate session and return user_id
@@ -138,9 +158,9 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Verify transaction on blockchain
+      // Verify transaction on blockchain using Explorer API
       console.log('[sync-escrow] Verifying TX on blockchain:', tx_hash);
-      const txDetails = await getTransactionDetails(tx_hash);
+      const txDetails = await getTransactionFromExplorer(tx_hash);
       if (!txDetails) {
         console.log('[sync-escrow] Transaction not found on blockchain yet');
         return new Response(
@@ -149,16 +169,16 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Verify amount sent to escrow - look for outputs to our address
-      let escrowAmount = 0;
-      for (const output of txDetails.outputs) {
-        // Check if output script matches escrow address (p2pkh script with our hash)
-        if (output.outputScript && output.outputScript.includes(ESCROW_SCRIPT_HASH)) {
-          escrowAmount += parseInt(output.value);
-        }
-      }
-      const escrowXec = escrowAmount / 100; // Convert satoshis to XEC
+      // Calculate amount sent to escrow
+      const escrowXec = calculateEscrowAmount(txDetails);
       console.log('[sync-escrow] TX verified. Escrow amount:', escrowXec, 'XEC, Expected:', amount);
+
+      if (escrowXec < 1) {
+        return new Response(
+          JSON.stringify({ error: 'No payment to escrow found in transaction' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
 
       // Check prediction exists and is active
       const { data: prediction, error: predError } = await supabase
@@ -223,7 +243,7 @@ Deno.serve(async (req) => {
 
     // Mode 2: Scan for unrecorded transactions
     console.log('[sync-escrow] Scanning for unrecorded transactions...');
-    const recentTxs = await fetchRecentTransactions(50);
+    const recentTxs = await getRecentTransactionsFromExplorer(20);
     console.log(`[sync-escrow] Found ${recentTxs.length} recent transactions`);
 
     // Get all recorded tx_hashes
@@ -245,7 +265,7 @@ Deno.serve(async (req) => {
         unrecorded_count: unrecordedTxs.length,
         unrecorded_txs: unrecordedTxs.slice(0, 10).map(tx => ({
           txid: tx.txid,
-          timestamp: tx.timeFirstSeen
+          amount: calculateEscrowAmount(tx)
         }))
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
