@@ -1,8 +1,5 @@
 project_id = "ctfqkbbauvznzmznmjdt"
 
-[functions.register-user]
-verify_jwt = false
-
 [functions.ai-dispute]
 verify_jwt = false
 
@@ -25,4 +22,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.paybutton-webhook]
+verify_jwt = false
+
+[functions.validate-session]
 verify_jwt = false
