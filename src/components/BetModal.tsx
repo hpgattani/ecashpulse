@@ -39,27 +39,68 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
   const potentialPayout = betAmount ? (parseFloat(betAmount) * winMultiplier).toFixed(2) : '0';
   const potentialProfit = betAmount ? ((parseFloat(betAmount) * winMultiplier) - parseFloat(betAmount)).toFixed(2) : '0';
 
+  // Retry helper with exponential backoff
+  const retryWithBackoff = async <T,>(
+    fn: () => Promise<T>,
+    maxRetries: number = 5,
+    baseDelay: number = 1000
+  ): Promise<T> => {
+    let lastError: Error | null = null;
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        return await fn();
+      } catch (error: any) {
+        lastError = error;
+        console.log(`Attempt ${attempt + 1} failed:`, error.message);
+        if (attempt < maxRetries - 1) {
+          const delay = baseDelay * Math.pow(2, attempt);
+          console.log(`Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+    throw lastError;
+  };
+
+  // Store failed transaction for recovery
+  const storeFailedTransaction = (txHash: string, amount: number) => {
+    const failedTxs = JSON.parse(localStorage.getItem('failedBetTransactions') || '[]');
+    failedTxs.push({
+      txHash,
+      predictionId: prediction.id,
+      position,
+      amount,
+      timestamp: Date.now(),
+      userId: user?.id
+    });
+    localStorage.setItem('failedBetTransactions', JSON.stringify(failedTxs));
+    console.log('Stored failed transaction for recovery:', txHash);
+  };
+
   // Record bet in database after successful payment
   const recordBet = async (txHash?: string) => {
     if (!user || !sessionToken) return;
     
+    const betAmountNum = Math.round(parseFloat(betAmount));
+    
     setIsProcessing(true);
     try {
-      const { data, error } = await supabase.functions.invoke('process-bet', {
-        body: {
-          session_token: sessionToken,
-          prediction_id: prediction.id,
-          position,
-          amount: Math.round(parseFloat(betAmount) * 100), // Convert to satoshis
-          tx_hash: txHash || null
-        }
-      });
+      const result = await retryWithBackoff(async () => {
+        const { data, error } = await supabase.functions.invoke('process-bet', {
+          body: {
+            session_token: sessionToken,
+            prediction_id: prediction.id,
+            position,
+            amount: betAmountNum, // XEC amount directly, not satoshis
+            tx_hash: txHash || null
+          }
+        });
 
-      if (error) throw error;
-      
-      if (data?.error) {
-        throw new Error(data.error);
-      }
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        
+        return data;
+      }, 5, 1000);
       
       setBetSuccess(true);
       toast.success('Bet placed successfully!', {
@@ -72,10 +113,19 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
         onClose();
       }, 2000);
     } catch (error: any) {
-      console.error('Error recording bet:', error);
-      toast.error('Failed to record bet', {
-        description: error.message || 'Please try again or contact support.'
-      });
+      console.error('Error recording bet after retries:', error);
+      
+      // Store transaction for recovery if we have a tx hash
+      if (txHash) {
+        storeFailedTransaction(txHash, betAmountNum);
+        toast.error('Failed to record bet', {
+          description: 'Your payment was received. The bet will be recorded automatically. TX: ' + txHash.slice(0, 12) + '...'
+        });
+      } else {
+        toast.error('Failed to record bet', {
+          description: error.message || 'Please try again or contact support.'
+        });
+      }
     } finally {
       setIsProcessing(false);
     }

@@ -88,11 +88,29 @@ Deno.serve(async (req) => {
     }
 
     const betAmount = typeof amount === 'number' ? amount : parseInt(amount);
-    if (isNaN(betAmount) || betAmount < 100 || betAmount > 1000000000) {
+    if (isNaN(betAmount) || betAmount < 1 || betAmount > 1000000000) {
+      console.log(`Invalid bet amount: ${betAmount}`);
       return new Response(
-        JSON.stringify({ error: 'Amount must be between 100 XEC and 10M XEC' }),
+        JSON.stringify({ error: 'Amount must be between 1 XEC and 10M XEC' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+    
+    // Check if this tx_hash already exists (prevent duplicates)
+    if (tx_hash) {
+      const { data: existingBet } = await supabase
+        .from('bets')
+        .select('id')
+        .eq('tx_hash', tx_hash)
+        .maybeSingle();
+      
+      if (existingBet) {
+        console.log(`Duplicate tx_hash detected: ${tx_hash}`);
+        return new Response(
+          JSON.stringify({ success: true, bet_id: existingBet.id, message: 'Bet already recorded' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Verify prediction exists and is active
@@ -153,31 +171,8 @@ Deno.serve(async (req) => {
       amount: feeAmount,
     });
 
-    // Update prediction pool when bet is confirmed
-    if (tx_hash) {
-      const { data: currentPrediction } = await supabase
-        .from('predictions')
-        .select('yes_pool, no_pool')
-        .eq('id', prediction_id)
-        .single();
-
-      if (currentPrediction) {
-        const updateData = position === 'yes' 
-          ? { yes_pool: (currentPrediction.yes_pool || 0) + betAmount, updated_at: new Date().toISOString() }
-          : { no_pool: (currentPrediction.no_pool || 0) + betAmount, updated_at: new Date().toISOString() };
-        
-        const { error: updateError } = await supabase
-          .from('predictions')
-          .update(updateData)
-          .eq('id', prediction_id);
-
-        if (updateError) {
-          console.error('Error updating prediction pool:', updateError);
-        } else {
-          console.log(`Updated ${position}_pool for prediction ${prediction_id}`);
-        }
-      }
-    }
+    // Pool updates are now handled by database trigger (update_prediction_pool)
+    // No manual pool update needed here
 
     console.log(`Bet created: ${bet.id} for user ${user_id}, ${position} @ ${betAmount} XEC`);
 
@@ -194,10 +189,11 @@ Deno.serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-  } catch (error) {
-    console.error('Error in process-bet function:', error);
+  } catch (error: any) {
+    console.error('Error in process-bet function:', error?.message || error);
+    console.error('Error stack:', error?.stack);
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ error: 'Internal server error', details: error?.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
