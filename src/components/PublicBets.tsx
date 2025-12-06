@@ -29,21 +29,37 @@ const PublicBets = () => {
   useEffect(() => {
     fetchBets();
 
-    // Subscribe to realtime updates
+    // Subscribe to realtime updates for new bets and updates
     const channel = supabase
-      .channel('public-bets')
+      .channel('public-bets-realtime')
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
           schema: 'public',
           table: 'bets'
         },
-        () => {
+        (payload) => {
+          console.log('New bet detected:', payload);
+          // Immediately fetch to get full bet data with joins
           fetchBets();
         }
       )
-      .subscribe();
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'bets'
+        },
+        (payload) => {
+          console.log('Bet updated:', payload);
+          fetchBets();
+        }
+      )
+      .subscribe((status) => {
+        console.log('PublicBets realtime subscription status:', status);
+      });
 
     return () => {
       supabase.removeChannel(channel);

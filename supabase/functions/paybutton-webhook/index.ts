@@ -76,22 +76,26 @@ Deno.serve(async (req) => {
     console.log('Raw body:', rawBody);
     console.log('Signature header:', signature);
 
-    // If signature is provided, verify it
-    if (signature) {
-      const publicKey = extractEd25519PublicKey(PAYBUTTON_PUBLIC_KEY);
-      const isValid = await verifySignature(rawBody, signature, publicKey);
-      
-      if (!isValid) {
-        console.error('Invalid signature');
-        return new Response(
-          JSON.stringify({ error: 'Invalid signature' }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      console.log('Signature verified successfully');
-    } else {
-      console.log('No signature provided - proceeding without verification');
+    // SECURITY: Signature verification is MANDATORY
+    if (!signature) {
+      console.error('No signature provided - rejecting request');
+      return new Response(
+        JSON.stringify({ error: 'Missing signature - authentication required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
+
+    const publicKey = extractEd25519PublicKey(PAYBUTTON_PUBLIC_KEY);
+    const isValid = await verifySignature(rawBody, signature, publicKey);
+    
+    if (!isValid) {
+      console.error('Invalid signature');
+      return new Response(
+        JSON.stringify({ error: 'Invalid signature' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    console.log('Signature verified successfully');
 
     // Parse the webhook payload
     const payload: PayButtonWebhook = JSON.parse(rawBody);

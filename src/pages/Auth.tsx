@@ -60,50 +60,52 @@ const Auth = () => {
     document.body.appendChild(script);
   }, []);
 
-  // Poll for session created by webhook
+  // Poll for session created by webhook (only way to authenticate)
   const pollForSession = useCallback(async (txHash: string, senderAddress: string) => {
     setIsPolling(true);
     let attempts = 0;
-    const maxAttempts = 30; // 30 seconds timeout
+    const maxAttempts = 60; // 60 seconds timeout (webhook may take time)
     
     const poll = async () => {
       attempts++;
       
       try {
-        // Try to log in with the sender address
+        // Check if webhook has created a session for this address
         const result = await login(senderAddress, txHash);
         
         if (result.error) {
           if (attempts < maxAttempts) {
-            pollingRef.current = setTimeout(poll, 1000);
+            // Wait longer between polls to give webhook time
+            pollingRef.current = setTimeout(poll, 1500);
           } else {
-            setError('Authentication timeout. Please try again.');
+            setError('Authentication timeout. The payment was received but server verification failed. Please contact support with TX: ' + txHash);
             setIsPolling(false);
             setIsLoading(false);
           }
         } else {
-          // Success!
+          // Success - webhook has verified and created session
           setIsPolling(false);
           setAuthSuccess(true);
           toast({
             title: 'Welcome!',
-            description: 'Wallet verified via PayButton webhook',
+            description: 'Wallet verified securely via server',
           });
           setTimeout(() => navigate('/'), 1500);
         }
       } catch (err) {
         console.error('Polling error:', err);
         if (attempts < maxAttempts) {
-          pollingRef.current = setTimeout(poll, 1000);
+          pollingRef.current = setTimeout(poll, 1500);
         } else {
-          setError('Authentication failed. Please try again.');
+          setError('Authentication failed. Please try again or contact support.');
           setIsPolling(false);
           setIsLoading(false);
         }
       }
     };
 
-    poll();
+    // Start polling after a short delay to give webhook time
+    setTimeout(poll, 2000);
   }, [login, navigate, toast]);
 
   // Cleanup polling on unmount
@@ -137,22 +139,11 @@ const Auth = () => {
       setError(null);
       setPendingTxHash(txHash);
       
-      // The webhook should create the session on the server
-      // We'll try to authenticate directly first (webhook may have already processed)
-      const result = await login(senderAddress, txHash);
-      
-      if (result.error) {
-        // Webhook hasn't processed yet, start polling
-        console.log('Direct login failed, starting poll for webhook...');
-        pollForSession(txHash, senderAddress);
-      } else {
-        setAuthSuccess(true);
-        toast({
-          title: 'Welcome!',
-          description: 'Wallet verified and connected to eCash Pulse',
-        });
-        setTimeout(() => navigate('/'), 1500);
-      }
+      // SECURITY: Only authenticate via webhook
+      // The PayButton webhook will verify the signature and create the session server-side
+      // We poll until the webhook has processed and created a valid session
+      console.log('Payment detected, waiting for server verification via webhook...');
+      pollForSession(txHash, senderAddress);
     };
 
     window.PayButton.render(payButtonRef.current, {
