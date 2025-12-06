@@ -120,6 +120,7 @@ Deno.serve(async (req) => {
     }
 
     if (new Date(prediction.end_date) < new Date()) {
+      console.log('Prediction has ended:', prediction.end_date);
       return new Response(
         JSON.stringify({ error: 'Prediction has ended' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
