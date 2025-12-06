@@ -1,11 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
-import { Zap, AlertCircle, Loader2, CheckCircle } from 'lucide-react';
+import { Zap, AlertCircle, Loader2, CheckCircle, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 // Platform auth wallet - receives verification payments
 const AUTH_WALLET = 'ecash:qr6pwzt7glvmq6ryr4305kat0vnv2wy69qjxpdwz5a';
@@ -33,10 +34,13 @@ interface PayButtonTransaction {
 
 const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
+  const [isPolling, setIsPolling] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [authSuccess, setAuthSuccess] = useState(false);
   const [scriptLoaded, setScriptLoaded] = useState(false);
+  const [pendingTxHash, setPendingTxHash] = useState<string | null>(null);
   const payButtonRef = useRef<HTMLDivElement>(null);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const { user, login } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -50,10 +54,65 @@ const Auth = () => {
     }
 
     const script = document.createElement('script');
-    script.src = 'https://unpkg.com/@nichanank/paybutton/dist/paybutton.js';
+    script.src = 'https://unpkg.com/@paybutton/paybutton/dist/paybutton.js';
     script.async = true;
     script.onload = () => setScriptLoaded(true);
     document.body.appendChild(script);
+  }, []);
+
+  // Poll for session created by webhook
+  const pollForSession = useCallback(async (txHash: string, senderAddress: string) => {
+    setIsPolling(true);
+    let attempts = 0;
+    const maxAttempts = 30; // 30 seconds timeout
+    
+    const poll = async () => {
+      attempts++;
+      
+      try {
+        // Try to log in with the sender address
+        const result = await login(senderAddress, txHash);
+        
+        if (result.error) {
+          if (attempts < maxAttempts) {
+            pollingRef.current = setTimeout(poll, 1000);
+          } else {
+            setError('Authentication timeout. Please try again.');
+            setIsPolling(false);
+            setIsLoading(false);
+          }
+        } else {
+          // Success!
+          setIsPolling(false);
+          setAuthSuccess(true);
+          toast({
+            title: 'Welcome!',
+            description: 'Wallet verified via PayButton webhook',
+          });
+          setTimeout(() => navigate('/'), 1500);
+        }
+      } catch (err) {
+        console.error('Polling error:', err);
+        if (attempts < maxAttempts) {
+          pollingRef.current = setTimeout(poll, 1000);
+        } else {
+          setError('Authentication failed. Please try again.');
+          setIsPolling(false);
+          setIsLoading(false);
+        }
+      }
+    };
+
+    poll();
+  }, [login, navigate, toast]);
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) {
+        clearTimeout(pollingRef.current);
+      }
+    };
   }, []);
 
   // Render PayButton when script is loaded
@@ -64,9 +123,10 @@ const Auth = () => {
     payButtonRef.current.innerHTML = '';
 
     const handleSuccess = async (transaction: PayButtonTransaction) => {
-      console.log('Auth payment successful:', transaction);
+      console.log('Auth payment detected:', transaction);
       
       const senderAddress = transaction.inputAddresses?.[0];
+      const txHash = transaction.hash;
       
       if (!senderAddress) {
         setError('Could not detect sender wallet address. Please try again.');
@@ -75,12 +135,16 @@ const Auth = () => {
 
       setIsLoading(true);
       setError(null);
+      setPendingTxHash(txHash);
       
-      const result = await login(senderAddress, transaction.hash);
+      // The webhook should create the session on the server
+      // We'll try to authenticate directly first (webhook may have already processed)
+      const result = await login(senderAddress, txHash);
       
       if (result.error) {
-        setError(result.error);
-        setIsLoading(false);
+        // Webhook hasn't processed yet, start polling
+        console.log('Direct login failed, starting poll for webhook...');
+        pollForSession(txHash, senderAddress);
       } else {
         setAuthSuccess(true);
         toast({
@@ -98,6 +162,7 @@ const Auth = () => {
       text: 'Verify Wallet',
       hoverText: `Pay ${AUTH_AMOUNT} XEC`,
       onSuccess: handleSuccess,
+      randomSatoshis: true, // Prevent payment collision
       theme: {
         palette: {
           primary: '#0AC18E',
@@ -106,7 +171,7 @@ const Auth = () => {
         }
       }
     });
-  }, [scriptLoaded, user, isLoading, login, navigate, toast]);
+  }, [scriptLoaded, user, isLoading, login, navigate, toast, pollForSession]);
 
   useEffect(() => {
     if (user) {
@@ -170,6 +235,12 @@ const Auth = () => {
               </p>
             </div>
 
+            {/* Security Badge */}
+            <div className="flex items-center justify-center gap-2 mb-4 text-xs text-primary">
+              <ShieldCheck className="w-4 h-4" />
+              <span>Server-verified via PayButton webhook</span>
+            </div>
+
             {error && (
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
@@ -181,10 +252,17 @@ const Auth = () => {
               </motion.div>
             )}
 
-            {isLoading ? (
+            {isLoading || isPolling ? (
               <div className="flex flex-col items-center justify-center py-8">
                 <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
-                <p className="text-muted-foreground text-sm">Verifying wallet...</p>
+                <p className="text-muted-foreground text-sm">
+                  {isPolling ? 'Waiting for server verification...' : 'Verifying wallet...'}
+                </p>
+                {pendingTxHash && (
+                  <p className="text-xs text-muted-foreground/60 mt-2 font-mono">
+                    TX: {pendingTxHash.slice(0, 12)}...
+                  </p>
+                )}
               </div>
             ) : (
               <div className="space-y-4">
@@ -195,7 +273,7 @@ const Auth = () => {
 
                 <div className="text-center text-xs text-muted-foreground space-y-1">
                   <p>This small verification fee proves wallet ownership.</p>
-                  <p className="text-primary/80">Your address is detected automatically from the transaction.</p>
+                  <p className="text-primary/80">Verified server-to-server for maximum security.</p>
                 </div>
               </div>
             )}
