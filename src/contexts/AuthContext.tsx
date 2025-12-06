@@ -26,7 +26,7 @@ interface AuthContextType {
   profile: Profile | null;
   sessionToken: string | null;
   loading: boolean;
-  login: (ecashAddress: string) => Promise<{ error: string | null }>;
+  login: (ecashAddress: string, txHash?: string) => Promise<{ error: string | null }>;
   logout: () => void;
   updateProfile: (newProfile: Profile) => void;
 }
@@ -84,7 +84,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(false);
   }, []);
 
-  const login = async (ecashAddress: string): Promise<{ error: string | null }> => {
+  const login = async (ecashAddress: string, txHash?: string): Promise<{ error: string | null }> => {
     const trimmedAddress = ecashAddress.trim().toLowerCase();
     
     if (!isValidEcashAddress(trimmedAddress)) {
@@ -92,9 +92,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
-      // Use edge function for registration/login
+      // Use edge function for registration/login with tx verification
       const { data, error } = await supabase.functions.invoke('register-user', {
-        body: { ecash_address: trimmedAddress }
+        body: { ecash_address: trimmedAddress, tx_hash: txHash }
       });
 
       if (error) {

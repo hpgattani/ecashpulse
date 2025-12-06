@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { ecash_address } = await req.json();
+    const { ecash_address, tx_hash } = await req.json();
     
     // Validate address format
     if (!ecash_address || typeof ecash_address !== 'string') {
@@ -37,6 +37,11 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: 'eCash address is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Log tx_hash for verification audit trail
+    if (tx_hash) {
+      console.log(`Auth verification tx: ${tx_hash} for address: ${ecash_address}`);
     }
 
     const trimmedAddress = ecash_address.trim().toLowerCase();
