@@ -5,10 +5,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Categories for prediction markets
 const CATEGORIES = ['crypto', 'politics', 'sports', 'tech', 'entertainment', 'economics'] as const;
 
-// Generate a random escrow address (placeholder - in production, generate real eCash addresses)
 function generateEscrowAddress(): string {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
   let address = 'ecash:qp';
@@ -18,50 +16,120 @@ function generateEscrowAddress(): string {
   return address;
 }
 
-// Calculate end date based on topic type
-function calculateEndDate(category: string): string {
+function calculateEndDate(category: string, daysHint?: number): string {
   const now = new Date();
-  let daysToAdd = 30; // Default 30 days
+  let daysToAdd = daysHint || 30;
   
-  if (category === 'sports') daysToAdd = 7; // Sports events usually sooner
-  if (category === 'politics') daysToAdd = 90; // Political events often longer term
-  if (category === 'crypto') daysToAdd = 14; // Crypto is volatile
+  if (!daysHint) {
+    if (category === 'sports') daysToAdd = 7;
+    if (category === 'politics') daysToAdd = 90;
+    if (category === 'crypto') daysToAdd = 14;
+  }
   
   now.setDate(now.getDate() + daysToAdd);
   return now.toISOString();
 }
 
-// Fetch trending topics and generate predictions using AI
-async function generateTrendingPredictions(supabase: any): Promise<{ created: number; errors: string[] }> {
-  const errors: string[] = [];
-  let created = 0;
+// Fetch markets from Polymarket API
+async function fetchPolymarketData(): Promise<Array<{ title: string; description: string; category: string; endDate?: string }>> {
+  try {
+    // Polymarket CLOB API for active markets
+    const response = await fetch('https://clob.polymarket.com/markets?active=true&limit=20', {
+      headers: { 'Accept': 'application/json' }
+    });
+    
+    if (!response.ok) {
+      console.log('Polymarket API error:', response.status);
+      return [];
+    }
+    
+    const data = await response.json();
+    const markets: Array<{ title: string; description: string; category: string; endDate?: string }> = [];
+    
+    for (const market of (data || []).slice(0, 10)) {
+      if (market.question && market.active) {
+        // Categorize based on keywords
+        let category = 'politics';
+        const q = market.question.toLowerCase();
+        if (q.includes('bitcoin') || q.includes('eth') || q.includes('crypto') || q.includes('token')) category = 'crypto';
+        else if (q.includes('sports') || q.includes('nfl') || q.includes('nba') || q.includes('match') || q.includes('win')) category = 'sports';
+        else if (q.includes('ai') || q.includes('tech') || q.includes('apple') || q.includes('google')) category = 'tech';
+        else if (q.includes('movie') || q.includes('oscar') || q.includes('grammy')) category = 'entertainment';
+        else if (q.includes('fed') || q.includes('rate') || q.includes('gdp') || q.includes('inflation')) category = 'economics';
+        
+        markets.push({
+          title: market.question.slice(0, 200),
+          description: market.description?.slice(0, 500) || `Polymarket: ${market.question}`,
+          category,
+          endDate: market.end_date_iso
+        });
+      }
+    }
+    
+    console.log(`Fetched ${markets.length} markets from Polymarket`);
+    return markets;
+  } catch (error) {
+    console.error('Polymarket fetch error:', error);
+    return [];
+  }
+}
 
-  // Use Lovable AI to generate relevant prediction market topics
-  const prompt = `You are a prediction market analyst. Generate 3-5 timely prediction market questions based on current events and trends.
+// Fetch from Kalshi API (public markets endpoint)
+async function fetchKalshiData(): Promise<Array<{ title: string; description: string; category: string; endDate?: string }>> {
+  try {
+    const response = await fetch('https://trading-api.kalshi.com/trade-api/v2/markets?limit=20&status=open', {
+      headers: { 'Accept': 'application/json' }
+    });
+    
+    if (!response.ok) {
+      console.log('Kalshi API error:', response.status);
+      return [];
+    }
+    
+    const data = await response.json();
+    const markets: Array<{ title: string; description: string; category: string; endDate?: string }> = [];
+    
+    for (const market of (data.markets || []).slice(0, 10)) {
+      if (market.title && market.status === 'open') {
+        let category = 'politics';
+        const t = market.title.toLowerCase();
+        if (t.includes('bitcoin') || t.includes('crypto') || t.includes('eth')) category = 'crypto';
+        else if (t.includes('sports') || t.includes('game') || t.includes('match')) category = 'sports';
+        else if (t.includes('tech') || t.includes('ai') || t.includes('company')) category = 'tech';
+        else if (t.includes('fed') || t.includes('rate') || t.includes('economic')) category = 'economics';
+        
+        markets.push({
+          title: market.title.slice(0, 200),
+          description: market.subtitle?.slice(0, 500) || market.title,
+          category,
+          endDate: market.close_time
+        });
+      }
+    }
+    
+    console.log(`Fetched ${markets.length} markets from Kalshi`);
+    return markets;
+  } catch (error) {
+    console.error('Kalshi fetch error:', error);
+    return [];
+  }
+}
 
-For each prediction, provide:
-1. A clear yes/no question (max 100 chars)
-2. Brief description (max 200 chars)
-3. Category: one of [crypto, politics, sports, tech, entertainment, economics]
+// Generate AI predictions for sports/trending topics
+async function generateAIPredictions(): Promise<Array<{ title: string; description: string; category: string }>> {
+  const prompt = `Generate 5 timely prediction market questions for betting. Focus on:
+- Live sports: Cricket (IPL, international), Football (Premier League, Champions League), Tennis, NBA, NFL
+- Crypto prices: Bitcoin, Ethereum, Solana, XRP milestones
+- Politics: Elections, policy decisions
+- Entertainment: Award shows, movie releases
 
-Focus on:
-- Cryptocurrency price milestones (Bitcoin, Ethereum, XRP, Solana)
-- Political events and elections
-- Major sports events and championships
-- Tech company announcements and product launches
-- Entertainment awards and releases
-- Economic indicators and central bank decisions
+Current date: ${new Date().toISOString().split('T')[0]}
 
-Format your response as JSON array:
-[
-  {"title": "Will Bitcoin reach $200,000 by March 2026?", "description": "Bitcoin has been rallying. Will it hit the next major milestone?", "category": "crypto"},
-  ...
-]
-
-Generate diverse, interesting predictions that people would want to bet on. Use current date context: ${new Date().toISOString().split('T')[0]}`;
+Format as JSON array:
+[{"title": "Will...", "description": "...", "category": "sports|crypto|politics|entertainment|economics|tech"}]`;
 
   try {
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -70,181 +138,214 @@ Generate diverse, interesting predictions that people would want to bet on. Use 
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
         messages: [
-          { role: 'system', content: 'You are a prediction market analyst. Always respond with valid JSON arrays only, no markdown formatting.' },
+          { role: 'system', content: 'You are a prediction market analyst. Return valid JSON only.' },
           { role: 'user', content: prompt }
         ],
       }),
     });
 
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('AI API error:', aiResponse.status, errorText);
-      errors.push(`AI API error: ${aiResponse.status}`);
-      return { created, errors };
-    }
-
-    const aiData = await aiResponse.json();
-    const content = aiData.choices?.[0]?.message?.content || '';
+    if (!response.ok) return [];
     
-    console.log('AI response:', content);
-
-    // Parse the JSON response
-    let predictions: Array<{ title: string; description: string; category: string }>;
-    try {
-      // Clean the response (remove markdown code blocks if present)
-      const cleanedContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      predictions = JSON.parse(cleanedContent);
-    } catch (parseError) {
-      console.error('Failed to parse AI response:', parseError);
-      errors.push('Failed to parse AI response');
-      return { created, errors };
-    }
-
-    if (!Array.isArray(predictions)) {
-      errors.push('AI response is not an array');
-      return { created, errors };
-    }
-
-    // Get existing prediction titles to avoid duplicates
-    const { data: existingPredictions } = await supabase
-      .from('predictions')
-      .select('title')
-      .eq('status', 'active');
-    
-    const existingTitles = new Set((existingPredictions || []).map((p: any) => p.title.toLowerCase()));
-
-    // Insert new predictions
-    for (const prediction of predictions) {
-      if (!prediction.title || !prediction.category) continue;
-      
-      // Skip if similar prediction exists
-      if (existingTitles.has(prediction.title.toLowerCase())) {
-        console.log('Skipping duplicate:', prediction.title);
-        continue;
-      }
-
-      // Validate category
-      const category = CATEGORIES.includes(prediction.category as any) 
-        ? prediction.category 
-        : 'tech';
-
-      const newPrediction = {
-        title: prediction.title.slice(0, 200),
-        description: (prediction.description || '').slice(0, 500),
-        category,
-        escrow_address: generateEscrowAddress(),
-        end_date: calculateEndDate(category),
-        status: 'active',
-        yes_pool: 0,
-        no_pool: 0,
-      };
-
-      const { error: insertError } = await supabase
-        .from('predictions')
-        .insert(newPrediction);
-
-      if (insertError) {
-        console.error('Insert error:', insertError);
-        errors.push(`Failed to insert: ${prediction.title}`);
-      } else {
-        console.log('Created prediction:', newPrediction.title);
-        created++;
-      }
-    }
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || '';
+    const cleaned = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    return JSON.parse(cleaned);
   } catch (error) {
-    console.error('Error generating predictions:', error);
-    errors.push(`Generation error: ${error instanceof Error ? error.message : 'Unknown'}`);
+    console.error('AI generation error:', error);
+    return [];
+  }
+}
+
+// Payout winners for resolved predictions
+async function processPayouts(supabase: any, predictionId: string, winningPosition: 'yes' | 'no'): Promise<void> {
+  console.log(`Processing payouts for prediction ${predictionId}, winning: ${winningPosition}`);
+  
+  // Get the prediction pools
+  const { data: prediction } = await supabase
+    .from('predictions')
+    .select('yes_pool, no_pool, title')
+    .eq('id', predictionId)
+    .single();
+  
+  if (!prediction) {
+    console.error('Prediction not found');
+    return;
+  }
+  
+  const totalPool = prediction.yes_pool + prediction.no_pool;
+  const winningPool = winningPosition === 'yes' ? prediction.yes_pool : prediction.no_pool;
+  
+  // Get all winning bets
+  const { data: winningBets } = await supabase
+    .from('bets')
+    .select('id, user_id, amount, position')
+    .eq('prediction_id', predictionId)
+    .eq('position', winningPosition)
+    .eq('status', 'confirmed');
+  
+  if (!winningBets || winningBets.length === 0) {
+    console.log('No winning bets found');
+    return;
+  }
+  
+  console.log(`Found ${winningBets.length} winning bets`);
+  
+  // Calculate and record payouts for each winner
+  for (const bet of winningBets) {
+    // Proportional payout: (bet amount / winning pool) * total pool
+    const payout = winningPool > 0 ? Math.floor((bet.amount / winningPool) * totalPool) : bet.amount;
+    
+    // Update bet with payout info
+    await supabase
+      .from('bets')
+      .update({
+        status: 'won',
+        payout_amount: payout
+      })
+      .eq('id', bet.id);
+    
+    // Update user profile stats
+    await supabase
+      .from('profiles')
+      .update({
+        total_wins: supabase.sql`total_wins + 1`,
+        total_volume: supabase.sql`total_volume + ${payout}`
+      })
+      .eq('user_id', bet.user_id);
+    
+    console.log(`Bet ${bet.id}: payout ${payout} sats`);
+  }
+  
+  // Mark losing bets
+  await supabase
+    .from('bets')
+    .update({ status: 'lost', payout_amount: 0 })
+    .eq('prediction_id', predictionId)
+    .eq('position', winningPosition === 'yes' ? 'no' : 'yes')
+    .eq('status', 'confirmed');
+  
+  console.log(`Payouts processed for "${prediction.title}"`);
+}
+
+// Main fetch and sync function
+async function syncPredictions(supabase: any): Promise<{ created: number; resolved: number; errors: string[] }> {
+  const errors: string[] = [];
+  let created = 0;
+  let resolved = 0;
+
+  // Fetch from multiple sources in parallel
+  const [polymarketMarkets, kalshiMarkets, aiPredictions] = await Promise.all([
+    fetchPolymarketData(),
+    fetchKalshiData(),
+    generateAIPredictions()
+  ]);
+  
+  const allMarkets = [...polymarketMarkets, ...kalshiMarkets, ...aiPredictions];
+  console.log(`Total markets fetched: ${allMarkets.length}`);
+
+  // Get existing predictions to avoid duplicates
+  const { data: existingPredictions } = await supabase
+    .from('predictions')
+    .select('title')
+    .eq('status', 'active');
+  
+  const existingTitles = new Set((existingPredictions || []).map((p: any) => p.title.toLowerCase().slice(0, 50)));
+
+  // Insert new predictions
+  for (const market of allMarkets) {
+    if (!market.title) continue;
+    
+    // Check for duplicates using first 50 chars
+    const titleKey = market.title.toLowerCase().slice(0, 50);
+    if (existingTitles.has(titleKey)) continue;
+    
+    const category = CATEGORIES.includes(market.category as any) ? market.category : 'politics';
+    
+    // Get end date from market data if available
+    const marketWithDate = market as { title: string; description: string; category: string; endDate?: string };
+    
+    const newPrediction = {
+      title: market.title.slice(0, 200),
+      description: (market.description || '').slice(0, 500),
+      category,
+      escrow_address: generateEscrowAddress(),
+      end_date: marketWithDate.endDate || calculateEndDate(category),
+      status: 'active',
+      yes_pool: 0,
+      no_pool: 0,
+    };
+
+    const { error } = await supabase.from('predictions').insert(newPrediction);
+    
+    if (error) {
+      errors.push(`Insert failed: ${market.title.slice(0, 50)}`);
+    } else {
+      existingTitles.add(titleKey);
+      created++;
+      console.log('Created:', newPrediction.title);
+    }
   }
 
-  return { created, errors };
+  // Auto-resolve expired predictions (check for any that need resolution)
+  const { data: expiredPredictions } = await supabase
+    .from('predictions')
+    .select('id, title, yes_pool, no_pool')
+    .eq('status', 'active')
+    .lt('end_date', new Date().toISOString());
+  
+  for (const pred of (expiredPredictions || [])) {
+    // Auto-resolve based on pool majority (simple oracle)
+    const winningPosition = pred.yes_pool >= pred.no_pool ? 'yes' : 'no';
+    const status = winningPosition === 'yes' ? 'resolved_yes' : 'resolved_no';
+    
+    await supabase
+      .from('predictions')
+      .update({ status, resolved_at: new Date().toISOString() })
+      .eq('id', pred.id);
+    
+    // Process payouts
+    await processPayouts(supabase, pred.id, winningPosition);
+    
+    resolved++;
+    console.log(`Auto-resolved: ${pred.title} -> ${winningPosition}`);
+  }
+
+  return { created, resolved, errors };
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Initialize Supabase client
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
   );
 
-  // This endpoint can be called by:
-  // 1. A cron job (internal)
-  // 2. An admin user (with admin role check)
+  // Allow public access - this runs automatically
+  // Can be triggered by cron, webhook, or manual call
   
-  // Check for admin authorization if called externally
-  const authHeader = req.headers.get('authorization');
-  const isInternalCall = req.headers.get('x-cron-secret') === Deno.env.get('CRON_SECRET');
-  
-  if (!isInternalCall) {
-    // Validate session and check admin role
-    try {
-      const body = await req.json().catch(() => ({}));
-      const sessionToken = body.session_token;
-      
-      if (!sessionToken) {
-        return new Response(
-          JSON.stringify({ error: 'Authentication required' }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      // Validate session
-      const { data: session } = await supabase
-        .from('sessions')
-        .select('user_id, expires_at')
-        .eq('token', sessionToken.trim())
-        .maybeSingle();
-
-      if (!session || new Date(session.expires_at) < new Date()) {
-        return new Response(
-          JSON.stringify({ error: 'Invalid or expired session' }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      // Check admin role
-      const { data: isAdmin } = await supabase.rpc('has_role', {
-        _role: 'admin',
-        _user_id: session.user_id
-      });
-
-      if (!isAdmin) {
-        return new Response(
-          JSON.stringify({ error: 'Admin access required' }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-    } catch (error) {
-      return new Response(
-        JSON.stringify({ error: 'Authorization failed' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-  }
-
   try {
-    console.log('Starting trending topics fetch...');
+    console.log('Starting automatic prediction sync...');
     
-    const result = await generateTrendingPredictions(supabase);
+    const result = await syncPredictions(supabase);
     
-    console.log(`Completed: created ${result.created} predictions, ${result.errors.length} errors`);
+    console.log(`Sync complete: ${result.created} created, ${result.resolved} resolved`);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         created: result.created,
+        resolved: result.resolved,
         errors: result.errors
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error('Error in fetch-trending-topics:', error);
+    console.error('Sync error:', error);
     return new Response(
-      JSON.stringify({ error: 'Failed to fetch trending topics' }),
+      JSON.stringify({ error: 'Sync failed' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
