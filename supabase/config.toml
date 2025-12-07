@@ -1,31 +1,51 @@
 project_id = "ctfqkbbauvznzmznmjdt"
 
-[functions.ai-dispute]
-verify_jwt = false
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
 
-[functions.process-bet]
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+api_url = "http://127.0.0.1"
+
+[functions.ai-dispute]
 verify_jwt = false
 
 [functions.confirm-transaction]
 verify_jwt = false
 
-[functions.monitor-escrow]
-verify_jwt = false
-
-[functions.update-profile]
-verify_jwt = false
-
-[functions.get-user-bets]
+[functions.fetch-trending-topics]
 verify_jwt = false
 
 [functions.get-public-bets]
 verify_jwt = false
 
+[functions.get-user-bets]
+verify_jwt = false
+
+[functions.monitor-escrow]
+verify_jwt = false
+
 [functions.paybutton-webhook]
 verify_jwt = false
 
-[functions.validate-session]
+[functions.process-bet]
 verify_jwt = false
 
-[functions.fetch-trending-topics]
+[functions.resolve-prediction]
+verify_jwt = false
+
+[functions.update-profile]
+verify_jwt = false
+
+[functions.validate-session]
 verify_jwt = false
