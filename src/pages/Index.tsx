@@ -3,6 +3,7 @@ import Header from '@/components/Header';
 import Hero from '@/components/Hero';
 import TrendingSection from '@/components/TrendingSection';
 import MarketsSection from '@/components/MarketsSection';
+import ResolvedBets from '@/components/ResolvedBets';
 import HowItWorks from '@/components/HowItWorks';
 import Footer from '@/components/Footer';
 import PublicBets from '@/components/PublicBets';
@@ -22,6 +23,7 @@ const Index = () => {
           <Hero />
           <TrendingSection />
           <MarketsSection />
+          <ResolvedBets />
           
           {/* Transparent Public Bets Section */}
           <section className="py-16 px-4">
