@@ -99,6 +99,7 @@ export const categories = [
   { id: 'crypto', name: 'Crypto', icon: '₿' },
   { id: 'sports', name: 'Sports', icon: '⚽' },
   { id: 'tech', name: 'Tech', icon: '🚀' },
+  { id: 'entertainment', name: 'Entertainment', icon: '🎬' },
   { id: 'economics', name: 'Economics', icon: '📈' },
   { id: 'elections', name: 'Elections', icon: '🗳️' },
   { id: 'politics', name: 'Politics', icon: '🏛️' },

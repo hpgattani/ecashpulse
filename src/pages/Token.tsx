@@ -76,7 +76,7 @@ const Token = () => {
               </div>
               
               <Badge variant="secondary" className="mb-4">
-                eToken on eCash
+                ALP Token on eCash
               </Badge>
               
               <h1 className="font-display text-4xl md:text-6xl font-bold text-foreground mb-4">
@@ -130,7 +130,11 @@ const Token = () => {
                     </div>
                     <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30">
                       <span className="text-muted-foreground">Token Type</span>
-                      <span className="font-medium text-foreground">eToken (SLP)</span>
+                      <span className="font-medium text-foreground">ALP Token</span>
+                    </div>
+                    <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30">
+                      <span className="text-muted-foreground">Total Supply</span>
+                      <span className="font-medium text-foreground">500,000,000 (Fixed)</span>
                     </div>
                     <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30">
                       <span className="text-muted-foreground">Network</span>
