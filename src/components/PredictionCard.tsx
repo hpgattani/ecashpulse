@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { TrendingUp, TrendingDown, Clock, Users } from 'lucide-react';
+import { TrendingUp, TrendingDown, Clock, Users, Zap } from 'lucide-react';
 import BetModal from './BetModal';
 
 interface Prediction {
@@ -22,9 +22,10 @@ interface Prediction {
 interface PredictionCardProps {
   prediction: Prediction;
   index: number;
+  livePrice?: { price: number | null; symbol: string } | null;
 }
 
-const PredictionCard = ({ prediction, index }: PredictionCardProps) => {
+const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) => {
   const [isBetModalOpen, setIsBetModalOpen] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<'yes' | 'no'>('yes');
 
@@ -38,6 +39,14 @@ const PredictionCard = ({ prediction, index }: PredictionCardProps) => {
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  const formatPrice = (price: number | null, symbol: string) => {
+    if (price === null) return null;
+    if (price < 0.01) return `$${price.toFixed(6)}`;
+    if (price < 1) return `$${price.toFixed(4)}`;
+    if (price < 100) return `$${price.toFixed(2)}`;
+    return `$${price.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
   };
 
   const getCategoryEmoji = (category: string) => {
@@ -75,12 +84,21 @@ const PredictionCard = ({ prediction, index }: PredictionCardProps) => {
                 {prediction.category}
               </span>
             </div>
-            {prediction.trending && (
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs">
-                <TrendingUp className="w-3 h-3" />
-                Hot
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              {/* Live Price Badge for Crypto */}
+              {livePrice && livePrice.price && (
+                <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent/20 text-accent text-xs font-mono">
+                  <Zap className="w-3 h-3" />
+                  {livePrice.symbol}: {formatPrice(livePrice.price, livePrice.symbol)}
+                </div>
+              )}
+              {prediction.trending && (
+                <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs">
+                  <TrendingUp className="w-3 h-3" />
+                  Hot
+                </div>
+              )}
+            </div>
           </div>
           
           <h3 className="font-display font-semibold text-foreground text-base md:text-lg leading-snug group-hover:text-primary transition-colors">

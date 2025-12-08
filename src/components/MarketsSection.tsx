@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { usePredictions } from '@/hooks/usePredictions';
+import { useCryptoPrices } from '@/hooks/useCryptoPrices';
 import PredictionCard from './PredictionCard';
 import MarketFilters from './MarketFilters';
 import { Loader2 } from 'lucide-react';
@@ -8,6 +9,7 @@ import { Loader2 } from 'lucide-react';
 const MarketsSection = () => {
   const [activeCategory, setActiveCategory] = useState('all');
   const { predictions, loading, error } = usePredictions();
+  const { getPriceForCrypto } = useCryptoPrices();
 
   const filteredPredictions = activeCategory === 'all'
     ? predictions
@@ -71,6 +73,7 @@ const MarketsSection = () => {
                 key={prediction.id}
                 prediction={prediction}
                 index={index}
+                livePrice={prediction.category === 'crypto' ? getPriceForCrypto(prediction.question) : null}
               />
             ))}
           </div>
