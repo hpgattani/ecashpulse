@@ -49,3 +49,6 @@ verify_jwt = false
 
 [functions.validate-session]
 verify_jwt = false
+
+[functions.oracle-resolver]
+verify_jwt = false
