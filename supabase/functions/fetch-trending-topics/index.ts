@@ -85,23 +85,28 @@ async function fetchPolymarketData(): Promise<Array<{ title: string; description
   }
 }
 
-// Generate AI predictions covering all categories including TECH
-async function generateAIPredictions(): Promise<Array<{ title: string; description: string; category: string }>> {
-  const prompt = `Generate exactly 10 prediction market betting questions. You MUST include at least 2 from each category.
+// Generate AI predictions with fact-checking
+async function generateAIPredictions(): Promise<Array<{ title: string; description: string; category: string; endDate?: string }>> {
+  const today = new Date().toISOString().split('T')[0];
+  
+  const prompt = `You are creating prediction market questions for a betting platform. Today is ${today}.
 
-REQUIRED CATEGORIES (2+ each):
-1. TECH: AI companies (OpenAI, Anthropic, Google), product launches (iPhone, Tesla), tech IPOs, acquisitions
-2. CRYPTO: Bitcoin, Ethereum, Solana, XRP price targets
-3. SPORTS: Current season events - Premier League, NBA, NFL, Cricket, Tennis
-4. POLITICS: Elections, policy decisions, international relations
-5. ENTERTAINMENT: Movies, awards shows, streaming
+CRITICAL RULES:
+1. Only create predictions about FUTURE events that have NOT happened yet
+2. DO NOT include any events that have already occurred or been resolved
+3. End dates must be in the future (after ${today})
+4. Be specific with dates and measurable outcomes
 
-Current date: ${new Date().toISOString().split('T')[0]}
+Generate exactly 8 prediction market questions across these categories:
+- CRYPTO (2): Price targets for BTC, ETH, SOL, XEC with specific dates
+- TECH (2): Product launches, company milestones, AI developments
+- SPORTS (2): Upcoming matches, tournaments, championships
+- ENTERTAINMENT/POLITICS (2): Award shows, elections, policy decisions
 
-Format as JSON array ONLY, no other text:
+Format as JSON array ONLY:
 [
-  {"title": "Will OpenAI release GPT-5 before March 2025?", "description": "Prediction on OpenAI's next major model release", "category": "tech"},
-  {"title": "Will Bitcoin reach $120,000 by January 2025?", "description": "Bitcoin price prediction", "category": "crypto"}
+  {"title": "Will Bitcoin trade above $150,000 before March 1, 2025?", "description": "BTC/USD price reaching $150k on major exchanges", "category": "crypto", "endDate": "2025-03-01"},
+  {"title": "Will OpenAI release GPT-5 before June 2025?", "description": "Official public release of GPT-5 model", "category": "tech", "endDate": "2025-06-30"}
 ]`;
 
   try {
@@ -114,7 +119,7 @@ Format as JSON array ONLY, no other text:
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
         messages: [
-          { role: 'system', content: 'You are a prediction market analyst. Return ONLY valid JSON array, no markdown, no explanation.' },
+          { role: 'system', content: 'You are a prediction market analyst. Return ONLY valid JSON array. Only include predictions about future events that have NOT happened. Verify dates are in the future.' },
           { role: 'user', content: prompt }
         ],
       }),
@@ -128,7 +133,6 @@ Format as JSON array ONLY, no other text:
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || '';
     
-    // Clean and parse JSON
     let cleaned = content.trim();
     if (cleaned.startsWith('```')) {
       cleaned = cleaned.replace(/```json\n?/g, '').replace(/```\n?/g, '');
@@ -136,16 +140,22 @@ Format as JSON array ONLY, no other text:
     cleaned = cleaned.trim();
     
     const predictions = JSON.parse(cleaned);
-    console.log(`AI generated ${predictions.length} predictions`);
-    return predictions;
+    
+    // Filter out any predictions with past end dates
+    const now = new Date();
+    const validPredictions = predictions.filter((p: any) => {
+      if (p.endDate) {
+        const endDate = new Date(p.endDate);
+        return endDate > now;
+      }
+      return true;
+    });
+    
+    console.log(`AI generated ${validPredictions.length} valid predictions`);
+    return validPredictions;
   } catch (error) {
     console.error('AI generation error:', error);
-    // Return fallback predictions for tech category
-    return [
-      { title: "Will Apple announce a foldable iPhone in 2025?", description: "Apple's entry into foldable phones market", category: "tech" },
-      { title: "Will Nvidia stock reach $200 by end of 2025?", description: "Nvidia stock price prediction", category: "tech" },
-      { title: "Will OpenAI reach $100B valuation in 2025?", description: "OpenAI company valuation milestone", category: "tech" },
-    ];
+    return [];
   }
 }
 
