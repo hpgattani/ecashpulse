@@ -12,7 +12,8 @@ interface OracleResult {
   currentValue?: string;
 }
 
-// Fetch crypto prices from CoinGecko
+// ==================== CRYPTO ORACLES ====================
+
 async function getCryptoPrice(coinId: string): Promise<number | null> {
   try {
     const response = await fetch(
@@ -28,122 +29,61 @@ async function getCryptoPrice(coinId: string): Promise<number | null> {
   }
 }
 
-// Check crypto price predictions
-async function checkCryptoPrediction(title: string, description: string): Promise<OracleResult> {
+async function checkCryptoPrediction(title: string): Promise<OracleResult> {
   const titleLower = title.toLowerCase();
   
-  // Bitcoin price checks
-  if (titleLower.includes('bitcoin') || titleLower.includes('btc')) {
-    const price = await getCryptoPrice('bitcoin');
-    if (!price) return { resolved: false };
-    
-    // Extract target price from title (e.g., "$150,000", "$100k")
-    const priceMatch = title.match(/\$?([\d,]+(?:\.\d+)?)\s*(?:k|K)?/);
-    if (priceMatch) {
-      let targetPrice = parseFloat(priceMatch[1].replace(/,/g, ''));
-      if (title.toLowerCase().includes('k') && targetPrice < 1000) targetPrice *= 1000;
-      
-      if (titleLower.includes('above') || titleLower.includes('reach') || titleLower.includes('hit')) {
-        const reached = price >= targetPrice;
-        return {
-          resolved: true,
-          outcome: reached ? 'yes' : 'no',
-          reason: `Bitcoin price: $${price.toLocaleString()} (target: $${targetPrice.toLocaleString()})`,
-          currentValue: `$${price.toLocaleString()}`
-        };
-      }
+  // Map keywords to CoinGecko IDs
+  const cryptoMap: Record<string, string> = {
+    'bitcoin': 'bitcoin', 'btc': 'bitcoin',
+    'ethereum': 'ethereum', 'eth': 'ethereum',
+    'solana': 'solana', 'sol': 'solana',
+    'ecash': 'ecash', 'xec': 'ecash',
+    'xrp': 'ripple', 'ripple': 'ripple',
+    'cardano': 'cardano', 'ada': 'cardano',
+    'dogecoin': 'dogecoin', 'doge': 'dogecoin',
+  };
+
+  let coinId: string | null = null;
+  let coinName = '';
+  
+  for (const [keyword, id] of Object.entries(cryptoMap)) {
+    if (titleLower.includes(keyword)) {
+      coinId = id;
+      coinName = keyword.toUpperCase();
+      break;
     }
   }
   
-  // Ethereum price checks
-  if (titleLower.includes('ethereum') || titleLower.includes('eth')) {
-    const price = await getCryptoPrice('ethereum');
-    if (!price) return { resolved: false };
-    
-    const priceMatch = title.match(/\$?([\d,]+(?:\.\d+)?)\s*(?:k|K)?/);
-    if (priceMatch) {
-      let targetPrice = parseFloat(priceMatch[1].replace(/,/g, ''));
-      if (title.toLowerCase().includes('k') && targetPrice < 1000) targetPrice *= 1000;
-      
-      if (titleLower.includes('above') || titleLower.includes('reach') || titleLower.includes('hit')) {
-        const reached = price >= targetPrice;
-        return {
-          resolved: true,
-          outcome: reached ? 'yes' : 'no',
-          reason: `Ethereum price: $${price.toLocaleString()} (target: $${targetPrice.toLocaleString()})`,
-          currentValue: `$${price.toLocaleString()}`
-        };
-      }
-    }
+  if (!coinId) return { resolved: false };
+  
+  const price = await getCryptoPrice(coinId);
+  if (!price) return { resolved: false };
+  
+  // Extract target price from title
+  const priceMatch = title.match(/\$?([\d,]+(?:\.\d+)?)\s*(?:k|K)?/);
+  if (!priceMatch) return { resolved: false };
+  
+  let targetPrice = parseFloat(priceMatch[1].replace(/,/g, ''));
+  if ((titleLower.includes('k') || titleLower.includes('K')) && targetPrice < 1000) {
+    targetPrice *= 1000;
   }
   
-  // Solana price checks
-  if (titleLower.includes('solana') || titleLower.includes('sol')) {
-    const price = await getCryptoPrice('solana');
-    if (!price) return { resolved: false };
-    
-    const priceMatch = title.match(/\$?([\d,]+(?:\.\d+)?)/);
-    if (priceMatch) {
-      const targetPrice = parseFloat(priceMatch[1].replace(/,/g, ''));
-      
-      if (titleLower.includes('above') || titleLower.includes('reach') || titleLower.includes('hit') || titleLower.includes('trade')) {
-        const reached = price >= targetPrice;
-        return {
-          resolved: true,
-          outcome: reached ? 'yes' : 'no',
-          reason: `Solana price: $${price.toLocaleString()} (target: $${targetPrice.toLocaleString()})`,
-          currentValue: `$${price.toLocaleString()}`
-        };
-      }
-    }
+  // Check for price target conditions
+  if (titleLower.includes('above') || titleLower.includes('reach') || 
+      titleLower.includes('hit') || titleLower.includes('trade') ||
+      titleLower.includes('exceed') || titleLower.includes('close')) {
+    const reached = price >= targetPrice;
+    return {
+      resolved: true,
+      outcome: reached ? 'yes' : 'no',
+      reason: `${coinName} price: $${price.toLocaleString()} (target: $${targetPrice.toLocaleString()})`,
+      currentValue: `$${price.toLocaleString()}`
+    };
   }
-
-  // eCash (XEC) price checks
-  if (titleLower.includes('ecash') || titleLower.includes('xec')) {
-    const price = await getCryptoPrice('ecash');
-    if (!price) return { resolved: false };
-    
-    const priceMatch = title.match(/\$?([\d.]+)/);
-    if (priceMatch) {
-      const targetPrice = parseFloat(priceMatch[1]);
-      
-      if (titleLower.includes('above') || titleLower.includes('reach') || titleLower.includes('hit')) {
-        const reached = price >= targetPrice;
-        return {
-          resolved: true,
-          outcome: reached ? 'yes' : 'no',
-          reason: `eCash price: $${price} (target: $${targetPrice})`,
-          currentValue: `$${price}`
-        };
-      }
-    }
-  }
-
-  // XRP price checks
-  if (titleLower.includes('xrp') || titleLower.includes('ripple')) {
-    const price = await getCryptoPrice('ripple');
-    if (!price) return { resolved: false };
-    
-    const priceMatch = title.match(/\$?([\d.]+)/);
-    if (priceMatch) {
-      const targetPrice = parseFloat(priceMatch[1]);
-      
-      if (titleLower.includes('above') || titleLower.includes('reach') || titleLower.includes('hit')) {
-        const reached = price >= targetPrice;
-        return {
-          resolved: true,
-          outcome: reached ? 'yes' : 'no',
-          reason: `XRP price: $${price.toFixed(4)} (target: $${targetPrice})`,
-          currentValue: `$${price.toFixed(4)}`
-        };
-      }
-    }
-  }
-
+  
   return { resolved: false };
 }
 
-// Check ETH/BTC flippening
 async function checkFlippening(): Promise<OracleResult> {
   try {
     const [btcData, ethData] = await Promise.all([
@@ -169,7 +109,192 @@ async function checkFlippening(): Promise<OracleResult> {
   return { resolved: false };
 }
 
-// Payout winners for resolved predictions
+// ==================== SPORTS ORACLES ====================
+
+// TheSportsDB API (free, no key required for basic queries)
+async function checkSportsResult(title: string): Promise<OracleResult> {
+  const titleLower = title.toLowerCase();
+  
+  try {
+    // Super Bowl predictions
+    if (titleLower.includes('super bowl')) {
+      const teamMatch = title.match(/(?:chiefs|eagles|49ers|ravens|bills|cowboys|packers|lions)/i);
+      if (teamMatch) {
+        const team = teamMatch[0].toLowerCase();
+        // Query TheSportsDB for NFL events
+        const response = await fetch(
+          `https://www.thesportsdb.com/api/v1/json/3/searchevents.php?e=Super_Bowl`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          const events = data.event || [];
+          for (const event of events) {
+            if (event.strStatus === 'Match Finished' || event.strStatus === 'FT') {
+              const winner = event.strHomeTeam?.toLowerCase().includes(team) && 
+                            parseInt(event.intHomeScore) > parseInt(event.intAwayScore) ? 'yes' :
+                            event.strAwayTeam?.toLowerCase().includes(team) && 
+                            parseInt(event.intAwayScore) > parseInt(event.intHomeScore) ? 'yes' : 'no';
+              return {
+                resolved: true,
+                outcome: winner,
+                reason: `${event.strHomeTeam} ${event.intHomeScore} - ${event.intAwayScore} ${event.strAwayTeam}`,
+                currentValue: event.strStatus
+              };
+            }
+          }
+        }
+      }
+    }
+
+    // Wimbledon predictions
+    if (titleLower.includes('wimbledon')) {
+      const playerMatch = title.match(/(?:djokovic|alcaraz|sinner|medvedev|zverev)/i);
+      if (playerMatch) {
+        const response = await fetch(
+          `https://www.thesportsdb.com/api/v1/json/3/searchevents.php?e=Wimbledon`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          const events = data.event || [];
+          for (const event of events) {
+            if (event.strStatus === 'Match Finished' && event.strEvent?.toLowerCase().includes('final')) {
+              const playerName = playerMatch[0].toLowerCase();
+              const isWinner = event.strResult?.toLowerCase().includes(playerName);
+              return {
+                resolved: true,
+                outcome: isWinner ? 'yes' : 'no',
+                reason: `Wimbledon Final: ${event.strResult || event.strEvent}`,
+                currentValue: event.strStatus
+              };
+            }
+          }
+        }
+      }
+    }
+
+    // World Series / MLB
+    if (titleLower.includes('world series') || titleLower.includes('mlb')) {
+      const response = await fetch(
+        `https://www.thesportsdb.com/api/v1/json/3/searchevents.php?e=World_Series`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        // Process MLB results
+      }
+    }
+
+    // Premier League / Soccer
+    if (titleLower.includes('premier league') || titleLower.includes('champions league')) {
+      const teamMatch = title.match(/(?:manchester|liverpool|chelsea|arsenal|tottenham|city)/i);
+      if (teamMatch) {
+        const team = teamMatch[0].toLowerCase();
+        const response = await fetch(
+          `https://www.thesportsdb.com/api/v1/json/3/searchteams.php?t=${team}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          // Process team results
+        }
+      }
+    }
+
+  } catch (error) {
+    console.error('Sports API error:', error);
+  }
+  
+  return { resolved: false };
+}
+
+// ==================== NEWS/EVENTS ORACLES ====================
+
+// Use AI to verify news events from multiple sources
+async function checkNewsEvent(title: string, supabase: any): Promise<OracleResult> {
+  const titleLower = title.toLowerCase();
+  
+  try {
+    // Use Lovable AI to fact-check the prediction
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${Deno.env.get('LOVABLE_API_KEY')}`,
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          { 
+            role: 'system', 
+            content: `You are a fact-checker oracle. Given a prediction market question about a past event, determine if it has been resolved.
+            
+ONLY respond with JSON in this exact format:
+{"resolved": true/false, "outcome": "yes"/"no", "reason": "brief explanation with source"}
+
+If the event hasn't happened yet or you're not certain, set resolved to false.
+Be conservative - only mark as resolved if you're highly confident.
+Today's date: ${new Date().toISOString().split('T')[0]}`
+          },
+          { 
+            role: 'user', 
+            content: `Has this prediction been resolved? "${title}"` 
+          }
+        ],
+      }),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content || '';
+      
+      // Parse JSON response
+      let cleaned = content.trim();
+      if (cleaned.startsWith('```')) {
+        cleaned = cleaned.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+      }
+      
+      try {
+        const result = JSON.parse(cleaned);
+        if (result.resolved && result.outcome) {
+          return {
+            resolved: true,
+            outcome: result.outcome as 'yes' | 'no',
+            reason: result.reason || 'AI verified',
+            currentValue: 'AI Oracle'
+          };
+        }
+      } catch (parseError) {
+        console.log('AI response parse error:', parseError);
+      }
+    }
+  } catch (error) {
+    console.error('News oracle error:', error);
+  }
+  
+  return { resolved: false };
+}
+
+// ==================== ENTERTAINMENT ORACLES ====================
+
+async function checkEntertainmentEvent(title: string): Promise<OracleResult> {
+  const titleLower = title.toLowerCase();
+  
+  // Oscar/Grammy/Emmy predictions - use AI oracle
+  if (titleLower.includes('oscar') || titleLower.includes('grammy') || 
+      titleLower.includes('emmy') || titleLower.includes('golden globe')) {
+    // These are best verified via AI news check
+    return { resolved: false };
+  }
+  
+  // Movie release predictions
+  if (titleLower.includes('release') && (titleLower.includes('movie') || titleLower.includes('film'))) {
+    // Could integrate with TMDB API for movie releases
+    return { resolved: false };
+  }
+  
+  return { resolved: false };
+}
+
+// ==================== PAYOUT PROCESSING ====================
+
 async function processPayouts(supabase: any, predictionId: string, winningPosition: 'yes' | 'no'): Promise<void> {
   console.log(`Processing payouts for prediction ${predictionId}, winning: ${winningPosition}`);
   
@@ -223,6 +348,8 @@ async function processPayouts(supabase: any, predictionId: string, winningPositi
   console.log(`Payouts processed for "${prediction.title}"`);
 }
 
+// ==================== MAIN HANDLER ====================
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -245,26 +372,56 @@ Deno.serve(async (req) => {
     
     if (error) throw error;
     
-    const results: Array<{ id: string; title: string; outcome: string; reason: string }> = [];
+    const results: Array<{ id: string; title: string; outcome: string; reason: string; source: string }> = [];
     
     for (const pred of (predictions || [])) {
       console.log(`Checking: ${pred.title.slice(0, 60)}...`);
       
       let oracleResult: OracleResult = { resolved: false };
+      let source = 'unknown';
       
-      // Check for flippening predictions
-      if (pred.title.toLowerCase().includes('flippen') || 
-          (pred.title.toLowerCase().includes('ethereum') && pred.title.toLowerCase().includes('bitcoin') && pred.title.toLowerCase().includes('market cap'))) {
+      // Route to appropriate oracle based on category and content
+      const titleLower = pred.title.toLowerCase();
+      
+      // 1. Check for flippening predictions first
+      if (titleLower.includes('flippen') || 
+          (titleLower.includes('ethereum') && titleLower.includes('bitcoin') && titleLower.includes('market cap'))) {
         oracleResult = await checkFlippening();
+        source = 'CoinGecko Market Cap';
       }
-      // Check crypto price predictions
+      // 2. Crypto price predictions
       else if (pred.category === 'crypto' || 
-               pred.title.toLowerCase().includes('bitcoin') || 
-               pred.title.toLowerCase().includes('ethereum') ||
-               pred.title.toLowerCase().includes('solana') ||
-               pred.title.toLowerCase().includes('xec') ||
-               pred.title.toLowerCase().includes('xrp')) {
-        oracleResult = await checkCryptoPrediction(pred.title, pred.description || '');
+               ['bitcoin', 'btc', 'ethereum', 'eth', 'solana', 'sol', 'xec', 'xrp', 'doge', 'ada']
+                 .some(c => titleLower.includes(c))) {
+        oracleResult = await checkCryptoPrediction(pred.title);
+        source = 'CoinGecko Price';
+      }
+      // 3. Sports predictions
+      else if (pred.category === 'sports' ||
+               ['super bowl', 'world series', 'wimbledon', 'premier league', 'nba', 'nfl', 'champions league']
+                 .some(s => titleLower.includes(s))) {
+        oracleResult = await checkSportsResult(pred.title);
+        source = 'TheSportsDB';
+      }
+      // 4. Entertainment predictions
+      else if (pred.category === 'entertainment' ||
+               ['oscar', 'grammy', 'emmy', 'movie', 'album', 'netflix', 'disney']
+                 .some(e => titleLower.includes(e))) {
+        oracleResult = await checkEntertainmentEvent(pred.title);
+        source = 'Entertainment Oracle';
+      }
+      // 5. Politics and other - use AI news oracle
+      else if (pred.category === 'politics' || pred.category === 'tech' ||
+               ['election', 'president', 'congress', 'senate', 'vote', 'apple', 'google', 'openai', 'tesla']
+                 .some(p => titleLower.includes(p))) {
+        oracleResult = await checkNewsEvent(pred.title, supabase);
+        source = 'AI News Oracle';
+      }
+      
+      // If no specific oracle resolved it, try AI as fallback for expired predictions
+      if (!oracleResult.resolved) {
+        oracleResult = await checkNewsEvent(pred.title, supabase);
+        source = 'AI Fallback Oracle';
       }
       
       if (oracleResult.resolved && oracleResult.outcome) {
@@ -275,7 +432,7 @@ Deno.serve(async (req) => {
           .update({ 
             status, 
             resolved_at: new Date().toISOString(),
-            description: `${pred.description || ''}\n\n🔮 Oracle Resolution: ${oracleResult.reason}`
+            description: `${pred.description || ''}\n\n🔮 Oracle Resolution (${source}): ${oracleResult.reason}`
           })
           .eq('id', pred.id);
         
@@ -285,43 +442,23 @@ Deno.serve(async (req) => {
           id: pred.id,
           title: pred.title,
           outcome: oracleResult.outcome,
-          reason: oracleResult.reason || 'Oracle verified'
+          reason: oracleResult.reason || 'Oracle verified',
+          source
         });
         
-        console.log(`Resolved: ${pred.title} -> ${oracleResult.outcome} (${oracleResult.reason})`);
+        console.log(`✓ Resolved: ${pred.title.slice(0, 50)} -> ${oracleResult.outcome} (${source})`);
       } else {
-        // If no oracle data, resolve based on pool majority (fallback)
-        const winningPosition = pred.yes_pool >= pred.no_pool ? 'yes' : 'no';
-        const status = winningPosition === 'yes' ? 'resolved_yes' : 'resolved_no';
-        
-        await supabase
-          .from('predictions')
-          .update({ 
-            status, 
-            resolved_at: new Date().toISOString(),
-            description: `${pred.description || ''}\n\n⚖️ Resolved by market consensus`
-          })
-          .eq('id', pred.id);
-        
-        await processPayouts(supabase, pred.id, winningPosition);
-        
-        results.push({
-          id: pred.id,
-          title: pred.title,
-          outcome: winningPosition,
-          reason: 'Market consensus (no oracle data available)'
-        });
-        
-        console.log(`Resolved by consensus: ${pred.title} -> ${winningPosition}`);
+        console.log(`⏳ Could not resolve: ${pred.title.slice(0, 50)}`);
       }
       
-      // Rate limit CoinGecko API
+      // Rate limit API calls
       await new Promise(resolve => setTimeout(resolve, 1500));
     }
 
     return new Response(
       JSON.stringify({ 
         success: true, 
+        checked: predictions?.length || 0,
         resolved: results.length,
         results
       }),
