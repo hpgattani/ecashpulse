@@ -20,6 +20,7 @@ export type Database = {
           confirmed_at: string | null
           created_at: string
           id: string
+          outcome_id: string | null
           payout_amount: number | null
           payout_tx_hash: string | null
           position: Database["public"]["Enums"]["bet_position"]
@@ -33,6 +34,7 @@ export type Database = {
           confirmed_at?: string | null
           created_at?: string
           id?: string
+          outcome_id?: string | null
           payout_amount?: number | null
           payout_tx_hash?: string | null
           position: Database["public"]["Enums"]["bet_position"]
@@ -46,6 +48,7 @@ export type Database = {
           confirmed_at?: string | null
           created_at?: string
           id?: string
+          outcome_id?: string | null
           payout_amount?: number | null
           payout_tx_hash?: string | null
           position?: Database["public"]["Enums"]["bet_position"]
@@ -55,6 +58,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "bets_outcome_id_fkey"
+            columns: ["outcome_id"]
+            isOneToOne: false
+            referencedRelation: "outcomes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "bets_prediction_id_fkey"
             columns: ["prediction_id"]
@@ -67,6 +77,38 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      outcomes: {
+        Row: {
+          created_at: string
+          id: string
+          label: string
+          pool: number
+          prediction_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label: string
+          pool?: number
+          prediction_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string
+          pool?: number
+          prediction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outcomes_prediction_id_fkey"
+            columns: ["prediction_id"]
+            isOneToOne: false
+            referencedRelation: "predictions"
             referencedColumns: ["id"]
           },
         ]

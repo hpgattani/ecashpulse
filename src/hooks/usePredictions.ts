@@ -15,6 +15,20 @@ interface DBPrediction {
   created_at: string;
 }
 
+interface DBOutcome {
+  id: string;
+  prediction_id: string;
+  label: string;
+  pool: number;
+}
+
+export interface Outcome {
+  id: string;
+  label: string;
+  pool: number;
+  odds: number;
+}
+
 export interface Prediction {
   id: string;
   question: string;
@@ -28,12 +42,36 @@ export interface Prediction {
   trending?: boolean;
   escrowAddress: string;
   status: string;
+  isMultiOption: boolean;
+  outcomes: Outcome[];
 }
 
-const transformPrediction = (p: DBPrediction): Prediction => {
-  const totalPool = p.yes_pool + p.no_pool;
-  const yesOdds = totalPool > 0 ? Math.round((p.yes_pool / totalPool) * 100) : 50;
-  const noOdds = totalPool > 0 ? 100 - yesOdds : 50;
+const transformPrediction = (p: DBPrediction, outcomes: DBOutcome[]): Prediction => {
+  const predictionOutcomes = outcomes.filter(o => o.prediction_id === p.id);
+  const isMultiOption = predictionOutcomes.length > 0;
+  
+  let totalPool: number;
+  let yesOdds: number;
+  let noOdds: number;
+  let transformedOutcomes: Outcome[] = [];
+  
+  if (isMultiOption) {
+    totalPool = predictionOutcomes.reduce((sum, o) => sum + o.pool, 0);
+    transformedOutcomes = predictionOutcomes.map(o => ({
+      id: o.id,
+      label: o.label,
+      pool: o.pool,
+      odds: totalPool > 0 ? Math.round((o.pool / totalPool) * 100) : Math.round(100 / predictionOutcomes.length)
+    })).sort((a, b) => b.odds - a.odds);
+    
+    // For multi-option, yes/no odds are just for display compatibility
+    yesOdds = transformedOutcomes[0]?.odds || 50;
+    noOdds = 100 - yesOdds;
+  } else {
+    totalPool = p.yes_pool + p.no_pool;
+    yesOdds = totalPool > 0 ? Math.round((p.yes_pool / totalPool) * 100) : 50;
+    noOdds = totalPool > 0 ? 100 - yesOdds : 50;
+  }
   
   // Convert satoshis to USD (rough estimate: 1 XEC ≈ $0.00003)
   const volumeUSD = (totalPool / 100) * 0.00003;
@@ -48,9 +86,11 @@ const transformPrediction = (p: DBPrediction): Prediction => {
     volume: volumeUSD,
     endDate: p.end_date,
     image: p.image_url || undefined,
-    trending: totalPool > 100000, // Mark as trending if pool > 1000 XEC
+    trending: totalPool > 100000,
     escrowAddress: p.escrow_address,
     status: p.status,
+    isMultiOption,
+    outcomes: transformedOutcomes,
   };
 };
 
@@ -72,20 +112,24 @@ export const usePredictions = () => {
           schema: 'public',
           table: 'predictions',
         },
-        (payload) => {
-          console.log('Prediction update:', payload);
-          // Update predictions instantly
-          if (payload.eventType === 'UPDATE' && payload.new) {
-            setPredictions(prev => 
-              prev.map(p => 
-                p.id === payload.new.id 
-                  ? transformPrediction(payload.new as DBPrediction)
-                  : p
-              )
-            );
-          } else {
-            fetchPredictions();
-          }
+        () => {
+          fetchPredictions();
+        }
+      )
+      .subscribe();
+
+    // Subscribe to outcomes for multi-option updates
+    const outcomesChannel = supabase
+      .channel('outcomes-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'outcomes',
+        },
+        () => {
+          fetchPredictions();
         }
       )
       .subscribe();
@@ -100,9 +144,7 @@ export const usePredictions = () => {
           schema: 'public',
           table: 'bets',
         },
-        (payload) => {
-          console.log('Bet update:', payload);
-          // Refetch predictions when bets change to get updated pools
+        () => {
           fetchPredictions();
         }
       )
@@ -110,22 +152,32 @@ export const usePredictions = () => {
 
     return () => {
       supabase.removeChannel(predictionsChannel);
+      supabase.removeChannel(outcomesChannel);
       supabase.removeChannel(betsChannel);
     };
   }, []);
 
   const fetchPredictions = async () => {
-    const { data, error: fetchError } = await supabase
-      .from('predictions')
-      .select('*')
-      .eq('status', 'active')
-      .order('created_at', { ascending: false });
+    // Fetch predictions and outcomes in parallel
+    const [predictionsResult, outcomesResult] = await Promise.all([
+      supabase
+        .from('predictions')
+        .select('*')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('outcomes')
+        .select('*')
+    ]);
 
-    if (fetchError) {
-      setError(fetchError.message);
-      console.error('Error fetching predictions:', fetchError);
+    if (predictionsResult.error) {
+      setError(predictionsResult.error.message);
+      console.error('Error fetching predictions:', predictionsResult.error);
     } else {
-      setPredictions((data as DBPrediction[]).map(transformPrediction));
+      const outcomes = (outcomesResult.data || []) as DBOutcome[];
+      setPredictions(
+        (predictionsResult.data as DBPrediction[]).map(p => transformPrediction(p, outcomes))
+      );
     }
     setLoading(false);
   };
