@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Outcome } from '@/hooks/usePredictions';
 
 const ESCROW_ADDRESS = 'ecash:qr6pwzt7glvmq6ryr4305kat0vnv2wy69qjxpdwz5a';
 
@@ -16,6 +17,7 @@ interface Prediction {
   yesOdds: number;
   noOdds: number;
   escrowAddress?: string;
+  outcomes?: Outcome[];
 }
 
 interface BetModalProps {
@@ -23,17 +25,26 @@ interface BetModalProps {
   onClose: () => void;
   prediction: Prediction;
   position: 'yes' | 'no';
+  selectedOutcome?: Outcome | null;
 }
 
-const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
+const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: BetModalProps) => {
   const payButtonRef = useRef<HTMLDivElement>(null);
   const { user, sessionToken } = useAuth();
   const navigate = useNavigate();
   const [betAmount, setBetAmount] = useState('100');
   const [betSuccess, setBetSuccess] = useState(false);
+  const [betPosition, setBetPosition] = useState<'yes' | 'no'>(position);
+
+  // Update position when prop changes
+  useEffect(() => {
+    setBetPosition(position);
+  }, [position]);
 
   // Calculate potential payout
-  const currentOdds = position === 'yes' ? prediction.yesOdds : prediction.noOdds;
+  const currentOdds = selectedOutcome 
+    ? selectedOutcome.odds 
+    : (betPosition === 'yes' ? prediction.yesOdds : prediction.noOdds);
   const winMultiplier = currentOdds > 0 ? (100 / currentOdds) : 1;
   const potentialPayout = betAmount ? (parseFloat(betAmount) * winMultiplier).toFixed(2) : '0';
   const potentialProfit = betAmount ? ((parseFloat(betAmount) * winMultiplier) - parseFloat(betAmount)).toFixed(2) : '0';
@@ -43,7 +54,7 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
     if (!user || !sessionToken) return;
     
     const betAmountXec = parseFloat(betAmount);
-    const betAmountSatoshis = Math.round(betAmountXec * 100); // Convert XEC to satoshis (1 XEC = 100 satoshis)
+    const betAmountSatoshis = Math.round(betAmountXec * 100);
     console.log('[BetModal] Recording bet, amount XEC:', betAmountXec, 'satoshis:', betAmountSatoshis, 'txHash:', txHash);
     
     try {
@@ -51,9 +62,10 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
         body: {
           session_token: sessionToken,
           prediction_id: prediction.id,
-          position,
+          position: betPosition,
           amount: betAmountSatoshis,
-          tx_hash: txHash || `pb_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
+          tx_hash: txHash || `pb_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
+          outcome_id: selectedOutcome?.id || null
         }
       });
 
@@ -67,10 +79,10 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
         return;
       }
 
-      // Only show success after backend confirms
       setBetSuccess(true);
+      const outcomeLabel = selectedOutcome ? selectedOutcome.label : betPosition.toUpperCase();
       toast.success('Bet placed!', {
-        description: `${position.toUpperCase()} bet of ${betAmount} XEC confirmed.`
+        description: `${outcomeLabel} bet of ${betAmount} XEC confirmed.`
       });
       
       setTimeout(() => {
@@ -81,7 +93,7 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
       console.error('[BetModal] Error:', err);
       toast.error('Failed to place bet', { description: err.message });
     }
-  }, [user, sessionToken, betAmount, prediction.id, position, onClose]);
+  }, [user, sessionToken, betAmount, prediction.id, betPosition, selectedOutcome, onClose]);
 
   // Load PayButton script
   useEffect(() => {
@@ -129,7 +141,7 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
           successText: 'Payment Sent!',
           theme: {
             palette: {
-              primary: position === 'yes' ? '#10b981' : '#ef4444',
+              primary: betPosition === 'yes' ? '#10b981' : '#ef4444',
               secondary: '#1e293b',
               tertiary: '#ffffff'
             }
@@ -137,7 +149,6 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
           onSuccess: (txResult: any) => {
             console.log('[BetModal] PayButton success:', txResult);
             
-            // Extract tx hash if available
             let txHash: string | undefined;
             if (typeof txResult === 'string') {
               txHash = txResult;
@@ -149,7 +160,6 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
               txHash = txResult.txId;
             }
             
-            // Record the bet immediately
             recordBet(txHash);
           },
           onError: (error: any) => {
@@ -170,7 +180,7 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
         payButtonRef.current.innerHTML = '';
       }
     };
-  }, [isOpen, betAmount, user, sessionToken, prediction.id, position, betSuccess, recordBet]);
+  }, [isOpen, betAmount, user, sessionToken, prediction.id, betPosition, betSuccess, recordBet]);
 
   if (!user || !sessionToken) {
     return (
@@ -237,7 +247,7 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
                     Bet Placed!
                   </h2>
                   <p className="text-muted-foreground">
-                    Your {position.toUpperCase()} bet has been confirmed.
+                    Your bet on {selectedOutcome ? selectedOutcome.label : betPosition.toUpperCase()} has been confirmed.
                   </p>
                 </div>
               ) : (
@@ -247,11 +257,17 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
                       <h2 className="font-display font-bold text-lg sm:text-xl text-foreground mb-1">
                         Place Your Bet
                       </h2>
-                      <p className="text-xs sm:text-sm text-muted-foreground">
-                        Betting <span className={position === 'yes' ? 'text-emerald-400 font-semibold' : 'text-red-400 font-semibold'}>
-                          {position.toUpperCase()}
-                        </span>
-                      </p>
+                      {selectedOutcome ? (
+                        <p className="text-xs sm:text-sm text-muted-foreground">
+                          Betting on <span className="text-primary font-semibold">{selectedOutcome.label}</span>
+                        </p>
+                      ) : (
+                        <p className="text-xs sm:text-sm text-muted-foreground">
+                          Betting <span className={betPosition === 'yes' ? 'text-emerald-400 font-semibold' : 'text-red-400 font-semibold'}>
+                            {betPosition.toUpperCase()}
+                          </span>
+                        </p>
+                      )}
                     </div>
                     <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
                       <X className="w-4 h-4" />
@@ -261,12 +277,48 @@ const BetModal = ({ isOpen, onClose, prediction, position }: BetModalProps) => {
                   {/* Prediction Info */}
                   <div className="p-3 rounded-lg bg-muted/50 mb-4">
                     <h3 className="font-medium text-foreground mb-2 text-sm">{prediction.question}</h3>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Your Position:</span>
-                      <span className={position === 'yes' ? 'text-emerald-400 font-semibold' : 'text-red-400 font-semibold'}>
-                        {position.toUpperCase()} ({currentOdds}%)
-                      </span>
-                    </div>
+                    
+                    {selectedOutcome ? (
+                      <>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Your Pick:</span>
+                          <span className="text-primary font-semibold">{selectedOutcome.label}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm mt-1">
+                          <span className="text-muted-foreground">Current Odds:</span>
+                          <span className="text-primary font-semibold">{selectedOutcome.odds}%</span>
+                        </div>
+                        {/* Position toggle for multi-option */}
+                        <div className="flex gap-2 mt-3">
+                          <Button
+                            variant={betPosition === 'yes' ? 'yes' : 'outline'}
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => setBetPosition('yes')}
+                          >
+                            Yes
+                          </Button>
+                          <Button
+                            variant={betPosition === 'no' ? 'no' : 'outline'}
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => setBetPosition('no')}
+                          >
+                            No
+                          </Button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Your Position:</span>
+                          <span className={betPosition === 'yes' ? 'text-emerald-400 font-semibold' : 'text-red-400 font-semibold'}>
+                            {betPosition.toUpperCase()} ({currentOdds}%)
+                          </span>
+                        </div>
+                      </>
+                    )}
+                    
                     <div className="flex items-center justify-between text-sm mt-1">
                       <span className="text-muted-foreground">Win Multiplier:</span>
                       <span className="text-primary font-semibold">{winMultiplier.toFixed(2)}x</span>
