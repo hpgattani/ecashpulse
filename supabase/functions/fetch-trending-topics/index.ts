@@ -31,11 +31,65 @@ function calculateEndDate(category: string, daysHint?: number): string {
   return now.toISOString();
 }
 
-// Fetch markets from Polymarket Gamma API (public)
-async function fetchPolymarketData(): Promise<Array<{ title: string; description: string; category: string; endDate?: string }>> {
+// Improved category detection with more keywords
+function detectCategory(question: string): string {
+  const q = question.toLowerCase();
+  
+  // Crypto keywords (check first as these are most specific)
+  if (q.includes('bitcoin') || q.includes('btc') || q.includes('ethereum') || q.includes('eth') || 
+      q.includes('solana') || q.includes('sol') || q.includes('xrp') || q.includes('ripple') ||
+      q.includes('cardano') || q.includes('ada') || q.includes('dogecoin') || q.includes('doge') ||
+      q.includes('crypto') || q.includes('token') || q.includes('defi') || q.includes('nft') ||
+      q.includes('market cap') || q.includes('ecash') || q.includes('xec')) {
+    return 'crypto';
+  }
+  
+  // Sports keywords
+  if (q.includes('nfl') || q.includes('nba') || q.includes('nhl') || q.includes('mlb') ||
+      q.includes('super bowl') || q.includes('world series') || q.includes('world cup') ||
+      q.includes('championship') || q.includes('champions league') || q.includes('premier league') ||
+      q.includes('wimbledon') || q.includes('tennis') || q.includes('football') || q.includes('basketball') ||
+      q.includes('hockey') || q.includes('baseball') || q.includes('cricket') || q.includes('ipl') ||
+      q.includes('olympics') || q.includes('ufc') || q.includes('boxing') || q.includes('f1') ||
+      q.includes('formula 1') || q.includes('grand prix')) {
+    return 'sports';
+  }
+  
+  // Tech keywords (check before politics since tech companies often appear in political context)
+  if (q.includes('apple') || q.includes('google') || q.includes('microsoft') || q.includes('amazon') ||
+      q.includes('nvidia') || q.includes('openai') || q.includes('gpt') || q.includes('ai ') ||
+      q.includes('artificial intelligence') || q.includes('chatgpt') || q.includes('deepmind') ||
+      q.includes('tesla') || q.includes('spacex') || q.includes('iphone') || q.includes('android') ||
+      q.includes('ar/vr') || q.includes('virtual reality') || q.includes('augmented reality') ||
+      q.includes('robot') || q.includes('quantum') || q.includes('semiconductor') || q.includes('chip')) {
+    return 'tech';
+  }
+  
+  // Entertainment keywords
+  if (q.includes('oscar') || q.includes('grammy') || q.includes('emmy') || q.includes('golden globe') ||
+      q.includes('movie') || q.includes('film') || q.includes('album') || q.includes('spotify') ||
+      q.includes('netflix') || q.includes('disney') || q.includes('celebrity') || q.includes('concert') ||
+      q.includes('tour') || q.includes('box office') || q.includes('streaming') || q.includes('youtube') ||
+      q.includes('tiktok') || q.includes('twitter') || q.includes('elon musk') && q.includes('tweet')) {
+    return 'entertainment';
+  }
+  
+  // Economics keywords
+  if (q.includes('fed') || q.includes('interest rate') || q.includes('inflation') || q.includes('gdp') ||
+      q.includes('recession') || q.includes('stock market') || q.includes('s&p') || q.includes('dow') ||
+      q.includes('nasdaq') || q.includes('unemployment') || q.includes('economy') || q.includes('fiscal')) {
+    return 'economics';
+  }
+  
+  // Default to politics for elections, legislation, etc.
+  return 'politics';
+}
+
+// Fetch markets from Polymarket Gamma API with odds
+async function fetchPolymarketData(): Promise<Array<{ title: string; description: string; category: string; endDate?: string; yesOdds?: number; noOdds?: number }>> {
   try {
     // Use Polymarket's public gamma API
-    const response = await fetch('https://gamma-api.polymarket.com/markets?limit=30&active=true', {
+    const response = await fetch('https://gamma-api.polymarket.com/markets?limit=50&active=true', {
       headers: { 'Accept': 'application/json' }
     });
     
@@ -45,35 +99,48 @@ async function fetchPolymarketData(): Promise<Array<{ title: string; description
     }
     
     const data = await response.json();
-    const markets: Array<{ title: string; description: string; category: string; endDate?: string }> = [];
+    const markets: Array<{ title: string; description: string; category: string; endDate?: string; yesOdds?: number; noOdds?: number }> = [];
     
     // Gamma API returns array directly
     const marketList = Array.isArray(data) ? data : (data.markets || data.data || []);
     
-    for (const market of marketList.slice(0, 15)) {
+    for (const market of marketList.slice(0, 25)) {
       const question = market.question || market.title || market.name;
       if (!question) continue;
       
-      // Categorize based on keywords
-      let category = 'politics';
-      const q = question.toLowerCase();
-      if (q.includes('bitcoin') || q.includes('eth') || q.includes('crypto') || q.includes('token') || q.includes('solana') || q.includes('xrp')) {
-        category = 'crypto';
-      } else if (q.includes('nfl') || q.includes('nba') || q.includes('match') || q.includes('win') || q.includes('game') || q.includes('championship') || q.includes('super bowl') || q.includes('world cup')) {
-        category = 'sports';
-      } else if (q.includes('ai') || q.includes('tech') || q.includes('apple') || q.includes('google') || q.includes('openai') || q.includes('chatgpt') || q.includes('nvidia') || q.includes('microsoft')) {
-        category = 'tech';
-      } else if (q.includes('movie') || q.includes('oscar') || q.includes('grammy') || q.includes('album') || q.includes('spotify') || q.includes('netflix')) {
-        category = 'entertainment';
-      } else if (q.includes('fed') || q.includes('rate') || q.includes('gdp') || q.includes('inflation') || q.includes('recession') || q.includes('stock')) {
-        category = 'economics';
+      // Use improved category detection
+      const category = detectCategory(question);
+      
+      // Extract odds from outcome prices if available
+      let yesOdds = 50;
+      let noOdds = 50;
+      
+      if (market.outcomePrices) {
+        try {
+          const prices = typeof market.outcomePrices === 'string' 
+            ? JSON.parse(market.outcomePrices) 
+            : market.outcomePrices;
+          if (Array.isArray(prices) && prices.length >= 2) {
+            yesOdds = Math.round(parseFloat(prices[0]) * 100);
+            noOdds = Math.round(parseFloat(prices[1]) * 100);
+          }
+        } catch (e) {
+          console.log('Error parsing outcome prices:', e);
+        }
+      } else if (market.bestBid !== undefined && market.bestAsk !== undefined) {
+        // Use bid/ask as a proxy for odds
+        const midPrice = (parseFloat(market.bestBid) + parseFloat(market.bestAsk)) / 2;
+        yesOdds = Math.round(midPrice * 100);
+        noOdds = 100 - yesOdds;
       }
       
       markets.push({
         title: question.slice(0, 200),
         description: (market.description || `Polymarket: ${question}`).slice(0, 500),
         category,
-        endDate: market.endDate || market.end_date || market.close_time
+        endDate: market.endDate || market.end_date || market.close_time,
+        yesOdds,
+        noOdds
       });
     }
     
@@ -96,6 +163,12 @@ CRITICAL RULES:
 2. DO NOT include any events that have already occurred or been resolved
 3. End dates must be in the future (after ${today})
 4. Be specific with dates and measurable outcomes
+5. IMPORTANT: Assign CORRECT categories:
+   - crypto: Bitcoin, Ethereum, Solana, XRP, market cap, DeFi, tokens
+   - tech: Apple, Google, Microsoft, AI, gadgets, software, robots
+   - sports: NFL, NBA, FIFA, Olympics, championships, matches
+   - politics: Elections, legislation, government, policy
+   - entertainment: Movies, music, awards, celebrities, streaming
 
 Generate exactly 8 prediction market questions across these categories:
 - CRYPTO (2): Price targets for BTC, ETH, SOL, XEC with specific dates
@@ -105,8 +178,8 @@ Generate exactly 8 prediction market questions across these categories:
 
 Format as JSON array ONLY:
 [
-  {"title": "Will Bitcoin trade above $150,000 before March 1, 2025?", "description": "BTC/USD price reaching $150k on major exchanges", "category": "crypto", "endDate": "2025-03-01"},
-  {"title": "Will OpenAI release GPT-5 before June 2025?", "description": "Official public release of GPT-5 model", "category": "tech", "endDate": "2025-06-30"}
+  {"title": "Will Bitcoin trade above $150,000 before March 1, 2026?", "description": "BTC/USD price reaching $150k on major exchanges", "category": "crypto", "endDate": "2026-03-01"},
+  {"title": "Will OpenAI release GPT-5 before June 2026?", "description": "Official public release of GPT-5 model", "category": "tech", "endDate": "2026-06-30"}
 ]`;
 
   try {
@@ -141,15 +214,20 @@ Format as JSON array ONLY:
     
     const predictions = JSON.parse(cleaned);
     
-    // Filter out any predictions with past end dates
+    // Filter out any predictions with past end dates and fix categories
     const now = new Date();
-    const validPredictions = predictions.filter((p: any) => {
-      if (p.endDate) {
-        const endDate = new Date(p.endDate);
-        return endDate > now;
-      }
-      return true;
-    });
+    const validPredictions = predictions
+      .filter((p: any) => {
+        if (p.endDate) {
+          const endDate = new Date(p.endDate);
+          return endDate > now;
+        }
+        return true;
+      })
+      .map((p: any) => ({
+        ...p,
+        category: detectCategory(p.title) // Re-verify category
+      }));
     
     console.log(`AI generated ${validPredictions.length} valid predictions`);
     return validPredictions;
@@ -238,6 +316,11 @@ async function syncPredictions(supabase: any): Promise<{ created: number; resolv
     const category = CATEGORIES.includes(market.category as any) ? market.category : 'politics';
     const marketWithDate = market as { title: string; description: string; category: string; endDate?: string };
     
+    // Calculate initial pools from odds if available
+    const marketWithOdds = market as { yesOdds?: number; noOdds?: number };
+    const yesPool = marketWithOdds.yesOdds ? marketWithOdds.yesOdds * 100 : 0;
+    const noPool = marketWithOdds.noOdds ? marketWithOdds.noOdds * 100 : 0;
+    
     const newPrediction = {
       title: market.title.slice(0, 200),
       description: (market.description || '').slice(0, 500),
@@ -245,8 +328,8 @@ async function syncPredictions(supabase: any): Promise<{ created: number; resolv
       escrow_address: generateEscrowAddress(),
       end_date: marketWithDate.endDate || calculateEndDate(category),
       status: 'active',
-      yes_pool: 0,
-      no_pool: 0,
+      yes_pool: yesPool,
+      no_pool: noPool,
     };
 
     const { error } = await supabase.from('predictions').insert(newPrediction);
