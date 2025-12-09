@@ -36,10 +36,16 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
   const [betSuccess, setBetSuccess] = useState(false);
   const [betPosition, setBetPosition] = useState<"yes" | "no">(position);
 
+  // If a specific outcome is selected, always treat it as "bet ON this outcome"
   useEffect(() => {
-    setBetPosition(position);
-  }, [position]);
+    if (selectedOutcome) {
+      setBetPosition("yes");
+    } else {
+      setBetPosition(position);
+    }
+  }, [position, selectedOutcome]);
 
+  // Calculate potential payout
   const currentOdds = selectedOutcome
     ? selectedOutcome.odds
     : betPosition === "yes"
@@ -50,6 +56,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
   const potentialPayout = betAmount ? (parseFloat(betAmount) * winMultiplier).toFixed(2) : "0";
   const potentialProfit = betAmount ? (parseFloat(betAmount) * winMultiplier - parseFloat(betAmount)).toFixed(2) : "0";
 
+  // Record bet
   const recordBet = useCallback(
     async (txHash?: string) => {
       if (!user || !sessionToken) return;
@@ -70,7 +77,9 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
         });
 
         if (error || data?.error) {
-          toast.error("Bet recording failed", { description: data?.error || error?.message });
+          toast.error("Bet recording failed", {
+            description: data?.error || error?.message || "Please try again",
+          });
           return;
         }
 
@@ -91,6 +100,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
     [user, sessionToken, betAmount, prediction.id, betPosition, selectedOutcome, onClose],
   );
 
+  // Load PayButton script
   useEffect(() => {
     if (!document.querySelector('script[src*="paybutton"]')) {
       const script = document.createElement("script");
@@ -100,9 +110,12 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
     }
   }, []);
 
+  // Render PayButton
   useEffect(() => {
     if (!isOpen || !payButtonRef.current || !user || !sessionToken || betSuccess) {
-      if (payButtonRef.current) payButtonRef.current.innerHTML = "";
+      if (payButtonRef.current) {
+        payButtonRef.current.innerHTML = "";
+      }
       return;
     }
 
@@ -133,19 +146,31 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
           successText: "Payment Sent!",
           theme: {
             palette: {
-              primary: betPosition === "yes" ? "#10b981" : "#ef4444",
+              primary: "#10b981", // always green for "bet on outcome"
               secondary: "#1e293b",
               tertiary: "#ffffff",
             },
           },
           onSuccess: (txResult: any) => {
-            let txHash: string | undefined =
-              typeof txResult === "string" ? txResult : txResult?.hash || txResult?.txid || txResult?.txId;
+            let txHash: string | undefined;
+
+            if (typeof txResult === "string") {
+              txHash = txResult;
+            } else if (txResult?.hash) {
+              txHash = txResult.hash;
+            } else if (txResult?.txid) {
+              txHash = txResult.txid;
+            } else if (txResult?.txId) {
+              txHash = txResult.txId;
+            }
 
             recordBet(txHash);
           },
           onError: (error: any) => {
-            toast.error("Payment failed", { description: "Please try again." });
+            console.error("PayButton error:", error);
+            toast.error("Payment failed", {
+              description: "Please try again.",
+            });
           },
         });
       }
@@ -155,10 +180,13 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
 
     return () => {
       clearTimeout(timeoutId);
-      if (payButtonRef.current) payButtonRef.current.innerHTML = "";
+      if (payButtonRef.current) {
+        payButtonRef.current.innerHTML = "";
+      }
     };
-  }, [isOpen, betAmount, user, sessionToken, prediction.id, betPosition, betSuccess, recordBet]);
+  }, [isOpen, betAmount, user, sessionToken, prediction.id, betSuccess, recordBet]);
 
+  // Unauthenticated state
   if (!user || !sessionToken) {
     return (
       <AnimatePresence>
@@ -195,6 +223,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
     );
   }
 
+  // Authenticated state
   return (
     <AnimatePresence>
       {isOpen && (
@@ -214,6 +243,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
             className="fixed inset-x-4 top-4 bottom-4 mx-auto max-w-md z-50 flex items-center"
           >
             <div className="glass-card glow-primary p-4 sm:p-6 w-full max-h-full overflow-y-auto">
+              {/* Success State */}
               {betSuccess ? (
                 <div className="text-center py-8">
                   <CheckCircle className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
@@ -228,7 +258,6 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                   <div className="flex items-start justify-between mb-4">
                     <div>
                       <h2 className="font-display font-bold text-lg sm:text-xl text-foreground mb-1">Place Your Bet</h2>
-
                       {selectedOutcome ? (
                         <p className="text-xs sm:text-sm text-muted-foreground">
                           Betting on <span className="text-primary font-semibold">{selectedOutcome.label}</span>
@@ -251,6 +280,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                     </Button>
                   </div>
 
+                  {/* Prediction Info */}
                   <div className="p-3 rounded-lg bg-muted/50 mb-4">
                     <h3 className="font-medium text-foreground mb-2 text-sm">{prediction.question}</h3>
 
@@ -260,31 +290,9 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                           <span className="text-muted-foreground">Your Pick:</span>
                           <span className="text-primary font-semibold">{selectedOutcome.label}</span>
                         </div>
-
                         <div className="flex items-center justify-between text-sm mt-1">
                           <span className="text-muted-foreground">Current Odds:</span>
                           <span className="text-primary font-semibold">{selectedOutcome.odds}%</span>
-                        </div>
-
-                        {/* BET OPTION REPLACED FROM YES/NO → OUTCOME NAME */}
-                        <div className="flex gap-2 mt-3">
-                          <Button
-                            variant={betPosition === "yes" ? "yes" : "outline"}
-                            size="sm"
-                            className="flex-1"
-                            onClick={() => setBetPosition("yes")}
-                          >
-                            Bet on {selectedOutcome.label}
-                          </Button>
-
-                          <Button
-                            variant={betPosition === "no" ? "no" : "outline"}
-                            size="sm"
-                            className="flex-1"
-                            onClick={() => setBetPosition("no")}
-                          >
-                            Bet against {selectedOutcome.label}
-                          </Button>
                         </div>
                       </>
                     ) : (
@@ -308,6 +316,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                     </div>
                   </div>
 
+                  {/* Bet Amount + Payout Preview */}
                   <div className="space-y-4">
                     <div>
                       <label className="text-sm text-muted-foreground mb-1.5 block">Bet Amount (XEC)</label>
@@ -328,12 +337,10 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                           <Calculator className="w-4 h-4 text-emerald-400" />
                           <span className="text-sm font-medium text-emerald-400">If you win:</span>
                         </div>
-
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Total Payout:</span>
                           <span className="text-emerald-400 font-bold">{potentialPayout} XEC</span>
                         </div>
-
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Profit:</span>
                           <span className="text-emerald-400 font-bold">+{potentialProfit} XEC</span>
@@ -341,8 +348,10 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                       </div>
                     )}
 
+                    {/* PayButton Container */}
                     <div ref={payButtonRef} className="min-h-[50px] flex justify-center" />
 
+                    {/* Info */}
                     <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/30">
                       <Info className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
                       <p className="text-xs text-muted-foreground">
