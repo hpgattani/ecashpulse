@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Zap, Menu, X, Scale, Wallet, LogOut, TrendingUp, User, Coins } from 'lucide-react';
-import DisputeModal from './DisputeModal';
+import { Zap, Menu, X, Wallet, LogOut, TrendingUp, User, Coins } from 'lucide-react';
 import { ProfileModal } from './ProfileModal';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -16,7 +15,6 @@ import {
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isDisputeOpen, setIsDisputeOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const { user, profile, logout } = useAuth();
   const navigate = useNavigate();
@@ -83,16 +81,6 @@ const Header = () => {
 
             {/* Desktop Actions */}
             <div className="hidden md:flex items-center gap-3">
-              <Button
-                variant="glow"
-                size="sm"
-                onClick={() => setIsDisputeOpen(true)}
-                className="gap-2"
-              >
-                <Scale className="w-4 h-4" />
-                AI Dispute
-              </Button>
-              
               {user ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -172,19 +160,6 @@ const Header = () => {
                   </Link>
                 )}
                 <div className="flex flex-col gap-2 pt-2">
-                  <Button
-                    variant="glow"
-                    size="sm"
-                    onClick={() => {
-                      setIsDisputeOpen(true);
-                      setIsMenuOpen(false);
-                    }}
-                    className="gap-2"
-                  >
-                    <Scale className="w-4 h-4" />
-                    AI Dispute
-                  </Button>
-                  
                   {user ? (
                     <div className="space-y-2">
                       <p className="text-xs text-muted-foreground font-mono px-2">
@@ -223,7 +198,6 @@ const Header = () => {
         </div>
       </motion.header>
 
-      <DisputeModal isOpen={isDisputeOpen} onClose={() => setIsDisputeOpen(false)} />
       <ProfileModal open={isProfileOpen} onOpenChange={setIsProfileOpen} />
     </>
   );
