@@ -7,8 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import PredictionDetailModal from '@/components/PredictionDetailModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { Outcome } from '@/hooks/usePredictions';
 
 interface BetWithPrediction {
   id: string;
@@ -19,13 +21,30 @@ interface BetWithPrediction {
   created_at: string;
   confirmed_at: string | null;
   payout_amount: number | null;
+  prediction_id: string;
   prediction: {
+    id: string;
     title: string;
     status: string;
     end_date: string;
     yes_pool: number;
     no_pool: number;
+    description: string | null;
+    category: string;
   };
+}
+
+interface FullPrediction {
+  id: string;
+  question: string;
+  description: string;
+  category: string;
+  yesOdds: number;
+  noOdds: number;
+  volume: number;
+  endDate: string;
+  isMultiOption?: boolean;
+  outcomes?: Outcome[];
 }
 
 const MyBets = () => {
@@ -33,6 +52,8 @@ const MyBets = () => {
   const navigate = useNavigate();
   const [bets, setBets] = useState<BetWithPrediction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedPrediction, setSelectedPrediction] = useState<FullPrediction | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -89,6 +110,56 @@ const MyBets = () => {
     setLoading(false);
   };
 
+  const handleBetClick = async (bet: BetWithPrediction) => {
+    // Fetch full prediction with outcomes
+    const { data: prediction, error } = await supabase
+      .from('predictions')
+      .select('*')
+      .eq('id', bet.prediction_id)
+      .single();
+
+    if (error || !prediction) return;
+
+    const { data: outcomes } = await supabase
+      .from('outcomes')
+      .select('*')
+      .eq('prediction_id', bet.prediction_id);
+
+    const totalPool = prediction.yes_pool + prediction.no_pool;
+    const yesOdds = totalPool > 0 ? Math.round((prediction.yes_pool / totalPool) * 100) : 50;
+    const noOdds = totalPool > 0 ? Math.round((prediction.no_pool / totalPool) * 100) : 50;
+
+    let mappedOutcomes: Outcome[] | undefined;
+    let isMultiOption = false;
+
+    if (outcomes && outcomes.length > 0) {
+      const outcomeTotalPool = outcomes.reduce((sum, o) => sum + o.pool, 0);
+      mappedOutcomes = outcomes.map(o => ({
+        id: o.id,
+        label: o.label,
+        pool: o.pool,
+        odds: outcomeTotalPool > 0 ? Math.round((o.pool / outcomeTotalPool) * 100) : Math.round(100 / outcomes.length)
+      }));
+      isMultiOption = true;
+    }
+
+    const fullPrediction: FullPrediction = {
+      id: prediction.id,
+      question: prediction.title,
+      description: prediction.description || '',
+      category: prediction.category,
+      yesOdds,
+      noOdds,
+      volume: totalPool,
+      endDate: prediction.end_date,
+      isMultiOption,
+      outcomes: mappedOutcomes
+    };
+
+    setSelectedPrediction(fullPrediction);
+    setIsModalOpen(true);
+  };
+
   const formatXEC = (satoshis: number) => {
     const xec = satoshis / 100;
     return xec.toLocaleString() + ' XEC';
@@ -138,7 +209,7 @@ const MyBets = () => {
 
       <div className="min-h-screen bg-background">
         <Header />
-        <main className="container mx-auto px-4 py-8">
+        <main className="container mx-auto px-4 py-8 pt-24">
           <div className="mb-8">
             <Button
               variant="ghost"
@@ -183,11 +254,12 @@ const MyBets = () => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  className="glass-card p-4 md:p-6"
+                  onClick={() => handleBetClick(bet)}
+                  className="glass-card p-4 md:p-6 cursor-pointer hover:border-primary/50 transition-colors"
                 >
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex-1">
-                      <h3 className="font-display font-semibold text-foreground mb-2">
+                      <h3 className="font-display font-semibold text-foreground mb-2 hover:text-primary transition-colors">
                         {bet.prediction?.title || 'Unknown Prediction'}
                       </h3>
                       <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -218,6 +290,7 @@ const MyBets = () => {
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-xs text-primary hover:underline"
+                          onClick={(e) => e.stopPropagation()}
                         >
                           View TX
                         </a>
@@ -231,6 +304,15 @@ const MyBets = () => {
         </main>
         <Footer />
       </div>
+
+      {selectedPrediction && (
+        <PredictionDetailModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          prediction={selectedPrediction}
+          onSelectOutcome={() => {}}
+        />
+      )}
     </>
   );
 };

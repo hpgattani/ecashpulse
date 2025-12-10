@@ -59,15 +59,15 @@ const Header = () => {
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-8">
-              <a href="#markets" className="text-muted-foreground hover:text-foreground transition-colors">
+              <Link to="/#markets" className="text-muted-foreground hover:text-foreground transition-colors">
                 Markets
-              </a>
-              <a href="#trending" className="text-muted-foreground hover:text-foreground transition-colors">
+              </Link>
+              <Link to="/#trending" className="text-muted-foreground hover:text-foreground transition-colors">
                 Trending
-              </a>
-              <a href="#how-it-works" className="text-muted-foreground hover:text-foreground transition-colors">
+              </Link>
+              <Link to="/#how-it-works" className="text-muted-foreground hover:text-foreground transition-colors">
                 How It Works
-              </a>
+              </Link>
               <Link to="/token" className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
                 <Coins className="w-3.5 h-3.5" />
                 $XPULSE
@@ -133,15 +133,27 @@ const Header = () => {
               className="md:hidden py-4 border-t border-border/30"
             >
               <nav className="flex flex-col gap-4">
-                <a href="#markets" className="text-muted-foreground hover:text-foreground transition-colors">
+                <Link 
+                  to="/#markets" 
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={() => setIsMenuOpen(false)}
+                >
                   Markets
-                </a>
-                <a href="#trending" className="text-muted-foreground hover:text-foreground transition-colors">
+                </Link>
+                <Link 
+                  to="/#trending" 
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={() => setIsMenuOpen(false)}
+                >
                   Trending
-                </a>
-                <a href="#how-it-works" className="text-muted-foreground hover:text-foreground transition-colors">
+                </Link>
+                <Link 
+                  to="/#how-it-works" 
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={() => setIsMenuOpen(false)}
+                >
                   How It Works
-                </a>
+                </Link>
                 <Link 
                   to="/token" 
                   className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
