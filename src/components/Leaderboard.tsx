@@ -83,9 +83,8 @@ export const Leaderboard = () => {
     );
   }
 
-  if (leaders.length === 0 || leaders.every(l => l.total_bets === 0)) {
-    return null;
-  }
+  // Always show leaderboard section, with empty state if no active bettors
+  const filteredLeaders = leaders.filter(l => l.total_bets > 0);
 
   return (
     <section className="py-16 relative overflow-hidden">
@@ -110,7 +109,12 @@ export const Leaderboard = () => {
         </motion.div>
 
         <div className="max-w-3xl mx-auto space-y-3">
-          {leaders.filter(l => l.total_bets > 0).map((leader, index) => (
+          {filteredLeaders.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <Trophy className="w-12 h-12 mx-auto mb-3 opacity-30" />
+              <p>No active predictors yet. Be the first!</p>
+            </div>
+          ) : filteredLeaders.map((leader, index) => (
             <motion.div
               key={leader.user_id}
               initial={{ opacity: 0, x: -20 }}
@@ -159,7 +163,8 @@ export const Leaderboard = () => {
                 </div>
               </div>
             </motion.div>
-          ))}
+          ))
+          }
         </div>
       </div>
     </section>
