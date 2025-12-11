@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
-import { ArrowLeft, TrendingUp, TrendingDown, ExternalLink, Users, DollarSign, Clock, CheckCircle2, Shield, User, Sparkles, RefreshCw, Target } from 'lucide-react';
+import { ArrowLeft, TrendingUp, TrendingDown, ExternalLink, Users, DollarSign, Clock, CheckCircle2, Shield, User, Sparkles, RefreshCw, Target, Bot } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -65,6 +65,7 @@ const Admin = () => {
   const [usersLoading, setUsersLoading] = useState(true);
   const [predictionsLoading, setPredictionsLoading] = useState(true);
   const [fetchingTopics, setFetchingTopics] = useState(false);
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkingAdmin, setCheckingAdmin] = useState(true);
   const { user, sessionToken } = useAuth();
@@ -168,7 +169,46 @@ const Admin = () => {
       console.error('Error fetching trending topics:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to fetch trending topics');
     } finally {
-      setFetchingTopics(false);
+    setFetchingTopics(false);
+    }
+  };
+
+  const resolveWithAI = async (predictionId: string) => {
+    if (!sessionToken) {
+      toast.error('Session expired. Please log in again.');
+      return;
+    }
+
+    setResolvingId(predictionId);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-resolve`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          prediction_id: predictionId,
+          session_token: sessionToken 
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to resolve prediction');
+      }
+
+      if (data.ai_decision === 'UNCERTAIN') {
+        toast.warning(data.message);
+      } else {
+        toast.success(`Resolved as ${data.ai_decision}`);
+        fetchAllPredictions();
+      }
+    } catch (error) {
+      console.error('Error resolving with AI:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to resolve prediction');
+    } finally {
+      setResolvingId(null);
     }
   };
 
@@ -581,6 +621,7 @@ const Admin = () => {
                             <th className="p-4">No Pool</th>
                             <th className="p-4">End Date</th>
                             <th className="p-4">Created</th>
+                            <th className="p-4">Actions</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
@@ -623,6 +664,24 @@ const Admin = () => {
                               </td>
                               <td className="p-4 text-sm text-muted-foreground">
                                 {formatDate(p.created_at)}
+                              </td>
+                              <td className="p-4">
+                                {p.status === 'active' && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => resolveWithAI(p.id)}
+                                    disabled={resolvingId === p.id}
+                                    className="gap-1"
+                                  >
+                                    {resolvingId === p.id ? (
+                                      <RefreshCw className="w-3 h-3 animate-spin" />
+                                    ) : (
+                                      <Bot className="w-3 h-3" />
+                                    )}
+                                    AI Resolve
+                                  </Button>
+                                )}
                               </td>
                             </motion.tr>
                           ))}

@@ -44,7 +44,7 @@ const Hero = () => {
             transition={{ delay: 0.5 }}
             className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto"
           >
-            The decentralized prediction market built on eCash. 
+            The first prediction market built on eCash. 
             Trade on real-world events with instant settlements and near-zero fees.
           </motion.p>
 
