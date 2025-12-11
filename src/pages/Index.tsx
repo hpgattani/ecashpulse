@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
+import { useLocation } from 'react-router-dom';
 import Header from '@/components/Header';
 import Hero from '@/components/Hero';
 import TrendingSection from '@/components/TrendingSection';
@@ -10,6 +12,18 @@ import Footer from '@/components/Footer';
 import PublicBets from '@/components/PublicBets';
 
 const Index = () => {
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.hash) {
+      const element = document.getElementById(location.hash.slice(1));
+      if (element) {
+        setTimeout(() => {
+          element.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      }
+    }
+  }, [location.hash]);
   return (
     <>
       <Helmet>

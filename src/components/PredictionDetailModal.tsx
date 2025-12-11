@@ -1,12 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, MessageSquare, Activity, Send, Users } from 'lucide-react';
+import { X, Activity, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import { Outcome } from '@/hooks/usePredictions';
-import { toast } from '@/hooks/use-toast';
 
 interface Prediction {
   id: string;
@@ -19,14 +16,6 @@ interface Prediction {
   endDate: string;
   isMultiOption?: boolean;
   outcomes?: Outcome[];
-}
-
-interface Comment {
-  id: string;
-  content: string;
-  created_at: string;
-  user_id: string;
-  display_name?: string;
 }
 
 interface BetActivity {
@@ -46,66 +35,14 @@ interface PredictionDetailModalProps {
 }
 
 const PredictionDetailModal = ({ isOpen, onClose, prediction, onSelectOutcome }: PredictionDetailModalProps) => {
-  const [activeTab, setActiveTab] = useState<'outcomes' | 'comments' | 'activity'>('outcomes');
-  const [comments, setComments] = useState<Comment[]>([]);
+  const [activeTab, setActiveTab] = useState<'outcomes' | 'activity'>('outcomes');
   const [activities, setActivities] = useState<BetActivity[]>([]);
-  const [newComment, setNewComment] = useState('');
-  const [loading, setLoading] = useState(false);
-  const { user, sessionToken } = useAuth();
 
   useEffect(() => {
     if (isOpen) {
-      fetchComments();
       fetchActivity();
     }
   }, [isOpen, prediction.id]);
-
-  // Realtime subscription for comments
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const channel = supabase
-      .channel(`comments-${prediction.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'comments',
-          filter: `prediction_id=eq.${prediction.id}`
-        },
-        () => fetchComments()
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [isOpen, prediction.id]);
-
-  const fetchComments = async () => {
-    const { data, error } = await supabase
-      .from('comments')
-      .select(`
-        id,
-        content,
-        created_at,
-        user_id,
-        profiles!inner(display_name)
-      `)
-      .eq('prediction_id', prediction.id)
-      .order('created_at', { ascending: false });
-
-    if (!error && data) {
-      setComments(data.map((c: any) => ({
-        id: c.id,
-        content: c.content,
-        created_at: c.created_at,
-        user_id: c.user_id,
-        display_name: c.profiles?.display_name || 'Anonymous'
-      })));
-    }
-  };
 
   const fetchActivity = async () => {
     const { data, error } = await supabase
@@ -134,29 +71,6 @@ const PredictionDetailModal = ({ isOpen, onClose, prediction, onSelectOutcome }:
         outcome_label: b.outcomes?.label
       })));
     }
-  };
-
-  const handleSubmitComment = async () => {
-    if (!newComment.trim() || !user || !sessionToken) return;
-    
-    setLoading(true);
-    const { error } = await supabase.functions.invoke('add-comment', {
-      body: {
-        prediction_id: prediction.id,
-        content: newComment.trim()
-      },
-      headers: {
-        'x-session-token': sessionToken
-      }
-    });
-
-    if (error) {
-      toast({ title: 'Error', description: 'Failed to post comment', variant: 'destructive' });
-    } else {
-      setNewComment('');
-      fetchComments();
-    }
-    setLoading(false);
   };
 
   const formatDate = (dateStr: string) => {
@@ -192,14 +106,14 @@ const PredictionDetailModal = ({ isOpen, onClose, prediction, onSelectOutcome }:
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50"
+            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[100]"
           />
           
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl z-50 p-4 max-h-[90vh]"
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl z-[101] p-4 max-h-[90vh]"
           >
             <div className="glass-card glow-primary p-6 flex flex-col max-h-[80vh]">
               {/* Header */}
@@ -236,15 +150,6 @@ const PredictionDetailModal = ({ isOpen, onClose, prediction, onSelectOutcome }:
                 >
                   <Activity className="w-4 h-4" />
                   Activity
-                </Button>
-                <Button
-                  variant={activeTab === 'comments' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setActiveTab('comments')}
-                  className="gap-1"
-                >
-                  <MessageSquare className="w-4 h-4" />
-                  Comments
                 </Button>
               </div>
 
@@ -288,43 +193,6 @@ const PredictionDetailModal = ({ isOpen, onClose, prediction, onSelectOutcome }:
                             <span className="text-sm text-primary font-bold">{formatXEC(act.amount)}</span>
                             <span className="text-xs text-muted-foreground">{formatDate(act.created_at)}</span>
                           </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                )}
-
-                {activeTab === 'comments' && (
-                  <div className="space-y-4">
-                    {user && (
-                      <div className="flex gap-2">
-                        <Textarea
-                          value={newComment}
-                          onChange={(e) => setNewComment(e.target.value)}
-                          placeholder="Add a comment..."
-                          className="flex-1 bg-muted border-border resize-none min-h-[60px]"
-                        />
-                        <Button
-                          onClick={handleSubmitComment}
-                          disabled={!newComment.trim() || loading}
-                          size="icon"
-                          className="h-auto"
-                        >
-                          <Send className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    )}
-                    
-                    {comments.length === 0 ? (
-                      <p className="text-center text-muted-foreground py-8">No comments yet</p>
-                    ) : (
-                      comments.map((comment) => (
-                        <div key={comment.id} className="p-3 rounded-lg bg-muted/30">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm font-medium">{comment.display_name}</span>
-                            <span className="text-xs text-muted-foreground">{formatDate(comment.created_at)}</span>
-                          </div>
-                          <p className="text-sm text-muted-foreground">{comment.content}</p>
                         </div>
                       ))
                     )}
