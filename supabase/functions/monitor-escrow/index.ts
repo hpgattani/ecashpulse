@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 // The official escrow address
-const ESCROW_ADDRESS = 'ecash:qr6pwzt7glvmq6ryr4305kat0vnv2wy69qjxpdwz5a';
+const ESCROW_ADDRESS = 'ecash:qqp5lj9c8v2s8vrjhcwu3v8t75nxz8l2h5r795qyc2';
 
 // Convert eCash cashaddr to P2PKH outputScript hex
 function addressToOutputScript(address: string): string | null {
