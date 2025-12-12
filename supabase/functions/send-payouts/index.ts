@@ -10,6 +10,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -17,7 +18,7 @@ const corsHeaders = {
 };
 
 const CHRONIK_URL = "https://chronik.be.cash/xec";
-const ESCROW_ADDRESS = "ecash:qrr9z74jw9cfsu8sfzmd3pd72ftenu4dhc5nr02gav"; // your escrow address
+const ESCROW_ADDRESS = "ecash:qrr9z74jw9cfsu8sfzmd3pd72ftenu4dhc5nr02gav"; // update if needed
 
 // ------------------------- Helpers & Types -------------------------
 
@@ -25,7 +26,7 @@ interface UTXO {
   outpoint: { txid: string; outIdx: number };
   blockHeight: number;
   isCoinbase: boolean;
-  value: string; // in sats as string
+  value: string; // sats as string
   isFinal: boolean;
   token?: any;
 }
@@ -40,23 +41,19 @@ interface PayoutRecipient {
 function log(...args: any[]) {
   console.log("[send-payouts]", ...args);
 }
-
 function warn(...args: any[]) {
   console.warn("[send-payouts]", ...args);
 }
-
 function failResp(msg: string, status = 500) {
   return new Response(JSON.stringify({ success: false, error: msg }), {
     status,
     headers: corsHeaders,
   });
 }
-
 function okResp(obj: any) {
   return new Response(JSON.stringify(obj), { status: 200, headers: corsHeaders });
 }
 
-// Validate ecash address simple check
 function ensureEcashAddress(addr: string) {
   if (!addr || typeof addr !== "string") throw new Error("Invalid address");
   if (!addr.startsWith("ecash:")) throw new Error("Address must start with 'ecash:'");
@@ -79,7 +76,6 @@ async function getUTXOs(address: string): Promise<UTXO[]> {
     const addressHash = address.replace("ecash:", "");
     const url = `${CHRONIK_URL}/script/p2pkh/${addressHash}/utxos`;
     const json = await fetchJson(url);
-    // Chronik returns { utxos: [...] }
     return json.utxos ?? [];
   } catch (err) {
     warn("getUTXOs error:", err instanceof Error ? err.message : err);
@@ -88,7 +84,6 @@ async function getUTXOs(address: string): Promise<UTXO[]> {
 }
 
 // ------------------------- WIF decode (bs58check) -------------------------
-// Use bs58check for robust decoding
 async function decodeWIF(wif: string): Promise<Uint8Array> {
   try {
     const bs58check = await import("https://esm.sh/bs58check@3");
@@ -102,6 +97,28 @@ async function decodeWIF(wif: string): Promise<Uint8Array> {
     throw new Error("Invalid WIF");
   }
 }
+
+// ------------------------- Byte helpers -------------------------
+
+const ensureHashBytes = (hash: any): Uint8Array => {
+  if (hash instanceof Uint8Array) return hash;
+  if (Array.isArray(hash)) return new Uint8Array(hash);
+  if (typeof hash === "string") {
+    const hex = hash.replace(/^0x/, "");
+    const arr = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < arr.length; i++) arr[i] = parseInt(hex.substr(i * 2, 2), 16);
+    return arr;
+  }
+  return new Uint8Array(hash);
+};
+
+const bytesToHex = (bytes: Uint8Array): string => {
+  let out = "";
+  for (let i = 0; i < bytes.length; i++) {
+    out += bytes[i].toString(16).padStart(2, "0");
+  }
+  return out;
+};
 
 // ------------------------- Build & Sign Tx with ecash-agora -------------------------
 async function buildTransactionWithEcashAgora(
@@ -169,24 +186,12 @@ async function buildTransactionWithEcashAgora(
       });
     }
 
-    const ensureHashBytes = (hash: any): Uint8Array => {
-      if (hash instanceof Uint8Array) return hash;
-      if (Array.isArray(hash)) return new Uint8Array(hash);
-      if (typeof hash === "string") {
-        const hex = hash.replace(/^0x/, "");
-        const arr = new Uint8Array(hex.length / 2);
-        for (let i = 0; i < arr.length; i++) arr[i] = parseInt(hex.substr(i * 2, 2), 16);
-        return arr;
-      }
-      return new Uint8Array(hash);
-    };
-
     for (const rec of recipients) {
       try {
         ensureEcashAddress(rec.address);
         const decoded = ecashaddr.decode(rec.address);
         const hashBytes = ensureHashBytes(decoded.hash);
-        const script = Script.p2pkh(fromHex(Buffer.from(hashBytes).toString("hex")));
+        const script = Script.p2pkh(fromHex(bytesToHex(hashBytes)));
         txb.addOutput({
           value: BigInt(rec.amount),
           script,
@@ -203,7 +208,7 @@ async function buildTransactionWithEcashAgora(
     if (changeAmount > 546n) {
       const decoded = ecashaddr.decode(escrowAddress);
       const hashBytes = ensureHashBytes(decoded.hash);
-      const changeScript = Script.p2pkh(fromHex(Buffer.from(hashBytes).toString("hex")));
+      const changeScript = Script.p2pkh(fromHex(bytesToHex(hashBytes)));
       txb.addOutput({
         value: changeAmount,
         script: changeScript,
@@ -285,21 +290,31 @@ Deno.serve(async (req) => {
     log(`Found ${wonBets.length} bets to pay out`);
 
     const userPayouts = new Map<string, PayoutRecipient>();
-    for (const bet of wonBets) {
-      const address = bet.users?.ecash_address;
+    for (const bet of wonBets as any[]) {
+      // bet.users may be an array or object depending on select style
+      let address: string | undefined;
+      if (Array.isArray(bet.users)) {
+        address = bet.users[0]?.ecash_address;
+      } else {
+        address = (bet.users as any)?.ecash_address;
+      }
+
       if (!address) {
         warn("Skipping bet without address", bet.id);
         continue;
       }
+
       const existing = userPayouts.get(address);
-      if (existing) existing.amount += bet.payout_amount;
-      else
+      if (existing) {
+        existing.amount += bet.payout_amount;
+      } else {
         userPayouts.set(address, {
           address,
           amount: bet.payout_amount,
           betId: bet.id,
           userId: bet.user_id,
         });
+      }
     }
 
     const recipients = Array.from(userPayouts.values());
@@ -331,7 +346,7 @@ Deno.serve(async (req) => {
 
     log("Broadcast success txid:", txid);
 
-    const betIds = wonBets.map((b) => b.id);
+    const betIds = (wonBets as any[]).map((b) => b.id);
     const { error: updateError } = await supabase
       .from("bets")
       .update({ payout_tx_hash: txid, status: "won" })
