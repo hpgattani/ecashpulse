@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-paybutton-signature",
 };
 
-const PAYBUTTON_PUBLIC_KEY = "302a300506032b6570032100bc0ff6268e2edb1232563603904e40af377243cd806372e427bd05f70bd1759a";
+const PAYBUTTON_PUBLIC_KEY = "302a300506032b6570032100bc0ff6268e2edb1232563603904e40af377243cd806372e427bd05f70bd1759a"; // Confirm this is correct (see below)
 
 /* ---------- helpers ---------- */
 function hexToBytes(hex: string): Uint8Array {
@@ -37,60 +37,95 @@ Deno.serve(async (req) => {
 
   try {
     const rawBody = await req.text();
+    console.log("[Webhook] Raw body received:", rawBody.substring(0, 200) + "..."); // Log first 200 chars
+
     const signature = req.headers.get("x-paybutton-signature") || req.headers.get("X-PayButton-Signature");
+    console.log("[Webhook] Signature header:", signature ? "Present" : "Missing");
 
     if (!signature) {
-      return new Response("Missing signature", { status: 401 });
+      console.error("[Webhook] Missing signature");
+      return new Response("Missing signature", { status: 401, headers: corsHeaders });
     }
 
     const publicKey = extractEd25519PublicKey(PAYBUTTON_PUBLIC_KEY);
-    const valid = await verifySignature(rawBody, signature, publicKey);
+    const validSig = await verifySignature(rawBody, signature, publicKey);
+    console.log("[Webhook] Signature valid:", validSig);
 
-    if (!valid) {
-      return new Response("Invalid signature", { status: 401 });
+    if (!validSig) {
+      console.error("[Webhook] Invalid signature");
+      return new Response("Invalid signature", { status: 401, headers: corsHeaders });
     }
 
-    const payload = JSON.parse(rawBody);
+    let payload;
+    try {
+      payload = JSON.parse(rawBody);
+      console.log("[Webhook] Parsed payload:", JSON.stringify(payload, null, 2)); // Full log
+    } catch (parseErr) {
+      console.error("[Webhook] JSON parse error:", parseErr);
+      return new Response("Invalid JSON", { status: 400, headers: corsHeaders });
+    }
 
     // 🔥 handle ALL known PayButton payload shapes
     const sender = payload.inputAddresses?.[0] || payload.inputs?.[0]?.address || payload.from || null;
+    console.log("[Webhook] Extracted sender:", sender);
 
     if (!sender) {
-      console.error("PayButton payload missing sender:", payload);
-      return new Response("No sender address", { status: 400 });
+      console.error("[Webhook] PayButton payload missing sender:", payload);
+      return new Response("No sender address", { status: 400, headers: corsHeaders });
     }
 
     const ecashAddress = sender.trim().toLowerCase();
 
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    console.log("[Webhook] Supabase client created");
 
     // ---------- USER ----------
-    let { data: user } = await supabase.from("users").select("*").eq("ecash_address", ecashAddress).maybeSingle();
+    let { data: user, error: userError } = await supabase
+      .from("users")
+      .select("*")
+      .eq("ecash_address", ecashAddress)
+      .maybeSingle();
+    console.log("[Webhook] User query error:", userError, "User found:", !!user);
 
     if (!user) {
-      const { data } = await supabase.from("users").insert({ ecash_address: ecashAddress }).select().single();
-      user = data;
+      const { data: newUser, error: insertError } = await supabase
+        .from("users")
+        .insert({ ecash_address: ecashAddress })
+        .select()
+        .single();
+      if (insertError) {
+        console.error("[Webhook] User insert error:", insertError);
+        return new Response("User creation failed", { status: 500, headers: corsHeaders });
+      }
+      user = newUser;
+      console.log("[Webhook] New user created:", user.id);
     }
 
     // ---------- SESSION ----------
-    await supabase.from("sessions").delete().eq("user_id", user.id);
+    const { error: deleteError } = await supabase.from("sessions").delete().eq("user_id", user.id);
+    if (deleteError) console.warn("[Webhook] Old session delete warning:", deleteError);
 
     const token = generateSessionToken();
     const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-
-    await supabase.from("sessions").insert({
+    const { error: insertSessionError } = await supabase.from("sessions").insert({
       user_id: user.id,
       token,
       expires_at: expires.toISOString(),
     });
+    if (insertSessionError) {
+      console.error("[Webhook] Session insert error:", insertSessionError);
+      return new Response("Session creation failed", { status: 500, headers: corsHeaders });
+    }
 
-    console.log("[PayButton] VERIFIED + SESSION CREATED", ecashAddress);
-
-    return new Response(JSON.stringify({ ok: true }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    console.log("[PayButton] VERIFIED + SESSION CREATED", ecashAddress, "Token:", token.substring(0, 8) + "...");
+    return new Response(
+      JSON.stringify({ ok: true, session_token: token }), // Add session_token if app expects it
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   } catch (err) {
     console.error("paybutton-webhook error:", err);
-    return new Response("Server error", { status: 500 });
+    return new Response("Server error", { status: 500, headers: corsHeaders });
   }
 });
