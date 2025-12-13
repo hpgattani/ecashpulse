@@ -1,224 +1,175 @@
-// paybutton-webhook/index.ts (Fixed: Null checks for sigObj, type guards for errors)
+// validate-session/index.ts (Fixed: Added type guard for 'err' in catch block)
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import * as ed25519 from "https://esm.sh/@noble/ed25519@2.1.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-paybutton-signature",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const PAYBUTTON_PUBLIC_KEY = "302a300506032b6570032100bc0ff6268e2edb1232563603904e40af377243cd806372e427bd05f70bd1759a";
-const EXPECTED_AMOUNT = 546; // satoshis for 5.46 XEC
-
-/* ---------- helpers ---------- */
-function hexToBytes(hex: string): Uint8Array {
-  return Uint8Array.from(hex.match(/.{1,2}/g)!.map((b) => parseInt(b, 16)));
-}
-
-function extractEd25519PublicKey(derHex: string): Uint8Array {
-  return hexToBytes(derHex.slice(-64));
-}
-
-async function verifySignature(message: string, signatureHex: string, publicKey: Uint8Array) {
-  const msg = new TextEncoder().encode(message);
-  const sig = hexToBytes(signatureHex);
-  return ed25519.verifyAsync(sig, msg, publicKey);
-}
+const CHRONIK_URL = "https://chronik.be.cash/xec";
+const EXPECTED_AMOUNT = 546; // exact satoshis for 5.46 XEC
 
 function generateSessionToken(): string {
-  const buf = new Uint8Array(32);
-  crypto.getRandomValues(buf);
-  return Array.from(buf, (b) => b.toString(16).padStart(2, "0")).join("");
+  const arr = new Uint8Array(32);
+  crypto.getRandomValues(arr);
+  return Array.from(arr, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-function reconstructPayload(bodyObj: any): string {
-  const keys = Object.keys(bodyObj).sort();
-  return keys.map((k) => `${k}=${JSON.stringify(bodyObj[k])}`).join("+");
+interface ChronikTx {
+  inputs: { address?: string | null }[];
+  outputs: { value: string }[];
 }
 
-/* ---------- server ---------- */
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const rawBody = await req.text();
-    console.log("[Webhook] Raw body received:", rawBody.substring(0, 200) + "...");
+    const { session_token, ecash_address, tx_hash } = await req.json();
+    console.log("[Verify] Incoming request:", { session_token: !!session_token, ecash_address, tx_hash });
 
-    let signature = req.headers.get("x-paybutton-signature") || req.headers.get("X-PayButton-Signature");
-    console.log("[Webhook] Signature header value:", signature ? signature.substring(0, 100) + "..." : "Missing");
+    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-    if (!signature) {
-      console.error("[Webhook] Missing signature");
-      return new Response(JSON.stringify({ ok: false, error: "Missing signature" }), {
-        status: 401,
+    /* -------- SESSION REFRESH -------- */
+    if (session_token) {
+      const { data: session } = await supabase
+        .from("sessions")
+        .select("*")
+        .eq("token", session_token)
+        .gt("expires_at", new Date().toISOString())
+        .maybeSingle();
+      console.log("[Verify] Session refresh:", !!session);
+      if (!session) {
+        return new Response(JSON.stringify({ valid: false, error: "Invalid or expired session" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({ valid: true, session_token }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const publicKey = extractEd25519PublicKey(PAYBUTTON_PUBLIC_KEY);
-
-    // Parse signature as JSON per PayButton docs
-    let sigObj: { payload: string; signature: string } | null = null;
-    let useFallback = false;
-    try {
-      sigObj = JSON.parse(signature);
-      if (typeof sigObj.payload !== "string" || typeof sigObj.signature !== "string") {
-        throw new Error("Invalid sigObj structure");
-      }
-    } catch (parseErr) {
-      const errMsg = parseErr instanceof Error ? parseErr.message : String(parseErr);
-      console.warn("[Webhook] Signature not JSON, falling back to raw hex mode:", errMsg);
-      useFallback = true;
+    /* -------- LOGIN (ON-CHAIN ONLY) -------- */
+    if (!ecash_address || !tx_hash) {
+      console.error("[Verify] Missing params");
+      return new Response(JSON.stringify({ valid: false, error: "Missing ecash_address or tx_hash" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    let validSig = false;
-    if (useFallback) {
-      // Old way: sign rawBody, sig as hex
-      validSig = await verifySignature(rawBody, signature, publicKey);
-    } else if (sigObj) {
-      // New way: reconstruct payload from body, match, then verify
-      let bodyPayload: any;
+    const addr = ecash_address.trim().toLowerCase();
+    console.log("[Verify] Verifying TX for address:", addr);
+
+    // 🔍 Fetch TX from blockchain (retry once for indexing lag)
+    let tx: ChronikTx | null = null;
+    let fetchError: string | null = null;
+    for (let attempt = 1; attempt <= 2; attempt++) {
       try {
-        bodyPayload = JSON.parse(rawBody);
-      } catch {
-        return new Response(JSON.stringify({ ok: false, error: "Invalid JSON body" }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        const res = await fetch(`${CHRONIK_URL}/tx/${tx_hash}`);
+        console.log(`[Verify] Fetch attempt ${attempt} status:`, res.status);
+        if (!res.ok) {
+          fetchError = `HTTP ${res.status}: ${await res.text()}`;
+          if (attempt === 1) await new Promise((r) => setTimeout(r, 30000)); // Wait 30s for confirmation
+          continue;
+        }
+        tx = await res.json();
+        break;
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        fetchError = errMsg;
+        console.error(`[Verify] Fetch error attempt ${attempt}:`, fetchError);
+        if (attempt === 1) await new Promise((r) => setTimeout(r, 30000));
       }
-      const expectedPayload = reconstructPayload(bodyPayload);
-      console.log("[Webhook] Reconstructed payload:", expectedPayload.substring(0, 200) + "...");
-      console.log("[Webhook] Provided payload from header:", sigObj.payload.substring(0, 200) + "...");
-
-      if (expectedPayload !== sigObj.payload) {
-        console.error("[Webhook] Payload mismatch - possible tampering or wrong concat format");
-        return new Response(JSON.stringify({ ok: false, error: "Payload mismatch" }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      validSig = await verifySignature(sigObj.payload, sigObj.signature, publicKey);
-    } else {
-      // Should not reach here, but safety
-      return new Response(JSON.stringify({ ok: false, error: "Invalid signature parse" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
     }
 
-    console.log("[Webhook] Signature valid:", validSig);
-
-    if (!validSig) {
-      console.error("[Webhook] Invalid signature");
-      return new Response(JSON.stringify({ ok: false, error: "Invalid signature" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    let payload: any;
-    try {
-      payload = JSON.parse(rawBody);
-      console.log("[Webhook] Parsed payload keys:", Object.keys(payload));
-    } catch (parseErr) {
-      const errMsg = parseErr instanceof Error ? parseErr.message : String(parseErr);
-      console.error("[Webhook] JSON parse error:", errMsg);
-      return new Response(JSON.stringify({ ok: false, error: "Invalid JSON" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // 🔥 handle ALL known PayButton payload shapes
-    const sender = payload.inputAddresses?.[0] || payload.inputs?.[0]?.address || payload.from || null;
-    console.log("[Webhook] Extracted sender:", sender);
-
-    if (!sender) {
-      console.error("[Webhook] PayButton payload missing sender:", payload);
-      return new Response(JSON.stringify({ ok: false, error: "No sender address" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const ecashAddress = sender.trim().toLowerCase();
-    const totalAmount = (payload.outputs || []).reduce(
-      (sum: number, out: any) => sum + (parseInt(out.value || 0) || 0),
-      0,
-    );
-    console.log("[Webhook] Total amount check:", totalAmount >= EXPECTED_AMOUNT ? `${totalAmount}` : "FAIL");
-
-    if (totalAmount < EXPECTED_AMOUNT) {
+    if (!tx) {
+      console.error("[Verify] TX not found after retries:", { tx_hash, error: fetchError });
       return new Response(
-        JSON.stringify({ ok: false, error: `Amount too low (got ${totalAmount} sat, need >=${EXPECTED_AMOUNT})` }),
+        JSON.stringify({
+          valid: false,
+          error: `TX not found or unconfirmed: ${fetchError || "Unknown error"}. Wait 1-2 min and retry.`,
+        }),
         {
-          status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         },
       );
     }
 
-    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    console.log("[Webhook] Supabase client created");
+    const senderOk = tx.inputs.some((i) => (i.address || "").toLowerCase() === addr);
+    const amountOk = tx.outputs.some((o) => parseInt(o.value) >= EXPECTED_AMOUNT);
+    console.log("[Verify] Checks:", { senderOk, amountOk, expected: EXPECTED_AMOUNT });
 
-    // ---------- USER ----------
+    if (!senderOk) {
+      return new Response(JSON.stringify({ valid: false, error: "TX sender address mismatch" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (!amountOk) {
+      return new Response(
+        JSON.stringify({
+          valid: false,
+          error: `Amount too low (got < ${EXPECTED_AMOUNT} sat, need >=${EXPECTED_AMOUNT})`,
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    // ✅ Create / get user
     let { data: user, error: userError } = await supabase
       .from("users")
       .select("*")
-      .eq("ecash_address", ecashAddress)
+      .eq("ecash_address", addr)
       .maybeSingle();
-    console.log("[Webhook] User query error:", userError, "User found:", !!user);
-
+    console.log("[Verify] User lookup:", !!user, userError);
+    if (!user && userError) {
+      return new Response(JSON.stringify({ valid: false, error: `User lookup failed: ${userError.message}` }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     if (!user) {
       const { data: newUser, error: insertError } = await supabase
         .from("users")
-        .insert({ ecash_address: ecashAddress })
+        .insert({ ecash_address: addr })
         .select()
         .single();
       if (insertError) {
-        console.error("[Webhook] User insert error:", insertError);
-        return new Response(JSON.stringify({ ok: false, error: `User creation failed: ${insertError.message}` }), {
-          status: 500,
+        console.error("[Verify] User insert error:", insertError);
+        return new Response(JSON.stringify({ valid: false, error: `User creation failed: ${insertError.message}` }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       user = newUser;
-      console.log("[Webhook] New user created:", user.id);
+      console.log("[Verify] New user created:", user.id);
     }
 
-    // ---------- SESSION ----------
-    const { error: deleteError } = await supabase.from("sessions").delete().eq("user_id", user.id);
-    if (deleteError) console.warn("[Webhook] Old session delete warning:", deleteError);
-
+    // ✅ Create session (delete old first)
+    await supabase.from("sessions").delete().eq("user_id", user.id);
     const token = generateSessionToken();
     const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-    const { error: insertSessionError } = await supabase.from("sessions").insert({
+    const { error: sessionError } = await supabase.from("sessions").insert({
       user_id: user.id,
       token,
       expires_at: expires.toISOString(),
     });
-    if (insertSessionError) {
-      console.error("[Webhook] Session insert error:", insertSessionError);
-      return new Response(
-        JSON.stringify({ ok: false, error: `Session creation failed: ${insertSessionError.message}` }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+    if (sessionError) {
+      console.error("[Verify] Session insert error:", sessionError);
+      return new Response(JSON.stringify({ valid: false, error: `Session failed: ${sessionError.message}` }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    console.log("[PayButton] VERIFIED + SESSION CREATED", ecashAddress, "Token:", token.substring(0, 8) + "...");
-    return new Response(JSON.stringify({ ok: true, session_token: token }), {
+    console.log("[Verify] SUCCESS: Session created for", addr, token.substring(0, 8) + "...");
+    return new Response(JSON.stringify({ valid: true, session_token: token }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
-    console.error("paybutton-webhook error:", errMsg);
-    return new Response(JSON.stringify({ ok: false, error: "Server error" }), {
+    console.error("validate-session error:", errMsg);
+    return new Response(JSON.stringify({ valid: false, error: "Internal server error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
