@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
 // Platform auth wallet - receives verification payments
-const AUTH_WALLET = 'ecash:qqp5lj9c8v2s8vrjhcwu3v8t75nxz8l2h5r795qyc2';
+const AUTH_WALLET = 'ecash:qrr9z74jw9cfsu8sfzmd3pd72ftenu4dhc5nr02gav';
 const AUTH_AMOUNT = 5.46; // XEC amount for verification
 
 declare global {
