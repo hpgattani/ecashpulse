@@ -1,16 +1,15 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Helmet } from 'react-helmet-async';
-import { motion } from 'framer-motion';
-import { Zap, AlertCircle, Loader2, CheckCircle, ShieldCheck } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
+import { motion } from "framer-motion";
+import { Zap, AlertCircle, Loader2, CheckCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
-// Platform auth wallet - receives verification payments
-const AUTH_WALLET = 'ecash:qr6pwzt7glvmq6ryr4305kat0vnv2wy69qjxpdwz5a';
-const AUTH_AMOUNT = 5.46; // XEC amount for verification
+// Platform auth wallet
+const AUTH_WALLET = "ecash:qr6pwzt7glvmq6ryr4305kat0vnv2wy69qjxpdwz5a";
+const AUTH_AMOUNT = 5.46;
 
 declare global {
   interface Window {
@@ -22,30 +21,22 @@ declare global {
 
 interface PayButtonTransaction {
   hash: string;
-  amount: string;
-  paymentId: string;
-  confirmed?: boolean;
-  message: string;
-  timestamp: number;
-  address: string;
-  rawMessage?: string;
   inputAddresses?: string[];
 }
 
 const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const [isPolling, setIsPolling] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [authSuccess, setAuthSuccess] = useState(false);
   const [scriptLoaded, setScriptLoaded] = useState(false);
-  const [pendingTxHash, setPendingTxHash] = useState<string | null>(null);
+
   const payButtonRef = useRef<HTMLDivElement>(null);
-  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+
   const { user, login } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Load PayButton script
+  /* -------- Load PayButton script -------- */
   useEffect(() => {
     const existingScript = document.querySelector('script[src*="paybutton"]');
     if (existingScript) {
@@ -53,157 +44,91 @@ const Auth = () => {
       return;
     }
 
-    const script = document.createElement('script');
-    script.src = 'https://unpkg.com/@paybutton/paybutton/dist/paybutton.js';
+    const script = document.createElement("script");
+    script.src = "https://unpkg.com/@paybutton/paybutton/dist/paybutton.js";
     script.async = true;
     script.onload = () => setScriptLoaded(true);
     document.body.appendChild(script);
   }, []);
 
-  // Poll for session created by webhook (only way to authenticate)
-  const pollForSession = useCallback(async (txHash: string, senderAddress: string) => {
-    setIsPolling(true);
-    let attempts = 0;
-    const maxAttempts = 60; // 60 seconds timeout (webhook may take time)
-    
-    const poll = async () => {
-      attempts++;
-      
-      try {
-        // Check if webhook has created a session for this address
-        const result = await login(senderAddress, txHash);
-        
-        if (result.error) {
-          if (attempts < maxAttempts) {
-            // Wait longer between polls to give webhook time
-            pollingRef.current = setTimeout(poll, 1500);
-          } else {
-            setError('Authentication timeout. The payment was received but server verification failed. Please contact support with TX: ' + txHash);
-            setIsPolling(false);
-            setIsLoading(false);
-          }
-        } else {
-          // Success - webhook has verified and created session
-          setIsPolling(false);
-          setAuthSuccess(true);
-          toast({
-            title: 'Welcome!',
-            description: 'Wallet verified securely via server',
-          });
-          setTimeout(() => navigate('/'), 1500);
-        }
-      } catch (err) {
-        console.error('Polling error:', err);
-        if (attempts < maxAttempts) {
-          pollingRef.current = setTimeout(poll, 1500);
-        } else {
-          setError('Authentication failed. Please try again or contact support.');
-          setIsPolling(false);
-          setIsLoading(false);
-        }
-      }
-    };
-
-    // Start polling after a short delay to give webhook time
-    setTimeout(poll, 2000);
-  }, [login, navigate, toast]);
-
-  // Cleanup polling on unmount
-  useEffect(() => {
-    return () => {
-      if (pollingRef.current) {
-        clearTimeout(pollingRef.current);
-      }
-    };
-  }, []);
-
-  // Render PayButton when script is loaded
+  /* -------- Render PayButton -------- */
   useEffect(() => {
     if (!scriptLoaded || !payButtonRef.current || !window.PayButton || user || isLoading) return;
 
-    // Clear previous content
-    payButtonRef.current.innerHTML = '';
+    payButtonRef.current.innerHTML = "";
 
-    const handleSuccess = async (transaction: PayButtonTransaction) => {
-      console.log('Auth payment detected:', transaction);
-      
-      const senderAddress = transaction.inputAddresses?.[0];
-      const txHash = transaction.hash;
-      
-      if (!senderAddress) {
-        setError('Could not detect sender wallet address. Please try again.');
+    const handleSuccess = async (tx: PayButtonTransaction) => {
+      const senderAddress = tx.inputAddresses?.[0];
+      const txHash = tx.hash;
+
+      if (!senderAddress || !txHash) {
+        setError("Could not detect wallet or transaction.");
         return;
       }
 
       setIsLoading(true);
       setError(null);
-      setPendingTxHash(txHash);
-      
-      // SECURITY: Only authenticate via webhook
-      // The PayButton webhook will verify the signature and create the session server-side
-      // We poll until the webhook has processed and created a valid session
-      console.log('Payment detected, waiting for server verification via webhook...');
-      pollForSession(txHash, senderAddress);
+
+      // ✅ ORIGINAL behavior: call login ONCE
+      const result = await login(senderAddress, txHash);
+
+      if (result?.error) {
+        setIsLoading(false);
+        setError("Authentication failed. Please try again.");
+        return;
+      }
+
+      // ✅ Success
+      setAuthSuccess(true);
+      toast({
+        title: "Welcome!",
+        description: "Wallet verified successfully",
+      });
+
+      setTimeout(() => navigate("/"), 1200);
     };
 
     window.PayButton.render(payButtonRef.current, {
       to: AUTH_WALLET,
       amount: AUTH_AMOUNT,
-      currency: 'XEC',
-      text: 'Verify Wallet',
+      currency: "XEC",
+      text: "Verify Wallet",
       hoverText: `Pay ${AUTH_AMOUNT} XEC`,
       onSuccess: handleSuccess,
-      theme: {
-        palette: {
-          primary: '#0AC18E',
-          secondary: '#1a1a2e',
-          tertiary: '#ffffff'
-        }
-      }
     });
-  }, [scriptLoaded, user, isLoading, login, navigate, toast, pollForSession]);
+  }, [scriptLoaded, user, isLoading, login, navigate, toast]);
 
+  /* -------- Redirect if already logged in -------- */
   useEffect(() => {
     if (user) {
-      navigate('/');
+      navigate("/");
     }
   }, [user, navigate]);
 
+  /* -------- Success Screen -------- */
   if (authSuccess) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          className="text-center"
-        >
+        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="text-center">
           <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-4">
             <CheckCircle className="w-10 h-10 text-green-500" />
           </div>
-          <h2 className="font-display text-xl font-bold text-foreground">
-            Wallet Verified!
-          </h2>
-          <p className="text-muted-foreground text-sm mt-2">
-            Redirecting to eCash Pulse...
-          </p>
+          <h2 className="font-display text-xl font-bold">Wallet Verified!</h2>
+          <p className="text-muted-foreground text-sm mt-2">Redirecting to eCash Pulse…</p>
         </motion.div>
       </div>
     );
   }
 
+  /* -------- Main UI -------- */
   return (
     <>
       <Helmet>
         <title>Login - eCash Pulse</title>
-        <meta name="description" content="Login to eCash Pulse prediction market" />
       </Helmet>
 
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-md"
-        >
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md">
           {/* Logo */}
           <div className="flex items-center justify-center gap-2 mb-8">
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
@@ -214,82 +139,46 @@ const Auth = () => {
             </span>
           </div>
 
-          {/* Login Card */}
+          {/* Card */}
           <div className="glass-card p-6 md:p-8">
             <div className="text-center mb-6">
-              <h1 className="font-display text-2xl font-bold text-foreground mb-2">
-                Verify Your Wallet
-              </h1>
-              <p className="text-muted-foreground text-sm">
-                Send {AUTH_AMOUNT} XEC to verify wallet ownership and connect
-              </p>
-            </div>
-
-            {/* Security Badge */}
-            <div className="flex items-center justify-center gap-2 mb-4 text-xs text-primary">
-              <ShieldCheck className="w-4 h-4" />
-              <span>Server-verified via PayButton webhook</span>
+              <h1 className="font-display text-2xl font-bold mb-2">Verify Your Wallet</h1>
+              <p className="text-muted-foreground text-sm">Send {AUTH_AMOUNT} XEC to verify wallet ownership</p>
             </div>
 
             {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm mb-4"
-              >
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm mb-4">
+                <AlertCircle className="w-4 h-4" />
                 {error}
-              </motion.div>
+              </div>
             )}
 
-            {isLoading || isPolling ? (
+            {isLoading ? (
               <div className="flex flex-col items-center justify-center py-8">
                 <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
-                <p className="text-muted-foreground text-sm">
-                  {isPolling ? 'Waiting for server verification...' : 'Verifying wallet...'}
-                </p>
-                {pendingTxHash && (
-                  <p className="text-xs text-muted-foreground/60 mt-2 font-mono">
-                    TX: {pendingTxHash.slice(0, 12)}...
-                  </p>
-                )}
+                <p className="text-muted-foreground text-sm">Verifying wallet…</p>
               </div>
             ) : (
-              <div className="space-y-4">
-                {/* PayButton container */}
-                <div className="flex justify-center min-h-[50px]">
-                  <div ref={payButtonRef} />
-                </div>
-
-                <div className="text-center text-xs text-muted-foreground space-y-1">
-                  <p>This small verification fee proves wallet ownership.</p>
-                  <p className="text-primary/80">Verified server-to-server for maximum security.</p>
-                </div>
+              <div className="flex justify-center min-h-[50px]">
+                <div ref={payButtonRef} />
               </div>
             )}
 
-            <div className="mt-6 pt-6 border-t border-border/30">
-              <p className="text-xs text-muted-foreground text-center">
-                Don't have an eCash wallet?{' '}
-                <a
-                  href="https://cashtab.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary hover:underline"
-                >
-                  Get Cashtab
-                </a>
-              </p>
+            <div className="mt-6 pt-6 border-t border-border/30 text-center text-xs text-muted-foreground">
+              Don’t have an eCash wallet?{" "}
+              <a
+                href="https://cashtab.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline"
+              >
+                Get Cashtab
+              </a>
             </div>
           </div>
 
-          {/* Back to Home */}
           <div className="mt-6 text-center">
-            <Button
-              variant="ghost"
-              onClick={() => navigate('/')}
-              className="text-muted-foreground"
-            >
+            <Button variant="ghost" onClick={() => navigate("/")}>
               Back to Home
             </Button>
           </div>
