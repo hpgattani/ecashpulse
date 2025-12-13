@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
-// Platform auth wallet
+// Auth wallet + amount
 const AUTH_WALLET = "ecash:qr6pwzt7glvmq6ryr4305kat0vnv2wy69qjxpdwz5a";
 const AUTH_AMOUNT = 5.46;
 
@@ -36,10 +36,10 @@ const Auth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  /* -------- Load PayButton script -------- */
+  /* -------- Load PayButton -------- */
   useEffect(() => {
-    const existingScript = document.querySelector('script[src*="paybutton"]');
-    if (existingScript) {
+    const existing = document.querySelector('script[src*="paybutton"]');
+    if (existing) {
       setScriptLoaded(true);
       return;
     }
@@ -69,7 +69,7 @@ const Auth = () => {
       setIsLoading(true);
       setError(null);
 
-      // ✅ ORIGINAL behavior: call login ONCE
+      // 🔑 Call backend login ONCE
       const result = await login(senderAddress, txHash);
 
       if (result?.error) {
@@ -78,14 +78,18 @@ const Auth = () => {
         return;
       }
 
-      // ✅ Success
+      // ✅ SUCCESS
       setAuthSuccess(true);
       toast({
         title: "Welcome!",
         description: "Wallet verified successfully",
       });
 
-      setTimeout(() => navigate("/"), 1200);
+      // 🔥 CRITICAL FIX:
+      // force reload so auth context re-reads session
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 800);
     };
 
     window.PayButton.render(payButtonRef.current, {
@@ -96,9 +100,9 @@ const Auth = () => {
       hoverText: `Pay ${AUTH_AMOUNT} XEC`,
       onSuccess: handleSuccess,
     });
-  }, [scriptLoaded, user, isLoading, login, navigate, toast]);
+  }, [scriptLoaded, user, isLoading, login, toast]);
 
-  /* -------- Redirect if already logged in -------- */
+  /* -------- Already logged in -------- */
   useEffect(() => {
     if (user) {
       navigate("/");
