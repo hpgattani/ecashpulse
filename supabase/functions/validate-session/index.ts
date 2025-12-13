@@ -5,7 +5,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const AUTH_ADDRESS = "ecash:qrr9z74jw9cfsu8sfzmd3pd72ftenu4dhc5nr02gav";
 const CHRONIK_URL = "https://chronik.be.cash/xec";
 
 function generateSessionToken(): string {
@@ -16,7 +15,7 @@ function generateSessionToken(): string {
 
 interface ChronikTx {
   inputs: { address?: string | null }[];
-  outputs: { value: string; outputScript: string }[];
+  outputs: { value: string }[];
 }
 
 Deno.serve(async (req) => {
@@ -29,7 +28,7 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-    /* ---------------- SESSION REFRESH ---------------- */
+    /* -------- SESSION REFRESH -------- */
     if (session_token) {
       const { data: session } = await supabase
         .from("sessions")
@@ -44,17 +43,10 @@ Deno.serve(async (req) => {
 
       const { data: user } = await supabase.from("users").select("*").eq("id", session.user_id).maybeSingle();
 
-      return new Response(
-        JSON.stringify({
-          valid: true,
-          user,
-          session_token,
-        }),
-        { headers: corsHeaders },
-      );
+      return new Response(JSON.stringify({ valid: true, user, session_token }), { headers: corsHeaders });
     }
 
-    /* ---------------- LOGIN ---------------- */
+    /* -------- LOGIN -------- */
     if (!ecash_address) {
       return new Response(JSON.stringify({ valid: false }), {
         status: 400,
@@ -62,9 +54,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    const address = ecash_address.trim().toLowerCase();
+    const addr = ecash_address.trim().toLowerCase();
 
-    let { data: user } = await supabase.from("users").select("*").eq("ecash_address", address).maybeSingle();
+    let { data: user } = await supabase.from("users").select("*").eq("ecash_address", addr).maybeSingle();
 
     let session = null;
 
@@ -79,7 +71,7 @@ Deno.serve(async (req) => {
       session = data;
     }
 
-    /* --------- FALLBACK: CHRONIK VERIFY --------- */
+    /* -------- CHRONIK FALLBACK -------- */
     if (!session && tx_hash) {
       const res = await fetch(`${CHRONIK_URL}/tx/${tx_hash}`);
       if (!res.ok) {
@@ -88,21 +80,18 @@ Deno.serve(async (req) => {
 
       const tx: ChronikTx = await res.json();
 
-      const senderOk = tx.inputs.some((i) => (i.address || "").toLowerCase() === address);
+      const senderOk = tx.inputs.some((i) => (i.address || "").toLowerCase() === addr);
 
-      if (!senderOk) {
-        return new Response(JSON.stringify({ valid: false }), { headers: corsHeaders });
-      }
+      const amountOk = tx.outputs.some(
+        (o) => parseInt(o.value) >= 540, // ~5.4 XEC
+      );
 
-      const amountOk = tx.outputs.some((o) => parseInt(o.value) >= 540);
-
-      if (!amountOk) {
+      if (!senderOk || !amountOk) {
         return new Response(JSON.stringify({ valid: false }), { headers: corsHeaders });
       }
 
       if (!user) {
-        const { data } = await supabase.from("users").insert({ ecash_address: address }).select().single();
-
+        const { data } = await supabase.from("users").insert({ ecash_address: addr }).select().single();
         user = data;
       }
 
@@ -122,14 +111,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ valid: false }), { headers: corsHeaders });
     }
 
-    return new Response(
-      JSON.stringify({
-        valid: true,
-        user,
-        session_token: session.token,
-      }),
-      { headers: corsHeaders },
-    );
+    return new Response(JSON.stringify({ valid: true, user, session_token: session.token }), { headers: corsHeaders });
   } catch (err) {
     console.error("validate-session error:", err);
     return new Response(JSON.stringify({ valid: false }), {
