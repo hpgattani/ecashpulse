@@ -5,7 +5,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const ESCROW_ADDRESS = 'ecash:qqp5lj9c8v2s8vrjhcwu3v8t75nxz8l2h5r795qyc2';
+const ESCROW_ADDRESS = 'ecash:qrr9z74jw9cfsu8sfzmd3pd72ftenu4dhc5nr02gav';
 const CHRONIK_URL = 'https://chronik.be.cash/xec';
 
 // Convert eCash cashaddr to P2PKH outputScript hex
