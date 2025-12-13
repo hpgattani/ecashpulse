@@ -1,3 +1,4 @@
+// paybutton-webhook/index.ts (Fixed: Null checks for sigObj, type guards for errors)
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import * as ed25519 from "https://esm.sh/@noble/ed25519@2.1.0";
 
@@ -67,7 +68,8 @@ Deno.serve(async (req) => {
         throw new Error("Invalid sigObj structure");
       }
     } catch (parseErr) {
-      console.warn("[Webhook] Signature not JSON, falling back to raw hex mode:", parseErr.message);
+      const errMsg = parseErr instanceof Error ? parseErr.message : String(parseErr);
+      console.warn("[Webhook] Signature not JSON, falling back to raw hex mode:", errMsg);
       useFallback = true;
     }
 
@@ -75,9 +77,9 @@ Deno.serve(async (req) => {
     if (useFallback) {
       // Old way: sign rawBody, sig as hex
       validSig = await verifySignature(rawBody, signature, publicKey);
-    } else {
+    } else if (sigObj) {
       // New way: reconstruct payload from body, match, then verify
-      let bodyPayload;
+      let bodyPayload: any;
       try {
         bodyPayload = JSON.parse(rawBody);
       } catch {
@@ -99,6 +101,12 @@ Deno.serve(async (req) => {
       }
 
       validSig = await verifySignature(sigObj.payload, sigObj.signature, publicKey);
+    } else {
+      // Should not reach here, but safety
+      return new Response(JSON.stringify({ ok: false, error: "Invalid signature parse" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     console.log("[Webhook] Signature valid:", validSig);
@@ -111,12 +119,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    let payload;
+    let payload: any;
     try {
       payload = JSON.parse(rawBody);
       console.log("[Webhook] Parsed payload keys:", Object.keys(payload));
     } catch (parseErr) {
-      console.error("[Webhook] JSON parse error:", parseErr);
+      const errMsg = parseErr instanceof Error ? parseErr.message : String(parseErr);
+      console.error("[Webhook] JSON parse error:", errMsg);
       return new Response(JSON.stringify({ ok: false, error: "Invalid JSON" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -207,7 +216,8 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
-    console.error("paybutton-webhook error:", err);
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error("paybutton-webhook error:", errMsg);
     return new Response(JSON.stringify({ ok: false, error: "Server error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
