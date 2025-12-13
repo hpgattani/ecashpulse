@@ -30,6 +30,11 @@ function generateSessionToken(): string {
   return Array.from(buf, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+function reconstructPayload(bodyObj: any): string {
+  const keys = Object.keys(bodyObj).sort();
+  return keys.map((k) => `${k}=${JSON.stringify(bodyObj[k])}`).join("+");
+}
+
 /* ---------- server ---------- */
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -40,8 +45,8 @@ Deno.serve(async (req) => {
     const rawBody = await req.text();
     console.log("[Webhook] Raw body received:", rawBody.substring(0, 200) + "...");
 
-    const signature = req.headers.get("x-paybutton-signature") || req.headers.get("X-PayButton-Signature");
-    console.log("[Webhook] Signature header:", signature ? "Present" : "Missing");
+    let signature = req.headers.get("x-paybutton-signature") || req.headers.get("X-PayButton-Signature");
+    console.log("[Webhook] Signature header value:", signature ? signature.substring(0, 100) + "..." : "Missing");
 
     if (!signature) {
       console.error("[Webhook] Missing signature");
@@ -52,7 +57,50 @@ Deno.serve(async (req) => {
     }
 
     const publicKey = extractEd25519PublicKey(PAYBUTTON_PUBLIC_KEY);
-    const validSig = await verifySignature(rawBody, signature, publicKey);
+
+    // Parse signature as JSON per PayButton docs
+    let sigObj: { payload: string; signature: string } | null = null;
+    let useFallback = false;
+    try {
+      sigObj = JSON.parse(signature);
+      if (typeof sigObj.payload !== "string" || typeof sigObj.signature !== "string") {
+        throw new Error("Invalid sigObj structure");
+      }
+    } catch (parseErr) {
+      console.warn("[Webhook] Signature not JSON, falling back to raw hex mode:", parseErr.message);
+      useFallback = true;
+    }
+
+    let validSig = false;
+    if (useFallback) {
+      // Old way: sign rawBody, sig as hex
+      validSig = await verifySignature(rawBody, signature, publicKey);
+    } else {
+      // New way: reconstruct payload from body, match, then verify
+      let bodyPayload;
+      try {
+        bodyPayload = JSON.parse(rawBody);
+      } catch {
+        return new Response(JSON.stringify({ ok: false, error: "Invalid JSON body" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const expectedPayload = reconstructPayload(bodyPayload);
+      console.log("[Webhook] Reconstructed payload:", expectedPayload.substring(0, 200) + "...");
+      console.log("[Webhook] Provided payload from header:", sigObj.payload.substring(0, 200) + "...");
+
+      if (expectedPayload !== sigObj.payload) {
+        console.error("[Webhook] Payload mismatch - possible tampering or wrong concat format");
+        return new Response(JSON.stringify({ ok: false, error: "Payload mismatch" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      validSig = await verifySignature(sigObj.payload, sigObj.signature, publicKey);
+    }
+
     console.log("[Webhook] Signature valid:", validSig);
 
     if (!validSig) {
@@ -66,7 +114,7 @@ Deno.serve(async (req) => {
     let payload;
     try {
       payload = JSON.parse(rawBody);
-      console.log("[Webhook] Parsed payload:", JSON.stringify(payload, null, 2));
+      console.log("[Webhook] Parsed payload keys:", Object.keys(payload));
     } catch (parseErr) {
       console.error("[Webhook] JSON parse error:", parseErr);
       return new Response(JSON.stringify({ ok: false, error: "Invalid JSON" }), {
@@ -88,8 +136,11 @@ Deno.serve(async (req) => {
     }
 
     const ecashAddress = sender.trim().toLowerCase();
-    const totalAmount = payload.outputs?.reduce((sum: number, out: any) => sum + (parseInt(out.value) || 0), 0) || 0;
-    console.log("[Webhook] Total amount check:", totalAmount >= EXPECTED_AMOUNT);
+    const totalAmount = (payload.outputs || []).reduce(
+      (sum: number, out: any) => sum + (parseInt(out.value || 0) || 0),
+      0,
+    );
+    console.log("[Webhook] Total amount check:", totalAmount >= EXPECTED_AMOUNT ? `${totalAmount}` : "FAIL");
 
     if (totalAmount < EXPECTED_AMOUNT) {
       return new Response(
@@ -152,12 +203,9 @@ Deno.serve(async (req) => {
     }
 
     console.log("[PayButton] VERIFIED + SESSION CREATED", ecashAddress, "Token:", token.substring(0, 8) + "...");
-    return new Response(
-      JSON.stringify({ ok: true, session_token: token }), // Matches on-chain response
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
+    return new Response(JSON.stringify({ ok: true, session_token: token }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (err) {
     console.error("paybutton-webhook error:", err);
     return new Response(JSON.stringify({ ok: false, error: "Server error" }), {
