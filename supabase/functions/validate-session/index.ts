@@ -6,6 +6,7 @@ const corsHeaders = {
 };
 
 const CHRONIK_URL = "https://chronik.be.cash/xec";
+const EXPECTED_AMOUNT = 540; // ~5.4 XEC (lenient)
 
 function generateSessionToken(): string {
   const arr = new Uint8Array(32);
@@ -41,13 +42,11 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ valid: false }), { headers: corsHeaders });
       }
 
-      const { data: user } = await supabase.from("users").select("*").eq("id", session.user_id).maybeSingle();
-
-      return new Response(JSON.stringify({ valid: true, user, session_token }), { headers: corsHeaders });
+      return new Response(JSON.stringify({ valid: true, session_token }), { headers: corsHeaders });
     }
 
-    /* -------- LOGIN -------- */
-    if (!ecash_address) {
+    /* -------- LOGIN (ON-CHAIN ONLY) -------- */
+    if (!ecash_address || !tx_hash) {
       return new Response(JSON.stringify({ valid: false }), {
         status: 400,
         headers: corsHeaders,
@@ -56,62 +55,47 @@ Deno.serve(async (req) => {
 
     const addr = ecash_address.trim().toLowerCase();
 
-    let { data: user } = await supabase.from("users").select("*").eq("ecash_address", addr).maybeSingle();
-
-    let session = null;
-
-    if (user) {
-      const { data } = await supabase
-        .from("sessions")
-        .select("*")
-        .eq("user_id", user.id)
-        .gt("expires_at", new Date().toISOString())
-        .maybeSingle();
-
-      session = data;
-    }
-
-    /* -------- CHRONIK FALLBACK -------- */
-    if (!session && tx_hash) {
-      const res = await fetch(`${CHRONIK_URL}/tx/${tx_hash}`);
-      if (!res.ok) {
-        return new Response(JSON.stringify({ valid: false }), { headers: corsHeaders });
-      }
-
-      const tx: ChronikTx = await res.json();
-
-      const senderOk = tx.inputs.some((i) => (i.address || "").toLowerCase() === addr);
-
-      const amountOk = tx.outputs.some(
-        (o) => parseInt(o.value) >= 540, // ~5.4 XEC
-      );
-
-      if (!senderOk || !amountOk) {
-        return new Response(JSON.stringify({ valid: false }), { headers: corsHeaders });
-      }
-
-      if (!user) {
-        const { data } = await supabase.from("users").insert({ ecash_address: addr }).select().single();
-        user = data;
-      }
-
-      const token = generateSessionToken();
-      const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-
-      await supabase.from("sessions").insert({
-        user_id: user.id,
-        token,
-        expires_at: expires.toISOString(),
-      });
-
-      session = { token };
-    }
-
-    if (!session) {
+    // 🔍 Fetch TX from blockchain
+    const res = await fetch(`${CHRONIK_URL}/tx/${tx_hash}`);
+    if (!res.ok) {
       return new Response(JSON.stringify({ valid: false }), { headers: corsHeaders });
     }
 
-    return new Response(JSON.stringify({ valid: true, user, session_token: session.token }), { headers: corsHeaders });
+    const tx: ChronikTx = await res.json();
+
+    const senderOk = tx.inputs.some((i) => (i.address || "").toLowerCase() === addr);
+
+    const amountOk = tx.outputs.some((o) => parseInt(o.value) >= EXPECTED_AMOUNT);
+
+    if (!senderOk || !amountOk) {
+      return new Response(JSON.stringify({ valid: false }), { headers: corsHeaders });
+    }
+
+    // ✅ Create / get user
+    let { data: user } = await supabase.from("users").select("*").eq("ecash_address", addr).maybeSingle();
+
+    if (!user) {
+      const { data } = await supabase.from("users").insert({ ecash_address: addr }).select().single();
+      user = data;
+    }
+
+    // ✅ Create session
+    const token = generateSessionToken();
+    const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    await supabase.from("sessions").insert({
+      user_id: user.id,
+      token,
+      expires_at: expires.toISOString(),
+    });
+
+    return new Response(
+      JSON.stringify({
+        valid: true,
+        session_token: token,
+      }),
+      { headers: corsHeaders },
+    );
   } catch (err) {
     console.error("validate-session error:", err);
     return new Response(JSON.stringify({ valid: false }), {
