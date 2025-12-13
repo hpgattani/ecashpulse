@@ -5,148 +5,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Auth configuration: same wallet used for verification payments
-const AUTH_ADDRESS = 'ecash:qrr9z74jw9cfsu8sfzmd3pd72ftenu4dhc5nr02gav';
-const CHRONIK_URL = 'https://chronik.be.cash/xec';
-
-// Convert eCash cashaddr to P2PKH outputScript hex (copied from confirm-transaction)
-// For q-type (P2PKH) addresses: 76a914<20-byte-hash>88ac
-function addressToOutputScript(address: string): string | null {
-  try {
-    // Remove ecash: prefix
-    const addr = address.replace('ecash:', '');
-
-    // Cashaddr uses a specific character set
-    const CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
-
-    // Decode cashaddr to get the hash
-    let data: number[] = [];
-    for (let i = 0; i < addr.length; i++) {
-      const charIndex = CHARSET.indexOf(addr[i].toLowerCase());
-      if (charIndex === -1) return null;
-      data.push(charIndex);
-    }
-
-    // Skip the type byte (first 5-bit value after removing checksum)
-    // The checksum is 8 characters (40 bits)
-    const payloadEnd = data.length - 8;
-    const payload5bit = data.slice(0, payloadEnd);
-
-    // Convert 5-bit groups to 8-bit bytes
-    let acc = 0;
-    let bits = 0;
-    const payload8bit: number[] = [];
-
-    for (const value of payload5bit) {
-      acc = (acc << 5) | value;
-      bits += 5;
-      while (bits >= 8) {
-        bits -= 8;
-        payload8bit.push((acc >> bits) & 0xff);
-      }
-    }
-
-    // First byte is version/type, rest is the 20-byte hash
-    if (payload8bit.length < 21) return null;
-
-    const hash = payload8bit.slice(1, 21);
-    const hashHex = hash.map(b => b.toString(16).padStart(2, '0')).join('');
-
-    // P2PKH script: OP_DUP OP_HASH160 <20-byte-hash> OP_EQUALVERIFY OP_CHECKSIG
-    return `76a914${hashHex}88ac`;
-  } catch (error) {
-    console.error('Address conversion error:', error);
-    return null;
-  }
-}
-
-interface ChronikTx {
-  txid: string;
-  inputs: Array<{
-    address?: string | null;
-  }>;
-  outputs: Array<{
-    value: string;
-    outputScript: string;
-  }>;
-}
-
-// Generate a secure random token (copied from paybutton-webhook)
-function generateSessionToken(): string {
-  const array = new Uint8Array(32);
-  crypto.getRandomValues(array);
-  return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
-}
-
-async function verifyAuthTransaction(
-  txHash: string,
-  expectedAmount: number,
-  escrowScript: string,
-  senderAddress: string
-): Promise<{ verified: boolean; actualAmount?: number; error?: string }> {
-  try {
-    if (!txHash || typeof txHash !== 'string' || !/^[0-9a-f]{64}$/i.test(txHash)) {
-      return { verified: false, error: 'Invalid transaction hash format' };
-    }
-
-    const response = await fetch(`${CHRONIK_URL}/tx/${txHash}`);
-
-    if (!response.ok) {
-      return { verified: false, error: 'Transaction not found on blockchain' };
-    }
-
-    const tx: ChronikTx = await response.json();
-
-    const normalizedSender = senderAddress.trim().toLowerCase();
-    const hasSenderInput = tx.inputs?.some(
-      (input) => (input.address || '').toLowerCase() === normalizedSender
-    );
-
-    if (!hasSenderInput) {
-      return {
-        verified: false,
-        error: 'Transaction does not originate from the provided address',
-      };
-    }
-
-    // Find output that goes to auth address with correct amount
-    let foundAmount = 0;
-    let foundEscrowOutput = false;
-
-    for (const output of tx.outputs) {
-      const outputValue = parseInt(output.value);
-
-      if (output.outputScript === escrowScript) {
-        foundEscrowOutput = true;
-        if (outputValue >= expectedAmount * 0.99) {
-          foundAmount = outputValue;
-          break;
-        }
-      }
-    }
-
-    if (!foundEscrowOutput) {
-      return {
-        verified: false,
-        error: 'Transaction does not send funds to the auth address',
-      };
-    }
-
-    if (foundAmount < expectedAmount * 0.99) {
-      return {
-        verified: false,
-        actualAmount: foundAmount,
-        error: `Amount to auth address insufficient: expected ${expectedAmount}, got ${foundAmount}`,
-      };
-    }
-
-    return { verified: true, actualAmount: foundAmount };
-  } catch (error) {
-    console.error('Auth transaction verification error:', error);
-    return { verified: false, error: 'Failed to verify transaction' };
-  }
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -251,98 +109,21 @@ Deno.serve(async (req) => {
         session = activeSession || null;
       }
 
-      // If we don't have a user or active session yet but we do have a tx_hash,
-      // fall back to on-chain verification and create them server-side.
-      if ((!user || !session) && tx_hash) {
-        console.log(`Attempting on-chain auth for ${trimmedAddress} with tx ${tx_hash}`);
-
-        const escrowScript = addressToOutputScript(AUTH_ADDRESS);
-        if (!escrowScript) {
-          console.error('Failed to convert auth address to script');
-          return new Response(
-            JSON.stringify({ valid: false, error: 'Server configuration error' }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-
-        const verification = await verifyAuthTransaction(
-          tx_hash,
-          546, // 5.46 XEC in satoshis
-          escrowScript,
-          trimmedAddress
-        );
-
-        if (!verification.verified) {
-          console.log('On-chain auth verification failed:', verification.error);
-          return new Response(
-            JSON.stringify({
-              valid: false,
-              error: verification.error || 'On-chain verification failed',
-            }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-
-        // Create user if they don't exist yet
-        if (!user) {
-          const { data: newUser, error: insertError } = await supabase
-            .from('users')
-            .insert({ ecash_address: trimmedAddress })
-            .select()
-            .single();
-
-          if (insertError || !newUser) {
-            console.error('Error creating user during auth:', insertError);
-            return new Response(
-              JSON.stringify({ valid: false, error: 'Failed to create account' }),
-              { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
-          }
-
-          user = newUser;
-        }
-
-        // Remove any existing sessions for this user
-        await supabase.from('sessions').delete().eq('user_id', user.id);
-
-        const sessionToken = generateSessionToken();
-        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
-
-        const { data: newSession, error: sessionInsertError } = await supabase
-          .from('sessions')
-          .insert({
-            user_id: user.id,
-            token: sessionToken,
-            expires_at: expiresAt.toISOString(),
-          })
-          .select()
-          .single();
-
-        if (sessionInsertError || !newSession) {
-          console.error('Error creating auth session:', sessionInsertError);
-          return new Response(
-            JSON.stringify({ valid: false, error: 'Failed to create session' }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-
-        session = newSession;
-      }
-
+      // No fallback - webhook must create user/session
       if (!user) {
-        console.log('User not found for address and no tx hash provided:', trimmedAddress);
+        console.log('User not found - webhook has not processed yet:', trimmedAddress);
         return new Response(
-          JSON.stringify({ valid: false, error: 'User not found' }),
+          JSON.stringify({ valid: false, error: 'User not found - waiting for webhook verification' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
       if (!session) {
-        console.log('No active session found for user and no tx hash provided:', user.id);
+        console.log('No active session - webhook has not processed yet:', user.id);
         return new Response(
           JSON.stringify({
             valid: false,
-            error: 'No active session - webhook may not have processed yet',
+            error: 'No active session - waiting for webhook verification',
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
