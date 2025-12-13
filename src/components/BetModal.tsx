@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Outcome } from "@/hooks/usePredictions";
 
-const ESCROW_ADDRESS = "ecash:qrr9z74jw9cfsu8sfzmd3pd72ftenu4dhc5nr02gav";
+const ESCROW_ADDRESS = "ecash:qqp5lj9c8v2s8vrjhcwu3v8t75nxz8l2h5r795qyc2";
 
 interface Prediction {
   id: string;
