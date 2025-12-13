@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, TrendingDown, Clock, Users, Zap, MessageSquare, ChevronRight } from "lucide-react";
+import { TrendingUp, TrendingDown, Clock, Users, Zap, ChevronRight } from "lucide-react";
 import BetModal from "./BetModal";
 import PredictionDetailModal from "./PredictionDetailModal";
 import { Outcome } from "@/hooks/usePredictions";
@@ -218,15 +218,7 @@ const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) =
             </div>
           )}
 
-          {/* View Details button */}
-          <button
-            onClick={() => setIsDetailModalOpen(true)}
-            className="w-full mt-3 text-xs text-muted-foreground hover:text-foreground flex items-center justify-center gap-1 py-2 border-t border-border/30"
-          >
-            <MessageSquare className="w-3 h-3" />
-            Comments & Activity
-            <ChevronRight className="w-3 h-3" />
-          </button>
+          {/* NOTE: "Comments & Activity" button removed per request */}
         </div>
       </motion.div>
 
