@@ -6,7 +6,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-paybutton-signature",
 };
 
-const PAYBUTTON_PUBLIC_KEY = "302a300506032b6570032100bc0ff6268e2edb1232563603904e40af377243cd806372e427bd05f70bd1759a"; // Confirm this is correct (see below)
+const PAYBUTTON_PUBLIC_KEY = "302a300506032b6570032100bc0ff6268e2edb1232563603904e40af377243cd806372e427bd05f70bd1759a";
+const EXPECTED_AMOUNT = 546; // satoshis for 5.46 XEC
 
 /* ---------- helpers ---------- */
 function hexToBytes(hex: string): Uint8Array {
@@ -37,14 +38,17 @@ Deno.serve(async (req) => {
 
   try {
     const rawBody = await req.text();
-    console.log("[Webhook] Raw body received:", rawBody.substring(0, 200) + "..."); // Log first 200 chars
+    console.log("[Webhook] Raw body received:", rawBody.substring(0, 200) + "...");
 
     const signature = req.headers.get("x-paybutton-signature") || req.headers.get("X-PayButton-Signature");
     console.log("[Webhook] Signature header:", signature ? "Present" : "Missing");
 
     if (!signature) {
       console.error("[Webhook] Missing signature");
-      return new Response("Missing signature", { status: 401, headers: corsHeaders });
+      return new Response(JSON.stringify({ ok: false, error: "Missing signature" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const publicKey = extractEd25519PublicKey(PAYBUTTON_PUBLIC_KEY);
@@ -53,16 +57,22 @@ Deno.serve(async (req) => {
 
     if (!validSig) {
       console.error("[Webhook] Invalid signature");
-      return new Response("Invalid signature", { status: 401, headers: corsHeaders });
+      return new Response(JSON.stringify({ ok: false, error: "Invalid signature" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     let payload;
     try {
       payload = JSON.parse(rawBody);
-      console.log("[Webhook] Parsed payload:", JSON.stringify(payload, null, 2)); // Full log
+      console.log("[Webhook] Parsed payload:", JSON.stringify(payload, null, 2));
     } catch (parseErr) {
       console.error("[Webhook] JSON parse error:", parseErr);
-      return new Response("Invalid JSON", { status: 400, headers: corsHeaders });
+      return new Response(JSON.stringify({ ok: false, error: "Invalid JSON" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // 🔥 handle ALL known PayButton payload shapes
@@ -71,10 +81,25 @@ Deno.serve(async (req) => {
 
     if (!sender) {
       console.error("[Webhook] PayButton payload missing sender:", payload);
-      return new Response("No sender address", { status: 400, headers: corsHeaders });
+      return new Response(JSON.stringify({ ok: false, error: "No sender address" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const ecashAddress = sender.trim().toLowerCase();
+    const totalAmount = payload.outputs?.reduce((sum: number, out: any) => sum + (parseInt(out.value) || 0), 0) || 0;
+    console.log("[Webhook] Total amount check:", totalAmount >= EXPECTED_AMOUNT);
+
+    if (totalAmount < EXPECTED_AMOUNT) {
+      return new Response(
+        JSON.stringify({ ok: false, error: `Amount too low (got ${totalAmount} sat, need >=${EXPECTED_AMOUNT})` }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
 
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     console.log("[Webhook] Supabase client created");
@@ -95,7 +120,10 @@ Deno.serve(async (req) => {
         .single();
       if (insertError) {
         console.error("[Webhook] User insert error:", insertError);
-        return new Response("User creation failed", { status: 500, headers: corsHeaders });
+        return new Response(JSON.stringify({ ok: false, error: `User creation failed: ${insertError.message}` }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
       user = newUser;
       console.log("[Webhook] New user created:", user.id);
@@ -114,18 +142,27 @@ Deno.serve(async (req) => {
     });
     if (insertSessionError) {
       console.error("[Webhook] Session insert error:", insertSessionError);
-      return new Response("Session creation failed", { status: 500, headers: corsHeaders });
+      return new Response(
+        JSON.stringify({ ok: false, error: `Session creation failed: ${insertSessionError.message}` }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     console.log("[PayButton] VERIFIED + SESSION CREATED", ecashAddress, "Token:", token.substring(0, 8) + "...");
     return new Response(
-      JSON.stringify({ ok: true, session_token: token }), // Add session_token if app expects it
+      JSON.stringify({ ok: true, session_token: token }), // Matches on-chain response
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
   } catch (err) {
     console.error("paybutton-webhook error:", err);
-    return new Response("Server error", { status: 500, headers: corsHeaders });
+    return new Response(JSON.stringify({ ok: false, error: "Server error" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
