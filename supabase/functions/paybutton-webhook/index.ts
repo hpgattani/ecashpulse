@@ -1,4 +1,4 @@
-// validate-session/index.ts (Fixed: Added type guard for 'err' in catch block)
+// validate-session/index.ts (Final Fix: Ensured all 'unknown' errors use type guards)
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
