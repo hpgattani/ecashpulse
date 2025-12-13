@@ -8,47 +8,28 @@ const corsHeaders = {
 
 const PAYBUTTON_PUBLIC_KEY = "302a300506032b6570032100bc0ff6268e2edb1232563603904e40af377243cd806372e427bd05f70bd1759a";
 
-/* ---------------- HELPERS ---------------- */
-
+/* ---------- helpers ---------- */
 function hexToBytes(hex: string): Uint8Array {
-  const bytes = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < bytes.length; i++) {
-    bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
-  }
-  return bytes;
+  return Uint8Array.from(hex.match(/.{1,2}/g)!.map((b) => parseInt(b, 16)));
 }
 
 function extractEd25519PublicKey(derHex: string): Uint8Array {
   return hexToBytes(derHex.slice(-64));
 }
 
-async function verifySignature(message: string, signatureHex: string, publicKey: Uint8Array): Promise<boolean> {
-  try {
-    const msgBytes = new TextEncoder().encode(message);
-    const sigBytes = hexToBytes(signatureHex);
-    return await ed25519.verifyAsync(sigBytes, msgBytes, publicKey);
-  } catch {
-    return false;
-  }
+async function verifySignature(message: string, signatureHex: string, publicKey: Uint8Array) {
+  const msg = new TextEncoder().encode(message);
+  const sig = hexToBytes(signatureHex);
+  return ed25519.verifyAsync(sig, msg, publicKey);
 }
 
 function generateSessionToken(): string {
-  const arr = new Uint8Array(32);
-  crypto.getRandomValues(arr);
-  return Array.from(arr, (b) => b.toString(16).padStart(2, "0")).join("");
+  const buf = new Uint8Array(32);
+  crypto.getRandomValues(buf);
+  return Array.from(buf, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-/* ---------------- TYPES ---------------- */
-
-interface PayButtonWebhook {
-  txid: string;
-  amount: number;
-  address: string;
-  inputAddresses?: string[];
-}
-
-/* ---------------- SERVER ---------------- */
-
+/* ---------- server ---------- */
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -69,11 +50,13 @@ Deno.serve(async (req) => {
       return new Response("Invalid signature", { status: 401 });
     }
 
-    const payload: PayButtonWebhook = JSON.parse(rawBody);
-    const { txid, inputAddresses } = payload;
+    const payload = JSON.parse(rawBody);
 
-    const sender = inputAddresses?.[0];
+    // 🔥 handle ALL known PayButton payload shapes
+    const sender = payload.inputAddresses?.[0] || payload.inputs?.[0]?.address || payload.from || null;
+
     if (!sender) {
+      console.error("PayButton payload missing sender:", payload);
       return new Response("No sender address", { status: 400 });
     }
 
@@ -81,8 +64,7 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-    /* ---------- USER ---------- */
-
+    // ---------- USER ----------
     let { data: user } = await supabase.from("users").select("*").eq("ecash_address", ecashAddress).maybeSingle();
 
     if (!user) {
@@ -90,8 +72,7 @@ Deno.serve(async (req) => {
       user = data;
     }
 
-    /* ---------- SESSION ---------- */
-
+    // ---------- SESSION ----------
     await supabase.from("sessions").delete().eq("user_id", user.id);
 
     const token = generateSessionToken();
@@ -103,7 +84,7 @@ Deno.serve(async (req) => {
       expires_at: expires.toISOString(),
     });
 
-    console.log(`[PayButton] Webhook verified tx=${txid}`);
+    console.log("[PayButton] VERIFIED + SESSION CREATED", ecashAddress);
 
     return new Response(JSON.stringify({ ok: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
