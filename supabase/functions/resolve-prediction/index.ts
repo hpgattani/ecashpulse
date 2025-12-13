@@ -49,31 +49,6 @@ async function processPayouts(supabase: any, predictionId: string, winningPositi
     .eq('position', winningPosition === 'yes' ? 'no' : 'yes')
     .eq('status', 'confirmed');
   
-  // Automatically send payments to winners
-  try {
-    console.log('Triggering automatic payment distribution...');
-    const payoutResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-payouts`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
-      },
-      body: JSON.stringify({ prediction_id: predictionId })
-    });
-    
-    if (payoutResponse.ok) {
-      const payoutResult = await payoutResponse.json();
-      console.log(`Automatic payments sent: ${JSON.stringify(payoutResult)}`);
-    } else {
-      const error = await payoutResponse.text();
-      console.error(`Automatic payment failed: ${error}`);
-      // Don't throw - calculation was successful even if payment failed
-    }
-  } catch (error) {
-    console.error('Error triggering automatic payments:', error);
-    // Continue - manual payout can be triggered later
-  }
-  
   return { winners: winningBets.length, totalPayout };
 }
 
