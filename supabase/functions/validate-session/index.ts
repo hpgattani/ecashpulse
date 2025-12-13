@@ -1,3 +1,4 @@
+// validate-session/index.ts (Fixed: All 'unknown' errors now use safe type guards)
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -63,7 +64,7 @@ Deno.serve(async (req) => {
 
     // 🔍 Fetch TX from blockchain (retry once for indexing lag)
     let tx: ChronikTx | null = null;
-    let fetchError = null;
+    let fetchError: string | null = null;
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
         const res = await fetch(`${CHRONIK_URL}/tx/${tx_hash}`);
@@ -76,7 +77,8 @@ Deno.serve(async (req) => {
         tx = await res.json();
         break;
       } catch (err) {
-        fetchError = err.message;
+        const errMsg = err instanceof Error ? (err.message ?? "Unknown fetch error") : String(err);
+        fetchError = errMsg;
         console.error(`[Verify] Fetch error attempt ${attempt}:`, fetchError);
         if (attempt === 1) await new Promise((r) => setTimeout(r, 30000));
       }
@@ -165,7 +167,8 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
-    console.error("validate-session error:", err);
+    const errMsg = err instanceof Error ? (err.message ?? "Unknown error") : String(err);
+    console.error("validate-session error:", errMsg);
     return new Response(JSON.stringify({ valid: false, error: "Internal server error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
