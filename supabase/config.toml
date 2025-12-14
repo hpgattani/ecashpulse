@@ -9,24 +9,16 @@ max_rows = 1000
 
 [db]
 port = 54322
-shadow_port = 54320
 major_version = 15
 
 [studio]
 enabled = true
 port = 54323
-api_url = "http://127.0.0.1"
 
-[functions.add-comment]
+[functions.process-bet]
 verify_jwt = false
 
 [functions.confirm-transaction]
-verify_jwt = false
-
-[functions.fetch-trending-topics]
-verify_jwt = false
-
-[functions.get-public-bets]
 verify_jwt = false
 
 [functions.get-user-bets]
@@ -35,13 +27,31 @@ verify_jwt = false
 [functions.monitor-escrow]
 verify_jwt = false
 
-[functions.paybutton-webhook]
-verify_jwt = false
-
-[functions.process-bet]
+[functions.oracle-resolver]
 verify_jwt = false
 
 [functions.resolve-prediction]
+verify_jwt = false
+
+[functions.update-profile]
+verify_jwt = false
+
+[functions.fetch-trending-topics]
+verify_jwt = false
+
+[functions.get-public-bets]
+verify_jwt = false
+
+[functions.add-comment]
+verify_jwt = false
+
+[functions.validate-session]
+verify_jwt = false
+
+[functions.paybutton-webhook]
+verify_jwt = false
+
+[functions.create-session]
 verify_jwt = false
 
 [functions.update-profile]

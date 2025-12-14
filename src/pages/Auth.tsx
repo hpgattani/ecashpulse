@@ -2,11 +2,12 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
-import { Zap, AlertCircle, Loader2, CheckCircle, ShieldCheck } from 'lucide-react';
+import { Zap, AlertCircle, Loader2, CheckCircle, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { ChronikClient } from 'chronik-client';
 
 // Platform auth wallet - receives verification payments
 const AUTH_WALLET = 'ecash:qr6pwzt7glvmq6ryr4305kat0vnv2wy69qjxpdwz5a';
@@ -34,14 +35,12 @@ interface PayButtonTransaction {
 
 const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const [isPolling, setIsPolling] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [authSuccess, setAuthSuccess] = useState(false);
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [pendingTxHash, setPendingTxHash] = useState<string | null>(null);
   const payButtonRef = useRef<HTMLDivElement>(null);
-  const pollingRef = useRef<NodeJS.Timeout | null>(null);
-  const { user, login } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -60,68 +59,76 @@ const Auth = () => {
     document.body.appendChild(script);
   }, []);
 
-  // Poll for session created by webhook (only way to authenticate)
-  const pollForSession = useCallback(async (txHash: string, senderAddress: string) => {
-    setIsPolling(true);
-    let attempts = 0;
-    const maxAttempts = 60; // 60 seconds timeout (webhook may take time)
-    
-    const poll = async () => {
-      attempts++;
+  // Verify transaction on-chain using Chronik and create session
+  const verifyAndLogin = useCallback(async (txHash: string, senderAddress: string) => {
+    setIsLoading(true);
+    setPendingTxHash(txHash);
+    setError(null);
+
+    try {
+      // Verify transaction exists on-chain using Chronik
+      const chronik = new ChronikClient(['https://chronik.fabien.cash', 'https://chronik.e.cash']);
       
-      try {
-        // Check if webhook has created a session for this address
-        const result = await login(senderAddress, txHash);
-        
-        if (result.error) {
-          if (attempts < maxAttempts) {
-            // Wait longer between polls to give webhook time
-            pollingRef.current = setTimeout(poll, 1500);
-          } else {
-            setError('Authentication timeout. The payment was received but server verification failed. Please contact support with TX: ' + txHash);
-            setIsPolling(false);
-            setIsLoading(false);
+      let attempts = 0;
+      const maxAttempts = 30;
+      
+      while (attempts < maxAttempts) {
+        try {
+          const tx = await chronik.tx(txHash);
+          
+          if (tx) {
+            console.log('Transaction verified on-chain:', txHash);
+            
+            // Transaction verified - create session via edge function
+            const { data, error: sessionError } = await supabase.functions.invoke('create-session', {
+              body: { 
+                ecash_address: senderAddress,
+                tx_hash: txHash 
+              }
+            });
+
+            if (sessionError || !data?.success) {
+              throw new Error(data?.error || 'Failed to create session');
+            }
+
+            // Store session locally
+            localStorage.setItem('ecash_user', JSON.stringify(data.user));
+            localStorage.setItem('ecash_session_token', data.session_token);
+            if (data.profile) {
+              localStorage.setItem('ecash_profile', JSON.stringify(data.profile));
+            }
+
+            setAuthSuccess(true);
+            toast({
+              title: 'Welcome!',
+              description: 'Wallet verified successfully',
+            });
+            
+            // Reload to update auth context
+            setTimeout(() => window.location.href = '/', 1500);
+            return;
           }
-        } else {
-          // Success - webhook has verified and created session
-          setIsPolling(false);
-          setAuthSuccess(true);
-          toast({
-            title: 'Welcome!',
-            description: 'Wallet verified securely via server',
-          });
-          setTimeout(() => navigate('/'), 1500);
+        } catch (txError) {
+          // Transaction not found yet, keep trying
+          console.log(`Attempt ${attempts + 1}: Waiting for transaction...`);
         }
-      } catch (err) {
-        console.error('Polling error:', err);
-        if (attempts < maxAttempts) {
-          pollingRef.current = setTimeout(poll, 1500);
-        } else {
-          setError('Authentication failed. Please try again or contact support.');
-          setIsPolling(false);
-          setIsLoading(false);
-        }
-      }
-    };
 
-    // Start polling after a short delay to give webhook time
-    setTimeout(poll, 2000);
-  }, [login, navigate, toast]);
-
-  // Cleanup polling on unmount
-  useEffect(() => {
-    return () => {
-      if (pollingRef.current) {
-        clearTimeout(pollingRef.current);
+        attempts++;
+        await new Promise(r => setTimeout(r, 2000));
       }
-    };
-  }, []);
+
+      throw new Error('Transaction verification timeout. Please try again.');
+    } catch (err) {
+      console.error('Verification error:', err);
+      setError(err instanceof Error ? err.message : 'Verification failed');
+      setIsLoading(false);
+    }
+  }, [toast]);
 
   // Render PayButton when script is loaded
   useEffect(() => {
     if (!scriptLoaded || !payButtonRef.current || !window.PayButton || user || isLoading) return;
 
-    // Clear previous content
     payButtonRef.current.innerHTML = '';
 
     const handleSuccess = async (transaction: PayButtonTransaction) => {
@@ -135,15 +142,7 @@ const Auth = () => {
         return;
       }
 
-      setIsLoading(true);
-      setError(null);
-      setPendingTxHash(txHash);
-      
-      // SECURITY: Only authenticate via webhook
-      // The PayButton webhook will verify the signature and create the session server-side
-      // We poll until the webhook has processed and created a valid session
-      console.log('Payment detected, waiting for server verification via webhook...');
-      pollForSession(txHash, senderAddress);
+      verifyAndLogin(txHash, senderAddress);
     };
 
     window.PayButton.render(payButtonRef.current, {
@@ -161,7 +160,7 @@ const Auth = () => {
         }
       }
     });
-  }, [scriptLoaded, user, isLoading, login, navigate, toast, pollForSession]);
+  }, [scriptLoaded, user, isLoading, verifyAndLogin]);
 
   useEffect(() => {
     if (user) {
@@ -227,8 +226,8 @@ const Auth = () => {
 
             {/* Security Badge */}
             <div className="flex items-center justify-center gap-2 mb-4 text-xs text-primary">
-              <ShieldCheck className="w-4 h-4" />
-              <span>Server-verified via PayButton webhook</span>
+              <Wallet className="w-4 h-4" />
+              <span>Verified on-chain via Chronik</span>
             </div>
 
             {error && (
@@ -242,11 +241,11 @@ const Auth = () => {
               </motion.div>
             )}
 
-            {isLoading || isPolling ? (
+            {isLoading ? (
               <div className="flex flex-col items-center justify-center py-8">
                 <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
                 <p className="text-muted-foreground text-sm">
-                  {isPolling ? 'Waiting for server verification...' : 'Verifying wallet...'}
+                  Verifying transaction on-chain...
                 </p>
                 {pendingTxHash && (
                   <p className="text-xs text-muted-foreground/60 mt-2 font-mono">
@@ -263,7 +262,7 @@ const Auth = () => {
 
                 <div className="text-center text-xs text-muted-foreground space-y-1">
                   <p>This small verification fee proves wallet ownership.</p>
-                  <p className="text-primary/80">Verified server-to-server for maximum security.</p>
+                  <p className="text-primary/80">Transaction verified directly on eCash blockchain.</p>
                 </div>
               </div>
             )}
