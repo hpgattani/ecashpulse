@@ -54,11 +54,5 @@ verify_jwt = false
 [functions.create-session]
 verify_jwt = false
 
-[functions.update-profile]
-verify_jwt = false
-
-[functions.validate-session]
-verify_jwt = false
-
-[functions.oracle-resolver]
+[functions.send-payouts]
 verify_jwt = false
