@@ -10,7 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { ChronikClient } from 'chronik-client';
 
 // Platform auth wallet - receives verification payments
-const AUTH_WALLET = 'ecash:qr6pwzt7glvmq6ryr4305kat0vnv2wy69qjxpdwz5a';
+const AUTH_WALLET = 'ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp';
 const AUTH_AMOUNT = 5.46; // XEC amount for verification
 
 declare global {
