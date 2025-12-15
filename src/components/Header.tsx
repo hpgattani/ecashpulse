@@ -1,17 +1,17 @@
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Link, useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Zap, Menu, X, Wallet, LogOut, TrendingUp, User, Coins } from 'lucide-react';
-import { ProfileModal } from './ProfileModal';
-import { useAuth } from '@/contexts/AuthContext';
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { Link, useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Zap, Menu, X, Wallet, LogOut, TrendingUp, User } from "lucide-react";
+import { ProfileModal } from "./ProfileModal";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from "@/components/ui/dropdown-menu";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -29,17 +29,14 @@ const Header = () => {
       <motion.header
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.6, ease: 'easeOut' }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
         className="fixed top-0 left-0 right-0 z-50 glass-card border-b border-border/30"
       >
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16 md:h-20">
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2 group">
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                className="flex items-center gap-2"
-              >
+              <motion.div whileHover={{ scale: 1.02 }} className="flex items-center gap-2">
                 <div className="relative">
                   <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
                     <Zap className="w-5 h-5 text-primary-foreground" />
@@ -50,9 +47,7 @@ const Header = () => {
                   <span className="font-display font-bold text-lg md:text-xl text-foreground">
                     eCash<span className="text-primary">Pulse</span>
                   </span>
-                  <span className="text-[10px] text-muted-foreground -mt-1 hidden md:block">
-                    Predict the Future
-                  </span>
+                  <span className="text-[10px] text-muted-foreground -mt-1 hidden md:block">Predict the Future</span>
                 </div>
               </motion.div>
             </Link>
@@ -67,10 +62,6 @@ const Header = () => {
               </Link>
               <Link to="/#how-it-works" className="text-muted-foreground hover:text-foreground transition-colors">
                 How It Works
-              </Link>
-              <Link to="/token" className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
-                <Coins className="w-3.5 h-3.5" />
-                $XPULSE
               </Link>
               {user && (
                 <Link to="/my-bets" className="text-muted-foreground hover:text-foreground transition-colors">
@@ -94,7 +85,7 @@ const Header = () => {
                       <User className="w-4 h-4 mr-2" />
                       Edit Profile
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => navigate('/my-bets')}>
+                    <DropdownMenuItem onClick={() => navigate("/my-bets")}>
                       <TrendingUp className="w-4 h-4 mr-2" />
                       My Bets
                     </DropdownMenuItem>
@@ -106,7 +97,7 @@ const Header = () => {
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
-                <Button size="sm" onClick={() => navigate('/auth')}>
+                <Button size="sm" onClick={() => navigate("/auth")}>
                   <Wallet className="w-4 h-4 mr-2" />
                   Connect
                 </Button>
@@ -114,12 +105,7 @@ const Header = () => {
             </div>
 
             {/* Mobile Menu Button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="md:hidden"
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-            >
+            <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setIsMenuOpen(!isMenuOpen)}>
               {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </Button>
           </div>
@@ -128,43 +114,35 @@ const Header = () => {
           {isMenuOpen && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
+              animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
               className="md:hidden py-4 border-t border-border/30"
             >
               <nav className="flex flex-col gap-4">
-                <Link 
-                  to="/#markets" 
+                <Link
+                  to="/#markets"
                   className="text-muted-foreground hover:text-foreground transition-colors"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   Markets
                 </Link>
-                <Link 
-                  to="/#trending" 
+                <Link
+                  to="/#trending"
                   className="text-muted-foreground hover:text-foreground transition-colors"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   Trending
                 </Link>
-                <Link 
-                  to="/#how-it-works" 
+                <Link
+                  to="/#how-it-works"
                   className="text-muted-foreground hover:text-foreground transition-colors"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   How It Works
                 </Link>
-                <Link 
-                  to="/token" 
-                  className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <Coins className="w-3.5 h-3.5" />
-                  $XPULSE
-                </Link>
                 {user && (
-                  <Link 
-                    to="/my-bets" 
+                  <Link
+                    to="/my-bets"
                     className="text-muted-foreground hover:text-foreground transition-colors"
                     onClick={() => setIsMenuOpen(false)}
                   >
@@ -195,7 +173,7 @@ const Header = () => {
                       size="sm"
                       className="w-full gap-2"
                       onClick={() => {
-                        navigate('/auth');
+                        navigate("/auth");
                         setIsMenuOpen(false);
                       }}
                     >
