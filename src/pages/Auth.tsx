@@ -185,6 +185,7 @@ const Auth = () => {
       currency: 'XEC',
       text: 'Verify Wallet',
       hoverText: `Pay ${AUTH_AMOUNT} XEC`,
+      autoClose: true,
       onSuccess: handleSuccess,
       theme: {
         palette: {
