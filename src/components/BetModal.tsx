@@ -176,6 +176,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
           text: "Place Bet",
           hoverText: "Confirm",
           successText: "Payment Sent!",
+          autoClose: true,
           theme: {
             palette: {
               primary: "#10b981", // always green for "bet on outcome"

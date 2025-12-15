@@ -46,6 +46,83 @@ export interface Prediction {
   outcomes: Outcome[];
 }
 
+const detectCategory = (title: string, existingCategory: string): Prediction['category'] => {
+  const q = title.toLowerCase();
+  const existing = (existingCategory || '').toLowerCase();
+
+  // Crypto keywords (check first as these are most specific)
+  if (
+    q.includes('bitcoin') || q.includes('btc') || q.includes('ethereum') || q.includes('eth') ||
+    q.includes('solana') || q.includes('sol') || q.includes('xrp') || q.includes('ripple') ||
+    q.includes('cardano') || q.includes('ada') || q.includes('dogecoin') || q.includes('doge') ||
+    q.includes('crypto') || q.includes('token') || q.includes('defi') || q.includes('nft') ||
+    q.includes('market cap') || q.includes('ecash') || q.includes('xec')
+  ) {
+    return 'crypto';
+  }
+
+  // Sports keywords
+  if (
+    q.includes('nfl') || q.includes('nba') || q.includes('nhl') || q.includes('mlb') ||
+    q.includes('super bowl') || q.includes('world series') || q.includes('world cup') ||
+    q.includes('championship') || q.includes('champions league') || q.includes('premier league') ||
+    q.includes('wimbledon') || q.includes('tennis') || q.includes('football') || q.includes('soccer') ||
+    q.includes('basketball') || q.includes('hockey') || q.includes('baseball') || q.includes('cricket') ||
+    q.includes('ipl') || q.includes('olympics') || q.includes('ufc') || q.includes('boxing') ||
+    q.includes('f1') || q.includes('formula 1') || q.includes('grand prix') ||
+    q.includes('uefa') || q.includes('euro 20') || (q.includes('euro') && q.includes('final')) ||
+    q.includes('final match') || q.includes('match be held')
+  ) {
+    return 'sports';
+  }
+
+  // Tech keywords (check before politics since tech companies often appear in political context)
+  if (
+    q.includes('apple') || q.includes('google') || q.includes('microsoft') || q.includes('amazon') ||
+    q.includes('nvidia') || q.includes('openai') || q.includes('gpt') || q.includes(' ai') ||
+    q.includes('artificial intelligence') || q.includes('chatgpt') || q.includes('deepmind') ||
+    q.includes('tesla') || q.includes('spacex') || q.includes('iphone') || q.includes('android') ||
+    q.includes('ar/vr') || q.includes('virtual reality') || q.includes('augmented reality') ||
+    q.includes('robot') || q.includes('quantum') || q.includes('semiconductor') || q.includes('chip')
+  ) {
+    return 'tech';
+  }
+
+  // Entertainment keywords
+  if (
+    q.includes('oscar') || q.includes('oscars') || q.includes('academy award') ||
+    q.includes('grammy') || q.includes('emmy') || q.includes('golden globe') ||
+    q.includes('movie') || q.includes('film') || q.includes('director') || q.includes('best director') ||
+    q.includes('episode') || q.includes('season') || q.includes('series') ||
+    q.includes('released in theaters') || q.includes('theaters') || q.includes('cinema') ||
+    q.includes('album') || q.includes('spotify') ||
+    q.includes('netflix') || q.includes('disney') || q.includes('hbo') || q.includes('prime video') ||
+    q.includes('celebrity') || q.includes('concert') || q.includes('tour') || q.includes('box office') ||
+    q.includes('streaming') || q.includes('youtube') || q.includes('tiktok') ||
+    (q.includes('elon musk') && q.includes('tweet')) ||
+    q.includes('dune')
+  ) {
+    return 'entertainment';
+  }
+
+  // Economics keywords
+  if (
+    q.includes('fed') || q.includes('interest rate') || q.includes('inflation') || q.includes('gdp') ||
+    q.includes('recession') || q.includes('stock market') || q.includes('s&p') || q.includes('dow') ||
+    q.includes('nasdaq') || q.includes('unemployment') || q.includes('economy') || q.includes('fiscal')
+  ) {
+    return 'economics';
+  }
+
+  // If existing category is valid, keep it
+  if (['crypto', 'politics', 'sports', 'tech', 'entertainment', 'economics'].includes(existing)) {
+    return existing as Prediction['category'];
+  }
+
+  // Default to politics for elections, legislation, etc.
+  return 'politics';
+};
+
 const transformPrediction = (p: DBPrediction, outcomes: DBOutcome[]): Prediction => {
   const predictionOutcomes = outcomes.filter(o => o.prediction_id === p.id);
   const isMultiOption = predictionOutcomes.length > 0;
@@ -80,7 +157,7 @@ const transformPrediction = (p: DBPrediction, outcomes: DBOutcome[]): Prediction
     id: p.id,
     question: p.title,
     description: p.description || '',
-    category: p.category as Prediction['category'],
+    category: detectCategory(p.title, p.category),
     yesOdds,
     noOdds,
     volume: volumeUSD,
