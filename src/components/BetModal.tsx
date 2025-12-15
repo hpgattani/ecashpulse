@@ -56,10 +56,41 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
   const potentialPayout = betAmount ? (parseFloat(betAmount) * winMultiplier).toFixed(2) : "0";
   const potentialProfit = betAmount ? (parseFloat(betAmount) * winMultiplier - parseFloat(betAmount)).toFixed(2) : "0";
 
+  // Close any PayButton modals/overlays
+  const closePayButtonModal = useCallback(() => {
+    // PayButton creates overlays with these common selectors
+    const selectors = [
+      '.paybutton-modal',
+      '.paybutton-overlay', 
+      '[class*="paybutton"][class*="modal"]',
+      '[class*="paybutton"][class*="overlay"]',
+      '.ReactModal__Overlay',
+      '[data-paybutton-modal]',
+    ];
+    
+    selectors.forEach(selector => {
+      document.querySelectorAll(selector).forEach(el => {
+        (el as HTMLElement).style.display = 'none';
+        el.remove();
+      });
+    });
+
+    // Also clear the PayButton container to remove QR code
+    if (payButtonRef.current) {
+      payButtonRef.current.innerHTML = '';
+    }
+  }, []);
+
   // Record bet
   const recordBet = useCallback(
     async (txHash?: string) => {
       if (!user || !sessionToken) return;
+
+      // IMMEDIATELY close PayButton modal/QR code
+      closePayButtonModal();
+      
+      // Show success state right away for better UX
+      setBetSuccess(true);
 
       const betAmountXec = parseFloat(betAmount);
       const betAmountSatoshis = Math.round(betAmountXec * 100);
@@ -77,13 +108,13 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
         });
 
         if (error || data?.error) {
+          setBetSuccess(false);
           toast.error("Bet recording failed", {
             description: data?.error || error?.message || "Please try again",
           });
           return;
         }
 
-        setBetSuccess(true);
         const outcomeLabel = selectedOutcome ? selectedOutcome.label : betPosition.toUpperCase();
         toast.success("Bet placed!", {
           description: `${outcomeLabel} bet of ${betAmount} XEC confirmed.`,
@@ -92,12 +123,13 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
         setTimeout(() => {
           setBetSuccess(false);
           onClose();
-        }, 1500);
+        }, 1200);
       } catch (err: any) {
+        setBetSuccess(false);
         toast.error("Failed to place bet", { description: err.message });
       }
     },
-    [user, sessionToken, betAmount, prediction.id, betPosition, selectedOutcome, onClose],
+    [user, sessionToken, betAmount, prediction.id, betPosition, selectedOutcome, onClose, closePayButtonModal],
   );
 
   // Load PayButton script
