@@ -59,6 +59,29 @@ const Auth = () => {
     document.body.appendChild(script);
   }, []);
 
+  // Close any PayButton QR/modal overlays for faster UX
+  const closePayButtonModal = useCallback(() => {
+    const selectors = [
+      '.paybutton-modal',
+      '.paybutton-overlay',
+      '[class*="paybutton"][class*="modal"]',
+      '[class*="paybutton"][class*="overlay"]',
+      '.ReactModal__Overlay',
+      '[data-paybutton-modal]',
+    ];
+
+    selectors.forEach((selector) => {
+      document.querySelectorAll(selector).forEach((el) => {
+        (el as HTMLElement).style.display = 'none';
+        el.remove();
+      });
+    });
+
+    if (payButtonRef.current) {
+      payButtonRef.current.innerHTML = '';
+    }
+  }, []);
+
   // Verify transaction on-chain using Chronik and create session
   const verifyAndLogin = useCallback(async (txHash: string, senderAddress: string) => {
     setIsLoading(true);
@@ -105,7 +128,7 @@ const Auth = () => {
             });
             
             // Reload to update auth context
-            setTimeout(() => window.location.href = '/', 1500);
+            setTimeout(() => (window.location.href = '/'), 1500);
             return;
           }
         } catch (txError) {
@@ -114,7 +137,7 @@ const Auth = () => {
         }
 
         attempts++;
-        await new Promise(r => setTimeout(r, 2000));
+        await new Promise((r) => setTimeout(r, 2000));
       }
 
       throw new Error('Transaction verification timeout. Please try again.');
@@ -127,11 +150,22 @@ const Auth = () => {
 
   // Render PayButton when script is loaded
   useEffect(() => {
-    if (!scriptLoaded || !payButtonRef.current || !window.PayButton || user || isLoading) return;
+    if (!payButtonRef.current) return;
+
+    // If user is already logged in, loading, or auth succeeded, ensure QR/modal is closed
+    if (user || isLoading || authSuccess) {
+      closePayButtonModal();
+      return;
+    }
+
+    if (!scriptLoaded || !window.PayButton) return;
 
     payButtonRef.current.innerHTML = '';
 
     const handleSuccess = async (transaction: PayButtonTransaction) => {
+      // Immediately close the PayButton QR/modal for snappy UX
+      closePayButtonModal();
+
       console.log('Auth payment detected:', transaction);
       
       const senderAddress = transaction.inputAddresses?.[0];
@@ -160,7 +194,11 @@ const Auth = () => {
         }
       }
     });
-  }, [scriptLoaded, user, isLoading, verifyAndLogin]);
+
+    return () => {
+      closePayButtonModal();
+    };
+  }, [scriptLoaded, user, isLoading, authSuccess, verifyAndLogin, closePayButtonModal]);
 
   useEffect(() => {
     if (user) {
