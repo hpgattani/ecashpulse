@@ -120,6 +120,10 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
           description: `${outcomeLabel} bet of ${betAmount} XEC confirmed.`,
         });
 
+        // Force-refresh odds immediately (and again shortly after) even if realtime drops.
+        window.dispatchEvent(new Event('predictions:refetch'));
+        setTimeout(() => window.dispatchEvent(new Event('predictions:refetch')), 1200);
+
         setTimeout(() => {
           setBetSuccess(false);
           onClose();

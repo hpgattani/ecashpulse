@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface DBPrediction {
@@ -176,10 +176,57 @@ export const usePredictions = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const inFlightRef = useRef<Promise<void> | null>(null);
+
+  const fetchPredictions = useCallback(async () => {
+    // Avoid stacking multiple concurrent fetches when many realtime events fire.
+    if (inFlightRef.current) return inFlightRef.current;
+
+    const task = (async () => {
+      try {
+        const [predictionsResult, outcomesResult] = await Promise.all([
+          supabase
+            .from('predictions')
+            .select('*')
+            .eq('status', 'active')
+            .order('created_at', { ascending: false }),
+          supabase.from('outcomes').select('*'),
+        ]);
+
+        if (predictionsResult.error) {
+          setError(predictionsResult.error.message);
+          console.error('Error fetching predictions:', predictionsResult.error);
+          return;
+        }
+
+        if (outcomesResult.error) {
+          setError(outcomesResult.error.message);
+          console.error('Error fetching outcomes:', outcomesResult.error);
+          return;
+        }
+
+        const outcomes = (outcomesResult.data || []) as DBOutcome[];
+        setPredictions((predictionsResult.data as DBPrediction[]).map((p) => transformPrediction(p, outcomes)));
+        setError(null);
+      } catch (err: any) {
+        setError(err?.message || 'Failed to load markets');
+        console.error('Error fetching markets:', err);
+      } finally {
+        setLoading(false);
+      }
+    })();
+
+    inFlightRef.current = task.finally(() => {
+      inFlightRef.current = null;
+    }) as Promise<void>;
+
+    return inFlightRef.current;
+  }, []);
+
   useEffect(() => {
     fetchPredictions();
 
-    // Subscribe to realtime updates on predictions
+    // Realtime updates on predictions
     const predictionsChannel = supabase
       .channel('predictions-realtime')
       .on(
@@ -195,7 +242,7 @@ export const usePredictions = () => {
       )
       .subscribe();
 
-    // Subscribe to outcomes for multi-option updates
+    // Realtime updates for multi-option pools
     const outcomesChannel = supabase
       .channel('outcomes-realtime')
       .on(
@@ -211,7 +258,7 @@ export const usePredictions = () => {
       )
       .subscribe();
 
-    // Subscribe to bets to update pools in real-time
+    // Bets can update pools; refetch shortly after bet insert/update.
     const betsChannel = supabase
       .channel('bets-realtime')
       .on(
@@ -222,8 +269,7 @@ export const usePredictions = () => {
           table: 'bets',
         },
         () => {
-          // Small delay to ensure DB trigger has updated the pool
-          setTimeout(() => fetchPredictions(), 500);
+          setTimeout(() => fetchPredictions(), 800);
         }
       )
       .on(
@@ -234,42 +280,31 @@ export const usePredictions = () => {
           table: 'bets',
         },
         () => {
-          setTimeout(() => fetchPredictions(), 500);
+          setTimeout(() => fetchPredictions(), 800);
         }
       )
       .subscribe();
 
+    // Hard fallback: polling so odds update even if realtime drops.
+    const intervalId = window.setInterval(() => {
+      fetchPredictions();
+    }, 8000);
+
+    const handleForceRefresh = () => fetchPredictions();
+    window.addEventListener('predictions:refetch', handleForceRefresh);
+
+    const handleFocus = () => fetchPredictions();
+    window.addEventListener('focus', handleFocus);
+
     return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('predictions:refetch', handleForceRefresh);
+      window.removeEventListener('focus', handleFocus);
       supabase.removeChannel(predictionsChannel);
       supabase.removeChannel(outcomesChannel);
       supabase.removeChannel(betsChannel);
     };
-  }, []);
-
-  const fetchPredictions = async () => {
-    // Fetch predictions and outcomes in parallel
-    const [predictionsResult, outcomesResult] = await Promise.all([
-      supabase
-        .from('predictions')
-        .select('*')
-        .eq('status', 'active')
-        .order('created_at', { ascending: false }),
-      supabase
-        .from('outcomes')
-        .select('*')
-    ]);
-
-    if (predictionsResult.error) {
-      setError(predictionsResult.error.message);
-      console.error('Error fetching predictions:', predictionsResult.error);
-    } else {
-      const outcomes = (outcomesResult.data || []) as DBOutcome[];
-      setPredictions(
-        (predictionsResult.data as DBPrediction[]).map(p => transformPrediction(p, outcomes))
-      );
-    }
-    setLoading(false);
-  };
+  }, [fetchPredictions]);
 
   return { predictions, loading, error, refetch: fetchPredictions };
 };

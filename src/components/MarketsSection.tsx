@@ -8,12 +8,28 @@ import { Loader2 } from 'lucide-react';
 
 const MarketsSection = () => {
   const [activeCategory, setActiveCategory] = useState('all');
+  const [activeTimeframe, setActiveTimeframe] = useState<'all' | 'week' | 'month'>('all');
   const { predictions, loading, error } = usePredictions();
   const { getPriceForCrypto } = useCryptoPrices();
 
-  const filteredPredictions = activeCategory === 'all'
-    ? predictions
-    : predictions.filter(p => p.category === activeCategory);
+  const isWithinDays = (endDate: string, days: number) => {
+    const endMs = new Date(endDate).getTime();
+    const nowMs = Date.now();
+    const diff = endMs - nowMs;
+    return diff >= 0 && diff <= days * 24 * 60 * 60 * 1000;
+  };
+
+  const filteredPredictions = predictions.filter((p) => {
+    const categoryOk = activeCategory === 'all' ? true : p.category === activeCategory;
+    const timeOk =
+      activeTimeframe === 'all'
+        ? true
+        : activeTimeframe === 'week'
+          ? isWithinDays(p.endDate, 7)
+          : isWithinDays(p.endDate, 30);
+
+    return categoryOk && timeOk;
+  });
 
   return (
     <section id="markets" className="py-20 relative">
@@ -44,6 +60,8 @@ const MarketsSection = () => {
           <MarketFilters
             activeCategory={activeCategory}
             onCategoryChange={setActiveCategory}
+            activeTimeframe={activeTimeframe}
+            onTimeframeChange={setActiveTimeframe}
           />
         </motion.div>
 
