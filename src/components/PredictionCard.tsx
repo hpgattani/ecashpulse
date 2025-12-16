@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, TrendingDown, Clock, Users, Zap, ChevronRight } from "lucide-react";
+import { TrendingUp, TrendingDown, Clock, Users, Zap } from "lucide-react";
 import BetModal from "./BetModal";
-import PredictionDetailModal from "./PredictionDetailModal";
 import { Outcome } from "@/hooks/usePredictions";
 
 interface Prediction {
@@ -31,7 +30,6 @@ interface PredictionCardProps {
 
 const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) => {
   const [isBetModalOpen, setIsBetModalOpen] = useState(false);
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<"yes" | "no">("yes");
   const [selectedOutcome, setSelectedOutcome] = useState<Outcome | null>(null);
 
@@ -131,9 +129,9 @@ const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) =
         {/* Odds Display */}
         <div className="p-4 md:p-5">
           {isMultiOption ? (
-            // Multi-option display (click row to bet on outcome, no Yes/No buttons)
-            <div className="space-y-2 mb-4">
-              {prediction.outcomes!.slice(0, 4).map((outcome) => (
+            // Multi-option display - show all outcomes
+            <div className="space-y-1.5 mb-4 max-h-[200px] overflow-y-auto">
+              {prediction.outcomes!.map((outcome) => (
                 <button
                   key={outcome.id}
                   type="button"
@@ -144,15 +142,6 @@ const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) =
                   <span className="text-sm font-bold text-primary">{outcome.odds}%</span>
                 </button>
               ))}
-              {prediction.outcomes!.length > 4 && (
-                <button
-                  onClick={() => setIsDetailModalOpen(true)}
-                  className="w-full text-xs text-primary hover:text-primary/80 text-center py-2 flex items-center justify-center gap-1"
-                >
-                  +{prediction.outcomes!.length - 4} more options
-                  <ChevronRight className="w-3 h-3" />
-                </button>
-              )}
             </div>
           ) : (
             // Yes/No display
@@ -228,17 +217,6 @@ const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) =
         prediction={prediction}
         position={selectedPosition}
         selectedOutcome={selectedOutcome}
-      />
-
-      <PredictionDetailModal
-        isOpen={isDetailModalOpen}
-        onClose={() => setIsDetailModalOpen(false)}
-        prediction={prediction}
-        onSelectOutcome={(outcome) => {
-          setSelectedOutcome(outcome);
-          setSelectedPosition("yes");
-          setIsBetModalOpen(true);
-        }}
       />
     </>
   );

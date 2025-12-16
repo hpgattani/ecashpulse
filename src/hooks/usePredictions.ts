@@ -217,12 +217,24 @@ export const usePredictions = () => {
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
           schema: 'public',
           table: 'bets',
         },
         () => {
-          fetchPredictions();
+          // Small delay to ensure DB trigger has updated the pool
+          setTimeout(() => fetchPredictions(), 500);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'bets',
+        },
+        () => {
+          setTimeout(() => fetchPredictions(), 500);
         }
       )
       .subscribe();
