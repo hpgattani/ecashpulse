@@ -207,69 +207,13 @@ async function checkSportsResult(title: string): Promise<OracleResult> {
 
 // ==================== NEWS/EVENTS ORACLES ====================
 
-// Use AI to verify news events from multiple sources
+// DISABLED: AI oracle is unreliable for real-time events - can have outdated training data
+// All non-API-verifiable predictions require manual admin resolution via resolve-prediction endpoint
 async function checkNewsEvent(title: string, supabase: any): Promise<OracleResult> {
-  const titleLower = title.toLowerCase();
-  
-  try {
-    // Use Lovable AI to fact-check the prediction
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${Deno.env.get('LOVABLE_API_KEY')}`,
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          { 
-            role: 'system', 
-            content: `You are a fact-checker oracle. Given a prediction market question about a past event, determine if it has been resolved.
-            
-ONLY respond with JSON in this exact format:
-{"resolved": true/false, "outcome": "yes"/"no", "reason": "brief explanation with source"}
-
-If the event hasn't happened yet or you're not certain, set resolved to false.
-Be conservative - only mark as resolved if you're highly confident.
-Today's date: ${new Date().toISOString().split('T')[0]}`
-          },
-          { 
-            role: 'user', 
-            content: `Has this prediction been resolved? "${title}"` 
-          }
-        ],
-      }),
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      const content = data.choices?.[0]?.message?.content || '';
-      
-      // Parse JSON response
-      let cleaned = content.trim();
-      if (cleaned.startsWith('```')) {
-        cleaned = cleaned.replace(/```json\n?/g, '').replace(/```\n?/g, '');
-      }
-      
-      try {
-        const result = JSON.parse(cleaned);
-        if (result.resolved && result.outcome) {
-          return {
-            resolved: true,
-            outcome: result.outcome as 'yes' | 'no',
-            reason: result.reason || 'AI verified',
-            currentValue: 'AI Oracle'
-          };
-        }
-      } catch (parseError) {
-        console.log('AI response parse error:', parseError);
-      }
-    }
-  } catch (error) {
-    console.error('News oracle error:', error);
-  }
-  
-  return { resolved: false };
+  // Do NOT auto-resolve using AI - it can hallucinate or use outdated data
+  // Real events (IPL auctions, elections, awards, etc.) must be manually verified by admins
+  console.log(`⚠️ Skipping AI resolution for: "${title.slice(0, 60)}" - requires manual admin verification`);
+  return { resolved: false, reason: 'Requires manual admin verification' };
 }
 
 // ==================== ENTERTAINMENT ORACLES ====================
@@ -433,19 +377,17 @@ Deno.serve(async (req) => {
         oracleResult = await checkEntertainmentEvent(pred.title);
         source = 'Entertainment Oracle';
       }
-      // 5. Politics and other - use AI news oracle
+      // 5. Politics, tech, and other categories - require manual admin resolution
+      // These cannot be auto-resolved as AI may have outdated or incorrect data
       else if (pred.category === 'politics' || pred.category === 'tech' ||
-               ['election', 'president', 'congress', 'senate', 'vote', 'apple', 'google', 'openai', 'tesla']
+               ['election', 'president', 'congress', 'senate', 'vote', 'apple', 'google', 'openai', 'tesla', 'ipl', 'auction']
                  .some(p => titleLower.includes(p))) {
-        oracleResult = await checkNewsEvent(pred.title, supabase);
-        source = 'AI News Oracle';
+        console.log(`⏳ "${pred.title.slice(0, 50)}" requires manual admin resolution`);
+        source = 'Manual Admin Required';
       }
       
-      // If no specific oracle resolved it, try AI as fallback for expired predictions
-      if (!oracleResult.resolved) {
-        oracleResult = await checkNewsEvent(pred.title, supabase);
-        source = 'AI Fallback Oracle';
-      }
+      // No AI fallback - unresolved predictions stay unresolved until admin manually resolves them
+      // This prevents incorrect auto-resolutions from outdated or hallucinated AI data
       
       if (oracleResult.resolved && oracleResult.outcome) {
         const status = oracleResult.outcome === 'yes' ? 'resolved_yes' : 'resolved_no';
