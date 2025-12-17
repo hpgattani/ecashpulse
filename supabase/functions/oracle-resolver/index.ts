@@ -207,13 +207,97 @@ async function checkSportsResult(title: string): Promise<OracleResult> {
 
 // ==================== NEWS/EVENTS ORACLES ====================
 
-// DISABLED: AI oracle is unreliable for real-time events - can have outdated training data
-// All non-API-verifiable predictions require manual admin resolution via resolve-prediction endpoint
-async function checkNewsEvent(title: string, supabase: any): Promise<OracleResult> {
-  // Do NOT auto-resolve using AI - it can hallucinate or use outdated data
-  // Real events (IPL auctions, elections, awards, etc.) must be manually verified by admins
-  console.log(`⚠️ Skipping AI resolution for: "${title.slice(0, 60)}" - requires manual admin verification`);
-  return { resolved: false, reason: 'Requires manual admin verification' };
+// Use Perplexity for REAL-TIME web search to verify events accurately
+async function checkNewsEvent(title: string): Promise<OracleResult> {
+  const perplexityKey = Deno.env.get('PERPLEXITY_API_KEY');
+  if (!perplexityKey) {
+    console.log('PERPLEXITY_API_KEY not set - skipping real-time search');
+    return { resolved: false };
+  }
+
+  try {
+    console.log(`🔍 Searching real-time data for: "${title.slice(0, 60)}..."`);
+    
+    // Use Perplexity with sonar model for real-time web search
+    const response = await fetch('https://api.perplexity.ai/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${perplexityKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'sonar',
+        messages: [
+          { 
+            role: 'system', 
+            content: `You are a fact-checker that searches the web for CURRENT real-time information. Given a prediction market question, search for the latest news and data to determine if the event has occurred and what the outcome was.
+
+CRITICAL: Search for the MOST RECENT information. Do not rely on old data.
+
+ONLY respond with JSON in this exact format:
+{"resolved": true, "outcome": "yes", "reason": "Brief explanation with source and date", "confidence": "high"}
+OR
+{"resolved": true, "outcome": "no", "reason": "Brief explanation with source and date", "confidence": "high"}
+OR
+{"resolved": false, "reason": "Event has not occurred yet or insufficient information"}
+
+Only set resolved=true if you find clear, recent evidence. Include the date of the information source in your reason.`
+          },
+          { 
+            role: 'user', 
+            content: `Search the web and determine if this prediction has been resolved: "${title}"
+
+Today's date is ${new Date().toISOString().split('T')[0]}. Find the most recent information.` 
+          }
+        ],
+        search_recency_filter: 'week', // Prioritize recent sources
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('Perplexity API error:', response.status, await response.text());
+      return { resolved: false };
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || '';
+    const citations = data.citations || [];
+    
+    console.log('Perplexity response:', content);
+    if (citations.length > 0) {
+      console.log('Sources:', citations.slice(0, 3).join(', '));
+    }
+    
+    // Parse JSON response
+    let cleaned = content.trim();
+    if (cleaned.startsWith('```')) {
+      cleaned = cleaned.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+    }
+    
+    try {
+      const result = JSON.parse(cleaned);
+      
+      // Only accept high-confidence results with citations
+      if (result.resolved && result.outcome && result.confidence === 'high') {
+        const sourceInfo = citations.length > 0 
+          ? ` (Sources: ${citations.slice(0, 2).join(', ')})`
+          : '';
+        
+        return {
+          resolved: true,
+          outcome: result.outcome as 'yes' | 'no',
+          reason: `${result.reason}${sourceInfo}`,
+          currentValue: 'Perplexity Real-Time Search'
+        };
+      }
+    } catch (parseError) {
+      console.log('Perplexity response parse error:', parseError);
+    }
+  } catch (error) {
+    console.error('Perplexity oracle error:', error);
+  }
+  
+  return { resolved: false };
 }
 
 // ==================== ENTERTAINMENT ORACLES ====================
@@ -377,17 +461,19 @@ Deno.serve(async (req) => {
         oracleResult = await checkEntertainmentEvent(pred.title);
         source = 'Entertainment Oracle';
       }
-      // 5. Politics, tech, and other categories - require manual admin resolution
-      // These cannot be auto-resolved as AI may have outdated or incorrect data
-      else if (pred.category === 'politics' || pred.category === 'tech' ||
-               ['election', 'president', 'congress', 'senate', 'vote', 'apple', 'google', 'openai', 'tesla', 'ipl', 'auction']
-                 .some(p => titleLower.includes(p))) {
-        console.log(`⏳ "${pred.title.slice(0, 50)}" requires manual admin resolution`);
-        source = 'Manual Admin Required';
+      // 5. All other categories - use Perplexity real-time web search
+      // This includes politics, tech, sports events, IPL auctions, etc.
+      else {
+        console.log(`🔍 Using Perplexity real-time search for: "${pred.title.slice(0, 50)}"`);
+        oracleResult = await checkNewsEvent(pred.title);
+        source = 'Perplexity Real-Time Search';
       }
       
-      // No AI fallback - unresolved predictions stay unresolved until admin manually resolves them
-      // This prevents incorrect auto-resolutions from outdated or hallucinated AI data
+      // Fallback: If no specific oracle resolved it, try Perplexity
+      if (!oracleResult.resolved) {
+        oracleResult = await checkNewsEvent(pred.title);
+        source = 'Perplexity Fallback Search';
+      }
       
       if (oracleResult.resolved && oracleResult.outcome) {
         const status = oracleResult.outcome === 'yes' ? 'resolved_yes' : 'resolved_no';

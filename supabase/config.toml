@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.send-payouts]
 verify_jwt = false
+
+[functions.admin-secret-login]
+verify_jwt = false
