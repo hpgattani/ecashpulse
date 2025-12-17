@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
-import { ArrowLeft, TrendingUp, TrendingDown, ExternalLink, Users, DollarSign, Clock, CheckCircle2, Shield, User, Sparkles, RefreshCw, Target } from 'lucide-react';
+import { ArrowLeft, TrendingUp, TrendingDown, ExternalLink, Users, DollarSign, Clock, CheckCircle2, Shield, User, Sparkles, RefreshCw, Target, KeyRound, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -67,8 +68,56 @@ const Admin = () => {
   const [fetchingTopics, setFetchingTopics] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkingAdmin, setCheckingAdmin] = useState(true);
+  
+  // Easter egg state
+  const [easterEggClicks, setEasterEggClicks] = useState(0);
+  const [showSecretLogin, setShowSecretLogin] = useState(false);
+  const [secretPassword, setSecretPassword] = useState('');
+  const [secretLoading, setSecretLoading] = useState(false);
+  
   const { user, sessionToken } = useAuth();
   const navigate = useNavigate();
+
+  // Easter egg: click shield 7 times to reveal secret login
+  const handleShieldClick = useCallback(() => {
+    const newCount = easterEggClicks + 1;
+    setEasterEggClicks(newCount);
+    
+    if (newCount >= 7) {
+      setShowSecretLogin(true);
+      toast.info('🔑 Secret access unlocked');
+    } else if (newCount >= 5) {
+      toast.info(`${7 - newCount} more...`);
+    }
+  }, [easterEggClicks]);
+
+  const handleSecretLogin = async () => {
+    if (!user || !secretPassword.trim()) return;
+    
+    setSecretLoading(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-secret-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: secretPassword, user_id: user.id }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Access denied');
+      }
+      
+      toast.success('Admin access granted!');
+      setIsAdmin(true);
+      setShowSecretLogin(false);
+      setSecretPassword('');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Invalid password');
+    } finally {
+      setSecretLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!user) {
@@ -264,10 +313,46 @@ const Admin = () => {
           <main className="py-20 px-4">
             <div className="max-w-md mx-auto text-center">
               <div className="glass-card p-8">
-                <Shield className="w-16 h-16 text-destructive mx-auto mb-4" />
+                <Shield 
+                  className="w-16 h-16 text-destructive mx-auto mb-4 cursor-pointer select-none transition-transform hover:scale-105"
+                  onClick={handleShieldClick}
+                />
                 <h1 className="font-display text-2xl font-bold text-foreground mb-2">Access Denied</h1>
                 <p className="text-muted-foreground mb-6">You don't have admin privileges to view this page.</p>
-                <Button onClick={() => navigate('/')}>Back to Home</Button>
+                
+                {showSecretLogin ? (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="space-y-4"
+                  >
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                      <KeyRound className="w-4 h-4" />
+                      <span>Enter secret password</span>
+                    </div>
+                    <Input
+                      type="password"
+                      placeholder="••••••••"
+                      value={secretPassword}
+                      onChange={(e) => setSecretPassword(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSecretLogin()}
+                      className="text-center"
+                    />
+                    <Button 
+                      onClick={handleSecretLogin} 
+                      disabled={secretLoading || !secretPassword.trim()}
+                      className="w-full"
+                    >
+                      {secretLoading ? (
+                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Verifying...</>
+                      ) : (
+                        'Unlock Admin'
+                      )}
+                    </Button>
+                  </motion.div>
+                ) : (
+                  <Button onClick={() => navigate('/')}>Back to Home</Button>
+                )}
               </div>
             </div>
           </main>
