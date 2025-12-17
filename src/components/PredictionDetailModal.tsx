@@ -100,20 +100,20 @@ const PredictionDetailModal = ({ isOpen, onClose, prediction, onSelectOutcome }:
   return (
     <AnimatePresence>
       {isOpen && (
-        <>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[100]"
+            className="absolute inset-0 bg-background/80 backdrop-blur-sm"
           />
           
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl z-[101] p-4 max-h-[90vh]"
+            className="relative w-full max-w-2xl max-h-[80vh]"
           >
             <div className="glass-card glow-primary p-6 flex flex-col max-h-[80vh]">
               {/* Header */}
@@ -201,7 +201,7 @@ const PredictionDetailModal = ({ isOpen, onClose, prediction, onSelectOutcome }:
               </div>
             </div>
           </motion.div>
-        </>
+        </div>
       )}
     </AnimatePresence>
   );
