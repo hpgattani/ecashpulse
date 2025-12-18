@@ -12,21 +12,24 @@ const MarketsSection = () => {
   const { predictions, loading, error } = usePredictions();
   const { getPriceForCrypto } = useCryptoPrices();
 
-  const isWithinDays = (endDate: string, days: number) => {
-    const endMs = new Date(endDate).getTime();
+  // Filter by prediction creation date (for "this week"/"this month" relevance)
+  const isCreatedWithinDays = (createdAt: string | undefined, days: number) => {
+    if (!createdAt) return false;
+    const createdMs = new Date(createdAt).getTime();
     const nowMs = Date.now();
-    const diff = endMs - nowMs;
+    const diff = nowMs - createdMs;
     return diff >= 0 && diff <= days * 24 * 60 * 60 * 1000;
   };
 
   const filteredPredictions = predictions.filter((p) => {
     const categoryOk = activeCategory === 'all' ? true : p.category === activeCategory;
+    // Filter by when prediction was created (more relevant for "this week"/"this month")
     const timeOk =
       activeTimeframe === 'all'
         ? true
         : activeTimeframe === 'week'
-          ? isWithinDays(p.endDate, 7)
-          : isWithinDays(p.endDate, 30);
+          ? isCreatedWithinDays(p.createdAt, 7)
+          : isCreatedWithinDays(p.createdAt, 30);
 
     return categoryOk && timeOk;
   });

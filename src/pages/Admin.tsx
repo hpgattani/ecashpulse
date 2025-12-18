@@ -92,14 +92,15 @@ const Admin = () => {
   }, [easterEggClicks]);
 
   const handleSecretLogin = async () => {
-    if (!user || !secretPassword.trim()) return;
+    if (!secretPassword.trim()) return;
     
     setSecretLoading(true);
     try {
+      // If user is not logged in, we still allow secret login
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-secret-login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: secretPassword, user_id: user.id }),
+        body: JSON.stringify({ password: secretPassword, user_id: user?.id || 'anonymous' }),
       });
       
       const data = await response.json();
@@ -112,6 +113,7 @@ const Admin = () => {
       setIsAdmin(true);
       setShowSecretLogin(false);
       setSecretPassword('');
+      setCheckingAdmin(false);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Invalid password');
     } finally {
@@ -120,12 +122,16 @@ const Admin = () => {
   };
 
   useEffect(() => {
-    if (!user) {
-      navigate('/auth');
+    // Only redirect if not showing secret login and no user
+    if (!user && !showSecretLogin && !isAdmin) {
+      // Check for secret login first before redirecting
+      setCheckingAdmin(false);
       return;
     }
-    checkAdminStatus();
-  }, [user, navigate]);
+    if (user) {
+      checkAdminStatus();
+    }
+  }, [user, navigate, showSecretLogin, isAdmin]);
 
   const checkAdminStatus = async () => {
     if (!user) return;
@@ -294,7 +300,7 @@ const Admin = () => {
   const confirmedBets = bets.filter(b => b.status === 'confirmed').length;
   const uniqueUsers = new Set(bets.map(b => b.user_id)).size;
 
-  if (checkingAdmin || !user) {
+  if (checkingAdmin && user) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
