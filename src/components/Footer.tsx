@@ -16,6 +16,10 @@ const Footer = () => {
   const handleCopyrightClick = () => {
     const newCount = clickCount + 1;
     setClickCount(newCount);
+    
+    // Reset clicks after 2 seconds of no clicking
+    setTimeout(() => setClickCount(0), 2000);
+    
     if (newCount >= 5) {
       setClickCount(0);
       navigate('/admin');
@@ -133,14 +137,11 @@ const Footer = () => {
 
         {/* Bottom */}
         <div className="pt-8 border-t border-border/30 flex flex-col md:flex-row items-center justify-between gap-4">
-        <p className="text-sm text-muted-foreground">
-          <span 
-            onClick={handleCopyrightClick} 
-            className="cursor-default select-none"
-          >
-            ©
-          </span>{' '}
-          2025 eCash Pulse. Powered by eCash (XEC).
+        <p 
+          className="text-sm text-muted-foreground cursor-default select-none"
+          onClick={handleCopyrightClick}
+        >
+          © 2025 eCash Pulse. Powered by eCash (XEC).
         </p>
           <p className="text-xs text-muted-foreground">
             Prediction markets are for informational purposes only. Trade responsibly.
