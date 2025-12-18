@@ -72,7 +72,11 @@ const PublicBets = () => {
       const { data, error } = await supabase.functions.invoke('get-public-bets');
 
       if (error) throw error;
-      setBets((data?.bets as Bet[]) || []);
+      // Filter out bets with missing prediction or user data
+      const validBets = ((data?.bets as Bet[]) || []).filter(
+        (bet) => bet.predictions?.title && bet.users?.ecash_address
+      );
+      setBets(validBets);
     } catch (error) {
       console.error('Error fetching bets:', error);
     } finally {
