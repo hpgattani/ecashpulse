@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Zap, Github, ExternalLink } from 'lucide-react';
 
 const XIcon = ({ className }: { className?: string }) => (
@@ -9,6 +10,17 @@ const XIcon = ({ className }: { className?: string }) => (
 );
 
 const Footer = () => {
+  const navigate = useNavigate();
+  const [clickCount, setClickCount] = useState(0);
+
+  const handleCopyrightClick = () => {
+    const newCount = clickCount + 1;
+    setClickCount(newCount);
+    if (newCount >= 5) {
+      setClickCount(0);
+      navigate('/admin');
+    }
+  };
   return (
     <footer className="py-12 border-t border-border/30 relative">
       <div className="container mx-auto px-4">
@@ -122,7 +134,13 @@ const Footer = () => {
         {/* Bottom */}
         <div className="pt-8 border-t border-border/30 flex flex-col md:flex-row items-center justify-between gap-4">
         <p className="text-sm text-muted-foreground">
-          © 2025 eCash Pulse. Powered by eCash (XEC).
+          <span 
+            onClick={handleCopyrightClick} 
+            className="cursor-default select-none"
+          >
+            ©
+          </span>{' '}
+          2025 eCash Pulse. Powered by eCash (XEC).
         </p>
           <p className="text-xs text-muted-foreground">
             Prediction markets are for informational purposes only. Trade responsibly.
