@@ -38,6 +38,7 @@ export interface Prediction {
   noOdds: number;
   volume: number;
   endDate: string;
+  createdAt: string;
   image?: string;
   trending?: boolean;
   escrowAddress: string;
@@ -162,6 +163,7 @@ const transformPrediction = (p: DBPrediction, outcomes: DBOutcome[]): Prediction
     noOdds,
     volume: volumeUSD,
     endDate: p.end_date,
+    createdAt: p.created_at,
     image: p.image_url || undefined,
     trending: totalPool > 100000,
     escrowAddress: p.escrow_address,

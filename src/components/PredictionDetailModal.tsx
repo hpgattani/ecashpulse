@@ -45,31 +45,22 @@ const PredictionDetailModal = ({ isOpen, onClose, prediction, onSelectOutcome }:
   }, [isOpen, prediction.id]);
 
   const fetchActivity = async () => {
-    const { data, error } = await supabase
-      .from('bets')
-      .select(`
-        id,
-        amount,
-        position,
-        created_at,
-        outcome_id,
-        users!inner(ecash_address),
-        outcomes(label)
-      `)
-      .eq('prediction_id', prediction.id)
-      .eq('status', 'confirmed')
-      .order('created_at', { ascending: false })
-      .limit(20);
+    try {
+      // Use edge function to bypass RLS
+      const { data, error } = await supabase.functions.invoke('get-prediction-activity', {
+        body: { prediction_id: prediction.id }
+      });
 
-    if (!error && data) {
-      setActivities(data.map((b: any) => ({
-        id: b.id,
-        amount: b.amount,
-        position: b.position,
-        created_at: b.created_at,
-        ecash_address: b.users?.ecash_address || 'Unknown',
-        outcome_label: b.outcomes?.label
-      })));
+      if (error) {
+        console.error('Error fetching activity:', error);
+        return;
+      }
+
+      if (data?.activities) {
+        setActivities(data.activities);
+      }
+    } catch (err) {
+      console.error('Error fetching activity:', err);
     }
   };
 
