@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ExternalLink, TrendingUp, TrendingDown, Clock, CheckCircle2 } from 'lucide-react';
+import {
+  ExternalLink,
+  TrendingUp,
+  TrendingDown,
+  Clock,
+  CheckCircle2,
+  XCircle,
+} from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 
@@ -107,6 +114,47 @@ const PublicBets = () => {
     return `${diffDays}d ago`;
   };
 
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'confirmed':
+        return (
+          <Badge variant="default" className="text-xs w-fit">
+            <CheckCircle2 className="w-3 h-3 mr-1" /> Confirmed
+          </Badge>
+        );
+      case 'pending':
+        return (
+          <Badge variant="secondary" className="text-xs w-fit">
+            <Clock className="w-3 h-3 mr-1" /> Pending
+          </Badge>
+        );
+      case 'won':
+        return (
+          <Badge variant="outline" className="text-xs w-fit border-primary/40 text-primary">
+            <TrendingUp className="w-3 h-3 mr-1" /> Won
+          </Badge>
+        );
+      case 'lost':
+        return (
+          <Badge variant="destructive" className="text-xs w-fit">
+            <TrendingDown className="w-3 h-3 mr-1" /> Lost
+          </Badge>
+        );
+      case 'refunded':
+        return (
+          <Badge variant="outline" className="text-xs w-fit">
+            <XCircle className="w-3 h-3 mr-1" /> Refunded
+          </Badge>
+        );
+      default:
+        return (
+          <Badge variant="outline" className="text-xs w-fit">
+            {status}
+          </Badge>
+        );
+    }
+  };
+
   if (loading) {
     return (
       <div className="glass-card p-6">
@@ -150,22 +198,19 @@ const PublicBets = () => {
                 ) : (
                   <TrendingDown className="w-4 h-4 text-red-400 flex-shrink-0" />
                 )}
-                <span className={`font-semibold text-sm ${
-                  bet.position === 'yes' ? 'text-emerald-400' : 'text-red-400'
-                }`}>
+                <span
+                  className={`font-semibold text-sm ${
+                    bet.position === 'yes' ? 'text-emerald-400' : 'text-red-400'
+                  }`}
+                >
                   {bet.position.toUpperCase()}
                 </span>
                 <span className="text-foreground font-medium text-sm">
                   {formatAmount(bet.amount)}
                 </span>
               </div>
-              <Badge variant={bet.status === 'confirmed' ? 'default' : 'secondary'} className="text-xs w-fit">
-                {bet.status === 'confirmed' ? (
-                  <><CheckCircle2 className="w-3 h-3 mr-1" /> Confirmed</>
-                ) : (
-                  <><Clock className="w-3 h-3 mr-1" /> Pending</>
-                )}
-              </Badge>
+
+              {getStatusBadge(bet.status)}
             </div>
             
             {bet.predictions?.title && (
