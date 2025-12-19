@@ -12,24 +12,34 @@ const MarketsSection = () => {
   const { predictions, loading, error } = usePredictions();
   const { getPriceForCrypto } = useCryptoPrices();
 
-  // Filter by prediction end date (for "this week"/"this month" relevance)
-  const isEndingWithinDays = (endDate: string | undefined, days: number) => {
-    if (!endDate) return false;
-    const endMs = new Date(endDate).getTime();
+
+  // Timeframe filter:
+  // - matches markets CREATED within the last N days ("new this week/month")
+  // - OR markets ENDING within the next N days ("ending soon")
+  const matchesTimeframe = (createdAt: string | undefined, endDate: string | undefined, days: number) => {
     const nowMs = Date.now();
-    const diff = endMs - nowMs;
-    return diff >= 0 && diff <= days * 24 * 60 * 60 * 1000;
+    const windowMs = days * 24 * 60 * 60 * 1000;
+
+    const createdMs = createdAt ? new Date(createdAt).getTime() : NaN;
+    const endMs = endDate ? new Date(endDate).getTime() : NaN;
+
+    const createdDiff = nowMs - createdMs; // how long ago it was created
+    const endDiff = endMs - nowMs; // how long until it ends
+
+    const isNewWithinWindow = Number.isFinite(createdDiff) && createdDiff >= 0 && createdDiff <= windowMs;
+    const isEndingWithinWindow = Number.isFinite(endDiff) && endDiff >= 0 && endDiff <= windowMs;
+
+    return isNewWithinWindow || isEndingWithinWindow;
   };
 
   const filteredPredictions = predictions.filter((p) => {
     const categoryOk = activeCategory === 'all' ? true : p.category === activeCategory;
-    // Filter by when prediction ends (more useful for "This week" / "This month")
     const timeOk =
       activeTimeframe === 'all'
         ? true
         : activeTimeframe === 'week'
-          ? isEndingWithinDays(p.endDate, 7)
-          : isEndingWithinDays(p.endDate, 30);
+          ? matchesTimeframe(p.createdAt, p.endDate, 7)
+          : matchesTimeframe(p.createdAt, p.endDate, 30);
 
     return categoryOk && timeOk;
   });
