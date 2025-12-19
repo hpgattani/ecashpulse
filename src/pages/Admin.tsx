@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
@@ -68,34 +68,19 @@ const Admin = () => {
   const [fetchingTopics, setFetchingTopics] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkingAdmin, setCheckingAdmin] = useState(true);
-  
-  // Easter egg state
-  const [easterEggClicks, setEasterEggClicks] = useState(0);
-  const [showSecretLogin, setShowSecretLogin] = useState(false);
+  // Admin secret login
+  const [showSecretLogin, setShowSecretLogin] = useState(true);
   const [secretPassword, setSecretPassword] = useState('');
   const [secretLoading, setSecretLoading] = useState(false);
   
   const { user, sessionToken } = useAuth();
   const navigate = useNavigate();
 
-  // Easter egg: click shield 7 times to reveal secret login
-  const handleShieldClick = useCallback(() => {
-    const newCount = easterEggClicks + 1;
-    setEasterEggClicks(newCount);
-    
-    if (newCount >= 7) {
-      setShowSecretLogin(true);
-      toast.info('🔑 Secret access unlocked');
-    } else if (newCount >= 5) {
-      toast.info(`${7 - newCount} more...`);
-    }
-  }, [easterEggClicks]);
-
   const handleSecretLogin = async () => {
     const password = secretPassword.trim();
     if (!password) return;
 
-    if (!user?.id) {
+    if (!sessionToken) {
       toast.error('Please verify your wallet first, then try again.');
       navigate('/auth');
       return;
@@ -103,8 +88,8 @@ const Admin = () => {
 
     setSecretLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('admin-secret-login', {
-        body: { password, user_id: user.id },
+      const { data, error } = await supabase.functions.invoke('admin-secret-login-v2', {
+        body: { password, session_token: sessionToken },
       });
 
       if (error || !data?.success) {
@@ -124,30 +109,31 @@ const Admin = () => {
   };
 
   useEffect(() => {
-    // Only redirect if not showing secret login and no user
-    if (!user && !showSecretLogin && !isAdmin) {
-      // Check for secret login first before redirecting
+    // Determine admin status from wallet session token (not Supabase Auth)
+    if (!sessionToken) {
+      setIsAdmin(false);
       setCheckingAdmin(false);
       return;
     }
-    if (user) {
-      checkAdminStatus();
-    }
-  }, [user, navigate, showSecretLogin, isAdmin]);
+
+    setCheckingAdmin(true);
+    checkAdminStatus();
+  }, [sessionToken]);
 
   const checkAdminStatus = async () => {
-    if (!user) return;
-    
+    if (!sessionToken) {
+      setIsAdmin(false);
+      setCheckingAdmin(false);
+      return;
+    }
+
     try {
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .eq('role', 'admin')
-        .maybeSingle();
+      const { data, error } = await supabase.functions.invoke('admin-status', {
+        body: { session_token: sessionToken },
+      });
 
       if (error) throw error;
-      setIsAdmin(!!data);
+      setIsAdmin(!!data?.is_admin);
     } catch (error) {
       console.error('Error checking admin status:', error);
       setIsAdmin(false);
@@ -182,14 +168,14 @@ const Admin = () => {
   }, [isAdmin]);
 
   const fetchAllPredictions = async () => {
+    if (!sessionToken) return;
     try {
-      const { data, error } = await supabase
-        .from('predictions')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const { data, error } = await supabase.functions.invoke('admin-get-predictions', {
+        body: { session_token: sessionToken },
+      });
 
       if (error) throw error;
-      setPredictions((data as Prediction[]) || []);
+      setPredictions((data?.predictions as Prediction[]) || []);
     } catch (error) {
       console.error('Error fetching predictions:', error);
     } finally {
@@ -230,18 +216,14 @@ const Admin = () => {
   };
 
   const fetchAllBets = async () => {
+    if (!sessionToken) return;
     try {
-      const { data, error } = await supabase
-        .from('bets')
-        .select(`
-          *,
-          users(ecash_address),
-          predictions(title, category)
-        `)
-        .order('created_at', { ascending: false });
+      const { data, error } = await supabase.functions.invoke('admin-get-bets', {
+        body: { session_token: sessionToken },
+      });
 
       if (error) throw error;
-      setBets((data as BetWithDetails[]) || []);
+      setBets((data?.bets as BetWithDetails[]) || []);
     } catch (error) {
       console.error('Error fetching bets:', error);
     } finally {
@@ -250,17 +232,14 @@ const Admin = () => {
   };
 
   const fetchAllUsers = async () => {
+    if (!sessionToken) return;
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .select(`
-          *,
-          profiles(display_name, bio, total_bets, total_volume, total_wins)
-        `)
-        .order('created_at', { ascending: false });
+      const { data, error } = await supabase.functions.invoke('admin-get-users', {
+        body: { session_token: sessionToken },
+      });
 
       if (error) throw error;
-      setUsers((data as UserWithProfile[]) || []);
+      setUsers((data?.users as UserWithProfile[]) || []);
     } catch (error) {
       console.error('Error fetching users:', error);
     } finally {
@@ -302,7 +281,7 @@ const Admin = () => {
   const confirmedBets = bets.filter(b => b.status === 'confirmed').length;
   const uniqueUsers = new Set(bets.map(b => b.user_id)).size;
 
-  if (checkingAdmin && user) {
+  if (checkingAdmin) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
@@ -322,8 +301,7 @@ const Admin = () => {
             <div className="max-w-md mx-auto text-center">
               <div className="glass-card p-8">
                 <Shield 
-                  className="w-16 h-16 text-destructive mx-auto mb-4 cursor-pointer select-none transition-transform hover:scale-105"
-                  onClick={handleShieldClick}
+                  className="w-16 h-16 text-destructive mx-auto mb-4 select-none"
                 />
                 <h1 className="font-display text-2xl font-bold text-foreground mb-2">Access Denied</h1>
                 <p className="text-muted-foreground mb-6">You don't have admin privileges to view this page.</p>

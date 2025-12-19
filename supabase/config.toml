@@ -62,3 +62,18 @@ verify_jwt = false
 
 [functions.get-prediction-activity]
 verify_jwt = false
+
+[functions.admin-secret-login-v2]
+verify_jwt = false
+
+[functions.admin-status]
+verify_jwt = false
+
+[functions.admin-get-bets]
+verify_jwt = false
+
+[functions.admin-get-users]
+verify_jwt = false
+
+[functions.admin-get-predictions]
+verify_jwt = false
