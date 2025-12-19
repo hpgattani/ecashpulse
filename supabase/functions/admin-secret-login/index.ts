@@ -17,9 +17,10 @@ Deno.serve(async (req) => {
 
   try {
     const { password, user_id } = await req.json();
-    
-    const adminPassword = Deno.env.get('ADMIN_SECRET_PASSWORD');
-    
+
+    const providedPassword = typeof password === 'string' ? password.trim() : '';
+    const adminPassword = (Deno.env.get('ADMIN_SECRET_PASSWORD') ?? '').trim();
+
     if (!adminPassword) {
       console.error('ADMIN_SECRET_PASSWORD not configured');
       return new Response(
@@ -28,7 +29,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (!password || !user_id) {
+    if (!providedPassword || !user_id) {
       return new Response(
         JSON.stringify({ error: 'Password and user_id required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -36,7 +37,7 @@ Deno.serve(async (req) => {
     }
 
     // Check if password matches
-    if (password !== adminPassword) {
+    if (providedPassword !== adminPassword) {
       console.log('Invalid admin password attempt');
       return new Response(
         JSON.stringify({ error: 'Invalid password' }),

@@ -92,23 +92,25 @@ const Admin = () => {
   }, [easterEggClicks]);
 
   const handleSecretLogin = async () => {
-    if (!secretPassword.trim()) return;
-    
+    const password = secretPassword.trim();
+    if (!password) return;
+
+    if (!user?.id) {
+      toast.error('Please verify your wallet first, then try again.');
+      navigate('/auth');
+      return;
+    }
+
     setSecretLoading(true);
     try {
-      // If user is not logged in, we still allow secret login
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-secret-login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: secretPassword, user_id: user?.id || 'anonymous' }),
+      const { data, error } = await supabase.functions.invoke('admin-secret-login', {
+        body: { password, user_id: user.id },
       });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Access denied');
+
+      if (error || !data?.success) {
+        throw new Error((data as any)?.error || error?.message || 'Access denied');
       }
-      
+
       toast.success('Admin access granted!');
       setIsAdmin(true);
       setShowSecretLogin(false);
