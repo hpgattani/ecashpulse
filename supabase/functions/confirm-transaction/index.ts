@@ -9,16 +9,11 @@ const ESCROW_ADDRESS = 'ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp';
 const CHRONIK_URL = 'https://chronik.be.cash/xec';
 
 // Convert eCash cashaddr to P2PKH outputScript hex
-// For q-type (P2PKH) addresses: 76a914<20-byte-hash>88ac
 function addressToOutputScript(address: string): string | null {
   try {
-    // Remove ecash: prefix
     const addr = address.replace('ecash:', '');
-    
-    // Cashaddr uses a specific character set
     const CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
     
-    // Decode cashaddr to get the hash
     let data: number[] = [];
     for (let i = 0; i < addr.length; i++) {
       const charIndex = CHARSET.indexOf(addr[i].toLowerCase());
@@ -26,12 +21,9 @@ function addressToOutputScript(address: string): string | null {
       data.push(charIndex);
     }
     
-    // Skip the type byte (first 5-bit value after removing checksum)
-    // The checksum is 8 characters (40 bits)
     const payloadEnd = data.length - 8;
     const payload5bit = data.slice(0, payloadEnd);
     
-    // Convert 5-bit groups to 8-bit bytes
     let acc = 0;
     let bits = 0;
     const payload8bit: number[] = [];
@@ -45,13 +37,11 @@ function addressToOutputScript(address: string): string | null {
       }
     }
     
-    // First byte is version/type, rest is the 20-byte hash
     if (payload8bit.length < 21) return null;
     
     const hash = payload8bit.slice(1, 21);
     const hashHex = hash.map(b => b.toString(16).padStart(2, '0')).join('');
     
-    // P2PKH script: OP_DUP OP_HASH160 <20-byte-hash> OP_EQUALVERIFY OP_CHECKSIG
     return `76a914${hashHex}88ac`;
   } catch (error) {
     console.error('Address conversion error:', error);
@@ -59,8 +49,78 @@ function addressToOutputScript(address: string): string | null {
   }
 }
 
+// Convert P2PKH outputScript hex back to eCash cashaddr
+function outputScriptToAddress(script: string): string | null {
+  try {
+    // P2PKH script format: 76a914<20-byte-hash>88ac
+    if (!script.startsWith('76a914') || !script.endsWith('88ac') || script.length !== 50) {
+      return null;
+    }
+    
+    const hashHex = script.slice(6, 46);
+    const hash = [];
+    for (let i = 0; i < hashHex.length; i += 2) {
+      hash.push(parseInt(hashHex.substr(i, 2), 16));
+    }
+    
+    // Add version byte (0 for P2PKH)
+    const payload8bit = [0, ...hash];
+    
+    // Convert 8-bit bytes to 5-bit groups
+    const CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+    let acc = 0;
+    let bits = 0;
+    const payload5bit: number[] = [];
+    
+    for (const byte of payload8bit) {
+      acc = (acc << 8) | byte;
+      bits += 8;
+      while (bits >= 5) {
+        bits -= 5;
+        payload5bit.push((acc >> bits) & 0x1f);
+      }
+    }
+    if (bits > 0) {
+      payload5bit.push((acc << (5 - bits)) & 0x1f);
+    }
+    
+    // Calculate checksum (simplified - using polymod)
+    const prefixData = [2, 3, 0, 19, 8, 0]; // "ecash" prefix as 5-bit values
+    const checksumInput = [...prefixData, ...payload5bit, 0, 0, 0, 0, 0, 0, 0, 0];
+    
+    let c = 1;
+    const generator = [0x98f2bc8e61, 0x79b76d99e2, 0xf33e5fb3c4, 0xae2eabe2a8, 0x1e4f43e470];
+    for (const d of checksumInput) {
+      const c0 = c >> 35;
+      c = ((c & 0x07ffffffff) << 5) ^ d;
+      for (let i = 0; i < 5; i++) {
+        if ((c0 >> i) & 1) {
+          c ^= generator[i];
+        }
+      }
+    }
+    c ^= 1;
+    
+    const checksum: number[] = [];
+    for (let i = 0; i < 8; i++) {
+      checksum.push((c >> (5 * (7 - i))) & 0x1f);
+    }
+    
+    const fullPayload = [...payload5bit, ...checksum];
+    const address = 'ecash:q' + fullPayload.map(v => CHARSET[v]).join('');
+    
+    return address;
+  } catch (error) {
+    console.error('Script to address conversion error:', error);
+    return null;
+  }
+}
+
 interface ChronikTx {
   txid: string;
+  inputs: Array<{
+    outputScript: string;
+  }>;
   outputs: Array<{
     value: string;
     outputScript: string;
@@ -70,11 +130,14 @@ interface ChronikTx {
   };
 }
 
-async function verifyTransaction(txHash: string, expectedAmount: number, escrowScript: string): Promise<{ 
-  verified: boolean; 
+interface VerificationResult {
+  verified: boolean;
   actualAmount?: number;
-  error?: string 
-}> {
+  senderAddress?: string;
+  error?: string;
+}
+
+async function verifyTransaction(txHash: string, expectedAmount: number, escrowScript: string): Promise<VerificationResult> {
   try {
     const response = await fetch(`${CHRONIK_URL}/tx/${txHash}`);
     
@@ -84,6 +147,12 @@ async function verifyTransaction(txHash: string, expectedAmount: number, escrowS
     
     const tx: ChronikTx = await response.json();
     
+    // Extract sender address from first input
+    let senderAddress: string | null = null;
+    if (tx.inputs && tx.inputs.length > 0 && tx.inputs[0].outputScript) {
+      senderAddress = outputScriptToAddress(tx.inputs[0].outputScript);
+    }
+    
     // Find output that goes to escrow address with correct amount
     let foundAmount = 0;
     let foundEscrowOutput = false;
@@ -91,7 +160,6 @@ async function verifyTransaction(txHash: string, expectedAmount: number, escrowS
     for (const output of tx.outputs) {
       const outputValue = parseInt(output.value);
       
-      // CRITICAL: Verify output goes to escrow address
       if (output.outputScript === escrowScript) {
         foundEscrowOutput = true;
         if (outputValue >= expectedAmount * 0.99) {
@@ -116,7 +184,11 @@ async function verifyTransaction(txHash: string, expectedAmount: number, escrowS
       };
     }
     
-    return { verified: true, actualAmount: foundAmount };
+    return { 
+      verified: true, 
+      actualAmount: foundAmount,
+      senderAddress: senderAddress || undefined
+    };
   } catch (error) {
     console.error('Transaction verification error:', error);
     return { verified: false, error: 'Failed to verify transaction' };
@@ -209,14 +281,54 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Update bet status
+    // Determine the correct user_id based on the actual paying wallet
+    let actualUserId = bet.user_id;
+    
+    if (verification.senderAddress) {
+      const normalizedAddress = verification.senderAddress.trim().toLowerCase();
+      console.log(`Transaction sender address: ${normalizedAddress}`);
+      
+      // Check if this wallet already exists as a user
+      let { data: senderUser } = await supabase
+        .from('users')
+        .select('id, ecash_address')
+        .eq('ecash_address', normalizedAddress)
+        .maybeSingle();
+      
+      if (!senderUser) {
+        // Create new user for this wallet
+        const { data: newUser, error: createError } = await supabase
+          .from('users')
+          .insert({ ecash_address: normalizedAddress })
+          .select()
+          .single();
+        
+        if (!createError && newUser) {
+          senderUser = newUser;
+          console.log(`Created new user for wallet: ${normalizedAddress}`);
+        }
+      }
+      
+      if (senderUser && senderUser.id !== bet.user_id) {
+        actualUserId = senderUser.id;
+        console.log(`Updating bet user_id from ${bet.user_id} to ${actualUserId} (actual paying wallet)`);
+      }
+    }
+
+    // Update bet status and user_id if different
+    const updateData: Record<string, any> = {
+      status: 'confirmed',
+      tx_hash: tx_hash,
+      confirmed_at: new Date().toISOString()
+    };
+    
+    if (actualUserId !== bet.user_id) {
+      updateData.user_id = actualUserId;
+    }
+
     const { error: updateError } = await supabase
       .from('bets')
-      .update({
-        status: 'confirmed',
-        tx_hash: tx_hash,
-        confirmed_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', bet_id);
 
     if (updateError) {
@@ -226,7 +338,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Bet ${bet_id} confirmed with tx ${tx_hash} - verified escrow destination`);
+    console.log(`Bet ${bet_id} confirmed with tx ${tx_hash} - verified escrow destination, user_id: ${actualUserId}`);
 
     return new Response(
       JSON.stringify({ 
@@ -234,7 +346,8 @@ Deno.serve(async (req) => {
         message: 'Bet confirmed successfully',
         bet_id,
         tx_hash,
-        amount: verification.actualAmount
+        amount: verification.actualAmount,
+        user_id: actualUserId
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
