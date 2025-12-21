@@ -1,17 +1,23 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, Medal, Award, TrendingUp, Users } from 'lucide-react';
+import { Trophy, Medal, Award, TrendingUp, Wallet } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface LeaderboardEntry {
   user_id: string;
-  display_name: string | null;
-  avatar_url: string | null;
+  ecash_address: string;
   total_wins: number;
   total_bets: number;
   total_winnings: number;
   win_rate: number;
 }
+
+const formatAddress = (address: string) => {
+  if (!address) return 'Unknown';
+  const clean = address.replace('ecash:', '');
+  if (clean.length <= 12) return `ecash:${clean}`;
+  return `ecash:${clean.slice(0, 6)}...${clean.slice(-6)}`;
+};
 
 export const Leaderboard = () => {
   const [leaders, setLeaders] = useState<LeaderboardEntry[]>([]);
@@ -22,32 +28,77 @@ export const Leaderboard = () => {
   }, []);
 
   const fetchLeaderboard = async () => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select(`
-        user_id,
-        display_name,
-        avatar_url,
-        total_wins,
-        total_bets,
-        total_volume
-      `)
-      .order('total_wins', { ascending: false })
-      .limit(10);
+    try {
+      // Fetch bets with user info to calculate real stats
+      const { data: betsData, error } = await supabase
+        .from('bets')
+        .select(`
+          id,
+          user_id,
+          status,
+          amount,
+          payout_amount,
+          users!inner(ecash_address)
+        `)
+        .in('status', ['confirmed', 'won', 'lost']);
 
-    if (!error && data) {
-      const leaderboardData: LeaderboardEntry[] = data.map((p) => ({
-        user_id: p.user_id,
-        display_name: p.display_name,
-        avatar_url: p.avatar_url,
-        total_wins: p.total_wins || 0,
-        total_bets: p.total_bets || 0,
-        total_winnings: p.total_volume || 0,
-        win_rate: p.total_bets && p.total_bets > 0 
-          ? Math.round(((p.total_wins || 0) / p.total_bets) * 100) 
-          : 0
-      }));
+      if (error) {
+        console.error('Error fetching leaderboard:', error);
+        setLoading(false);
+        return;
+      }
+
+      // Aggregate stats by user
+      const userStats: Record<string, {
+        ecash_address: string;
+        total_bets: number;
+        total_wins: number;
+        total_winnings: number;
+      }> = {};
+
+      for (const bet of betsData || []) {
+        const userId = bet.user_id;
+        const address = (bet.users as any)?.ecash_address || '';
+
+        if (!userStats[userId]) {
+          userStats[userId] = {
+            ecash_address: address,
+            total_bets: 0,
+            total_wins: 0,
+            total_winnings: 0,
+          };
+        }
+
+        userStats[userId].total_bets += 1;
+        if (bet.status === 'won') {
+          userStats[userId].total_wins += 1;
+          userStats[userId].total_winnings += bet.payout_amount || 0;
+        }
+      }
+
+      // Convert to array and calculate win rate
+      const leaderboardData: LeaderboardEntry[] = Object.entries(userStats)
+        .map(([user_id, stats]) => ({
+          user_id,
+          ecash_address: stats.ecash_address,
+          total_bets: stats.total_bets,
+          total_wins: stats.total_wins,
+          total_winnings: stats.total_winnings,
+          win_rate: stats.total_bets > 0 
+            ? Math.round((stats.total_wins / stats.total_bets) * 100) 
+            : 0
+        }))
+        .filter(l => l.total_bets > 0)
+        .sort((a, b) => {
+          // Sort by wins first, then by bets
+          if (b.total_wins !== a.total_wins) return b.total_wins - a.total_wins;
+          return b.total_bets - a.total_bets;
+        })
+        .slice(0, 10);
+
       setLeaders(leaderboardData);
+    } catch (err) {
+      console.error('Leaderboard error:', err);
     }
     setLoading(false);
   };
@@ -83,9 +134,6 @@ export const Leaderboard = () => {
     );
   }
 
-  // Always show leaderboard section, with empty state if no active bettors
-  const filteredLeaders = leaders.filter(l => l.total_bets > 0);
-
   return (
     <section className="py-16 relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-b from-background via-primary/5 to-background" />
@@ -104,17 +152,17 @@ export const Leaderboard = () => {
           </div>
           <h2 className="text-3xl md:text-4xl font-bold mb-4">Leaderboard</h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            The most successful predictors on the platform
+            The most active predictors on the platform
           </p>
         </motion.div>
 
         <div className="max-w-3xl mx-auto space-y-3">
-          {filteredLeaders.length === 0 ? (
+          {leaders.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Trophy className="w-12 h-12 mx-auto mb-3 opacity-30" />
               <p>No active predictors yet. Be the first!</p>
             </div>
-          ) : filteredLeaders.map((leader, index) => (
+          ) : leaders.map((leader, index) => (
             <motion.div
               key={leader.user_id}
               initial={{ opacity: 0, x: -20 }}
@@ -129,22 +177,14 @@ export const Leaderboard = () => {
                 </div>
                 
                 <div className="flex-shrink-0">
-                  {leader.avatar_url ? (
-                    <img 
-                      src={leader.avatar_url} 
-                      alt={leader.display_name || 'User'}
-                      className="w-12 h-12 rounded-full object-cover border-2 border-border"
-                    />
-                  ) : (
-                    <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center border-2 border-primary/30">
-                      <Users className="w-6 h-6 text-primary" />
-                    </div>
-                  )}
+                  <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center border-2 border-primary/30">
+                    <Wallet className="w-6 h-6 text-primary" />
+                  </div>
                 </div>
                 
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold truncate">
-                    {leader.display_name || 'Anonymous'}
+                  <h3 className="font-mono font-semibold text-sm truncate">
+                    {formatAddress(leader.ecash_address)}
                   </h3>
                   <div className="flex items-center gap-4 text-sm text-muted-foreground">
                     <span>{leader.total_bets} bets</span>
@@ -157,14 +197,15 @@ export const Leaderboard = () => {
                     <TrendingUp className="w-4 h-4" />
                     {leader.win_rate}%
                   </div>
-                  <div className="text-sm text-muted-foreground">
-                    {formatXEC(leader.total_winnings)}
-                  </div>
+                  {leader.total_winnings > 0 && (
+                    <div className="text-sm text-muted-foreground">
+                      {formatXEC(leader.total_winnings)}
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>
-          ))
-          }
+          ))}
         </div>
       </div>
     </section>
