@@ -41,7 +41,15 @@ function detectCategory(question: string): string {
     q.includes('cardano') || q.includes('ada') || q.includes('dogecoin') || q.includes('doge') ||
     q.includes('crypto') || q.includes('token') || q.includes('defi') || q.includes('nft') ||
     q.includes('market cap') || q.includes('ecash') || q.includes('xec') ||
-    q.includes('binance') || q.includes('coinbase')
+    q.includes('binance') || q.includes('coinbase') || q.includes('chainlink') || q.includes('link') ||
+    q.includes('polygon') || q.includes('matic') || q.includes('avalanche') || q.includes('avax') ||
+    q.includes('polkadot') || q.includes('dot') || q.includes('litecoin') || q.includes('ltc') ||
+    q.includes('uniswap') || q.includes('aave') || q.includes('tether') || q.includes('usdt') ||
+    q.includes('usdc') || q.includes('stablecoin') || q.includes('altcoin') || q.includes('memecoin') ||
+    q.includes('shiba') || q.includes('pepe') || q.includes('floki') || q.includes('bnb') ||
+    q.includes('tron') || q.includes('trx') || q.includes('near') || q.includes('sui') ||
+    q.includes('aptos') || q.includes('apt') || q.includes('cosmos') || q.includes('atom') ||
+    (q.includes('price') && (q.includes('$') || q.includes('usd')))
   ) {
     return 'crypto';
   }
