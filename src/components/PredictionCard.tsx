@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, TrendingDown, Clock, Users, Zap } from "lucide-react";
+import { TrendingUp, TrendingDown, Clock, Users, Zap, Share2, Copy, Check } from "lucide-react";
 import BetModal from "./BetModal";
 import { Outcome } from "@/hooks/usePredictions";
+import { toast } from "sonner";
 
 interface Prediction {
   id: string;
@@ -29,9 +31,11 @@ interface PredictionCardProps {
 }
 
 const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) => {
+  const navigate = useNavigate();
   const [isBetModalOpen, setIsBetModalOpen] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<"yes" | "no">("yes");
   const [selectedOutcome, setSelectedOutcome] = useState<Outcome | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const isMultiOption =
     Boolean(prediction.isMultiOption) && Array.isArray(prediction.outcomes) && prediction.outcomes.length > 0;
@@ -84,6 +88,32 @@ const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) =
     setIsBetModalOpen(true);
   };
 
+  const handleShare = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const url = `${window.location.origin}/prediction/${prediction.id}`;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: prediction.question,
+          text: prediction.description || "Check out this prediction!",
+          url,
+        });
+      } catch (err) {
+        // User cancelled
+      }
+    } else {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      toast.success("Link copied!");
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleCardClick = () => {
+    navigate(`/prediction/${prediction.id}`);
+  };
+
   return (
     <>
       <motion.div
@@ -91,7 +121,8 @@ const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) =
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: index * 0.1, duration: 0.4 }}
         whileHover={{ y: -4 }}
-        className="glass-card overflow-hidden group"
+        className="glass-card overflow-hidden group cursor-pointer"
+        onClick={handleCardClick}
       >
         {/* Header */}
         <div className="p-4 md:p-5 border-b border-border/30">
@@ -118,6 +149,12 @@ const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) =
                   Hot
                 </div>
               )}
+              <button
+                onClick={handleShare}
+                className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground text-xs transition-colors"
+              >
+                {copied ? <Check className="w-3 h-3" /> : <Share2 className="w-3 h-3" />}
+              </button>
             </div>
           </div>
 
@@ -135,7 +172,10 @@ const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) =
                 <button
                   key={outcome.id}
                   type="button"
-                  onClick={() => handleOutcomeBet(outcome)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOutcomeBet(outcome);
+                  }}
                   className="w-full flex items-center justify-between p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary/60"
                 >
                   <span className="text-sm text-foreground font-medium truncate flex-1 mr-2">{outcome.label}</span>
@@ -198,10 +238,10 @@ const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) =
           {/* Bet Buttons - Only show for non-multi-option */}
           {!isMultiOption && (
             <div className="flex gap-2">
-              <Button variant="yes" size="sm" className="flex-1" onClick={() => handleBet("yes")}>
+              <Button variant="yes" size="sm" className="flex-1" onClick={(e) => { e.stopPropagation(); handleBet("yes"); }}>
                 Bet Yes
               </Button>
-              <Button variant="no" size="sm" className="flex-1" onClick={() => handleBet("no")}>
+              <Button variant="no" size="sm" className="flex-1" onClick={(e) => { e.stopPropagation(); handleBet("no"); }}>
                 Bet No
               </Button>
             </div>
