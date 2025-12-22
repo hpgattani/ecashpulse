@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, Medal, Award, TrendingUp, Wallet } from 'lucide-react';
+import { Trophy, Medal, Award, TrendingUp, Wallet, Crown, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface LeaderboardEntry {
@@ -29,7 +29,7 @@ export const Leaderboard = () => {
 
   const fetchLeaderboard = async () => {
     try {
-      // Fetch bets with user info to calculate real stats
+      // Fetch bets with user info - focus on winners
       const { data: betsData, error } = await supabase
         .from('bets')
         .select(`
@@ -76,7 +76,7 @@ export const Leaderboard = () => {
         }
       }
 
-      // Convert to array and calculate win rate
+      // Convert to array - prioritize winners
       const leaderboardData: LeaderboardEntry[] = Object.entries(userStats)
         .map(([user_id, stats]) => ({
           user_id,
@@ -88,11 +88,12 @@ export const Leaderboard = () => {
             ? Math.round((stats.total_wins / stats.total_bets) * 100) 
             : 0
         }))
-        .filter(l => l.total_bets > 0)
+        .filter(l => l.total_wins > 0) // Only show users with at least 1 win
         .sort((a, b) => {
-          // Sort by wins first, then by bets
+          // Sort by total winnings first, then by wins
+          if (b.total_winnings !== a.total_winnings) return b.total_winnings - a.total_winnings;
           if (b.total_wins !== a.total_wins) return b.total_wins - a.total_wins;
-          return b.total_bets - a.total_bets;
+          return b.win_rate - a.win_rate;
         })
         .slice(0, 10);
 
@@ -105,20 +106,26 @@ export const Leaderboard = () => {
 
   const formatXEC = (satoshis: number) => {
     const xec = satoshis / 100;
+    if (xec >= 1000000) {
+      return (xec / 1000000).toFixed(2) + 'M XEC';
+    }
+    if (xec >= 1000) {
+      return (xec / 1000).toFixed(1) + 'K XEC';
+    }
     return xec.toLocaleString() + ' XEC';
   };
 
   const getRankIcon = (index: number) => {
-    if (index === 0) return <Trophy className="w-6 h-6 text-yellow-400" />;
-    if (index === 1) return <Medal className="w-6 h-6 text-gray-300" />;
-    if (index === 2) return <Award className="w-6 h-6 text-amber-600" />;
+    if (index === 0) return <Crown className="w-6 h-6 text-yellow-400 drop-shadow-glow" />;
+    if (index === 1) return <Trophy className="w-6 h-6 text-gray-300" />;
+    if (index === 2) return <Medal className="w-6 h-6 text-amber-600" />;
     return <span className="w-6 h-6 flex items-center justify-center text-muted-foreground font-bold">{index + 1}</span>;
   };
 
   const getRankBg = (index: number) => {
-    if (index === 0) return 'bg-gradient-to-r from-yellow-500/20 to-yellow-600/10 border-yellow-500/30';
-    if (index === 1) return 'bg-gradient-to-r from-gray-400/20 to-gray-500/10 border-gray-400/30';
-    if (index === 2) return 'bg-gradient-to-r from-amber-600/20 to-amber-700/10 border-amber-600/30';
+    if (index === 0) return 'bg-gradient-to-r from-yellow-500/30 via-amber-500/20 to-yellow-600/10 border-yellow-500/50 shadow-lg shadow-yellow-500/20';
+    if (index === 1) return 'bg-gradient-to-r from-gray-400/25 to-gray-500/10 border-gray-400/40';
+    if (index === 2) return 'bg-gradient-to-r from-amber-600/25 to-amber-700/10 border-amber-600/40';
     return 'bg-card/50 border-border/50';
   };
 
@@ -146,13 +153,14 @@ export const Leaderboard = () => {
           viewport={{ once: true }}
           className="text-center mb-12"
         >
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-4">
-            <Trophy className="w-4 h-4 text-primary" />
-            <span className="text-sm font-medium text-primary">Top Predictors</span>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-yellow-500/20 to-amber-500/20 border border-yellow-500/30 mb-4">
+            <Crown className="w-4 h-4 text-yellow-400" />
+            <span className="text-sm font-medium text-yellow-400">Winners Circle</span>
+            <Sparkles className="w-4 h-4 text-yellow-400" />
           </div>
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">Leaderboard</h2>
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">Top Winners</h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            The most active predictors on the platform
+            The most successful bettors who have won predictions
           </p>
         </motion.div>
 
@@ -160,7 +168,7 @@ export const Leaderboard = () => {
           {leaders.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Trophy className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p>No active predictors yet. Be the first!</p>
+              <p>No winners yet. Be the first to win a prediction!</p>
             </div>
           ) : leaders.map((leader, index) => (
             <motion.div
@@ -169,7 +177,7 @@ export const Leaderboard = () => {
               whileInView={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.4, delay: index * 0.1 }}
               viewport={{ once: true }}
-              className={`rounded-xl border p-4 backdrop-blur-sm ${getRankBg(index)}`}
+              className={`rounded-xl border p-4 backdrop-blur-sm transition-all hover:scale-[1.02] ${getRankBg(index)}`}
             >
               <div className="flex items-center gap-4">
                 <div className="flex-shrink-0">
@@ -177,8 +185,12 @@ export const Leaderboard = () => {
                 </div>
                 
                 <div className="flex-shrink-0">
-                  <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center border-2 border-primary/30">
-                    <Wallet className="w-6 h-6 text-primary" />
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center border-2 ${
+                    index === 0 
+                      ? 'bg-gradient-to-br from-yellow-500/30 to-amber-600/30 border-yellow-500/50' 
+                      : 'bg-primary/20 border-primary/30'
+                  }`}>
+                    <Wallet className={`w-6 h-6 ${index === 0 ? 'text-yellow-400' : 'text-primary'}`} />
                   </div>
                 </div>
                 
@@ -187,19 +199,22 @@ export const Leaderboard = () => {
                     {formatAddress(leader.ecash_address)}
                   </h3>
                   <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Trophy className="w-3 h-3 text-green-500" />
+                      <span className="text-green-500 font-medium">{leader.total_wins} wins</span>
+                    </span>
                     <span>{leader.total_bets} bets</span>
-                    <span>{leader.total_wins} wins</span>
                   </div>
                 </div>
                 
                 <div className="flex-shrink-0 text-right">
-                  <div className="flex items-center gap-1 text-lg font-bold text-primary">
+                  <div className="flex items-center gap-1 text-lg font-bold text-green-500">
                     <TrendingUp className="w-4 h-4" />
                     {leader.win_rate}%
                   </div>
                   {leader.total_winnings > 0 && (
-                    <div className="text-sm text-muted-foreground">
-                      {formatXEC(leader.total_winnings)}
+                    <div className="text-sm font-semibold text-yellow-400">
+                      💰 {formatXEC(leader.total_winnings)}
                     </div>
                   )}
                 </div>
