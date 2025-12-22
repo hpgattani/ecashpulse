@@ -77,3 +77,6 @@ verify_jwt = false
 
 [functions.admin-get-predictions]
 verify_jwt = false
+
+[functions.fix-bet-attribution]
+verify_jwt = false
