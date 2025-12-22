@@ -58,6 +58,86 @@ async function checkCryptoPrediction(title: string): Promise<OracleResult> {
   
   const price = await getCryptoPrice(coinId);
   if (!price) return { resolved: false };
+
+  // Handle "Up or Down" predictions - use both CoinGecko + Perplexity
+  if (titleLower.includes('up or down') || titleLower.includes('up/down')) {
+    console.log(`📊 Checking ${coinName} up/down with CoinGecko + Perplexity...`);
+    
+    // Get 24h price change from CoinGecko
+    try {
+      const response = await fetch(
+        `https://api.coingecko.com/api/v3/coins/${coinId}?localization=false&tickers=false&community_data=false&developer_data=false`,
+        { headers: { 'Accept': 'application/json' } }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        const priceChange24h = data.market_data?.price_change_percentage_24h;
+        
+        if (priceChange24h !== undefined) {
+          const isUp = priceChange24h >= 0;
+          // For "Up or Down" - YES means UP, NO means DOWN
+          return {
+            resolved: true,
+            outcome: isUp ? 'yes' : 'no',
+            reason: `${coinName} 24h change: ${priceChange24h >= 0 ? '+' : ''}${priceChange24h.toFixed(2)}% (CoinGecko). Current: $${price.toLocaleString()}`,
+            currentValue: `$${price.toLocaleString()} (${priceChange24h >= 0 ? '↑' : '↓'}${Math.abs(priceChange24h).toFixed(2)}%)`
+          };
+        }
+      }
+    } catch (error) {
+      console.error('CoinGecko detailed API error:', error);
+    }
+    
+    // Fallback to Perplexity for up/down verification
+    const perplexityKey = Deno.env.get('PERPLEXITY_API_KEY');
+    if (perplexityKey) {
+      try {
+        const response = await fetch('https://api.perplexity.ai/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${perplexityKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'sonar',
+            messages: [
+              { 
+                role: 'system', 
+                content: 'You verify crypto price movements. Return ONLY valid JSON.'
+              },
+              { 
+                role: 'user', 
+                content: `Is ${coinName} price UP or DOWN today (${new Date().toISOString().split('T')[0]})? Current price: $${price}. Return JSON: {"direction": "up" or "down", "reason": "brief explanation with percentage change"}` 
+              }
+            ],
+            search_recency_filter: 'day',
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const content = data.choices?.[0]?.message?.content || '';
+          let cleaned = content.trim().replace(/```json\n?/g, '').replace(/```\n?/g, '');
+          try {
+            const result = JSON.parse(cleaned);
+            if (result.direction) {
+              const isUp = result.direction.toLowerCase() === 'up';
+              return {
+                resolved: true,
+                outcome: isUp ? 'yes' : 'no',
+                reason: `${coinName} is ${result.direction.toUpperCase()} - ${result.reason} (Perplexity + CoinGecko: $${price.toLocaleString()})`,
+                currentValue: `$${price.toLocaleString()}`
+              };
+            }
+          } catch (e) {
+            console.log('Perplexity parse error for up/down:', e);
+          }
+        }
+      } catch (error) {
+        console.error('Perplexity up/down check error:', error);
+      }
+    }
+  }
   
   // Extract target price from title
   const priceMatch = title.match(/\$?([\d,]+(?:\.\d+)?)\s*(?:k|K)?/);
@@ -76,7 +156,7 @@ async function checkCryptoPrediction(title: string): Promise<OracleResult> {
     return {
       resolved: true,
       outcome: reached ? 'yes' : 'no',
-      reason: `${coinName} price: $${price.toLocaleString()} (target: $${targetPrice.toLocaleString()})`,
+      reason: `${coinName} price: $${price.toLocaleString()} (target: $${targetPrice.toLocaleString()}) via CoinGecko`,
       currentValue: `$${price.toLocaleString()}`
     };
   }
