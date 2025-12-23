@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, Medal, Award, TrendingUp, Wallet, Crown, Sparkles } from 'lucide-react';
+import { Trophy, Medal, TrendingUp, Wallet, Crown, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface LeaderboardEntry {
   user_id: string;
   ecash_address: string;
+  display_name: string | null;
   total_wins: number;
   total_bets: number;
   total_winnings: number;
@@ -29,18 +30,8 @@ export const Leaderboard = () => {
 
   const fetchLeaderboard = async () => {
     try {
-      // Fetch bets with user info - focus on winners
-      const { data: betsData, error } = await supabase
-        .from('bets')
-        .select(`
-          id,
-          user_id,
-          status,
-          amount,
-          payout_amount,
-          users!inner(ecash_address)
-        `)
-        .in('status', ['confirmed', 'won', 'lost']);
+      // Use edge function to bypass RLS restrictions on bets table
+      const { data, error } = await supabase.functions.invoke('get-leaderboard');
 
       if (error) {
         console.error('Error fetching leaderboard:', error);
@@ -48,56 +39,9 @@ export const Leaderboard = () => {
         return;
       }
 
-      // Aggregate stats by user
-      const userStats: Record<string, {
-        ecash_address: string;
-        total_bets: number;
-        total_wins: number;
-        total_winnings: number;
-      }> = {};
-
-      for (const bet of betsData || []) {
-        const userId = bet.user_id;
-        const address = (bet.users as any)?.ecash_address || '';
-
-        if (!userStats[userId]) {
-          userStats[userId] = {
-            ecash_address: address,
-            total_bets: 0,
-            total_wins: 0,
-            total_winnings: 0,
-          };
-        }
-
-        userStats[userId].total_bets += 1;
-        if (bet.status === 'won') {
-          userStats[userId].total_wins += 1;
-          userStats[userId].total_winnings += bet.payout_amount || 0;
-        }
+      if (data?.leaderboard) {
+        setLeaders(data.leaderboard);
       }
-
-      // Convert to array - prioritize winners
-      const leaderboardData: LeaderboardEntry[] = Object.entries(userStats)
-        .map(([user_id, stats]) => ({
-          user_id,
-          ecash_address: stats.ecash_address,
-          total_bets: stats.total_bets,
-          total_wins: stats.total_wins,
-          total_winnings: stats.total_winnings,
-          win_rate: stats.total_bets > 0 
-            ? Math.round((stats.total_wins / stats.total_bets) * 100) 
-            : 0
-        }))
-        .filter(l => l.total_wins > 0) // Only show users with at least 1 win
-        .sort((a, b) => {
-          // Sort by total winnings first, then by wins
-          if (b.total_winnings !== a.total_winnings) return b.total_winnings - a.total_winnings;
-          if (b.total_wins !== a.total_wins) return b.total_wins - a.total_wins;
-          return b.win_rate - a.win_rate;
-        })
-        .slice(0, 10);
-
-      setLeaders(leaderboardData);
     } catch (err) {
       console.error('Leaderboard error:', err);
     }
@@ -195,9 +139,14 @@ export const Leaderboard = () => {
                 </div>
                 
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-mono font-semibold text-sm truncate">
-                    {formatAddress(leader.ecash_address)}
+                  <h3 className="font-semibold text-sm truncate">
+                    {leader.display_name || formatAddress(leader.ecash_address)}
                   </h3>
+                  {leader.display_name && (
+                    <p className="font-mono text-xs text-muted-foreground truncate">
+                      {formatAddress(leader.ecash_address)}
+                    </p>
+                  )}
                   <div className="flex items-center gap-4 text-sm text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Trophy className="w-3 h-3 text-green-500" />
