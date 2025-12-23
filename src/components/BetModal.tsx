@@ -250,7 +250,11 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                   <Button variant="outline" onClick={onClose}>
                     Cancel
                   </Button>
-                  <Button onClick={() => navigate("/auth")}>Connect</Button>
+                  <Button onClick={() => {
+                    // Store return URL so user comes back after login
+                    sessionStorage.setItem('auth_return_url', window.location.pathname);
+                    navigate("/auth");
+                  }}>Connect</Button>
                 </div>
               </div>
             </motion.div>
