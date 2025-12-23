@@ -127,8 +127,12 @@ const Auth = () => {
               description: 'Wallet verified successfully',
             });
             
-            // Reload to update auth context
-            setTimeout(() => (window.location.href = '/'), 1500);
+            // Check for return URL (e.g., user was trying to bet before login)
+            const returnUrl = sessionStorage.getItem('auth_return_url');
+            sessionStorage.removeItem('auth_return_url');
+            
+            // Redirect back to where they came from, or home
+            setTimeout(() => (window.location.href = returnUrl || '/'), 1500);
             return;
           }
         } catch (txError) {
