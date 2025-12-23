@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, Medal, TrendingUp, Wallet, Crown, Sparkles } from 'lucide-react';
+import { Trophy, Medal, TrendingUp, Wallet, Crown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface LeaderboardEntry {
@@ -97,10 +97,9 @@ export const Leaderboard = () => {
           viewport={{ once: true }}
           className="text-center mb-12"
         >
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-yellow-500/20 to-amber-500/20 border border-yellow-500/30 mb-4">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-gray-400/30 via-white/20 to-gray-400/30 border border-gray-300/50 mb-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.4),inset_0_-1px_0_rgba(0,0,0,0.2)] backdrop-blur-sm">
             <Crown className="w-4 h-4 text-yellow-400" />
-            <span className="text-sm font-medium text-yellow-400">Winners Circle</span>
-            <Sparkles className="w-4 h-4 text-yellow-400" />
+            <span className="text-sm font-medium bg-gradient-to-b from-white via-gray-200 to-gray-400 bg-clip-text text-transparent">Winners Circle</span>
           </div>
           <h2 className="text-3xl md:text-4xl font-bold mb-4">Top Winners</h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">

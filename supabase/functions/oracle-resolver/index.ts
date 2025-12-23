@@ -455,38 +455,31 @@ async function processPayouts(supabase: any, predictionId: string, winningPositi
   
   console.log(`Payouts processed for "${prediction.title}"`);
 
-  // Automatically send payments to winners
+  // Automatically trigger payout distribution
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   
   if (!supabaseUrl || !serviceKey) {
-    console.error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY for payout trigger');
+    console.error('Missing env vars for payout trigger');
     return;
   }
   
-  try {
-    console.log(`Triggering automatic payment distribution for prediction ${predictionId}...`);
-    const payoutUrl = `${supabaseUrl}/functions/v1/send-payouts`;
-    console.log(`Calling: ${payoutUrl}`);
-    
-    const payoutResponse = await fetch(payoutUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${serviceKey}`
-      },
-      body: JSON.stringify({ prediction_id: predictionId })
-    });
+  // Call send-payouts to distribute winnings
+  const payoutUrl = `${supabaseUrl}/functions/v1/send-payouts`;
+  
+  const payoutResponse = await fetch(payoutUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${serviceKey}`
+    },
+    body: JSON.stringify({ prediction_id: predictionId })
+  });
 
-    const responseText = await payoutResponse.text();
-    console.log(`Send-payouts response status: ${payoutResponse.status}`);
-    console.log(`Send-payouts response: ${responseText}`);
-    
-    if (!payoutResponse.ok) {
-      console.error(`Automatic payment failed with status ${payoutResponse.status}: ${responseText}`);
-    }
-  } catch (error) {
-    console.error('Error triggering automatic payments:', error);
+  if (!payoutResponse.ok) {
+    console.error(`Payout call failed: ${payoutResponse.status}`);
+  } else {
+    console.log(`Payout triggered successfully for ${predictionId}`);
   }
 }
 
