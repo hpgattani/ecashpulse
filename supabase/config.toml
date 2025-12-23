@@ -80,3 +80,6 @@ verify_jwt = false
 
 [functions.fix-bet-attribution]
 verify_jwt = false
+
+[functions.get-leaderboard]
+verify_jwt = false
