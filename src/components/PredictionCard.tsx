@@ -7,6 +7,7 @@ import BetModal from "./BetModal";
 import { Outcome } from "@/hooks/usePredictions";
 import { toast } from "sonner";
 import { useUserBetSummaries, type UserBetSummary } from "@/hooks/useUserBetSummaries";
+import CountdownTimer from "./CountdownTimer";
 
 interface Prediction {
   id: string;
@@ -263,6 +264,7 @@ const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) =
               <Users className="w-3 h-3" />
               {formatVolume(prediction.volume)} Vol
             </div>
+            <CountdownTimer endDate={prediction.endDate} />
             <div className="flex items-center gap-1">
               <Clock className="w-3 h-3" />
               {formatDate(prediction.endDate)}
