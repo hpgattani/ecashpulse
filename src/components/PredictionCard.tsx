@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, TrendingDown, Clock, Users, Zap, Share2, Copy, Check } from "lucide-react";
+import { TrendingUp, TrendingDown, Clock, Users, Zap, Share2, Copy, Check, CheckCircle2 } from "lucide-react";
 import BetModal from "./BetModal";
 import { Outcome } from "@/hooks/usePredictions";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Prediction {
   id: string;
@@ -30,13 +32,58 @@ interface PredictionCardProps {
   livePrice?: { price: number | null; symbol: string } | null;
 }
 
+interface UserBet {
+  position: string;
+  amount: number;
+  outcome_label?: string;
+}
+
 const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [isBetModalOpen, setIsBetModalOpen] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<"yes" | "no">("yes");
   const [selectedOutcome, setSelectedOutcome] = useState<Outcome | null>(null);
   const [copied, setCopied] = useState(false);
+  const [userBet, setUserBet] = useState<UserBet | null>(null);
 
+  // Fetch user's bet on this prediction
+  useEffect(() => {
+    const fetchUserBet = async () => {
+      if (!user) {
+        setUserBet(null);
+        return;
+      }
+
+      const { data: bets } = await supabase
+        .from("bets")
+        .select("position, amount, outcome_id, status")
+        .eq("prediction_id", prediction.id)
+        .eq("user_id", user.id)
+        .in("status", ["pending", "confirmed", "won", "lost"]);
+
+      if (bets && bets.length > 0) {
+        const totalAmount = bets.reduce((sum, b) => sum + b.amount, 0);
+        const firstBet = bets[0];
+        
+        let outcomeLabel: string | undefined;
+        if (firstBet.outcome_id && prediction.outcomes) {
+          const outcome = prediction.outcomes.find(o => o.id === firstBet.outcome_id);
+          outcomeLabel = outcome?.label;
+        }
+
+        setUserBet({
+          position: firstBet.position,
+          amount: totalAmount,
+          outcome_label: outcomeLabel,
+        });
+      } else {
+        setUserBet(null);
+      }
+    };
+
+    fetchUserBet();
+  }, [prediction.id, user, isBetModalOpen]);
   const isMultiOption =
     Boolean(prediction.isMultiOption) && Array.isArray(prediction.outcomes) && prediction.outcomes.length > 0;
 
@@ -161,6 +208,17 @@ const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) =
           <h3 className="font-display font-semibold text-foreground text-base md:text-lg leading-snug group-hover:text-primary transition-colors">
             {prediction.question}
           </h3>
+
+          {/* User Bet Indicator */}
+          {userBet && (
+            <div className="mt-2 flex items-center gap-1.5 text-xs">
+              <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
+              <span className="text-muted-foreground">
+                Bet placed: <span className="text-primary font-medium">{(userBet.amount / 100).toLocaleString()} XEC</span> on{" "}
+                <span className="text-foreground font-medium">{userBet.outcome_label || userBet.position.toUpperCase()}</span>
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Odds Display */}
