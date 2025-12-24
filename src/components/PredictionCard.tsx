@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -6,8 +6,7 @@ import { TrendingUp, TrendingDown, Clock, Users, Zap, Share2, Copy, Check, Check
 import BetModal from "./BetModal";
 import { Outcome } from "@/hooks/usePredictions";
 import { toast } from "sonner";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { useUserBetSummaries, type UserBetSummary } from "@/hooks/useUserBetSummaries";
 
 interface Prediction {
   id: string;
@@ -32,58 +31,35 @@ interface PredictionCardProps {
   livePrice?: { price: number | null; symbol: string } | null;
 }
 
-interface UserBet {
-  position: string;
-  amount: number;
-  outcome_label?: string;
-}
-
 const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { betByPredictionId } = useUserBetSummaries();
+  const userBet: UserBetSummary | null = betByPredictionId[prediction.id] ?? null;
+
   const [isBetModalOpen, setIsBetModalOpen] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<"yes" | "no">("yes");
   const [selectedOutcome, setSelectedOutcome] = useState<Outcome | null>(null);
   const [copied, setCopied] = useState(false);
-  const [userBet, setUserBet] = useState<UserBet | null>(null);
 
-  // Fetch user's bet on this prediction
+  const [stampOpen, setStampOpen] = useState(false);
+  const closeTimeoutRef = useRef<number | null>(null);
+
   useEffect(() => {
-    const fetchUserBet = async () => {
-      if (!user) {
-        setUserBet(null);
-        return;
+    if (!userBet) setStampOpen(false);
+  }, [userBet]);
+
+  const toggleStamp = (e: React.SyntheticEvent) => {
+    e.stopPropagation();
+
+    setStampOpen((v) => {
+      const next = !v;
+      if (closeTimeoutRef.current) window.clearTimeout(closeTimeoutRef.current);
+      if (next) {
+        closeTimeoutRef.current = window.setTimeout(() => setStampOpen(false), 2600);
       }
-
-      const { data: bets } = await supabase
-        .from("bets")
-        .select("position, amount, outcome_id, status")
-        .eq("prediction_id", prediction.id)
-        .eq("user_id", user.id)
-        .in("status", ["pending", "confirmed", "won", "lost"]);
-
-      if (bets && bets.length > 0) {
-        const totalAmount = bets.reduce((sum, b) => sum + b.amount, 0);
-        const firstBet = bets[0];
-        
-        let outcomeLabel: string | undefined;
-        if (firstBet.outcome_id && prediction.outcomes) {
-          const outcome = prediction.outcomes.find(o => o.id === firstBet.outcome_id);
-          outcomeLabel = outcome?.label;
-        }
-
-        setUserBet({
-          position: firstBet.position,
-          amount: totalAmount,
-          outcome_label: outcomeLabel,
-        });
-      } else {
-        setUserBet(null);
-      }
-    };
-
-    fetchUserBet();
-  }, [prediction.id, user, isBetModalOpen]);
+      return next;
+    });
+  };
   const isMultiOption =
     Boolean(prediction.isMultiOption) && Array.isArray(prediction.outcomes) && prediction.outcomes.length > 0;
 
