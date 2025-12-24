@@ -68,7 +68,8 @@ Deno.serve(async (req) => {
       .from('bets')
       .select(`
         *,
-        prediction:predictions(title, status, end_date, yes_pool, no_pool)
+        prediction:predictions(title, status, end_date, yes_pool, no_pool),
+        outcome:outcomes(label)
       `)
       .eq('user_id', user_id)
       .order('created_at', { ascending: false });

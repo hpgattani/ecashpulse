@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { Zap, AlertCircle, Loader2, CheckCircle, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { ChronikClient } from 'chronik-client';
 
@@ -42,7 +42,6 @@ const Auth = () => {
   const payButtonRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   // Load PayButton script
   useEffect(() => {
@@ -122,8 +121,7 @@ const Auth = () => {
             }
 
             setAuthSuccess(true);
-            toast({
-              title: 'Welcome!',
+            toast.success('Welcome!', {
               description: 'Wallet verified successfully',
             });
             
