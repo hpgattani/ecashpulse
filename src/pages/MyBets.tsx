@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import PredictionDetailModal from '@/components/PredictionDetailModal';
+import CountdownTimer from '@/components/CountdownTimer';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Outcome } from '@/hooks/usePredictions';
@@ -270,6 +271,7 @@ const MyBets = () => {
                           {bet.position.toUpperCase()}
                         </Badge>
                         {getStatusBadge(bet.status)}
+                        <CountdownTimer endDate={bet.prediction.end_date} />
                         <span className="text-muted-foreground">
                           {formatDate(bet.created_at)}
                         </span>
