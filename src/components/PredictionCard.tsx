@@ -49,7 +49,13 @@ const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) =
     if (!userBet) setStampOpen(false);
   }, [userBet]);
 
-  const toggleStamp = (e: React.SyntheticEvent) => {
+  useEffect(() => {
+    return () => {
+      if (closeTimeoutRef.current) window.clearTimeout(closeTimeoutRef.current);
+    };
+  }, []);
+
+  const toggleStamp = (e: any) => {
     e.stopPropagation();
 
     setStampOpen((v) => {
@@ -148,20 +154,61 @@ const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) =
         className="glass-card overflow-hidden group cursor-pointer relative"
         onClick={handleCardClick}
       >
-        {/* Bet Placed Watermark Stamp */}
+        {/* Bet Placed Watermark Stamp (rubber-stamp seal) */}
         {userBet && (
           <div className="absolute top-3 right-3 z-10 group/stamp">
-            <div className="relative w-12 h-12 md:w-14 md:h-14 flex items-center justify-center rounded-full border-2 border-primary/60 bg-primary/10 backdrop-blur-sm rotate-[-12deg] transition-all duration-300 group-hover/stamp:scale-110 group-hover/stamp:rotate-0 group-hover/stamp:border-primary group-hover/stamp:shadow-[0_0_20px_hsl(var(--primary)/0.5)] cursor-default"
-              onClick={(e) => e.stopPropagation()}
+            <button
+              type="button"
+              aria-label="View your bet details"
+              onClick={toggleStamp}
+              className={
+                "relative w-12 h-12 md:w-14 md:h-14 flex items-center justify-center rounded-full border-2 border-primary/70 bg-primary/5 backdrop-blur-sm rotate-[-12deg] transition-all duration-300 cursor-default focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 " +
+                "group-hover/stamp:scale-110 group-hover/stamp:rotate-0 group-hover/stamp:border-primary group-hover/stamp:shadow-[0_0_24px_hsl(var(--primary)/0.45)] " +
+                (stampOpen ? "scale-110 rotate-0 border-primary shadow-[0_0_24px_hsl(var(--primary)/0.45)]" : "")
+              }
             >
-              <CheckCircle2 className="w-6 h-6 md:w-7 md:h-7 text-primary" />
-            </div>
-            {/* Tooltip on hover */}
-            <div className="absolute top-full right-0 mt-2 opacity-0 scale-95 group-hover/stamp:opacity-100 group-hover/stamp:scale-100 transition-all duration-200 pointer-events-none z-20">
+              {/* inner texture + dashed ring */}
+              <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_30%_30%,hsl(var(--primary)_/_0.16),transparent_62%)]" />
+              <div className="absolute inset-1 rounded-full border border-primary/40 border-dashed" />
+
+              <span className="absolute top-2 left-1/2 -translate-x-1/2 text-[9px] md:text-[10px] tracking-[0.32em] text-primary/90 font-semibold">
+                BET
+              </span>
+              <span className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[9px] md:text-[10px] tracking-[0.24em] text-primary/90 font-semibold">
+                PLACED
+              </span>
+
+              <CheckCircle2 className="relative w-6 h-6 md:w-7 md:h-7 text-primary" />
+
+              {/* pick hint */}
+              <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[9px] md:text-[10px] px-1.5 py-0.5 rounded-full bg-card border border-primary/30 text-primary font-semibold">
+                {(userBet.picks?.length || 0) > 1
+                  ? `${userBet.picks.length}x`
+                  : String(userBet.outcome_label || userBet.position).toUpperCase().slice(0, 6)}
+              </span>
+            </button>
+
+            {/* Tooltip on hover OR tap */}
+            <div
+              className={
+                "absolute top-full right-0 mt-2 transition-all duration-200 z-20 " +
+                (stampOpen ? "opacity-100 scale-100" : "opacity-0 scale-95 group-hover/stamp:opacity-100 group-hover/stamp:scale-100")
+              }
+            >
               <div className="bg-card border border-primary/40 rounded-lg px-3 py-2 shadow-lg shadow-primary/20 whitespace-nowrap">
                 <p className="text-xs text-muted-foreground mb-0.5">Your Bet</p>
                 <p className="text-sm font-bold text-primary">{(userBet.amount / 100).toLocaleString()} XEC</p>
-                <p className="text-xs font-medium text-foreground">on {userBet.outcome_label || userBet.position.toUpperCase()}</p>
+                <p className="text-xs font-medium text-foreground">
+                  on{" "}
+                  {(() => {
+                    const picks = userBet.picks?.length
+                      ? userBet.picks
+                      : [userBet.outcome_label || String(userBet.position).toUpperCase()];
+                    const shown = picks.slice(0, 2);
+                    const extra = picks.length - shown.length;
+                    return extra > 0 ? `${shown.join(", ")} +${extra} more` : shown.join(", ");
+                  })()}
+                </p>
               </div>
             </div>
           </div>
