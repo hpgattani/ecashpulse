@@ -190,25 +190,35 @@ const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) =
 
             {/* Tooltip on hover OR tap */}
             <div
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
               className={
                 "absolute top-full right-0 mt-2 transition-all duration-200 z-20 " +
-                (stampOpen ? "opacity-100 scale-100" : "opacity-0 scale-95 group-hover/stamp:opacity-100 group-hover/stamp:scale-100")
+                (stampOpen
+                  ? "opacity-100 scale-100 pointer-events-auto"
+                  : "opacity-0 scale-95 pointer-events-none group-hover/stamp:opacity-100 group-hover/stamp:scale-100 group-hover/stamp:pointer-events-auto")
               }
             >
-              <div className="bg-card border border-primary/40 rounded-lg px-3 py-2 shadow-lg shadow-primary/20 whitespace-nowrap">
+              <div className="bg-card border border-primary/40 rounded-lg px-3 py-2 shadow-lg shadow-primary/20 min-w-[120px]">
                 <p className="text-xs text-muted-foreground mb-0.5">Your Bet</p>
                 <p className="text-sm font-bold text-primary">{(userBet.amount / 100).toLocaleString()} XEC</p>
-                <p className="text-xs font-medium text-foreground">
-                  on{" "}
+                <div className="text-xs font-medium text-foreground mt-0.5">
                   {(() => {
                     const picks = userBet.picks?.length
                       ? userBet.picks
                       : [userBet.outcome_label || String(userBet.position).toUpperCase()];
-                    const shown = picks.slice(0, 2);
-                    const extra = picks.length - shown.length;
-                    return extra > 0 ? `${shown.join(", ")} +${extra} more` : shown.join(", ");
+                    if (picks.length === 1) {
+                      return <span>on <span className="text-primary">{picks[0]}</span></span>;
+                    }
+                    return (
+                      <ul className="list-disc pl-3 mt-1 space-y-0.5">
+                        {picks.map((p, i) => (
+                          <li key={i} className="text-primary">{p}</li>
+                        ))}
+                      </ul>
+                    );
                   })()}
-                </p>
+                </div>
               </div>
             </div>
           </div>
