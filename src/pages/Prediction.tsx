@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { motion } from "framer-motion";
-import { ArrowLeft, Share2, Clock, Users, TrendingUp, TrendingDown, Copy, Check } from "lucide-react";
+import { ArrowLeft, Share2, Clock, Users, TrendingUp, TrendingDown, Copy, Check, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
@@ -10,6 +10,7 @@ import Footer from "@/components/Footer";
 import BetModal from "@/components/BetModal";
 import { Outcome } from "@/hooks/usePredictions";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface PredictionData {
   id: string;
@@ -24,14 +25,22 @@ interface PredictionData {
   outcomes?: Outcome[];
 }
 
+interface UserBet {
+  position: string;
+  amount: number;
+  outcome_label?: string;
+}
+
 const Prediction = () => {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
   const [prediction, setPrediction] = useState<PredictionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isBetModalOpen, setIsBetModalOpen] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<"yes" | "no">("yes");
   const [selectedOutcome, setSelectedOutcome] = useState<Outcome | null>(null);
   const [copied, setCopied] = useState(false);
+  const [userBet, setUserBet] = useState<UserBet | null>(null);
 
   useEffect(() => {
     const fetchPrediction = async () => {
@@ -73,6 +82,50 @@ const Prediction = () => {
 
     fetchPrediction();
   }, [id]);
+
+  // Fetch user's bet on this prediction
+  useEffect(() => {
+    const fetchUserBet = async () => {
+      if (!id || !user) {
+        setUserBet(null);
+        return;
+      }
+
+      const { data: bets } = await supabase
+        .from("bets")
+        .select("position, amount, outcome_id, status")
+        .eq("prediction_id", id)
+        .eq("user_id", user.id)
+        .in("status", ["pending", "confirmed", "won", "lost"]);
+
+      if (bets && bets.length > 0) {
+        // Sum up all bets by the user on this prediction
+        const totalAmount = bets.reduce((sum, b) => sum + b.amount, 0);
+        const firstBet = bets[0];
+        
+        // If multi-option, get the outcome label
+        let outcomeLabel: string | undefined;
+        if (firstBet.outcome_id) {
+          const { data: outcome } = await supabase
+            .from("outcomes")
+            .select("label")
+            .eq("id", firstBet.outcome_id)
+            .single();
+          outcomeLabel = outcome?.label;
+        }
+
+        setUserBet({
+          position: firstBet.position,
+          amount: totalAmount,
+          outcome_label: outcomeLabel,
+        });
+      } else {
+        setUserBet(null);
+      }
+    };
+
+    fetchUserBet();
+  }, [id, user, isBetModalOpen]);
 
   const handleShare = async () => {
     const url = window.location.href;
@@ -245,6 +298,19 @@ const Prediction = () => {
 
                 {prediction.description && (
                   <p className="mt-4 text-muted-foreground">{prediction.description}</p>
+                )}
+
+                {/* User Bet Indicator */}
+                {userBet && (
+                  <div className="mt-4 flex items-center gap-2 px-4 py-3 rounded-lg bg-primary/10 border border-primary/30">
+                    <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0" />
+                    <span className="text-sm font-medium text-foreground">
+                      You bet {(userBet.amount / 100).toLocaleString()} XEC on{" "}
+                      <span className="text-primary font-semibold">
+                        {userBet.outcome_label || userBet.position.toUpperCase()}
+                      </span>
+                    </span>
+                  </div>
                 )}
               </div>
 

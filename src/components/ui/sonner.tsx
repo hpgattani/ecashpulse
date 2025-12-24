@@ -11,19 +11,15 @@ const Toaster = ({ ...props }: ToasterProps) => {
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
       position="top-center"
-      expand={true}
-      richColors
       toastOptions={{
         classNames: {
           toast:
-            "group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-xl group-[.toaster]:text-base group-[.toaster]:p-4 group-[.toaster]:min-h-[60px]",
+            "group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-xl group-[.toaster]:text-base group-[.toaster]:px-6 group-[.toaster]:py-4 group-[.toaster]:min-h-[56px]",
           description: "group-[.toast]:text-muted-foreground group-[.toast]:text-sm",
           actionButton: "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
           cancelButton: "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
-          success: "group-[.toaster]:!bg-emerald-500/20 group-[.toaster]:!border-emerald-500/50 group-[.toaster]:!text-emerald-100",
-          error: "group-[.toaster]:!bg-red-500/20 group-[.toaster]:!border-red-500/50 group-[.toaster]:!text-red-100",
         },
-        duration: 5000,
+        duration: 4000,
       }}
       {...props}
     />
