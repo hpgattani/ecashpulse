@@ -124,6 +124,10 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
         window.dispatchEvent(new Event('predictions:refetch'));
         setTimeout(() => window.dispatchEvent(new Event('predictions:refetch')), 1200);
 
+        // Refresh user bet summaries so the "rubber stamp" watermark updates right away.
+        window.dispatchEvent(new Event('userbets:refetch'));
+        setTimeout(() => window.dispatchEvent(new Event('userbets:refetch')), 1200);
+
         setTimeout(() => {
           setBetSuccess(false);
           onClose();

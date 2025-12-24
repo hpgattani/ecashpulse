@@ -6,6 +6,7 @@ export type UserBetSummary = {
   position: string;
   amount: number; // satoshis (XEC * 100)
   outcome_label?: string;
+  picks: string[]; // e.g. ["YES"] or ["Team A", "Team B"]
 };
 
 type BetRow = {
@@ -59,7 +60,8 @@ function buildSummaryMap(bets: BetRow[]): Record<string, UserBetSummary> {
     map[predictionId] = {
       amount: v.amount,
       position: positions.length === 1 ? positions[0] : "multiple",
-      outcome_label: picks.length === 1 ? v.outcomeLabel ?? picks[0] : "Multiple",
+      outcome_label: picks.length === 1 ? v.outcomeLabel ?? picks[0] : `${picks.length} picks`,
+      picks,
     };
   }
 
@@ -74,7 +76,9 @@ async function fetchBetSummaries(sessionToken: string): Promise<Record<string, U
   if (error) throw error;
 
   const bets = (data?.bets || []) as BetRow[];
-  const eligible = bets.filter((b) => ["pending", "confirmed", "won", "lost"].includes(String(b.status)));
+  const eligible = bets.filter((b) =>
+    ["pending", "confirmed", "won", "lost", "refunded"].includes(String(b.status))
+  );
   return buildSummaryMap(eligible);
 }
 
@@ -85,49 +89,64 @@ export function useUserBetSummaries() {
 
   const token = sessionToken?.trim() || "";
 
-  const refresh = useCallback(async () => {
-    if (!token) {
-      setBetByPredictionId({});
-      setLoading(false);
-      return;
-    }
+  const refresh = useCallback(
+    async (opts?: { force?: boolean }) => {
+      const force = Boolean(opts?.force);
 
-    // Serve from cache if available
-    if (cache?.token === token && cache.data) {
-      setBetByPredictionId(cache.data);
-      setLoading(false);
-      return;
-    }
+      if (!token) {
+        setBetByPredictionId({});
+        setLoading(false);
+        return;
+      }
 
-    setLoading(true);
+      if (force) {
+        cache = null;
+      }
 
-    if (!cache || cache.token !== token) {
-      cache = { token, promise: null, data: null };
-    }
+      // Serve from cache if available
+      if (cache?.token === token && cache.data) {
+        setBetByPredictionId(cache.data);
+        setLoading(false);
+        return;
+      }
 
-    if (!cache.promise) {
-      cache.promise = fetchBetSummaries(token)
-        .then((map) => {
-          cache = { token, promise: null, data: map };
-          return map;
-        })
-        .catch((e) => {
-          // reset cache on failure so next try can retry
-          cache = null;
-          throw e;
-        });
-    }
+      setLoading(true);
 
-    try {
-      const map = await cache.promise;
-      setBetByPredictionId(map);
-    } finally {
-      setLoading(false);
-    }
-  }, [token]);
+      if (!cache || cache.token !== token) {
+        cache = { token, promise: null, data: null };
+      }
+
+      if (!cache.promise) {
+        cache.promise = fetchBetSummaries(token)
+          .then((map) => {
+            cache = { token, promise: null, data: map };
+            return map;
+          })
+          .catch((e) => {
+            // reset cache on failure so next try can retry
+            cache = null;
+            throw e;
+          });
+      }
+
+      try {
+        const map = await cache.promise;
+        setBetByPredictionId(map);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [token]
+  );
 
   useEffect(() => {
     refresh();
+  }, [refresh]);
+
+  useEffect(() => {
+    const handler = () => refresh({ force: true });
+    window.addEventListener("userbets:refetch", handler);
+    return () => window.removeEventListener("userbets:refetch", handler);
   }, [refresh]);
 
   return useMemo(
