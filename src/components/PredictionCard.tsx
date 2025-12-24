@@ -168,9 +168,28 @@ const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) =
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: index * 0.1, duration: 0.4 }}
         whileHover={{ y: -4 }}
-        className="glass-card overflow-hidden group cursor-pointer"
+        className="glass-card overflow-hidden group cursor-pointer relative"
         onClick={handleCardClick}
       >
+        {/* Bet Placed Watermark Stamp */}
+        {userBet && (
+          <div className="absolute top-3 right-3 z-10 group/stamp">
+            <div className="relative w-12 h-12 md:w-14 md:h-14 flex items-center justify-center rounded-full border-2 border-primary/60 bg-primary/10 backdrop-blur-sm rotate-[-12deg] transition-all duration-300 group-hover/stamp:scale-110 group-hover/stamp:rotate-0 group-hover/stamp:border-primary group-hover/stamp:shadow-[0_0_20px_hsl(var(--primary)/0.5)] cursor-default"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <CheckCircle2 className="w-6 h-6 md:w-7 md:h-7 text-primary" />
+            </div>
+            {/* Tooltip on hover */}
+            <div className="absolute top-full right-0 mt-2 opacity-0 scale-95 group-hover/stamp:opacity-100 group-hover/stamp:scale-100 transition-all duration-200 pointer-events-none z-20">
+              <div className="bg-card border border-primary/40 rounded-lg px-3 py-2 shadow-lg shadow-primary/20 whitespace-nowrap">
+                <p className="text-xs text-muted-foreground mb-0.5">Your Bet</p>
+                <p className="text-sm font-bold text-primary">{(userBet.amount / 100).toLocaleString()} XEC</p>
+                <p className="text-xs font-medium text-foreground">on {userBet.outcome_label || userBet.position.toUpperCase()}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div className="p-4 md:p-5 border-b border-border/30">
           <div className="flex items-start justify-between gap-3 mb-3">
@@ -183,7 +202,7 @@ const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) =
                 <span className="text-xs px-1.5 py-0.5 rounded bg-primary/20 text-primary font-medium">Multi</span>
               )}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 mr-14">
               {livePrice?.price != null && (
                 <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent/20 text-accent text-xs font-mono">
                   <Zap className="w-3 h-3" />
@@ -205,20 +224,9 @@ const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) =
             </div>
           </div>
 
-          <h3 className="font-display font-semibold text-foreground text-base md:text-lg leading-snug group-hover:text-primary transition-colors">
+          <h3 className="font-display font-semibold text-foreground text-base md:text-lg leading-snug group-hover:text-primary transition-colors pr-12">
             {prediction.question}
           </h3>
-
-          {/* User Bet Indicator */}
-          {userBet && (
-            <div className="mt-2 flex items-center gap-1.5 text-xs">
-              <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
-              <span className="text-muted-foreground">
-                Bet placed: <span className="text-primary font-medium">{(userBet.amount / 100).toLocaleString()} XEC</span> on{" "}
-                <span className="text-foreground font-medium">{userBet.outcome_label || userBet.position.toUpperCase()}</span>
-              </span>
-            </div>
-          )}
         </div>
 
         {/* Odds Display */}
