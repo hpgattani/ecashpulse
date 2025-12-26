@@ -13,6 +13,96 @@ function isValidUUID(str: string): boolean {
   return uuidRegex.test(str);
 }
 
+// Convert P2PKH outputScript hex back to eCash cashaddr
+function outputScriptToAddress(script: string): string | null {
+  try {
+    // P2PKH script format: 76a914<20-byte-hash>88ac
+    if (!script.startsWith('76a914') || !script.endsWith('88ac') || script.length !== 50) {
+      return null;
+    }
+    
+    const hashHex = script.slice(6, 46);
+    const hash = [];
+    for (let i = 0; i < hashHex.length; i += 2) {
+      hash.push(parseInt(hashHex.substr(i, 2), 16));
+    }
+    
+    // Add version byte (0 for P2PKH)
+    const payload8bit = [0, ...hash];
+    
+    // Convert 8-bit bytes to 5-bit groups
+    const CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+    let acc = 0;
+    let bits = 0;
+    const payload5bit: number[] = [];
+    
+    for (const byte of payload8bit) {
+      acc = (acc << 8) | byte;
+      bits += 8;
+      while (bits >= 5) {
+        bits -= 5;
+        payload5bit.push((acc >> bits) & 0x1f);
+      }
+    }
+    if (bits > 0) {
+      payload5bit.push((acc << (5 - bits)) & 0x1f);
+    }
+    
+    // Calculate checksum (simplified - using polymod)
+    const prefixData = [2, 3, 0, 19, 8, 0]; // "ecash" prefix as 5-bit values
+    const checksumInput = [...prefixData, ...payload5bit, 0, 0, 0, 0, 0, 0, 0, 0];
+    
+    let c = 1;
+    const generator = [0x98f2bc8e61, 0x79b76d99e2, 0xf33e5fb3c4, 0xae2eabe2a8, 0x1e4f43e470];
+    for (const d of checksumInput) {
+      const c0 = c >> 35;
+      c = ((c & 0x07ffffffff) << 5) ^ d;
+      for (let i = 0; i < 5; i++) {
+        if ((c0 >> i) & 1) {
+          c ^= generator[i];
+        }
+      }
+    }
+    c ^= 1;
+    
+    const checksum: number[] = [];
+    for (let i = 0; i < 8; i++) {
+      checksum.push((c >> (5 * (7 - i))) & 0x1f);
+    }
+    
+    const fullPayload = [...payload5bit, ...checksum];
+    const address = 'ecash:q' + fullPayload.map(v => CHARSET[v]).join('');
+    
+    return address;
+  } catch (error) {
+    console.error('Script to address conversion error:', error);
+    return null;
+  }
+}
+
+// Get sender address from transaction using Chronik API
+async function getSenderFromTx(txHash: string): Promise<string | null> {
+  try {
+    const response = await fetch(`https://chronik.fabien.cash/tx/${txHash}`);
+    if (!response.ok) {
+      console.error(`Chronik API error: ${response.status}`);
+      return null;
+    }
+    
+    const tx = await response.json();
+    
+    // Extract sender address from first input
+    if (tx.inputs && tx.inputs.length > 0 && tx.inputs[0].outputScript) {
+      return outputScriptToAddress(tx.inputs[0].outputScript);
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error fetching tx from Chronik:', error);
+    return null;
+  }
+}
+
 async function validateSession(supabase: any, sessionToken: string | null | undefined) {
   if (!sessionToken || typeof sessionToken !== 'string') {
     return { valid: false, error: 'Session token is required' };
@@ -70,8 +160,57 @@ Deno.serve(async (req) => {
       );
     }
 
-    const user_id = sessionResult.userId;
+    let user_id = sessionResult.userId;
     console.log(`Processing bet: user=${user_id}, prediction=${prediction_id}, position=${position}, amount=${amount}`);
+
+    // If tx_hash provided, verify the actual sender and use that user instead
+    if (tx_hash) {
+      const senderAddress = await getSenderFromTx(tx_hash);
+      if (senderAddress) {
+        const normalizedAddress = senderAddress.trim().toLowerCase();
+        console.log(`Transaction sender address: ${normalizedAddress}`);
+        
+        // Get logged-in user's address
+        const { data: loggedInUser } = await supabase
+          .from('users')
+          .select('ecash_address')
+          .eq('id', user_id)
+          .maybeSingle();
+        
+        const loggedInAddress = loggedInUser?.ecash_address?.trim().toLowerCase();
+        
+        // If sender differs from logged-in user, find or create user for sender
+        if (loggedInAddress !== normalizedAddress) {
+          console.log(`Sender (${normalizedAddress}) differs from logged-in user (${loggedInAddress})`);
+          
+          // Check if sender wallet already exists as a user
+          let { data: senderUser } = await supabase
+            .from('users')
+            .select('id')
+            .eq('ecash_address', normalizedAddress)
+            .maybeSingle();
+          
+          if (!senderUser) {
+            // Create new user for this wallet
+            const { data: newUser, error: createError } = await supabase
+              .from('users')
+              .insert({ ecash_address: normalizedAddress })
+              .select()
+              .single();
+            
+            if (!createError && newUser) {
+              senderUser = newUser;
+              console.log(`Created new user for sender wallet: ${normalizedAddress}`);
+            }
+          }
+          
+          if (senderUser) {
+            user_id = senderUser.id;
+            console.log(`Re-attributed bet to actual sender: ${user_id}`);
+          }
+        }
+      }
+    }
 
     if (!prediction_id || !isValidUUID(prediction_id)) {
       return new Response(
