@@ -365,11 +365,31 @@ async function syncPredictions(supabase: any): Promise<{ created: number; resolv
   for (const market of allMarkets) {
     if (!market.title) continue;
 
-    // Skip predictions with past years in title (prevents outdated predictions)
     const titleLower = market.title.toLowerCase();
+    
+    // Skip predictions with past years in title (prevents outdated predictions)
     const hasPastYear = pastYears.some(year => titleLower.includes(year));
     if (hasPastYear) {
       console.log(`Skipping outdated prediction: ${market.title.slice(0, 50)}`);
+      continue;
+    }
+    
+    // Skip non-Yes/No style predictions (multi-option, open-ended, vague)
+    const invalidPatterns = [
+      'which ', 'who will', 'what will', 'how many', 'how much',
+      '# tweets', 'number of tweets', 'highest temperature', 'top performing',
+      '#1 song', 'vs.', ' vs ', 'announced by', 'price on ',
+      '___', '...'
+    ];
+    const hasInvalidPattern = invalidPatterns.some(pattern => titleLower.includes(pattern));
+    if (hasInvalidPattern) {
+      console.log(`Skipping non-Yes/No prediction: ${market.title.slice(0, 50)}`);
+      continue;
+    }
+    
+    // Must end with ? to be a proper question
+    if (!market.title.trim().endsWith('?')) {
+      console.log(`Skipping non-question: ${market.title.slice(0, 50)}`);
       continue;
     }
 
