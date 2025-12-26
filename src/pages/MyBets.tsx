@@ -131,9 +131,14 @@ const MyBets = () => {
     const noOdds = totalPool > 0 ? Math.round((prediction.no_pool / totalPool) * 100) : 50;
 
     let mappedOutcomes: Outcome[] | undefined;
-    let isMultiOption = false;
 
-    if (outcomes && outcomes.length > 0) {
+    const normalizedLabels = (outcomes || []).map((o) => o.label.toLowerCase().trim());
+    const isStandardYesNo = (outcomes?.length ?? 0) === 2 && normalizedLabels.includes('yes') && normalizedLabels.includes('no');
+    const isStandardUpDown = (outcomes?.length ?? 0) === 2 && normalizedLabels.includes('up') && normalizedLabels.includes('down');
+    const isBinary = isStandardYesNo || isStandardUpDown;
+    const isMultiOption = Boolean(outcomes && outcomes.length > 0 && (outcomes.length > 2 || !isBinary));
+
+    if (isMultiOption) {
       const outcomeTotalPool = outcomes.reduce((sum, o) => sum + o.pool, 0);
       mappedOutcomes = outcomes.map(o => ({
         id: o.id,
@@ -141,7 +146,6 @@ const MyBets = () => {
         pool: o.pool,
         odds: outcomeTotalPool > 0 ? Math.round((o.pool / outcomeTotalPool) * 100) : Math.round(100 / outcomes.length)
       }));
-      isMultiOption = true;
     }
 
     const fullPrediction: FullPrediction = {

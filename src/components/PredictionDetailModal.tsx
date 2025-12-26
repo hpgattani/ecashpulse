@@ -35,14 +35,15 @@ interface PredictionDetailModalProps {
 }
 
 const PredictionDetailModal = ({ isOpen, onClose, prediction, onSelectOutcome }: PredictionDetailModalProps) => {
-  const [activeTab, setActiveTab] = useState<'outcomes' | 'activity'>('outcomes');
+  const [activeTab, setActiveTab] = useState<'outcomes' | 'activity'>('activity');
   const [activities, setActivities] = useState<BetActivity[]>([]);
 
   useEffect(() => {
-    if (isOpen) {
-      fetchActivity();
-    }
-  }, [isOpen, prediction.id]);
+    if (!isOpen) return;
+
+    setActiveTab(prediction.isMultiOption && prediction.outcomes && prediction.outcomes.length > 0 ? 'outcomes' : 'activity');
+    fetchActivity();
+  }, [isOpen, prediction.id, prediction.isMultiOption, prediction.outcomes?.length]);
 
   const fetchActivity = async () => {
     try {
@@ -124,15 +125,18 @@ const PredictionDetailModal = ({ isOpen, onClose, prediction, onSelectOutcome }:
 
               {/* Tabs */}
               <div className="flex gap-2 mb-4 border-b border-border pb-2">
-                <Button
-                  variant={activeTab === 'outcomes' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setActiveTab('outcomes')}
-                  className="gap-1"
-                >
-                  <Users className="w-4 h-4" />
-                  Outcomes
-                </Button>
+                {prediction.isMultiOption && prediction.outcomes && prediction.outcomes.length > 0 && (
+                  <Button
+                    variant={activeTab === 'outcomes' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setActiveTab('outcomes')}
+                    className="gap-1"
+                  >
+                    <Users className="w-4 h-4" />
+                    Outcomes
+                  </Button>
+                )}
+
                 <Button
                   variant={activeTab === 'activity' ? 'default' : 'ghost'}
                   size="sm"
@@ -146,7 +150,7 @@ const PredictionDetailModal = ({ isOpen, onClose, prediction, onSelectOutcome }:
 
               {/* Content */}
               <div className="flex-1 overflow-y-auto min-h-[200px]">
-                {activeTab === 'outcomes' && prediction.outcomes && (
+                {activeTab === 'outcomes' && prediction.isMultiOption && prediction.outcomes && (
                   <div className="space-y-2">
                     {prediction.outcomes.map((outcome) => (
                       <button
