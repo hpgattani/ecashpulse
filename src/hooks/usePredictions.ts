@@ -207,11 +207,13 @@ export const usePredictions = () => {
 
     const task = (async () => {
       try {
+        const now = new Date().toISOString();
         const [predictionsResult, outcomesResult] = await Promise.all([
           supabase
             .from('predictions')
             .select('*')
             .eq('status', 'active')
+            .gt('end_date', now) // Only show predictions that haven't expired
             .order('created_at', { ascending: false }),
           supabase.from('outcomes').select('*'),
         ]);
