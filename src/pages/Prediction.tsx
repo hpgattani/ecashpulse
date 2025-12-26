@@ -207,7 +207,17 @@ const Prediction = () => {
   const totalPool = prediction.yes_pool + prediction.no_pool;
   const yesOdds = totalPool > 0 ? Math.round((prediction.yes_pool / totalPool) * 100) : 50;
   const noOdds = totalPool > 0 ? Math.round((prediction.no_pool / totalPool) * 100) : 50;
-  const isMultiOption = prediction.outcomes && prediction.outcomes.length > 0;
+  const isMultiOption = (() => {
+    const outcomes = prediction.outcomes;
+    if (!outcomes || outcomes.length === 0) return false;
+
+    const labels = outcomes.map((o) => o.label.toLowerCase().trim());
+    const isStandardYesNo = outcomes.length === 2 && labels.includes("yes") && labels.includes("no");
+    const isStandardUpDown = outcomes.length === 2 && labels.includes("up") && labels.includes("down");
+    const isBinary = isStandardYesNo || isStandardUpDown;
+
+    return outcomes.length > 2 || !isBinary;
+  })();
 
   const handleBet = (position: "yes" | "no") => {
     setSelectedPosition(position);
