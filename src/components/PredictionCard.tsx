@@ -77,10 +77,9 @@ const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) =
   const negativeLabel = isUpDown ? 'Down' : 'No';
 
   const formatVolume = (vol: number) => {
-    if (vol >= 1000000) return `$${(vol / 1000000).toFixed(1)}M`;
-    if (vol >= 1000) return `$${(vol / 1000).toFixed(0)}K`;
-    if (vol >= 1) return `$${vol.toFixed(2)}`;
-    return `$${vol.toFixed(4)}`;
+    if (vol >= 1000000) return `${(vol / 1000000).toFixed(1)}M XEC`;
+    if (vol >= 1000) return `${(vol / 1000).toFixed(1)}K XEC`;
+    return `${Math.round(vol).toLocaleString()} XEC`;
   };
 
   const formatDate = (dateStr: string) => {
