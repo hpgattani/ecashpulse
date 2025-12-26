@@ -174,8 +174,8 @@ const transformPrediction = (p: DBPrediction, outcomes: DBOutcome[]): Prediction
     noOdds = totalPool > 0 ? 100 - yesOdds : 50;
   }
   
-  // Convert satoshis to USD (rough estimate: 1 XEC ≈ $0.00003)
-  const volumeUSD = (totalPool / 100) * 0.00003;
+  // Volume in XEC (totalPool is in satoshis, 100 sats = 1 XEC)
+  const volumeXEC = totalPool / 100;
 
   return {
     id: p.id,
@@ -184,7 +184,7 @@ const transformPrediction = (p: DBPrediction, outcomes: DBOutcome[]): Prediction
     category: detectCategory(p.title, p.category),
     yesOdds,
     noOdds,
-    volume: volumeUSD,
+    volume: volumeXEC,
     endDate: p.end_date,
     createdAt: p.created_at,
     image: p.image_url || undefined,
