@@ -59,9 +59,15 @@ async function checkCryptoPrediction(title: string): Promise<OracleResult> {
   const price = await getCryptoPrice(coinId);
   if (!price) return { resolved: false };
 
-  // Handle "Up or Down" predictions - use both CoinGecko + Perplexity
-  if (titleLower.includes('up or down') || titleLower.includes('up/down')) {
-    console.log(`📊 Checking ${coinName} up/down with CoinGecko + Perplexity...`);
+  // Handle "go up", "go down", "up or down" predictions - use CoinGecko 24h change
+  const isUpPrediction = titleLower.includes('go up') || titleLower.includes('goes up') || 
+                         titleLower.includes('will rise') || titleLower.includes('will increase');
+  const isDownPrediction = titleLower.includes('go down') || titleLower.includes('goes down') || 
+                           titleLower.includes('will fall') || titleLower.includes('will decrease');
+  const isUpOrDown = titleLower.includes('up or down') || titleLower.includes('up/down');
+  
+  if (isUpPrediction || isDownPrediction || isUpOrDown) {
+    console.log(`📊 Checking ${coinName} direction with CoinGecko...`);
     
     // Get 24h price change from CoinGecko
     try {
@@ -74,11 +80,23 @@ async function checkCryptoPrediction(title: string): Promise<OracleResult> {
         const priceChange24h = data.market_data?.price_change_percentage_24h;
         
         if (priceChange24h !== undefined) {
-          const isUp = priceChange24h >= 0;
-          // For "Up or Down" - YES means UP, NO means DOWN
+          const actuallyUp = priceChange24h >= 0;
+          
+          let outcome: 'yes' | 'no';
+          if (isUpPrediction) {
+            // "Will ETH go up?" - YES if price went up
+            outcome = actuallyUp ? 'yes' : 'no';
+          } else if (isDownPrediction) {
+            // "Will ETH go down?" - YES if price went down
+            outcome = actuallyUp ? 'no' : 'yes';
+          } else {
+            // "Up or down?" - YES means UP, NO means DOWN
+            outcome = actuallyUp ? 'yes' : 'no';
+          }
+          
           return {
             resolved: true,
-            outcome: isUp ? 'yes' : 'no',
+            outcome,
             reason: `${coinName} 24h change: ${priceChange24h >= 0 ? '+' : ''}${priceChange24h.toFixed(2)}% (CoinGecko). Current: $${price.toLocaleString()}`,
             currentValue: `$${price.toLocaleString()} (${priceChange24h >= 0 ? '↑' : '↓'}${Math.abs(priceChange24h).toFixed(2)}%)`
           };
@@ -86,56 +104,6 @@ async function checkCryptoPrediction(title: string): Promise<OracleResult> {
       }
     } catch (error) {
       console.error('CoinGecko detailed API error:', error);
-    }
-    
-    // Fallback to Perplexity for up/down verification
-    const perplexityKey = Deno.env.get('PERPLEXITY_API_KEY');
-    if (perplexityKey) {
-      try {
-        const response = await fetch('https://api.perplexity.ai/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${perplexityKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'sonar',
-            messages: [
-              { 
-                role: 'system', 
-                content: 'You verify crypto price movements. Return ONLY valid JSON.'
-              },
-              { 
-                role: 'user', 
-                content: `Is ${coinName} price UP or DOWN today (${new Date().toISOString().split('T')[0]})? Current price: $${price}. Return JSON: {"direction": "up" or "down", "reason": "brief explanation with percentage change"}` 
-              }
-            ],
-            search_recency_filter: 'day',
-          }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          const content = data.choices?.[0]?.message?.content || '';
-          let cleaned = content.trim().replace(/```json\n?/g, '').replace(/```\n?/g, '');
-          try {
-            const result = JSON.parse(cleaned);
-            if (result.direction) {
-              const isUp = result.direction.toLowerCase() === 'up';
-              return {
-                resolved: true,
-                outcome: isUp ? 'yes' : 'no',
-                reason: `${coinName} is ${result.direction.toUpperCase()} - ${result.reason} (Perplexity + CoinGecko: $${price.toLocaleString()})`,
-                currentValue: `$${price.toLocaleString()}`
-              };
-            }
-          } catch (e) {
-            console.log('Perplexity parse error for up/down:', e);
-          }
-        }
-      } catch (error) {
-        console.error('Perplexity up/down check error:', error);
-      }
     }
   }
   
