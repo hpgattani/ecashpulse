@@ -157,12 +157,14 @@ const Prediction = () => {
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
-    return date.toLocaleDateString("en-US", {
+    // Display in IST (Asia/Kolkata)
+    return date.toLocaleDateString("en-IN", {
       month: "long",
       day: "numeric",
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+      timeZone: "Asia/Kolkata",
     });
   };
 
