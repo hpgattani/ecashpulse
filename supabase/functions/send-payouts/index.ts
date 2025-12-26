@@ -1,15 +1,13 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { ChronikClient } from 'https://esm.sh/chronik-client@3.6.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Official eCash Chronik endpoints
-const CHRONIK_URLS = [
-  'https://chronik.e.cash',
-  'https://ecash-chronik.agora.space',
-];
+// Chronik client for eCash - takes array of URLs
+const chronik = new ChronikClient(['https://chronik.e.cash']);
 const ESCROW_ADDRESS = 'ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp';
 
 // ==================== Crypto Primitives ====================
@@ -480,7 +478,7 @@ async function buildSignedTransaction(
   return rawTx;
 }
 
-// ==================== API Functions ====================
+// ==================== API Functions (using chronik-client) ====================
 
 async function getUTXOs(address: string): Promise<UTXO[]> {
   const addressHash = getAddressHash(address);
@@ -490,76 +488,53 @@ async function getUTXOs(address: string): Promise<UTXO[]> {
   }
   console.log(`Address hash: ${addressHash}`);
   
-  // Try each Chronik endpoint
-  for (const baseUrl of CHRONIK_URLS) {
-    try {
-      const url = `${baseUrl}/script/p2pkh/${addressHash}/utxos`;
-      console.log(`Trying: ${url}`);
+  try {
+    console.log('Fetching UTXOs using chronik-client...');
+    const scriptUtxos = await chronik.script('p2pkh', addressHash).utxos();
+    
+    // chronik-client returns { outputScript, utxos: [...] }
+    if (scriptUtxos && scriptUtxos.utxos && scriptUtxos.utxos.length > 0) {
+      console.log(`Got ${scriptUtxos.utxos.length} UTXOs`);
+      // Log first UTXO structure to understand the data
+      const firstUtxo = scriptUtxos.utxos[0];
+      console.log(`First UTXO keys: ${Object.keys(firstUtxo).join(', ')}`);
       
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-      
-      const response = await fetch(url, { signal: controller.signal });
-      clearTimeout(timeoutId);
-      
-      console.log(`Response from ${baseUrl}: ${response.status}`);
-      
-      if (!response.ok) {
-        console.error(`${baseUrl} failed: ${response.status}`);
-        continue;
-      }
-
-      const data = await response.json();
-      console.log(`Got ${data.utxos?.length || 0} UTXOs from ${baseUrl}`);
-      if (data.utxos && data.utxos.length > 0) {
-        return data.utxos;
-      }
-    } catch (error) {
-      console.error(`Error with ${baseUrl}:`, error);
-      continue;
+      // Map to our UTXO interface - handle BigInt values
+      // chronik-client v3+ uses 'sats' (BigInt) for the value
+      return scriptUtxos.utxos.map((u: any) => {
+        // Try multiple property names: sats (v3+), value, atoms
+        const valueStr = String(u.sats ?? u.value ?? u.atoms ?? 0);
+        return {
+          outpoint: { txid: u.outpoint.txid, outIdx: u.outpoint.outIdx },
+          blockHeight: u.blockHeight || 0,
+          isCoinbase: u.isCoinbase || false,
+          value: valueStr,
+          isFinal: u.isFinal !== false,
+          token: u.token,
+        };
+      });
     }
+    
+    console.log('No UTXOs found in escrow wallet - wallet may be empty');
+    return [];
+  } catch (error) {
+    console.error('chronik-client getUTXOs error:', error);
+    return [];
   }
-  
-  console.error('All Chronik endpoints failed');
-  return [];
 }
 
 async function broadcastTransaction(rawTx: Uint8Array): Promise<string | null> {
   const txHex = toHex(rawTx);
   
-  // Try each Chronik endpoint
-  for (const baseUrl of CHRONIK_URLS) {
-    try {
-      console.log(`Broadcasting via ${baseUrl}...`);
-      
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
-      
-      const response = await fetch(`${baseUrl}/broadcast-tx`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rawTx: txHex }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        const error = await response.text();
-        console.error(`Broadcast via ${baseUrl} failed:`, error);
-        continue;
-      }
-
-      const data = await response.json();
-      console.log(`Broadcast successful via ${baseUrl}: ${data.txid}`);
-      return data.txid;
-    } catch (error) {
-      console.error(`Broadcast error with ${baseUrl}:`, error);
-      continue;
-    }
+  try {
+    console.log('Broadcasting transaction using chronik-client...');
+    const result = await chronik.broadcastTx(txHex);
+    console.log('Broadcast result:', result);
+    return result.txid;
+  } catch (error) {
+    console.error('chronik-client broadcast error:', error);
+    return null;
   }
-  
-  console.error('All broadcast attempts failed');
-  return null;
 }
 
 // ==================== MAIN HANDLER ====================
