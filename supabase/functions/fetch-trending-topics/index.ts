@@ -359,10 +359,21 @@ async function syncPredictions(supabase: any): Promise<{ created: number; resolv
   const existingTitles = new Set((existingPredictions || []).map((p: any) => p.title.toLowerCase().slice(0, 50)));
 
   // Insert new predictions
+  const currentYear = new Date().getFullYear();
+  const pastYears = Array.from({ length: 10 }, (_, i) => String(currentYear - 1 - i)); // 2024, 2023, 2022, etc.
+  
   for (const market of allMarkets) {
     if (!market.title) continue;
 
-    const titleKey = market.title.toLowerCase().slice(0, 50);
+    // Skip predictions with past years in title (prevents outdated predictions)
+    const titleLower = market.title.toLowerCase();
+    const hasPastYear = pastYears.some(year => titleLower.includes(year));
+    if (hasPastYear) {
+      console.log(`Skipping outdated prediction: ${market.title.slice(0, 50)}`);
+      continue;
+    }
+
+    const titleKey = titleLower.slice(0, 50);
     if (existingTitles.has(titleKey)) continue;
 
     const category = CATEGORIES.includes(market.category as any) ? market.category : 'politics';
