@@ -7,6 +7,50 @@ const corsHeaders = {
 
 const CATEGORIES = ['crypto', 'politics', 'sports', 'tech', 'entertainment', 'economics'] as const;
 
+type Category = typeof CATEGORIES[number];
+
+// Guardrails to prevent low-quality / stale auto-generated markets.
+// - Minimum horizon avoids immediately-expired markets
+// - Maximum horizon avoids far-future hype markets
+// - Blocked keywords prevent AI/product-release hype (e.g., GPT/OpenAI)
+const AUTO_MIN_END_DAYS = 7;
+const AUTO_MAX_END_DAYS_BY_CATEGORY: Record<Category, number> = {
+  crypto: 120,
+  politics: 365,
+  sports: 90,
+  tech: 90,
+  entertainment: 120,
+  economics: 180,
+};
+
+const AUTO_BLOCKED_TITLE_KEYWORDS = [
+  'openai',
+  'gpt',
+  'chatgpt',
+  'anthropic',
+  'claude',
+  'gemini',
+  'deepmind',
+];
+
+function shouldBlockAutoMarket(title: string): boolean {
+  const t = title.toLowerCase();
+  return AUTO_BLOCKED_TITLE_KEYWORDS.some((k) => t.includes(k));
+}
+
+function normalizeAutoEndDate(endDate: string | undefined, category: Category): string | null {
+  const nowMs = Date.now();
+  const minMs = nowMs + AUTO_MIN_END_DAYS * 24 * 60 * 60 * 1000;
+  const maxMs = nowMs + AUTO_MAX_END_DAYS_BY_CATEGORY[category] * 24 * 60 * 60 * 1000;
+
+  const candidateMs = endDate ? new Date(endDate).getTime() : NaN;
+  const ms = Number.isFinite(candidateMs) ? candidateMs : minMs;
+  const atLeastMinMs = Math.max(ms, minMs);
+
+  if (atLeastMinMs > maxMs) return null;
+  return new Date(atLeastMinMs).toISOString();
+}
+
 function generateEscrowAddress(): string {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
   let address = 'ecash:qp';
@@ -396,7 +440,25 @@ async function syncPredictions(supabase: any): Promise<{ created: number; resolv
     const titleKey = titleLower.slice(0, 50);
     if (existingTitles.has(titleKey)) continue;
 
-    const category = CATEGORIES.includes(market.category as any) ? market.category : 'politics';
+    const category: Category = CATEGORIES.includes(market.category as any)
+      ? (market.category as Category)
+      : 'politics';
+
+    if (shouldBlockAutoMarket(market.title)) {
+      console.log(`Skipping blocked topic: ${market.title.slice(0, 50)}`);
+      continue;
+    }
+
+    const normalizedEndDate = normalizeAutoEndDate(
+      market.endDate || calculateEndDate(category),
+      category
+    );
+
+    if (!normalizedEndDate) {
+      console.log(`Skipping far-future prediction: ${market.title.slice(0, 50)}`);
+      continue;
+    }
+
     const marketWithOdds = market as { yesOdds?: number; noOdds?: number };
     const yesPool = marketWithOdds.yesOdds ? marketWithOdds.yesOdds * 100 : 0;
     const noPool = marketWithOdds.noOdds ? marketWithOdds.noOdds * 100 : 0;
@@ -406,7 +468,7 @@ async function syncPredictions(supabase: any): Promise<{ created: number; resolv
       description: (market.description || '').slice(0, 500),
       category,
       escrow_address: generateEscrowAddress(),
-      end_date: market.endDate || calculateEndDate(category),
+      end_date: normalizedEndDate,
       status: 'active',
       yes_pool: yesPool,
       no_pool: noPool,
