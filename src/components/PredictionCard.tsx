@@ -70,6 +70,12 @@ const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) =
   const isMultiOption =
     Boolean(prediction.isMultiOption) && Array.isArray(prediction.outcomes) && prediction.outcomes.length > 0;
 
+  // Detect if this is an Up/Down prediction (binary but not Yes/No)
+  const outcomeLabels = prediction.outcomes?.map(o => o.label.toLowerCase().trim()) || [];
+  const isUpDown = !isMultiOption && outcomeLabels.includes('up') && outcomeLabels.includes('down');
+  const positiveLabel = isUpDown ? 'Up' : 'Yes';
+  const negativeLabel = isUpDown ? 'Down' : 'No';
+
   const formatVolume = (vol: number) => {
     if (vol >= 1000000) return `$${(vol / 1000000).toFixed(1)}M`;
     if (vol >= 1000) return `$${(vol / 1000).toFixed(0)}K`;
@@ -286,11 +292,10 @@ const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) =
               ))}
             </div>
           ) : (
-            // Yes/No display
             <div className="mb-4">
               <div className="flex justify-between text-sm mb-2">
-                <span className="text-emerald-400 font-semibold">Yes {prediction.yesOdds}%</span>
-                <span className="text-red-400 font-semibold">No {prediction.noOdds}%</span>
+                <span className="text-emerald-400 font-semibold">{positiveLabel} {prediction.yesOdds}%</span>
+                <span className="text-red-400 font-semibold">{negativeLabel} {prediction.noOdds}%</span>
               </div>
               <div className="h-2 rounded-full bg-muted overflow-hidden flex">
                 <motion.div
@@ -342,10 +347,10 @@ const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) =
           {!isMultiOption && (
             <div className="flex gap-2">
               <Button variant="yes" size="sm" className="flex-1" onClick={(e) => { e.stopPropagation(); handleBet("yes"); }}>
-                Bet Yes
+                Bet {positiveLabel}
               </Button>
               <Button variant="no" size="sm" className="flex-1" onClick={(e) => { e.stopPropagation(); handleBet("no"); }}>
-                Bet No
+                Bet {negativeLabel}
               </Button>
             </div>
           )}
