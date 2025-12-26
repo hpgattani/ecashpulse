@@ -52,6 +52,10 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
       ? prediction.yesOdds
       : prediction.noOdds;
 
+  // Check if there are opposing bets - if both odds are 50%, pool is likely empty or equal
+  const opposingOdds = betPosition === "yes" ? prediction.noOdds : prediction.yesOdds;
+  const hasOpposingBets = prediction.yesOdds !== 50 || prediction.noOdds !== 50;
+
   const winMultiplier = currentOdds > 0 ? 100 / currentOdds : 1;
   const potentialPayout = betAmount ? (parseFloat(betAmount) * winMultiplier).toFixed(2) : "0";
   const potentialProfit = betAmount ? (parseFloat(betAmount) * winMultiplier - parseFloat(betAmount)).toFixed(2) : "0";
@@ -355,10 +359,19 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                       </>
                     )}
 
-                    <div className="flex items-center justify-between text-sm mt-1">
-                      <span className="text-muted-foreground">Win Multiplier:</span>
-                      <span className="text-primary font-semibold">{winMultiplier.toFixed(2)}x</span>
-                    </div>
+                    {hasOpposingBets ? (
+                      <div className="flex items-center justify-between text-sm mt-1">
+                        <span className="text-muted-foreground">Win Multiplier:</span>
+                        <span className="text-primary font-semibold">{winMultiplier.toFixed(2)}x</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 mt-2 p-2 rounded bg-amber-500/10 border border-amber-500/20">
+                        <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                        <span className="text-xs text-amber-300">
+                          Odds change as bets are placed. If no opposing bets, you get your stake back.
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Bet Amount + Payout Preview */}
@@ -380,16 +393,26 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                       <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
                         <div className="flex items-center gap-2 mb-2">
                           <Calculator className="w-4 h-4 text-emerald-400" />
-                          <span className="text-sm font-medium text-emerald-400">If you win:</span>
+                          <span className="text-sm font-medium text-emerald-400">
+                            {hasOpposingBets ? "If you win:" : "Estimated if you win:"}
+                          </span>
                         </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Total Payout:</span>
-                          <span className="text-emerald-400 font-bold">{potentialPayout} XEC</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Profit:</span>
-                          <span className="text-emerald-400 font-bold">+{potentialProfit} XEC</span>
-                        </div>
+                        {hasOpposingBets ? (
+                          <>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">Total Payout:</span>
+                              <span className="text-emerald-400 font-bold">{potentialPayout} XEC</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">Profit:</span>
+                              <span className="text-emerald-400 font-bold">+{potentialProfit} XEC</span>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="text-xs text-muted-foreground">
+                            Payout depends on final pool size. Currently no opposing bets.
+                          </div>
+                        )}
                       </div>
                     )}
 
