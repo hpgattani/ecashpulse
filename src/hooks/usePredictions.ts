@@ -138,12 +138,14 @@ const transformPrediction = (p: DBPrediction, outcomes: DBOutcome[]): Prediction
   
   // Determine if this is a multi-option prediction:
   // - More than 2 outcomes = definitely multi-option
-  // - Exactly 2 outcomes that are "Yes" and "No" = standard Yes/No prediction
-  // - Any other configuration = multi-option
+  // - Exactly 2 outcomes that are "Yes" and "No" (case-insensitive) = standard Yes/No prediction
+  // - Exactly 2 outcomes that are "Up" and "Down" = multi-option (not Yes/No)
+  // - Any other 2+ outcome configuration = multi-option
   const labels = predictionOutcomes.map(o => o.label.toLowerCase().trim());
   const isStandardYesNo = predictionOutcomes.length === 2 && 
     labels.includes('yes') && labels.includes('no');
   const isMultiOption = predictionOutcomes.length > 2 || 
+    (predictionOutcomes.length === 2 && !isStandardYesNo) ||
     (predictionOutcomes.length > 0 && !isStandardYesNo);
   
   let totalPool: number;

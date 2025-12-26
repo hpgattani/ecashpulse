@@ -79,10 +79,12 @@ const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) =
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
-    return date.toLocaleDateString("en-US", {
+    // Display in IST (UTC+5:30)
+    return date.toLocaleDateString("en-IN", {
       month: "short",
       day: "numeric",
       year: "numeric",
+      timeZone: "Asia/Kolkata",
     });
   };
 
