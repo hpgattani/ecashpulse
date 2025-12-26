@@ -79,9 +79,11 @@ const detectCategory = (title: string, existingCategory: string): Prediction['ca
     q.includes('wimbledon') || q.includes('tennis') || q.includes('football') || q.includes('soccer') ||
     q.includes('basketball') || q.includes('hockey') || q.includes('baseball') || q.includes('cricket') ||
     q.includes('ipl') || q.includes('olympics') || q.includes('ufc') || q.includes('boxing') ||
-    q.includes('f1') || q.includes('formula 1') || q.includes('grand prix') ||
+    q.includes('f1') || q.includes('formula 1') || q.includes('grand prix') || q.includes('grand slam') ||
     q.includes('uefa') || q.includes('euro 20') || (q.includes('euro') && q.includes('final')) ||
-    q.includes('final match') || q.includes('match be held')
+    q.includes('final match') || q.includes('match be held') ||
+    q.includes('djokovic') || q.includes('federer') || q.includes('nadal') || q.includes('alcaraz') ||
+    q.includes('sinner') || q.includes('french open') || q.includes('us open') || q.includes('australian open')
   ) {
     return 'sports';
   }
