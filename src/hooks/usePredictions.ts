@@ -135,7 +135,16 @@ const detectCategory = (title: string, existingCategory: string): Prediction['ca
 
 const transformPrediction = (p: DBPrediction, outcomes: DBOutcome[]): Prediction => {
   const predictionOutcomes = outcomes.filter(o => o.prediction_id === p.id);
-  const isMultiOption = predictionOutcomes.length > 0;
+  
+  // Determine if this is a multi-option prediction:
+  // - More than 2 outcomes = definitely multi-option
+  // - Exactly 2 outcomes that are "Yes" and "No" = standard Yes/No prediction
+  // - Any other configuration = multi-option
+  const labels = predictionOutcomes.map(o => o.label.toLowerCase().trim());
+  const isStandardYesNo = predictionOutcomes.length === 2 && 
+    labels.includes('yes') && labels.includes('no');
+  const isMultiOption = predictionOutcomes.length > 2 || 
+    (predictionOutcomes.length > 0 && !isStandardYesNo);
   
   let totalPool: number;
   let yesOdds: number;
