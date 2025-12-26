@@ -5,7 +5,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const CHRONIK_URL = 'https://chronik.be.cash/xec';
+// Official eCash Chronik endpoints
+const CHRONIK_URLS = [
+  'https://chronik.e.cash',
+  'https://ecash-chronik.agora.space',
+];
 const ESCROW_ADDRESS = 'ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp';
 
 // ==================== Crypto Primitives ====================
@@ -479,44 +483,83 @@ async function buildSignedTransaction(
 // ==================== API Functions ====================
 
 async function getUTXOs(address: string): Promise<UTXO[]> {
-  try {
-    const addressHash = getAddressHash(address);
-    if (!addressHash) return [];
-    
-    const response = await fetch(`${CHRONIK_URL}/script/p2pkh/${addressHash}/utxos`);
-    if (!response.ok) {
-      console.error('Failed to fetch UTXOs:', response.status);
-      return [];
-    }
-
-    const data = await response.json();
-    return data.utxos || [];
-  } catch (error) {
-    console.error('Error fetching UTXOs:', error);
+  const addressHash = getAddressHash(address);
+  if (!addressHash) {
+    console.error('Failed to get address hash');
     return [];
   }
+  console.log(`Address hash: ${addressHash}`);
+  
+  // Try each Chronik endpoint
+  for (const baseUrl of CHRONIK_URLS) {
+    try {
+      const url = `${baseUrl}/script/p2pkh/${addressHash}/utxos`;
+      console.log(`Trying: ${url}`);
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      
+      const response = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      
+      console.log(`Response from ${baseUrl}: ${response.status}`);
+      
+      if (!response.ok) {
+        console.error(`${baseUrl} failed: ${response.status}`);
+        continue;
+      }
+
+      const data = await response.json();
+      console.log(`Got ${data.utxos?.length || 0} UTXOs from ${baseUrl}`);
+      if (data.utxos && data.utxos.length > 0) {
+        return data.utxos;
+      }
+    } catch (error) {
+      console.error(`Error with ${baseUrl}:`, error);
+      continue;
+    }
+  }
+  
+  console.error('All Chronik endpoints failed');
+  return [];
 }
 
 async function broadcastTransaction(rawTx: Uint8Array): Promise<string | null> {
-  try {
-    const response = await fetch(`${CHRONIK_URL}/broadcast-tx`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rawTx: toHex(rawTx) }),
-    });
+  const txHex = toHex(rawTx);
+  
+  // Try each Chronik endpoint
+  for (const baseUrl of CHRONIK_URLS) {
+    try {
+      console.log(`Broadcasting via ${baseUrl}...`);
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      
+      const response = await fetch(`${baseUrl}/broadcast-tx`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rawTx: txHex }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
 
-    if (!response.ok) {
-      const error = await response.text();
-      console.error('Broadcast failed:', error);
-      return null;
+      if (!response.ok) {
+        const error = await response.text();
+        console.error(`Broadcast via ${baseUrl} failed:`, error);
+        continue;
+      }
+
+      const data = await response.json();
+      console.log(`Broadcast successful via ${baseUrl}: ${data.txid}`);
+      return data.txid;
+    } catch (error) {
+      console.error(`Broadcast error with ${baseUrl}:`, error);
+      continue;
     }
-
-    const data = await response.json();
-    return data.txid;
-  } catch (error) {
-    console.error('Broadcast error:', error);
-    return null;
   }
+  
+  console.error('All broadcast attempts failed');
+  return null;
 }
 
 // ==================== MAIN HANDLER ====================
