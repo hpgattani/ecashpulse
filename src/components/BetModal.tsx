@@ -16,6 +16,7 @@ interface Prediction {
   question: string;
   yesOdds: number;
   noOdds: number;
+  volume?: number;
   escrowAddress?: string;
   outcomes?: Outcome[];
 }
@@ -52,9 +53,10 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
       ? prediction.yesOdds
       : prediction.noOdds;
 
-  // Check if there are opposing bets - if both odds are 50%, pool is likely empty or equal
+  // Check if there are any bets at all - show warning only if pool is empty
   const opposingOdds = betPosition === "yes" ? prediction.noOdds : prediction.yesOdds;
-  const hasOpposingBets = prediction.yesOdds !== 50 || prediction.noOdds !== 50;
+  const totalVolume = prediction.volume || 0;
+  const hasBetsPlaced = totalVolume > 0 || prediction.yesOdds !== 50 || prediction.noOdds !== 50;
 
   const winMultiplier = currentOdds > 0 ? 100 / currentOdds : 1;
   const potentialPayout = betAmount ? (parseFloat(betAmount) * winMultiplier).toFixed(2) : "0";
@@ -359,7 +361,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                       </>
                     )}
 
-                    {hasOpposingBets ? (
+                    {hasBetsPlaced ? (
                       <div className="flex items-center justify-between text-sm mt-1">
                         <span className="text-muted-foreground">Win Multiplier:</span>
                         <span className="text-primary font-semibold">{winMultiplier.toFixed(2)}x</span>
@@ -394,10 +396,10 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                         <div className="flex items-center gap-2 mb-2">
                           <Calculator className="w-4 h-4 text-emerald-400" />
                           <span className="text-sm font-medium text-emerald-400">
-                            {hasOpposingBets ? "If you win:" : "Estimated if you win:"}
+                            {hasBetsPlaced ? "If you win:" : "Estimated if you win:"}
                           </span>
                         </div>
-                        {hasOpposingBets ? (
+                        {hasBetsPlaced ? (
                           <>
                             <div className="flex justify-between text-sm">
                               <span className="text-muted-foreground">Total Payout:</span>
@@ -410,7 +412,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                           </>
                         ) : (
                           <div className="text-xs text-muted-foreground">
-                            Payout depends on final pool size. Currently no opposing bets.
+                            Payout depends on final pool size. Currently no bets placed.
                           </div>
                         )}
                       </div>
