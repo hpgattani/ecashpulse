@@ -253,9 +253,9 @@ export const usePredictions = () => {
   useEffect(() => {
     fetchPredictions();
 
-    // Realtime updates on predictions
-    const predictionsChannel = supabase
-      .channel('predictions-realtime')
+    // Single unified channel for all realtime updates
+    const realtimeChannel = supabase
+      .channel('markets-realtime')
       .on(
         'postgres_changes',
         {
@@ -263,15 +263,11 @@ export const usePredictions = () => {
           schema: 'public',
           table: 'predictions',
         },
-        () => {
+        (payload) => {
+          console.log('[Realtime] Predictions update:', payload.eventType);
           fetchPredictions();
         }
       )
-      .subscribe();
-
-    // Realtime updates for multi-option pools
-    const outcomesChannel = supabase
-      .channel('outcomes-realtime')
       .on(
         'postgres_changes',
         {
@@ -279,38 +275,27 @@ export const usePredictions = () => {
           schema: 'public',
           table: 'outcomes',
         },
-        () => {
+        (payload) => {
+          console.log('[Realtime] Outcomes update:', payload.eventType);
           fetchPredictions();
         }
       )
-      .subscribe();
-
-    // Bets can update pools; refetch shortly after bet insert/update.
-    const betsChannel = supabase
-      .channel('bets-realtime')
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
           table: 'bets',
         },
-        () => {
-          setTimeout(() => fetchPredictions(), 800);
+        (payload) => {
+          console.log('[Realtime] Bets update:', payload.eventType);
+          // Small delay to ensure trigger has updated pools
+          setTimeout(() => fetchPredictions(), 500);
         }
       )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'bets',
-        },
-        () => {
-          setTimeout(() => fetchPredictions(), 800);
-        }
-      )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[Realtime] Subscription status:', status);
+      });
 
     // Hard fallback: polling so odds update even if realtime drops.
     const intervalId = window.setInterval(() => {
@@ -327,9 +312,7 @@ export const usePredictions = () => {
       window.clearInterval(intervalId);
       window.removeEventListener('predictions:refetch', handleForceRefresh);
       window.removeEventListener('focus', handleFocus);
-      supabase.removeChannel(predictionsChannel);
-      supabase.removeChannel(outcomesChannel);
-      supabase.removeChannel(betsChannel);
+      supabase.removeChannel(realtimeChannel);
     };
   }, [fetchPredictions]);
 
