@@ -179,7 +179,7 @@ const PublicBets = () => {
     <div className="glass-card p-4 sm:p-6">
       <h3 className="font-display font-bold text-base sm:text-lg text-foreground mb-4 flex items-center gap-2">
         <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-        Recent Bets (Transparent)
+        Recent Bets (Last 100)
       </h3>
       
       <div className="space-y-2 sm:space-y-3 max-h-[350px] sm:max-h-[400px] overflow-y-auto">
@@ -222,7 +222,7 @@ const PublicBets = () => {
             <div className="text-xs text-muted-foreground space-y-1">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
                 <span className="truncate">Wallet: {bet.users ? formatAddress(bet.users.ecash_address) : 'Unknown'}</span>
-                <span className="text-muted-foreground/70">{formatTime(bet.created_at)}</span>
+                <span className="text-muted-foreground/70">{formatTime(bet.confirmed_at || bet.created_at)}</span>
               </div>
               
               {bet.tx_hash && (

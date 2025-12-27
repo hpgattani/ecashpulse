@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
         predictions(title)
       `)
       .order('created_at', { ascending: false })
-      .limit(20);
+      .limit(100);
 
     if (betsError) {
       console.error('Error fetching bets:', betsError);
