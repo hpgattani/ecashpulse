@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 const ESCROW_ADDRESS = 'ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp';
-const CHRONIK_URL = 'https://chronik.fabien.cash';
+const CHRONIK_URL = 'https://chronik.be.cash/xec';
 
 // Convert eCash cashaddr to P2PKH outputScript hex
 function addressToOutputScript(address: string): string | null {
