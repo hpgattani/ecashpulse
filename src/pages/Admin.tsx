@@ -426,7 +426,7 @@ const Admin = () => {
 
             {/* Tabs for Bets, Users, and Predictions */}
             <Tabs defaultValue="bets" className="space-y-4">
-              <TabsList className="grid w-full max-w-xl grid-cols-3">
+              <TabsList className="grid w-full max-w-2xl grid-cols-4">
                 <TabsTrigger value="bets" className="gap-2">
                   <TrendingUp className="w-4 h-4" />
                   All Bets
@@ -438,6 +438,10 @@ const Admin = () => {
                 <TabsTrigger value="predictions" className="gap-2">
                   <Target className="w-4 h-4" />
                   Predictions
+                </TabsTrigger>
+                <TabsTrigger value="register" className="gap-2">
+                  <Sparkles className="w-4 h-4" />
+                  Register TX
                 </TabsTrigger>
               </TabsList>
 
