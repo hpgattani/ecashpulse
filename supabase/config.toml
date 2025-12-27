@@ -83,3 +83,6 @@ verify_jwt = false
 
 [functions.get-leaderboard]
 verify_jwt = false
+
+[functions.manual-register-bet]
+verify_jwt = false
