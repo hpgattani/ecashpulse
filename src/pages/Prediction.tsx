@@ -42,45 +42,100 @@ const Prediction = () => {
   const [copied, setCopied] = useState(false);
   const [userBet, setUserBet] = useState<UserBet | null>(null);
 
-  useEffect(() => {
-    const fetchPrediction = async () => {
-      if (!id) return;
+  const fetchPrediction = async () => {
+    if (!id) return;
 
-      const { data: predData, error: predError } = await supabase
-        .from("predictions")
-        .select("*")
-        .eq("id", id)
-        .single();
+    const { data: predData, error: predError } = await supabase
+      .from("predictions")
+      .select("*")
+      .eq("id", id)
+      .single();
 
-      if (predError || !predData) {
-        setLoading(false);
-        return;
-      }
-
-      // Fetch outcomes
-      const { data: outcomesData } = await supabase
-        .from("outcomes")
-        .select("*")
-        .eq("prediction_id", id);
-
-      const outcomes: Outcome[] = outcomesData?.map((o) => {
-        const totalPool = outcomesData.reduce((sum, oc) => sum + oc.pool, 0);
-        return {
-          id: o.id,
-          label: o.label,
-          pool: o.pool,
-          odds: totalPool > 0 ? Math.round((o.pool / totalPool) * 100) : Math.round(100 / outcomesData.length),
-        };
-      }) || [];
-
-      setPrediction({
-        ...predData,
-        outcomes: outcomes.length > 0 ? outcomes : undefined,
-      });
+    if (predError || !predData) {
       setLoading(false);
-    };
+      return;
+    }
 
+    // Fetch outcomes
+    const { data: outcomesData } = await supabase
+      .from("outcomes")
+      .select("*")
+      .eq("prediction_id", id);
+
+    const outcomes: Outcome[] = outcomesData?.map((o) => {
+      const totalPool = outcomesData.reduce((sum, oc) => sum + oc.pool, 0);
+      return {
+        id: o.id,
+        label: o.label,
+        pool: o.pool,
+        odds: totalPool > 0 ? Math.round((o.pool / totalPool) * 100) : Math.round(100 / outcomesData.length),
+      };
+    }) || [];
+
+    setPrediction({
+      ...predData,
+      outcomes: outcomes.length > 0 ? outcomes : undefined,
+    });
+    setLoading(false);
+  };
+
+  useEffect(() => {
     fetchPrediction();
+
+    // Real-time subscription for instant odds updates
+    const channel = supabase
+      .channel(`prediction-${id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'predictions',
+          filter: `id=eq.${id}`,
+        },
+        () => {
+          console.log('[Realtime] Prediction updated');
+          fetchPrediction();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'bets',
+          filter: `prediction_id=eq.${id}`,
+        },
+        () => {
+          console.log('[Realtime] Bet placed on this prediction');
+          setTimeout(() => fetchPrediction(), 500);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'outcomes',
+          filter: `prediction_id=eq.${id}`,
+        },
+        () => {
+          console.log('[Realtime] Outcome updated');
+          fetchPrediction();
+        }
+      )
+      .subscribe((status) => {
+        console.log('[Realtime] Subscription status:', status);
+      });
+
+    // Listen for manual refresh events
+    const handleRefresh = () => fetchPrediction();
+    window.addEventListener('predictions:refetch', handleRefresh);
+
+    return () => {
+      window.removeEventListener('predictions:refetch', handleRefresh);
+      supabase.removeChannel(channel);
+    };
   }, [id]);
 
   // Fetch user's bet on this prediction
