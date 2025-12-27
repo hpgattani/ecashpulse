@@ -324,53 +324,26 @@ Deno.serve(async (req) => {
       amount: feeAmount,
     });
 
-    // Update pools when bet is confirmed
-    if (tx_hash) {
-      if (outcome_id) {
-        // Update outcome pool for multi-option bets
-        const { data: currentOutcome } = await supabase
+    // Pools for standard YES/NO bets are updated by the database trigger (update_prediction_pool).
+    // For multi-option bets, we still need to update the selected outcome pool.
+    if (outcome_id) {
+      // Update outcome pool for multi-option bets
+      const { data: currentOutcome } = await supabase
+        .from('outcomes')
+        .select('pool')
+        .eq('id', outcome_id)
+        .single();
+
+      if (currentOutcome) {
+        const { error: updateError } = await supabase
           .from('outcomes')
-          .select('pool')
-          .eq('id', outcome_id)
-          .single();
+          .update({ pool: (currentOutcome.pool || 0) + betAmount })
+          .eq('id', outcome_id);
 
-        if (currentOutcome) {
-          // For Yes bets, add to pool. For No bets, we could track separately or just add
-          const poolChange = position === 'yes' ? betAmount : betAmount;
-          const { error: updateError } = await supabase
-            .from('outcomes')
-            .update({ pool: (currentOutcome.pool || 0) + poolChange })
-            .eq('id', outcome_id);
-
-          if (updateError) {
-            console.error('Error updating outcome pool:', updateError);
-          } else {
-            console.log(`Updated pool for outcome ${outcome_id}`);
-          }
-        }
-      } else {
-        // Update prediction pool for yes/no bets
-        const { data: currentPrediction } = await supabase
-          .from('predictions')
-          .select('yes_pool, no_pool')
-          .eq('id', prediction_id)
-          .single();
-
-        if (currentPrediction) {
-          const updateData = position === 'yes' 
-            ? { yes_pool: (currentPrediction.yes_pool || 0) + betAmount, updated_at: new Date().toISOString() }
-            : { no_pool: (currentPrediction.no_pool || 0) + betAmount, updated_at: new Date().toISOString() };
-          
-          const { error: updateError } = await supabase
-            .from('predictions')
-            .update(updateData)
-            .eq('id', prediction_id);
-
-          if (updateError) {
-            console.error('Error updating prediction pool:', updateError);
-          } else {
-            console.log(`Updated ${position}_pool for prediction ${prediction_id}`);
-          }
+        if (updateError) {
+          console.error('Error updating outcome pool:', updateError);
+        } else {
+          console.log(`Updated pool for outcome ${outcome_id}`);
         }
       }
     }
