@@ -19,6 +19,7 @@ interface BetWithPrediction {
   amount: number;
   status: 'pending' | 'confirmed' | 'won' | 'lost' | 'refunded';
   tx_hash: string | null;
+  payout_tx_hash: string | null;
   created_at: string;
   confirmed_at: string | null;
   payout_amount: number | null;
@@ -292,17 +293,30 @@ const MyBets = () => {
                           Won: {formatXEC(bet.payout_amount)}
                         </p>
                       )}
-                      {bet.tx_hash && (
-                        <a
-                          href={`https://explorer.e.cash/tx/${bet.tx_hash}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-primary hover:underline"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          View TX
-                        </a>
-                      )}
+                      <div className="flex gap-2 text-xs">
+                        {bet.tx_hash && (
+                          <a
+                            href={`https://explorer.e.cash/tx/${bet.tx_hash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-muted-foreground hover:text-primary hover:underline"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            Bet TX
+                          </a>
+                        )}
+                        {bet.payout_tx_hash && (
+                          <a
+                            href={`https://explorer.e.cash/tx/${bet.payout_tx_hash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-emerald-400 hover:underline font-medium"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            Payout TX
+                          </a>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </motion.div>
