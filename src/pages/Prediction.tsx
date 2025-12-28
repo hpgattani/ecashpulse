@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { motion } from "framer-motion";
-import { ArrowLeft, Share2, Clock, Users, TrendingUp, TrendingDown, Copy, Check, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Share2, Clock, Users, TrendingUp, TrendingDown, Copy, Check, CheckCircle2, Activity, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
@@ -31,6 +31,15 @@ interface UserBet {
   outcome_label?: string;
 }
 
+interface BetActivity {
+  id: string;
+  amount: number;
+  position: string;
+  address: string;
+  timestamp: string;
+  outcome_label?: string;
+}
+
 const Prediction = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
@@ -41,6 +50,8 @@ const Prediction = () => {
   const [selectedOutcome, setSelectedOutcome] = useState<Outcome | null>(null);
   const [copied, setCopied] = useState(false);
   const [userBet, setUserBet] = useState<UserBet | null>(null);
+  const [activities, setActivities] = useState<BetActivity[]>([]);
+  const [activitiesLoading, setActivitiesLoading] = useState(true);
 
   const fetchPrediction = async () => {
     if (!id) return;
@@ -182,6 +193,37 @@ const Prediction = () => {
     fetchUserBet();
   }, [id, user, isBetModalOpen]);
 
+  // Fetch betting activity for this prediction
+  useEffect(() => {
+    const fetchActivities = async () => {
+      if (!id) return;
+      setActivitiesLoading(true);
+
+      try {
+        const { data, error } = await supabase.functions.invoke('get-prediction-activity', {
+          body: { prediction_id: id, limit: 10 }
+        });
+
+        if (!error && data?.activities) {
+          setActivities(data.activities);
+        }
+      } catch (err) {
+        console.error('Error fetching activities:', err);
+      } finally {
+        setActivitiesLoading(false);
+      }
+    };
+
+    fetchActivities();
+
+    // Refresh on bet events
+    const handleRefresh = () => fetchActivities();
+    window.addEventListener('userbets:refetch', handleRefresh);
+
+    return () => {
+      window.removeEventListener('userbets:refetch', handleRefresh);
+    };
+  }, [id]);
   const handleShare = async () => {
     const url = window.location.href;
     
@@ -223,6 +265,26 @@ const Prediction = () => {
     });
   };
 
+  const formatActivityDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString("en-IN", { month: "short", day: "numeric", timeZone: "Asia/Kolkata" });
+  };
+
+  const formatAddress = (address: string) => {
+    if (!address) return 'Anonymous';
+    const clean = address.replace('ecash:', '');
+    return `${clean.slice(0, 6)}...${clean.slice(-4)}`;
+  };
   const getCategoryEmoji = (category: string) => {
     const emojis: Record<string, string> = {
       crypto: "₿",
@@ -443,6 +505,77 @@ const Prediction = () => {
                     <Button variant="no" size="lg" className="flex-1" onClick={() => handleBet("no")}>
                       Bet No
                     </Button>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+
+            {/* Activity Section */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="glass-card mt-6 overflow-hidden"
+            >
+              <div className="p-4 md:p-6 border-b border-border/30">
+                <div className="flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-primary" />
+                  <h2 className="font-display font-semibold text-lg text-foreground">Recent Activity</h2>
+                </div>
+              </div>
+
+              <div className="p-4 md:p-6">
+                {activitiesLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : activities.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Activity className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No betting activity yet</p>
+                    <p className="text-xs mt-1">Be the first to place a bet!</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {activities.map((activity, index) => (
+                      <motion.div
+                        key={activity.id}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                            activity.position === 'yes' ? 'bg-emerald-500/20' : 'bg-red-500/20'
+                          }`}>
+                            {activity.position === 'yes' ? (
+                              <TrendingUp className="w-4 h-4 text-emerald-400" />
+                            ) : (
+                              <TrendingDown className="w-4 h-4 text-red-400" />
+                            )}
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-foreground">
+                              {formatAddress(activity.address)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatActivityDate(activity.timestamp)}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-semibold text-foreground">
+                            {(activity.amount / 100).toLocaleString()} XEC
+                          </p>
+                          <p className={`text-xs font-medium ${
+                            activity.position === 'yes' ? 'text-emerald-400' : 'text-red-400'
+                          }`}>
+                            {activity.outcome_label || activity.position.toUpperCase()}
+                          </p>
+                        </div>
+                      </motion.div>
+                    ))}
                   </div>
                 )}
               </div>
