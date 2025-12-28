@@ -140,8 +140,17 @@ function detectCategory(question: string): string {
   if (
     q.includes('fed') || q.includes('interest rate') || q.includes('inflation') || q.includes('gdp') ||
     q.includes('recession') || q.includes('stock market') || q.includes('s&p') || q.includes('dow') ||
-    q.includes('nasdaq') || q.includes('unemployment') || q.includes('economy') || q.includes('fiscal')
+    q.includes('nasdaq') || q.includes('unemployment') || q.includes('economy') || q.includes('fiscal') ||
+    q.includes('largest company') || q.includes('market value') || q.includes('valuation') ||
+    q.includes('trillion') || q.includes('billion') || q.includes('stock price') || q.includes('ipo') ||
+    q.includes('earnings') || q.includes('revenue') || q.includes('profit') || q.includes('market share') ||
+    q.includes('company worth') || q.includes('most valuable')
   ) {
+    return 'economics';
+  }
+
+  // Default to economics for generic business/company topics, politics only for truly unclassifiable
+  if (q.includes('company') || q.includes('corporation') || q.includes('business')) {
     return 'economics';
   }
 
