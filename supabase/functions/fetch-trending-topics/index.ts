@@ -10,10 +10,9 @@ const CATEGORIES = ['crypto', 'politics', 'sports', 'tech', 'entertainment', 'ec
 type Category = typeof CATEGORIES[number];
 
 // Guardrails to prevent low-quality / stale auto-generated markets.
-// - Minimum horizon avoids immediately-expired markets
 // - Maximum horizon avoids far-future hype markets
 // - Blocked keywords prevent AI/product-release hype (e.g., GPT/OpenAI)
-const AUTO_MIN_END_DAYS = 7;
+// NOTE: We removed AUTO_MIN_END_DAYS because short-term bets are valid
 const AUTO_MAX_END_DAYS_BY_CATEGORY: Record<Category, number> = {
   crypto: 120,
   politics: 365,
@@ -38,17 +37,76 @@ function shouldBlockAutoMarket(title: string): boolean {
   return AUTO_BLOCKED_TITLE_KEYWORDS.some((k) => t.includes(k));
 }
 
-function normalizeAutoEndDate(endDate: string | undefined, category: Category): string | null {
+// Extract date from title like "December 29" or "December 22-28" and return proper end date
+function extractDateFromTitle(title: string): Date | null {
+  const t = title.toLowerCase();
+  const currentYear = new Date().getFullYear();
+  
+  // Month mapping
+  const months: Record<string, number> = {
+    'january': 0, 'jan': 0,
+    'february': 1, 'feb': 1,
+    'march': 2, 'mar': 2,
+    'april': 3, 'apr': 3,
+    'may': 4,
+    'june': 5, 'jun': 5,
+    'july': 6, 'jul': 6,
+    'august': 7, 'aug': 7,
+    'september': 8, 'sep': 8, 'sept': 8,
+    'october': 9, 'oct': 9,
+    'november': 10, 'nov': 10,
+    'december': 11, 'dec': 11,
+  };
+  
+  // Try to match patterns like "December 29", "Dec 22-28", "by December 31"
+  for (const [monthName, monthIndex] of Object.entries(months)) {
+    // Match "month day" or "month day-day" patterns
+    const regex = new RegExp(`${monthName}\\s+(\\d{1,2})(?:-(\\d{1,2}))?`, 'i');
+    const match = t.match(regex);
+    if (match) {
+      // Use the last day if it's a range (e.g., "22-28" -> use 28)
+      const day = match[2] ? parseInt(match[2]) : parseInt(match[1]);
+      
+      // Determine year - if the date is in the past for this year, use next year
+      let year = currentYear;
+      const candidateDate = new Date(year, monthIndex, day, 23, 59, 59);
+      if (candidateDate < new Date()) {
+        year = currentYear + 1;
+      }
+      
+      return new Date(year, monthIndex, day, 23, 59, 59);
+    }
+  }
+  
+  return null;
+}
+
+function normalizeAutoEndDate(endDate: string | undefined, category: Category, title: string): string | null {
   const nowMs = Date.now();
-  const minMs = nowMs + AUTO_MIN_END_DAYS * 24 * 60 * 60 * 1000;
   const maxMs = nowMs + AUTO_MAX_END_DAYS_BY_CATEGORY[category] * 24 * 60 * 60 * 1000;
-
+  
+  // First, try to extract date from title
+  const titleDate = extractDateFromTitle(title);
+  if (titleDate) {
+    const titleMs = titleDate.getTime();
+    // Allow past dates up to 1 day ago (for markets ending "today")
+    const oneDayAgo = nowMs - 24 * 60 * 60 * 1000;
+    if (titleMs >= oneDayAgo && titleMs <= maxMs) {
+      return titleDate.toISOString();
+    }
+  }
+  
+  // Fallback to provided endDate
   const candidateMs = endDate ? new Date(endDate).getTime() : NaN;
-  const ms = Number.isFinite(candidateMs) ? candidateMs : minMs;
-  const atLeastMinMs = Math.max(ms, minMs);
-
-  if (atLeastMinMs > maxMs) return null;
-  return new Date(atLeastMinMs).toISOString();
+  if (!Number.isFinite(candidateMs)) {
+    // Default to 7 days from now if no date provided and no title date
+    return new Date(nowMs + 7 * 24 * 60 * 60 * 1000).toISOString();
+  }
+  
+  // Check against max
+  if (candidateMs > maxMs) return null;
+  
+  return new Date(candidateMs).toISOString();
 }
 
 function generateEscrowAddress(): string {
@@ -465,7 +523,8 @@ async function syncPredictions(supabase: any): Promise<{ created: number; resolv
 
     const normalizedEndDate = normalizeAutoEndDate(
       market.endDate || calculateEndDate(category),
-      category
+      category,
+      market.title
     );
 
     if (!normalizedEndDate) {
