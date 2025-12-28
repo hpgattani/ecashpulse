@@ -261,8 +261,8 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                     Cancel
                   </Button>
                   <Button onClick={() => {
-                    // Store return URL so user comes back after login
-                    sessionStorage.setItem('auth_return_url', window.location.pathname);
+                    // Store return URL so user comes back after login (include full path for prediction pages)
+                    sessionStorage.setItem('auth_return_url', window.location.pathname + window.location.search);
                     navigate("/auth");
                   }}>Connect</Button>
                 </div>
