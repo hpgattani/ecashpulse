@@ -85,6 +85,11 @@ function detectCategory(question: string): string {
     q.includes('cardano') || q.includes('ada') || q.includes('dogecoin') || q.includes('doge') ||
     q.includes('crypto') || q.includes('token') || q.includes('defi') || q.includes('nft') ||
     q.includes('market cap') || q.includes('ecash') || q.includes('xec') ||
+    q.includes('zcash') || q.includes('zec') || q.includes('monero') || q.includes('xmr') ||
+    q.includes('dash') || q.includes('kaspa') || q.includes('kas') || q.includes('hbar') ||
+    q.includes('hedera') || q.includes('algorand') || q.includes('algo') || q.includes('fantom') ||
+    q.includes('ftm') || q.includes('arbitrum') || q.includes('arb') || q.includes('optimism') ||
+    q.includes('op token') || q.includes('sei') || q.includes('injective') || q.includes('inj') ||
     q.includes('binance') || q.includes('coinbase') || q.includes('chainlink') || q.includes('link') ||
     q.includes('polygon') || q.includes('matic') || q.includes('avalanche') || q.includes('avax') ||
     q.includes('polkadot') || q.includes('dot') || q.includes('litecoin') || q.includes('ltc') ||
