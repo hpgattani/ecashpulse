@@ -5,7 +5,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 
 const TrendingSection = () => {
   const { predictions, loading } = usePredictions();
-  const { t } = useLanguage();
+  const { t, translateTitle } = useLanguage();
   
   // Show top 5 predictions by volume as trending
   const trendingPredictions = predictions
@@ -83,7 +83,7 @@ const TrendingSection = () => {
               </div>
               
               <h3 className="font-display font-semibold text-foreground text-sm sm:text-base mb-3 sm:mb-4 line-clamp-2">
-                {prediction.question}
+                {translateTitle(prediction.question)}
               </h3>
               
               <div className="flex items-center justify-between">
