@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Outcome } from "@/hooks/usePredictions";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const ESCROW_ADDRESS = "ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp";
 
@@ -33,6 +34,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
   const payButtonRef = useRef<HTMLDivElement>(null);
   const { user, sessionToken } = useAuth();
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [betAmount, setBetAmount] = useState("100");
   const [betSuccess, setBetSuccess] = useState(false);
   const [betPosition, setBetPosition] = useState<"yes" | "no">(position);
@@ -122,7 +124,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
         }
 
         const outcomeLabel = selectedOutcome ? selectedOutcome.label : betPosition.toUpperCase();
-        toast.success("Bet placed!", {
+        toast.success(t.betPlaced, {
           description: `${outcomeLabel} bet of ${betAmount} XEC confirmed.`,
         });
 
@@ -143,7 +145,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
         toast.error("Failed to place bet", { description: err.message });
       }
     },
-    [user, sessionToken, betAmount, prediction.id, betPosition, selectedOutcome, onClose, closePayButtonModal],
+    [user, sessionToken, betAmount, prediction.id, betPosition, selectedOutcome, onClose, closePayButtonModal, t],
   );
 
   // Load PayButton script
@@ -254,17 +256,17 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
             >
               <div className="glass-card glow-primary p-6 text-center w-full max-w-md">
                 <AlertCircle className="w-12 h-12 text-primary mx-auto mb-4" />
-                <h2 className="font-display font-bold text-xl text-foreground mb-2">Connect Your Wallet</h2>
-                <p className="text-muted-foreground mb-6">Please login with your eCash address to place bets.</p>
+                <h2 className="font-display font-bold text-xl text-foreground mb-2">{t.connectWallet}</h2>
+                <p className="text-muted-foreground mb-6">{t.connectWalletDesc}</p>
                 <div className="flex gap-3 justify-center">
                   <Button variant="outline" onClick={onClose}>
-                    Cancel
+                    {t.cancel}
                   </Button>
                   <Button onClick={() => {
                     // Store return URL so user comes back after login (include full path for prediction pages)
                     sessionStorage.setItem('auth_return_url', window.location.pathname + window.location.search);
                     navigate("/auth");
-                  }}>Connect</Button>
+                  }}>{t.connect}</Button>
                 </div>
               </div>
             </motion.div>
@@ -298,24 +300,23 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
               {betSuccess ? (
                 <div className="text-center py-8">
                   <CheckCircle className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
-                  <h2 className="font-display font-bold text-xl text-foreground mb-2">Bet Placed!</h2>
+                  <h2 className="font-display font-bold text-xl text-foreground mb-2">{t.betPlaced}</h2>
                   <p className="text-muted-foreground">
-                    Your bet on {selectedOutcome ? selectedOutcome.label : betPosition.toUpperCase()} has been
-                    confirmed.
+                    {t.betConfirmed}
                   </p>
                 </div>
               ) : (
                 <>
                   <div className="flex items-start justify-between mb-4">
                     <div>
-                      <h2 className="font-display font-bold text-lg sm:text-xl text-foreground mb-1">Place Your Bet</h2>
+                      <h2 className="font-display font-bold text-lg sm:text-xl text-foreground mb-1">{t.placeYourBet}</h2>
                       {selectedOutcome ? (
                         <p className="text-xs sm:text-sm text-muted-foreground">
-                          Betting on <span className="text-primary font-semibold">{selectedOutcome.label}</span>
+                          {t.bettingOn} <span className="text-primary font-semibold">{selectedOutcome.label}</span>
                         </p>
                       ) : (
                         <p className="text-xs sm:text-sm text-muted-foreground">
-                          Betting{" "}
+                          {t.betting}{" "}
                           <span
                             className={
                               betPosition === "yes" ? "text-emerald-400 font-semibold" : "text-red-400 font-semibold"
@@ -338,18 +339,18 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                     {selectedOutcome ? (
                       <>
                         <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">Your Pick:</span>
+                          <span className="text-muted-foreground">{t.yourPick}:</span>
                           <span className="text-primary font-semibold">{selectedOutcome.label}</span>
                         </div>
                         <div className="flex items-center justify-between text-sm mt-1">
-                          <span className="text-muted-foreground">Current Odds:</span>
+                          <span className="text-muted-foreground">{t.currentOdds}:</span>
                           <span className="text-primary font-semibold">{selectedOutcome.odds}%</span>
                         </div>
                       </>
                     ) : (
                       <>
                         <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">Your Position:</span>
+                          <span className="text-muted-foreground">{t.yourPosition}:</span>
                           <span
                             className={
                               betPosition === "yes" ? "text-emerald-400 font-semibold" : "text-red-400 font-semibold"
@@ -363,14 +364,14 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
 
                     {hasBetsPlaced ? (
                       <div className="flex items-center justify-between text-sm mt-1">
-                        <span className="text-muted-foreground">Win Multiplier:</span>
+                        <span className="text-muted-foreground">{t.winMultiplier}:</span>
                         <span className="text-primary font-semibold">{winMultiplier.toFixed(2)}x</span>
                       </div>
                     ) : (
                       <div className="flex items-center gap-2 mt-2 p-2 rounded bg-amber-500/10 border border-amber-500/20">
                         <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0" />
                         <span className="text-xs text-amber-300">
-                          Odds change as bets are placed. If no opposing bets, you get your stake back.
+                          {t.oddsChangeWarning}
                         </span>
                       </div>
                     )}
@@ -379,10 +380,10 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                   {/* Bet Amount + Payout Preview */}
                   <div className="space-y-4">
                     <div>
-                      <label className="text-sm text-muted-foreground mb-1.5 block">Bet Amount (XEC)</label>
+                      <label className="text-sm text-muted-foreground mb-1.5 block">{t.betAmount}</label>
                       <Input
                         type="number"
-                        placeholder="Enter amount"
+                        placeholder={t.enterAmount}
                         value={betAmount}
                         onChange={(e) => setBetAmount(e.target.value)}
                         min="1"
@@ -396,23 +397,23 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                         <div className="flex items-center gap-2 mb-2">
                           <Calculator className="w-4 h-4 text-emerald-400" />
                           <span className="text-sm font-medium text-emerald-400">
-                            {hasBetsPlaced ? "If you win:" : "Estimated if you win:"}
+                            {hasBetsPlaced ? t.ifYouWin : t.estimatedIfYouWin}
                           </span>
                         </div>
                         {hasBetsPlaced ? (
                           <>
                             <div className="flex justify-between text-sm">
-                              <span className="text-muted-foreground">Total Payout:</span>
+                              <span className="text-muted-foreground">{t.totalPayout}:</span>
                               <span className="text-emerald-400 font-bold">{potentialPayout} XEC</span>
                             </div>
                             <div className="flex justify-between text-sm">
-                              <span className="text-muted-foreground">Profit:</span>
+                              <span className="text-muted-foreground">{t.profit}:</span>
                               <span className="text-emerald-400 font-bold">+{potentialProfit} XEC</span>
                             </div>
                           </>
                         ) : (
                           <div className="text-xs text-muted-foreground">
-                            Payout depends on final pool size. Currently no bets placed.
+                            {t.payoutDepends}
                           </div>
                         )}
                       </div>
@@ -425,7 +426,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                     <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/30">
                       <Info className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
                       <p className="text-xs text-muted-foreground">
-                        1% platform fee applies. Payments are processed on-chain.
+                        {t.platformFee}
                       </p>
                     </div>
                   </div>

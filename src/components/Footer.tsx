@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { Zap, Github, ExternalLink } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const XIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" className={className} fill="currentColor">
@@ -11,6 +12,7 @@ const XIcon = ({ className }: { className?: string }) => (
 
 const Footer = () => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [clickCount, setClickCount] = useState(0);
 
   const handleCopyrightClick = () => {
@@ -25,6 +27,7 @@ const Footer = () => {
       navigate('/admin');
     }
   };
+
   return (
     <footer className="py-12 border-t border-border/30 relative">
       <div className="container mx-auto px-4">
@@ -45,7 +48,7 @@ const Footer = () => {
               </span>
             </div>
             <p className="text-sm text-muted-foreground max-w-sm mb-4">
-              The decentralized prediction market built on eCash. Trade on real-world events with instant settlements and near-zero fees.
+              {t.footerDesc}
             </p>
             <div className="flex items-center gap-4">
               <a
@@ -82,11 +85,11 @@ const Footer = () => {
             viewport={{ once: true }}
             transition={{ delay: 0.1 }}
           >
-            <h4 className="font-display font-semibold text-foreground mb-4">Platform</h4>
+            <h4 className="font-display font-semibold text-foreground mb-4">{t.platform}</h4>
             <ul className="space-y-2 text-sm">
-              <li><Link to="/#markets" className="text-muted-foreground hover:text-primary transition-colors">Markets</Link></li>
-              <li><Link to="/#trending" className="text-muted-foreground hover:text-primary transition-colors">Trending</Link></li>
-              <li><Link to="/#how-it-works" className="text-muted-foreground hover:text-primary transition-colors">How It Works</Link></li>
+              <li><Link to="/#markets" className="text-muted-foreground hover:text-primary transition-colors">{t.markets}</Link></li>
+              <li><Link to="/#trending" className="text-muted-foreground hover:text-primary transition-colors">{t.trending}</Link></li>
+              <li><Link to="/#how-it-works" className="text-muted-foreground hover:text-primary transition-colors">{t.howItWorks}</Link></li>
             </ul>
           </motion.div>
 
@@ -96,7 +99,7 @@ const Footer = () => {
             viewport={{ once: true }}
             transition={{ delay: 0.2 }}
           >
-            <h4 className="font-display font-semibold text-foreground mb-4">Resources</h4>
+            <h4 className="font-display font-semibold text-foreground mb-4">{t.resources}</h4>
             <ul className="space-y-2 text-sm">
               <li>
                 <a
@@ -105,7 +108,7 @@ const Footer = () => {
                   rel="noopener noreferrer"
                   className="text-muted-foreground hover:text-primary transition-colors inline-flex items-center gap-1"
                 >
-                  About eCash
+                  {t.aboutEcash}
                   <ExternalLink className="w-3 h-3" />
                 </a>
               </li>
@@ -116,7 +119,7 @@ const Footer = () => {
                   rel="noopener noreferrer"
                   className="text-muted-foreground hover:text-primary transition-colors inline-flex items-center gap-1"
                 >
-                  Get a Wallet
+                  {t.getWallet}
                   <ExternalLink className="w-3 h-3" />
                 </a>
               </li>
@@ -127,7 +130,7 @@ const Footer = () => {
                   rel="noopener noreferrer"
                   className="text-muted-foreground hover:text-primary transition-colors inline-flex items-center gap-1"
                 >
-                  PayButton Docs
+                  {t.payButtonDocs}
                   <ExternalLink className="w-3 h-3" />
                 </a>
               </li>
@@ -137,14 +140,14 @@ const Footer = () => {
 
         {/* Bottom */}
         <div className="pt-8 border-t border-border/30 flex flex-col md:flex-row items-center justify-between gap-4">
-        <p 
-          className="text-sm text-muted-foreground cursor-default select-none"
-          onClick={handleCopyrightClick}
-        >
-          © 2025 eCash Pulse. Powered by eCash (XEC).
-        </p>
+          <p 
+            className="text-sm text-muted-foreground cursor-default select-none"
+            onClick={handleCopyrightClick}
+          >
+            {t.copyright}
+          </p>
           <p className="text-xs text-muted-foreground">
-            Prediction markets are for informational purposes only. Trade responsibly.
+            {t.disclaimer}
           </p>
         </div>
       </div>

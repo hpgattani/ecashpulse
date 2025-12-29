@@ -1,30 +1,33 @@
 import { motion } from 'framer-motion';
 import { Wallet, Search, MousePointer, Trophy } from 'lucide-react';
-
-const steps = [
-  {
-    icon: Wallet,
-    title: 'Connect Your Wallet',
-    description: 'Link your eCash address to start trading. No sign-up required.',
-  },
-  {
-    icon: Search,
-    title: 'Find a Market',
-    description: 'Browse prediction markets across crypto, politics, sports, and more.',
-  },
-  {
-    icon: MousePointer,
-    title: 'Place Your Bet',
-    description: 'Bet YES or NO on any outcome using eCash. Instant transactions.',
-  },
-  {
-    icon: Trophy,
-    title: 'Collect Winnings',
-    description: 'When the market resolves, winners get paid automatically to their wallet.',
-  },
-];
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const HowItWorks = () => {
+  const { t } = useLanguage();
+
+  const steps = [
+    {
+      icon: Wallet,
+      title: t.step1Title,
+      description: t.step1Desc,
+    },
+    {
+      icon: Search,
+      title: t.step2Title,
+      description: t.step2Desc,
+    },
+    {
+      icon: MousePointer,
+      title: t.step3Title,
+      description: t.step3Desc,
+    },
+    {
+      icon: Trophy,
+      title: t.step4Title,
+      description: t.step4Desc,
+    },
+  ];
+
   return (
     <section id="how-it-works" className="py-20 relative">
       <div className="container mx-auto px-4">
@@ -36,10 +39,11 @@ const HowItWorks = () => {
           className="text-center mb-16"
         >
           <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">
-            How It <span className="gradient-text">Works</span>
+            {t.howItWorksTitle.split(' ').slice(0, -1).join(' ')}{' '}
+            <span className="gradient-text">{t.howItWorksTitle.split(' ').slice(-1)}</span>
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Start predicting in minutes. No complicated setup, just pure prediction markets powered by eCash.
+            {t.howItWorksSubtitle}
           </p>
         </motion.div>
 
