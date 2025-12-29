@@ -607,6 +607,27 @@ Deno.serve(async (req) => {
     const recipients = Array.from(userPayouts.values());
     console.log(`Batched into ${recipients.length} recipients`);
 
+    // Apply platform fee to payouts
+    const platformFeePercent = parseFloat(Deno.env.get('PLATFORM_FEE_PERCENT') || '1.0');
+    console.log(`Platform fee: ${platformFeePercent}%`);
+    
+    let totalFees = 0;
+    const feesPerRecipient: Map<string, number> = new Map();
+    
+    for (const recipient of recipients) {
+      const originalAmount = recipient.amount;
+      const fee = Math.floor(originalAmount * (platformFeePercent / 100));
+      const netAmount = originalAmount - fee;
+      
+      recipient.amount = netAmount;
+      feesPerRecipient.set(recipient.userId, fee);
+      totalFees += fee;
+      
+      console.log(`User ${recipient.userId}: Original ${originalAmount} XEC, Fee ${fee} XEC (${platformFeePercent}%), Net ${netAmount} XEC`);
+    }
+    
+    console.log(`Total platform fees collected: ${totalFees} XEC`);
+
     // Load escrow wallet
     const escrowWIF = Deno.env.get('ESCROW_PRIVATE_KEY_WIF');
     if (!escrowWIF) throw new Error('ESCROW_PRIVATE_KEY_WIF not configured');
@@ -688,12 +709,20 @@ Deno.serve(async (req) => {
 
     console.log(`Payout transaction broadcast: ${txid}`);
 
-    // Update bet records
+    // Update bet records with tx hash and platform fee
     const allBetIds = recipients.flatMap(r => r.betIds);
-    await supabase
-      .from('bets')
-      .update({ payout_tx_hash: txid })
-      .in('id', allBetIds);
+    
+    // Update each bet with its corresponding platform fee
+    for (const recipient of recipients) {
+      const fee = feesPerRecipient.get(recipient.userId) || 0;
+      await supabase
+        .from('bets')
+        .update({ 
+          payout_tx_hash: txid,
+          platform_fee: fee
+        })
+        .in('id', recipient.betIds);
+    }
 
     return new Response(
       JSON.stringify({ 
@@ -702,6 +731,9 @@ Deno.serve(async (req) => {
         txid,
         recipients: recipients.length,
         total_amount: totalPayout,
+        platform_fees: totalFees,
+        net_amount: totalPayout - totalFees,
+        fee_percent: platformFeePercent,
         bets_paid: allBetIds.length,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
