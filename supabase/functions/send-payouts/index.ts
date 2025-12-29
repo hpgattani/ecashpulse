@@ -258,6 +258,54 @@ function createP2PKHScript(hash160: Uint8Array): Uint8Array {
   return script;
 }
 
+// Create OP_RETURN script with Cashtab message
+function createCashtabMessageScript(message: string): Uint8Array {
+  // Cashtab LOKAD prefix: 00746162 (hex) = \0tab
+  const CASHTAB_LOKAD = new Uint8Array([0x00, 0x74, 0x61, 0x62]);
+  
+  // Encode message as UTF-8
+  const messageBytes = new TextEncoder().encode(message);
+  
+  // Helper to create push op for data
+  function pushBytesOp(data: Uint8Array): Uint8Array {
+    if (data.length <= 75) {
+      // OP_PUSHDATA with length prefix
+      const result = new Uint8Array(1 + data.length);
+      result[0] = data.length;
+      result.set(data, 1);
+      return result;
+    } else if (data.length <= 255) {
+      // OP_PUSHDATA1
+      const result = new Uint8Array(2 + data.length);
+      result[0] = 0x4c; // OP_PUSHDATA1
+      result[1] = data.length;
+      result.set(data, 2);
+      return result;
+    } else {
+      // OP_PUSHDATA2 for longer messages
+      const result = new Uint8Array(3 + data.length);
+      result[0] = 0x4d; // OP_PUSHDATA2
+      result[1] = data.length & 0xff;
+      result[2] = (data.length >> 8) & 0xff;
+      result.set(data, 3);
+      return result;
+    }
+  }
+  
+  // Build script: OP_RETURN <LOKAD> <message>
+  const lokadPush = pushBytesOp(CASHTAB_LOKAD);
+  const messagePush = pushBytesOp(messageBytes);
+  
+  const script = new Uint8Array(1 + lokadPush.length + messagePush.length);
+  let offset = 0;
+  script[offset++] = 0x6a; // OP_RETURN
+  script.set(lokadPush, offset);
+  offset += lokadPush.length;
+  script.set(messagePush, offset);
+  
+  return script;
+}
+
 // ==================== Secp256k1 (using noble-secp256k1) ====================
 
 // Import secp256k1 for signing
@@ -656,7 +704,9 @@ Deno.serve(async (req) => {
     }
 
     const totalPayout = recipients.reduce((sum, r) => sum + r.amount, 0);
-    const estimatedFee = 500 + (recipients.length * 34) + (validUtxos.length * 180);
+    
+    // Calculate fee: base + (outputs * 34) + (inputs * 180) + OP_RETURN (~50 bytes)
+    const estimatedFee = 500 + (recipients.length * 34) + (validUtxos.length * 180) + 50;
     
     console.log(`Total to pay: ${totalPayout}, Fee: ~${estimatedFee}, Available: ${totalAvailable}`);
 
@@ -680,13 +730,23 @@ Deno.serve(async (req) => {
       if (inputTotal >= needed) break;
     }
 
-    // Build outputs
+    // Build outputs - payout outputs for winners
     const outputs: TxOutput[] = recipients.map(r => ({
       value: BigInt(r.amount),
       scriptPubKey: createP2PKHScript(cashAddrToHash160(r.address)!),
     }));
 
-    // Calculate change
+    // Add OP_RETURN output with Cashtab message
+    const congratsMessage = Deno.env.get('PAYOUT_MESSAGE') || 'Congratulations for winning on eCash Pulse!';
+    const opReturnScript = createCashtabMessageScript(congratsMessage);
+    outputs.push({
+      value: 0n, // OP_RETURN outputs have 0 value
+      scriptPubKey: opReturnScript,
+    });
+    
+    console.log(`Added Cashtab message: "${congratsMessage}"`);
+
+    // Calculate change (OP_RETURN already included in outputs)
     const outputTotal = outputs.reduce((a, b) => a + b.value, 0n);
     const change = inputTotal - outputTotal - BigInt(estimatedFee);
     
