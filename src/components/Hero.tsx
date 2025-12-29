@@ -1,8 +1,11 @@
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Shield, Zap } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const Hero = () => {
+  const { t } = useLanguage();
+
   return (
     <section className="relative min-h-screen flex items-center justify-center pt-20 overflow-hidden">
       {/* Background Effects */}
@@ -21,7 +24,7 @@ const Hero = () => {
           >
             <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
             <span className="text-sm text-muted-foreground">
-              Powered by <span className="text-primary font-semibold">eCash (XEC)</span>
+              {t.poweredBy} <span className="text-primary font-semibold">eCash (XEC)</span>
             </span>
           </motion.div>
 
@@ -32,9 +35,9 @@ const Hero = () => {
             transition={{ delay: 0.3, duration: 0.6 }}
             className="font-display text-4xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight"
           >
-            Predict the Future,
+            {t.heroTitle1}
             <br />
-            <span className="gradient-text">Bet with Confidence</span>
+            <span className="gradient-text">{t.heroTitle2}</span>
           </motion.h1>
 
           {/* Subtitle */}
@@ -44,8 +47,7 @@ const Hero = () => {
             transition={{ delay: 0.5 }}
             className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto"
           >
-            The decentralized prediction market built on eCash. 
-            Trade on real-world events with instant settlements and near-zero fees.
+            {t.heroSubtitle}
           </motion.p>
 
           {/* CTA Buttons */}
@@ -61,7 +63,7 @@ const Hero = () => {
               className="w-full sm:w-auto text-base px-8 py-4 h-auto"
               onClick={() => document.getElementById('markets')?.scrollIntoView({ behavior: 'smooth' })}
             >
-              Start Trading
+              {t.startTrading}
               <ArrowRight className="w-5 h-5" />
             </Button>
             <Button 
@@ -70,7 +72,7 @@ const Hero = () => {
               className="w-full sm:w-auto text-base px-8 py-4 h-auto"
               onClick={() => document.getElementById('trending')?.scrollIntoView({ behavior: 'smooth' })}
             >
-              Explore Markets
+              {t.exploreMarkets}
             </Button>
           </motion.div>
 
@@ -88,7 +90,7 @@ const Hero = () => {
               className="glass-card px-6 py-3 flex items-center gap-2 hover:border-primary/50 transition-colors"
             >
               <Zap className="w-5 h-5 text-primary" />
-              <span className="text-foreground font-medium">Pay with Cashtab</span>
+              <span className="text-foreground font-medium">{t.payWithCashtab}</span>
             </a>
             <a 
               href="https://marlinwallet.com" 
@@ -97,7 +99,7 @@ const Hero = () => {
               className="glass-card px-6 py-3 flex items-center gap-2 hover:border-primary/50 transition-colors"
             >
               <Shield className="w-5 h-5 text-accent" />
-              <span className="text-foreground font-medium">Pay with Marlin</span>
+              <span className="text-foreground font-medium">{t.payWithMarlin}</span>
             </a>
           </motion.div>
         </div>

@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { categories } from '@/data/predictions';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface MarketFiltersProps {
   activeCategory: string;
@@ -10,6 +10,18 @@ const MarketFilters = ({
   activeCategory,
   onCategoryChange,
 }: MarketFiltersProps) => {
+  const { t } = useLanguage();
+
+  const categories = [
+    { id: 'all', name: t.all, icon: '🌐' },
+    { id: 'crypto', name: t.crypto, icon: '₿' },
+    { id: 'politics', name: t.politics, icon: '🏛️' },
+    { id: 'elections', name: t.elections, icon: '🗳️' },
+    { id: 'sports', name: t.sports, icon: '⚽' },
+    { id: 'economics', name: t.economics, icon: '📈' },
+    { id: 'entertainment', name: t.entertainment, icon: '🎬' },
+  ];
+
   return (
     <div className="flex flex-wrap gap-2 justify-center mb-8">
       {categories.map((category) => (

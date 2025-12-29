@@ -8,6 +8,7 @@ import { Outcome } from "@/hooks/usePredictions";
 import { toast } from "sonner";
 import { useUserBetSummaries, type UserBetSummary } from "@/hooks/useUserBetSummaries";
 import CountdownTimer from "./CountdownTimer";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Prediction {
   id: string;
@@ -34,6 +35,7 @@ interface PredictionCardProps {
 
 const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const { betByPredictionId } = useUserBetSummaries();
   const userBet: UserBetSummary | null = betByPredictionId[prediction.id] ?? null;
 
@@ -73,8 +75,24 @@ const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) =
   // Detect if this is an Up/Down prediction (binary but not Yes/No)
   const outcomeLabels = prediction.outcomes?.map(o => o.label.toLowerCase().trim()) || [];
   const isUpDown = !isMultiOption && outcomeLabels.includes('up') && outcomeLabels.includes('down');
-  const positiveLabel = isUpDown ? 'Up' : 'Yes';
-  const negativeLabel = isUpDown ? 'Down' : 'No';
+  const positiveLabel = isUpDown ? t.up : t.yes;
+  const negativeLabel = isUpDown ? t.down : t.no;
+  const positiveBetLabel = isUpDown ? t.betUp : t.betYes;
+  const negativeBetLabel = isUpDown ? t.betDown : t.betNo;
+
+  // Category translations
+  const getCategoryLabel = (category: string) => {
+    const categoryMap: Record<string, keyof typeof t> = {
+      crypto: 'crypto',
+      politics: 'politics',
+      sports: 'sports',
+      economics: 'economics',
+      entertainment: 'entertainment',
+      elections: 'elections',
+      tech: 'tech',
+    };
+    return t[categoryMap[category] || 'crypto'] || category;
+  };
 
   const formatVolume = (vol: number) => {
     if (vol >= 1000000) return `${(vol / 1000000).toFixed(1)}M XEC`;
@@ -109,6 +127,7 @@ const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) =
       tech: "🚀",
       entertainment: "🎬",
       economics: "📈",
+      elections: "🗳️",
     };
     return emojis[category] || "🌐";
   };
@@ -142,7 +161,7 @@ const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) =
     } else {
       await navigator.clipboard.writeText(url);
       setCopied(true);
-      toast.success("Link copied!");
+      toast.success(t.linkCopied);
       setTimeout(() => setCopied(false), 2000);
     }
   };
@@ -207,7 +226,7 @@ const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) =
               }
             >
               <div className="bg-card border border-primary/40 rounded-lg px-3 py-2 shadow-lg shadow-primary/20 min-w-[120px]">
-                <p className="text-xs text-muted-foreground mb-0.5">Your Bet</p>
+                <p className="text-xs text-muted-foreground mb-0.5">{t.yourBet}</p>
                 <p className="text-sm font-bold text-primary">{(userBet.amount / 100).toLocaleString()} XEC</p>
                 <div className="text-xs font-medium text-foreground mt-0.5">
                   {(() => {
@@ -215,7 +234,7 @@ const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) =
                       ? userBet.picks
                       : [userBet.outcome_label || String(userBet.position).toUpperCase()];
                     if (picks.length === 1) {
-                      return <span>on <span className="text-primary">{picks[0]}</span></span>;
+                      return <span>{t.on} <span className="text-primary">{picks[0]}</span></span>;
                     }
                     return (
                       <ul className="list-disc pl-3 mt-1 space-y-0.5">
@@ -237,10 +256,10 @@ const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) =
             <div className="flex items-center gap-2">
               <span className="text-lg">{getCategoryEmoji(prediction.category)}</span>
               <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-                {prediction.category}
+                {getCategoryLabel(prediction.category)}
               </span>
               {isMultiOption && (
-                <span className="text-xs px-1.5 py-0.5 rounded bg-primary/20 text-primary font-medium">Multi</span>
+                <span className="text-xs px-1.5 py-0.5 rounded bg-primary/20 text-primary font-medium">{t.multi}</span>
               )}
             </div>
             <div className="flex items-center gap-2 mr-14">
@@ -253,7 +272,7 @@ const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) =
               {prediction.trending && (
                 <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs">
                   <TrendingUp className="w-3 h-3" />
-                  Hot
+                  {t.hot}
                 </div>
               )}
               <button
@@ -325,7 +344,7 @@ const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) =
           <div className="flex items-center justify-between text-xs text-muted-foreground mb-4">
             <div className="flex items-center gap-1">
               <Users className="w-3 h-3" />
-              {formatVolume(prediction.volume)} Vol
+              {formatVolume(prediction.volume)} {t.vol}
             </div>
             <CountdownTimer endDate={prediction.endDate} />
             <div className="flex items-center gap-1">
@@ -346,10 +365,10 @@ const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) =
           {!isMultiOption && (
             <div className="flex gap-2">
               <Button variant="yes" size="sm" className="flex-1" onClick={(e) => { e.stopPropagation(); handleBet("yes"); }}>
-                Bet {positiveLabel}
+                {positiveBetLabel}
               </Button>
               <Button variant="no" size="sm" className="flex-1" onClick={(e) => { e.stopPropagation(); handleBet("no"); }}>
-                Bet {negativeLabel}
+                {negativeBetLabel}
               </Button>
             </div>
           )}

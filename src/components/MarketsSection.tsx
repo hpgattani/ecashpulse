@@ -5,11 +5,13 @@ import { useCryptoPrices } from '@/hooks/useCryptoPrices';
 import PredictionCard from './PredictionCard';
 import MarketFilters from './MarketFilters';
 import { Loader2 } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const MarketsSection = () => {
   const [activeCategory, setActiveCategory] = useState('all');
   const { predictions, loading, error } = usePredictions();
   const { getPriceForCrypto } = useCryptoPrices();
+  const { t } = useLanguage();
 
   const filteredPredictions = predictions.filter((p) => {
     return activeCategory === 'all' ? true : p.category === activeCategory;
@@ -26,10 +28,11 @@ const MarketsSection = () => {
           className="text-center mb-12"
         >
           <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">
-            Active <span className="gradient-text">Markets</span>
+            {t.activeMarkets.split(' ')[0]}{' '}
+            <span className="gradient-text">{t.activeMarkets.split(' ').slice(1).join(' ')}</span>
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Browse prediction markets across categories. Place bets using eCash and win if your prediction is correct.
+            {t.browseMarkets}
           </p>
         </motion.div>
 
@@ -61,7 +64,7 @@ const MarketsSection = () => {
             animate={{ opacity: 1 }}
             className="text-center py-16"
           >
-            <p className="text-destructive">Failed to load markets. Please try again.</p>
+            <p className="text-destructive">{t.failedToLoad}</p>
           </motion.div>
         )}
 
@@ -85,7 +88,7 @@ const MarketsSection = () => {
             animate={{ opacity: 1 }}
             className="text-center py-16"
           >
-            <p className="text-muted-foreground">No markets found in this category.</p>
+            <p className="text-muted-foreground">{t.noMarketsFound}</p>
           </motion.div>
         )}
       </div>

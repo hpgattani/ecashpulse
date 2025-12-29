@@ -1,14 +1,30 @@
 import { motion } from 'framer-motion';
 import { usePredictions } from '@/hooks/usePredictions';
 import { TrendingUp, Flame, Loader2 } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const TrendingSection = () => {
   const { predictions, loading } = usePredictions();
+  const { t } = useLanguage();
   
   // Show top 5 predictions by volume as trending
   const trendingPredictions = predictions
     .sort((a, b) => (b.yesOdds + b.noOdds) - (a.yesOdds + a.noOdds))
     .slice(0, 5);
+
+  // Category translations
+  const getCategoryLabel = (category: string) => {
+    const categoryMap: Record<string, keyof typeof t> = {
+      crypto: 'crypto',
+      politics: 'politics',
+      sports: 'sports',
+      economics: 'economics',
+      entertainment: 'entertainment',
+      elections: 'elections',
+      tech: 'tech',
+    };
+    return t[categoryMap[category] || 'crypto'] || category;
+  };
 
   if (loading) {
     return (
@@ -42,7 +58,7 @@ const TrendingSection = () => {
           <div className="p-2 rounded-lg bg-primary/10">
             <Flame className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
           </div>
-          <h2 className="font-display text-xl sm:text-2xl font-bold">Trending Now</h2>
+          <h2 className="font-display text-xl sm:text-2xl font-bold">{t.trendingNow}</h2>
         </motion.div>
 
         {/* Trending Cards */}
@@ -58,11 +74,11 @@ const TrendingSection = () => {
             >
               <div className="flex items-start justify-between mb-2 sm:mb-3">
                 <span className="text-[10px] sm:text-xs uppercase tracking-wider text-muted-foreground font-medium">
-                  {prediction.category}
+                  {getCategoryLabel(prediction.category)}
                 </span>
                 <div className="flex items-center gap-1 text-emerald-400 text-xs sm:text-sm">
                   <TrendingUp className="w-3 h-3" />
-                  Hot
+                  {t.hot}
                 </div>
               </div>
               
@@ -74,12 +90,12 @@ const TrendingSection = () => {
                 <div className="flex items-center gap-2 sm:gap-3">
                   <div className="text-center">
                     <div className="text-base sm:text-lg font-bold text-emerald-400">{prediction.yesOdds}%</div>
-                    <div className="text-[10px] sm:text-xs text-muted-foreground">Yes</div>
+                    <div className="text-[10px] sm:text-xs text-muted-foreground">{t.yes}</div>
                   </div>
                   <div className="w-px h-6 sm:h-8 bg-border" />
                   <div className="text-center">
                     <div className="text-base sm:text-lg font-bold text-red-400">{prediction.noOdds}%</div>
-                    <div className="text-[10px] sm:text-xs text-muted-foreground">No</div>
+                    <div className="text-[10px] sm:text-xs text-muted-foreground">{t.no}</div>
                   </div>
                 </div>
                 
@@ -90,7 +106,7 @@ const TrendingSection = () => {
                       : `${(prediction.volume * 33333).toFixed(0)} XEC`
                     }
                   </div>
-                  <div className="text-[10px] sm:text-xs text-muted-foreground">Volume</div>
+                  <div className="text-[10px] sm:text-xs text-muted-foreground">{t.volume}</div>
                 </div>
               </div>
             </motion.div>
