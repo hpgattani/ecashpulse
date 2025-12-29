@@ -11,6 +11,7 @@ import BetModal from "@/components/BetModal";
 import { Outcome } from "@/hooks/usePredictions";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface PredictionData {
   id: string;
@@ -43,6 +44,7 @@ interface BetActivity {
 const Prediction = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const { t, translateTitle } = useLanguage();
   const [prediction, setPrediction] = useState<PredictionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isBetModalOpen, setIsBetModalOpen] = useState(false);
@@ -273,10 +275,10 @@ const Prediction = () => {
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
+    if (diffMins < 1) return t.justNow;
+    if (diffMins < 60) return `${diffMins}${t.minutesAgo}`;
+    if (diffHours < 24) return `${diffHours}${t.hoursAgo}`;
+    if (diffDays < 7) return `${diffDays}${t.daysAgo}`;
     return date.toLocaleDateString("en-IN", { month: "short", day: "numeric", timeZone: "Asia/Kolkata" });
   };
 
@@ -296,6 +298,19 @@ const Prediction = () => {
       elections: "🗳️",
     };
     return emojis[category] || "🌐";
+  };
+
+  const getCategoryLabel = (category: string) => {
+    const categoryMap: Record<string, keyof typeof t> = {
+      crypto: 'crypto',
+      politics: 'politics',
+      sports: 'sports',
+      economics: 'economics',
+      entertainment: 'entertainment',
+      elections: 'elections',
+      tech: 'tech',
+    };
+    return t[categoryMap[category] || 'crypto'] || category;
   };
 
   if (loading) {
@@ -387,7 +402,7 @@ const Prediction = () => {
             {/* Back link */}
             <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-6">
               <ArrowLeft className="w-4 h-4" />
-              Back to Markets
+              {t.markets}
             </Link>
 
             <motion.div
@@ -401,10 +416,10 @@ const Prediction = () => {
                   <div className="flex items-center gap-2">
                     <span className="text-2xl">{getCategoryEmoji(prediction.category)}</span>
                     <span className="text-sm uppercase tracking-wider text-muted-foreground font-medium">
-                      {prediction.category}
+                      {getCategoryLabel(prediction.category)}
                     </span>
                     {isMultiOption && (
-                      <span className="text-xs px-2 py-1 rounded bg-primary/20 text-primary font-medium">Multi-Option</span>
+                      <span className="text-xs px-2 py-1 rounded bg-primary/20 text-primary font-medium">{t.multi}</span>
                     )}
                     {prediction.status !== "active" && (
                       <span className={`text-xs px-2 py-1 rounded font-medium ${
@@ -423,7 +438,7 @@ const Prediction = () => {
                 </div>
 
                 <h1 className="font-display font-bold text-2xl md:text-3xl text-foreground leading-tight">
-                  {prediction.title}
+                  {translateTitle(prediction.title)}
                 </h1>
 
                 {prediction.description && (
@@ -465,8 +480,8 @@ const Prediction = () => {
                 ) : (
                   <div className="mb-6">
                     <div className="flex justify-between text-sm mb-3">
-                      <span className="text-emerald-400 font-semibold text-lg">Yes {yesOdds}%</span>
-                      <span className="text-red-400 font-semibold text-lg">No {noOdds}%</span>
+                      <span className="text-emerald-400 font-semibold text-lg">{t.yes} {yesOdds}%</span>
+                      <span className="text-red-400 font-semibold text-lg">{t.no} {noOdds}%</span>
                     </div>
                     <div className="h-4 rounded-full bg-muted overflow-hidden flex">
                       <motion.div
@@ -489,11 +504,11 @@ const Prediction = () => {
                 <div className="flex flex-wrap gap-4 mb-6 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <Users className="w-4 h-4" />
-                    <span>{formatVolume(totalPool)} Volume</span>
+                    <span>{formatVolume(totalPool)} {t.volume}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4" />
-                    <span>Ends {formatDate(prediction.end_date)}</span>
+                    <span>{t.ends} {formatDate(prediction.end_date)}</span>
                   </div>
                 </div>
 
@@ -501,10 +516,10 @@ const Prediction = () => {
                 {prediction.status === "active" && !isMultiOption && (
                   <div className="flex gap-3">
                     <Button variant="yes" size="lg" className="flex-1" onClick={() => handleBet("yes")}>
-                      Bet Yes
+                      {t.betYes}
                     </Button>
                     <Button variant="no" size="lg" className="flex-1" onClick={() => handleBet("no")}>
-                      Bet No
+                      {t.betNo}
                     </Button>
                   </div>
                 )}
@@ -521,7 +536,7 @@ const Prediction = () => {
               <div className="p-4 md:p-6 border-b border-border/30">
                 <div className="flex items-center gap-2">
                   <Activity className="w-5 h-5 text-primary" />
-                  <h2 className="font-display font-semibold text-lg text-foreground">Recent Activity</h2>
+                  <h2 className="font-display font-semibold text-lg text-foreground">{t.recentActivity}</h2>
                 </div>
               </div>
 
@@ -533,8 +548,8 @@ const Prediction = () => {
                 ) : activities.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <Activity className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">No betting activity yet</p>
-                    <p className="text-xs mt-1">Be the first to place a bet!</p>
+                    <p className="text-sm">{t.noActivity}</p>
+                    <p className="text-xs mt-1">{t.beFirst}</p>
                   </div>
                 ) : (
                   <div className="space-y-3">

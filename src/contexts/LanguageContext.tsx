@@ -118,6 +118,41 @@ interface Translations {
   tech: string;
 }
 
+// Common prediction title translations
+const predictionTitleTranslations: Record<string, Record<Language, string>> = {
+  // Crypto predictions
+  "Will Bitcoin reach $100k?": { en: "Will Bitcoin reach $100k?", "pt-BR": "O Bitcoin atingirá $100k?" },
+  "Will Ethereum flip Bitcoin?": { en: "Will Ethereum flip Bitcoin?", "pt-BR": "O Ethereum vai superar o Bitcoin?" },
+  "Bitcoin Up or Down?": { en: "Bitcoin Up or Down?", "pt-BR": "Bitcoin vai subir ou descer?" },
+  "Ethereum Up or Down?": { en: "Ethereum Up or Down?", "pt-BR": "Ethereum vai subir ou descer?" },
+  "Solana Up or Down?": { en: "Solana Up or Down?", "pt-BR": "Solana vai subir ou descer?" },
+  "XRP Up or Down?": { en: "XRP Up or Down?", "pt-BR": "XRP vai subir ou descer?" },
+  "Dogecoin Up or Down?": { en: "Dogecoin Up or Down?", "pt-BR": "Dogecoin vai subir ou descer?" },
+  
+  // Politics/Elections
+  "Which party will win the House in 2026?": { en: "Which party will win the House in 2026?", "pt-BR": "Qual partido vai ganhar a Câmara em 2026?" },
+  "Will President Lula win the 2026 Brazilian election?": { en: "Will President Lula win the 2026 Brazilian election?", "pt-BR": "O Presidente Lula vencerá a eleição brasileira de 2026?" },
+  
+  // Sports
+  "Will India win the Cricket World Cup?": { en: "Will India win the Cricket World Cup?", "pt-BR": "A Índia vai ganhar a Copa do Mundo de Críquete?" },
+  
+  // General patterns - will be matched dynamically
+};
+
+// Dynamic translation patterns
+const translationPatterns: Array<{ pattern: RegExp; en: string; ptBR: string }> = [
+  { pattern: /^Will (.+) reach \$(.+)\?$/i, en: "Will $1 reach $$2?", ptBR: "$1 atingirá $$2?" },
+  { pattern: /^(.+) Up or Down\?$/i, en: "$1 Up or Down?", ptBR: "$1 vai subir ou descer?" },
+  { pattern: /^Will (.+) go up\?$/i, en: "Will $1 go up?", ptBR: "$1 vai subir?" },
+  { pattern: /^Will (.+) go down\?$/i, en: "Will $1 go down?", ptBR: "$1 vai descer?" },
+  { pattern: /^Will (.+) win (.+)\?$/i, en: "Will $1 win $2?", ptBR: "$1 vai ganhar $2?" },
+  { pattern: /^Which (.+) will win (.+)\?$/i, en: "Which $1 will win $2?", ptBR: "Qual $1 vai ganhar $2?" },
+  { pattern: /^Will (.+) beat (.+)\?$/i, en: "Will $1 beat $2?", ptBR: "$1 vai vencer $2?" },
+  { pattern: /^Will (.+) happen\?$/i, en: "Will $1 happen?", ptBR: "$1 vai acontecer?" },
+  { pattern: /^Will (.+) close above \$(.+)\?$/i, en: "Will $1 close above $$2?", ptBR: "$1 vai fechar acima de $$2?" },
+  { pattern: /^Will (.+) trade above \$(.+)\?$/i, en: "Will $1 trade above $$2?", ptBR: "$1 vai negociar acima de $$2?" },
+];
+
 const translations: Record<Language, Translations> = {
   en: {
     // Navigation
@@ -355,9 +390,87 @@ interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
   t: Translations;
+  translateTitle: (title: string) => string;
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
+
+// Function to translate prediction titles
+const translatePredictionTitle = (title: string, language: Language): string => {
+  if (language === 'en') return title;
+  
+  // Check exact matches first
+  if (predictionTitleTranslations[title]) {
+    return predictionTitleTranslations[title][language] || title;
+  }
+  
+  // Try pattern matching for pt-BR
+  for (const { pattern, ptBR } of translationPatterns) {
+    const match = title.match(pattern);
+    if (match) {
+      let translated = ptBR;
+      for (let i = 1; i < match.length; i++) {
+        translated = translated.replace(`$${i}`, match[i]);
+      }
+      return translated;
+    }
+  }
+  
+  // Fallback: translate common words
+  let translated = title;
+  const wordTranslations: Record<string, string> = {
+    'Will': 'Vai',
+    'win': 'ganhar',
+    'reach': 'atingir',
+    'above': 'acima de',
+    'below': 'abaixo de',
+    'close': 'fechar',
+    'trade': 'negociar',
+    'Up or Down': 'subir ou descer',
+    'go up': 'subir',
+    'go down': 'descer',
+    'Bitcoin': 'Bitcoin',
+    'Ethereum': 'Ethereum',
+    'the House': 'a Câmara',
+    'the Senate': 'o Senado',
+    'election': 'eleição',
+    'elections': 'eleições',
+    'President': 'Presidente',
+    'World Cup': 'Copa do Mundo',
+    'Championship': 'Campeonato',
+    'Super Bowl': 'Super Bowl',
+    'Finals': 'Finais',
+    'today': 'hoje',
+    'tomorrow': 'amanhã',
+    'this week': 'esta semana',
+    'this month': 'este mês',
+    'this year': 'este ano',
+    'next': 'próximo',
+    'before': 'antes de',
+    'after': 'depois de',
+    'in 2025': 'em 2025',
+    'in 2026': 'em 2026',
+    'in 2027': 'em 2027',
+    'January': 'Janeiro',
+    'February': 'Fevereiro',
+    'March': 'Março',
+    'April': 'Abril',
+    'May': 'Maio',
+    'June': 'Junho',
+    'July': 'Julho',
+    'August': 'Agosto',
+    'September': 'Setembro',
+    'October': 'Outubro',
+    'November': 'Novembro',
+    'December': 'Dezembro',
+  };
+  
+  for (const [en, pt] of Object.entries(wordTranslations)) {
+    translated = translated.replace(new RegExp(en, 'gi'), pt);
+  }
+  
+  return translated;
+};
 
 export const LanguageProvider = ({ children }: { children: ReactNode }) => {
   const [language, setLanguageState] = useState<Language>(() => {
@@ -370,12 +483,14 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem('language', lang);
   };
 
+  const translateTitle = (title: string) => translatePredictionTitle(title, language);
+
   useEffect(() => {
     document.documentElement.lang = language;
   }, [language]);
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t: translations[language] }}>
+    <LanguageContext.Provider value={{ language, setLanguage, t: translations[language], translateTitle }}>
       {children}
     </LanguageContext.Provider>
   );

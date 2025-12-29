@@ -35,7 +35,7 @@ interface PredictionCardProps {
 
 const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) => {
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { t, translateTitle } = useLanguage();
   const { betByPredictionId } = useUserBetSummaries();
   const userBet: UserBetSummary | null = betByPredictionId[prediction.id] ?? null;
 
@@ -285,7 +285,7 @@ const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) =
           </div>
 
           <h3 className="font-display font-semibold text-foreground text-base md:text-lg leading-snug group-hover:text-primary transition-colors pr-12">
-            {prediction.question}
+            {translateTitle(prediction.question)}
           </h3>
         </div>
 

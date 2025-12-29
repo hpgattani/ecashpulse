@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface Bet {
   id: string;
@@ -30,6 +31,7 @@ interface Bet {
 }
 
 const PublicBets = () => {
+  const { t, translateTitle } = useLanguage();
   const [bets, setBets] = useState<Bet[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -108,10 +110,10 @@ const PublicBets = () => {
     const diffHours = Math.floor(diffMins / 60);
     const diffDays = Math.floor(diffHours / 24);
 
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    return `${diffDays}d ago`;
+    if (diffMins < 1) return t.justNow;
+    if (diffMins < 60) return `${diffMins}${t.minutesAgo}`;
+    if (diffHours < 24) return `${diffHours}${t.hoursAgo}`;
+    return `${diffDays}${t.daysAgo}`;
   };
 
   const getStatusBadge = (status: string) => {
@@ -170,7 +172,7 @@ const PublicBets = () => {
   if (bets.length === 0) {
     return (
       <div className="glass-card p-6 text-center">
-        <p className="text-muted-foreground">No bets yet. Be the first to bet!</p>
+        <p className="text-muted-foreground">{t.noActivity} {t.beFirst}</p>
       </div>
     );
   }
@@ -179,7 +181,7 @@ const PublicBets = () => {
     <div className="glass-card p-4 sm:p-6">
       <h3 className="font-display font-bold text-base sm:text-lg text-foreground mb-4 flex items-center gap-2">
         <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-        Recent Bets (Last 100)
+        {t.recentActivity}
       </h3>
       
       <div className="space-y-2 sm:space-y-3 max-h-[350px] sm:max-h-[400px] overflow-y-auto">
@@ -215,7 +217,7 @@ const PublicBets = () => {
             
             {bet.predictions?.title && (
               <p className="text-xs text-foreground/80 mb-2 line-clamp-1">
-                {bet.predictions.title}
+                {translateTitle(bet.predictions.title)}
               </p>
             )}
             
