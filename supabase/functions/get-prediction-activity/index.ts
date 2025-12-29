@@ -69,8 +69,8 @@ Deno.serve(async (req) => {
       id: b.id,
       amount: b.amount,
       position: b.position,
-      created_at: b.created_at,
-      ecash_address: userMap.get(b.user_id) || 'Unknown',
+      timestamp: b.created_at,
+      address: userMap.get(b.user_id) || 'Unknown',
       outcome_label: b.outcome_id ? outcomeMap.get(b.outcome_id) : undefined
     }));
 
