@@ -292,22 +292,33 @@ const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) =
         {/* Odds Display */}
         <div className="p-4 md:p-5">
           {isMultiOption ? (
-            // Multi-option display - show all outcomes
-            <div className="space-y-1.5 mb-4 max-h-[200px] overflow-y-auto">
-              {prediction.outcomes!.map((outcome) => (
-                <button
-                  key={outcome.id}
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleOutcomeBet(outcome);
-                  }}
-                  className="w-full flex items-center justify-between p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary/60"
-                >
-                  <span className="text-sm text-foreground font-medium truncate flex-1 mr-2">{outcome.label}</span>
-                  <span className="text-sm font-bold text-primary">{outcome.odds}%</span>
-                </button>
-              ))}
+            // Multi-option display - show all outcomes with colors
+            <div className="space-y-2 mb-4 max-h-[200px] overflow-y-auto">
+              {prediction.outcomes!.map((outcome, idx) => {
+                const colors = [
+                  'from-emerald-500/20 to-emerald-600/10 border-emerald-500/30 hover:border-emerald-400',
+                  'from-red-500/20 to-red-600/10 border-red-500/30 hover:border-red-400',
+                  'from-blue-500/20 to-blue-600/10 border-blue-500/30 hover:border-blue-400',
+                  'from-purple-500/20 to-purple-600/10 border-purple-500/30 hover:border-purple-400',
+                ];
+                const textColors = ['text-emerald-400', 'text-red-400', 'text-blue-400', 'text-purple-400'];
+                const colorIdx = idx % colors.length;
+                
+                return (
+                  <button
+                    key={outcome.id}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOutcomeBet(outcome);
+                    }}
+                    className={`w-full flex items-center justify-between p-2.5 rounded-lg bg-gradient-to-r ${colors[colorIdx]} border transition-all cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary/60 hover:scale-[1.01]`}
+                  >
+                    <span className="text-sm text-foreground font-medium truncate flex-1 mr-2">{outcome.label}</span>
+                    <span className={`text-sm font-bold ${textColors[colorIdx]}`}>{outcome.odds}%</span>
+                  </button>
+                );
+              })}
             </div>
           ) : (
             <div className="mb-4">

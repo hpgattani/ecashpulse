@@ -75,13 +75,40 @@ const Prediction = () => {
       .select("*")
       .eq("prediction_id", id);
 
-    const outcomes: Outcome[] = outcomesData?.map((o) => {
-      const totalPool = outcomesData.reduce((sum, oc) => sum + oc.pool, 0);
+    // Calculate odds - use outcomes.pool if available, otherwise fallback to yes_pool/no_pool
+    const outcomeTotalPool = outcomesData?.reduce((sum, oc) => sum + oc.pool, 0) || 0;
+    const predictionTotalPool = predData.yes_pool + predData.no_pool;
+    
+    const outcomes: Outcome[] = outcomesData?.map((o, index) => {
+      // If outcomes have their own pools, use them
+      if (outcomeTotalPool > 0) {
+        return {
+          id: o.id,
+          label: o.label,
+          pool: o.pool,
+          odds: Math.round((o.pool / outcomeTotalPool) * 100),
+        };
+      }
+      
+      // Fallback: map first outcome to yes_pool, second to no_pool
+      // This handles legacy data where bets were placed with position instead of outcome_id
+      if (outcomesData && outcomesData.length === 2 && predictionTotalPool > 0) {
+        const isFirstOutcome = index === 0;
+        const pool = isFirstOutcome ? predData.yes_pool : predData.no_pool;
+        return {
+          id: o.id,
+          label: o.label,
+          pool: pool,
+          odds: Math.round((pool / predictionTotalPool) * 100),
+        };
+      }
+      
+      // Default equal split
       return {
         id: o.id,
         label: o.label,
         pool: o.pool,
-        odds: totalPool > 0 ? Math.round((o.pool / totalPool) * 100) : Math.round(100 / outcomesData.length),
+        odds: Math.round(100 / (outcomesData?.length || 2)),
       };
     }) || [];
 
@@ -462,20 +489,37 @@ const Prediction = () => {
               {/* Odds Display */}
               <div className="p-6">
                 {isMultiOption ? (
-                  <div className="space-y-2 mb-6">
+                  <div className="space-y-3 mb-6">
                     <h3 className="text-sm font-medium text-muted-foreground mb-3">Outcomes</h3>
-                    {prediction.outcomes!.map((outcome) => (
-                      <button
-                        key={outcome.id}
-                        type="button"
-                        onClick={() => prediction.status === "active" && handleOutcomeBet(outcome)}
-                        disabled={prediction.status !== "active"}
-                        className="w-full flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary/60 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <span className="text-foreground font-medium">{outcome.label}</span>
-                        <span className="text-lg font-bold text-primary">{outcome.odds}%</span>
-                      </button>
-                    ))}
+                    {prediction.outcomes!.map((outcome, index) => {
+                      const colors = [
+                        'from-emerald-500/20 to-emerald-600/10 border-emerald-500/40 hover:border-emerald-400',
+                        'from-red-500/20 to-red-600/10 border-red-500/40 hover:border-red-400',
+                        'from-blue-500/20 to-blue-600/10 border-blue-500/40 hover:border-blue-400',
+                        'from-purple-500/20 to-purple-600/10 border-purple-500/40 hover:border-purple-400',
+                      ];
+                      const textColors = ['text-emerald-400', 'text-red-400', 'text-blue-400', 'text-purple-400'];
+                      const bgColors = ['bg-emerald-400', 'bg-red-400', 'bg-blue-400', 'bg-purple-400'];
+                      const colorIndex = index % colors.length;
+                      
+                      return (
+                        <button
+                          key={outcome.id}
+                          type="button"
+                          onClick={() => prediction.status === "active" && handleOutcomeBet(outcome)}
+                          disabled={prediction.status !== "active"}
+                          className={`w-full flex items-center justify-between p-4 rounded-xl bg-gradient-to-r ${colors[colorIndex]} border transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/60 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.01]`}
+                        >
+                          <span className="text-foreground font-semibold text-base">{outcome.label}</span>
+                          <div className="flex items-center gap-3">
+                            <div className="h-2 w-16 rounded-full bg-muted/50 overflow-hidden">
+                              <div className={`h-full rounded-full ${bgColors[colorIndex]}`} style={{ width: `${outcome.odds}%` }} />
+                            </div>
+                            <span className={`text-xl font-bold ${textColors[colorIndex]}`}>{outcome.odds}%</span>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="mb-6">

@@ -180,13 +180,41 @@ const transformPrediction = (p: DBPrediction, outcomes: DBOutcome[]): Prediction
   let transformedOutcomes: Outcome[] = [];
   
   if (isMultiOption) {
-    totalPool = predictionOutcomes.reduce((sum, o) => sum + o.pool, 0);
-    transformedOutcomes = predictionOutcomes.map(o => ({
-      id: o.id,
-      label: o.label,
-      pool: o.pool,
-      odds: totalPool > 0 ? Math.round((o.pool / totalPool) * 100) : Math.round(100 / predictionOutcomes.length)
-    })).sort((a, b) => b.odds - a.odds);
+    // Check if outcomes have their own pools
+    const outcomeTotalPool = predictionOutcomes.reduce((sum, o) => sum + o.pool, 0);
+    const predictionTotalPool = p.yes_pool + p.no_pool;
+    
+    if (outcomeTotalPool > 0) {
+      // Use outcome pools
+      totalPool = outcomeTotalPool;
+      transformedOutcomes = predictionOutcomes.map(o => ({
+        id: o.id,
+        label: o.label,
+        pool: o.pool,
+        odds: Math.round((o.pool / outcomeTotalPool) * 100)
+      })).sort((a, b) => b.odds - a.odds);
+    } else if (predictionTotalPool > 0 && predictionOutcomes.length === 2) {
+      // Fallback: use yes_pool/no_pool for legacy 2-option predictions
+      totalPool = predictionTotalPool;
+      transformedOutcomes = predictionOutcomes.map((o, index) => {
+        const pool = index === 0 ? p.yes_pool : p.no_pool;
+        return {
+          id: o.id,
+          label: o.label,
+          pool: pool,
+          odds: Math.round((pool / predictionTotalPool) * 100)
+        };
+      }).sort((a, b) => b.odds - a.odds);
+    } else {
+      // Default equal split
+      totalPool = 0;
+      transformedOutcomes = predictionOutcomes.map(o => ({
+        id: o.id,
+        label: o.label,
+        pool: 0,
+        odds: Math.round(100 / predictionOutcomes.length)
+      }));
+    }
     
     // For multi-option, yes/no odds are just for display compatibility
     yesOdds = transformedOutcomes[0]?.odds || 50;
