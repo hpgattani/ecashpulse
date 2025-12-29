@@ -33,7 +33,7 @@ export interface Prediction {
   id: string;
   question: string;
   description: string;
-  category: 'crypto' | 'politics' | 'sports' | 'tech' | 'entertainment' | 'economics';
+  category: 'crypto' | 'politics' | 'sports' | 'tech' | 'entertainment' | 'economics' | 'elections';
   yesOdds: number;
   noOdds: number;
   volume: number;
@@ -135,8 +135,18 @@ const detectCategory = (title: string, existingCategory: string): Prediction['ca
     return 'economics';
   }
 
+  // Elections keywords
+  if (
+    q.includes('election') || q.includes('presidential') || q.includes('president') ||
+    q.includes('prime minister') || q.includes('governor') || q.includes('mayor') ||
+    q.includes('senate') || q.includes('congress') || q.includes('parliament') ||
+    q.includes('vote') || q.includes('ballot') || q.includes('re-elect') || q.includes('win the')
+  ) {
+    return 'elections';
+  }
+
   // If existing category is valid, keep it (trust the source data)
-  if (['crypto', 'politics', 'sports', 'tech', 'entertainment', 'economics'].includes(existing)) {
+  if (['crypto', 'politics', 'sports', 'tech', 'entertainment', 'economics', 'elections'].includes(existing)) {
     return existing as Prediction['category'];
   }
 

@@ -13,7 +13,7 @@ interface Prediction {
   id: string;
   question: string;
   description: string;
-  category: "crypto" | "politics" | "sports" | "tech" | "entertainment" | "economics";
+  category: "crypto" | "politics" | "sports" | "tech" | "entertainment" | "economics" | "elections";
   yesOdds: number;
   noOdds: number;
   volume: number;

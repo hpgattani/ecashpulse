@@ -293,6 +293,7 @@ const Prediction = () => {
       tech: "🚀",
       entertainment: "🎬",
       economics: "📈",
+      elections: "🗳️",
     };
     return emojis[category] || "🌐";
   };
@@ -354,7 +355,7 @@ const Prediction = () => {
     id: prediction.id,
     question: prediction.title,
     description: prediction.description || "",
-    category: prediction.category as "crypto" | "politics" | "sports" | "tech" | "entertainment" | "economics",
+    category: prediction.category as "crypto" | "politics" | "sports" | "tech" | "entertainment" | "economics" | "elections",
     yesOdds,
     noOdds,
     volume: totalPool / 100,

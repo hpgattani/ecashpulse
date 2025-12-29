@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Zap, Menu, X, Wallet, LogOut, TrendingUp, User } from "lucide-react";
 import { ProfileModal } from "./ProfileModal";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,6 +19,7 @@ const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const { user, profile, logout } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
 
   const truncateAddress = (address: string) => {
@@ -55,23 +58,24 @@ const Header = () => {
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-8">
               <Link to="/#markets" className="text-muted-foreground hover:text-foreground transition-colors">
-                Markets
+                {t.markets}
               </Link>
               <Link to="/#trending" className="text-muted-foreground hover:text-foreground transition-colors">
-                Trending
+                {t.trending}
               </Link>
               <Link to="/#how-it-works" className="text-muted-foreground hover:text-foreground transition-colors">
-                How It Works
+                {t.howItWorks}
               </Link>
               {user && (
                 <Link to="/my-bets" className="text-muted-foreground hover:text-foreground transition-colors">
-                  My Bets
+                  {t.myBets}
                 </Link>
               )}
             </nav>
 
             {/* Desktop Actions */}
-            <div className="hidden md:flex items-center gap-3">
+            <div className="hidden md:flex items-center gap-2">
+              <LanguageSwitcher />
               {user ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -83,23 +87,23 @@ const Header = () => {
                   <DropdownMenuContent align="end" className="w-56">
                     <DropdownMenuItem onClick={() => setIsProfileOpen(true)}>
                       <User className="w-4 h-4 mr-2" />
-                      Edit Profile
+                      {t.editProfile}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => navigate("/my-bets")}>
                       <TrendingUp className="w-4 h-4 mr-2" />
-                      My Bets
+                      {t.myBets}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={logout} className="text-destructive">
                       <LogOut className="w-4 h-4 mr-2" />
-                      Logout
+                      {t.logout}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
                 <Button size="sm" onClick={() => navigate("/auth")}>
                   <Wallet className="w-4 h-4 mr-2" />
-                  Connect
+                  {t.connect}
                 </Button>
               )}
             </div>
@@ -124,21 +128,21 @@ const Header = () => {
                   className="text-muted-foreground hover:text-foreground transition-colors"
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  Markets
+                  {t.markets}
                 </Link>
                 <Link
                   to="/#trending"
                   className="text-muted-foreground hover:text-foreground transition-colors"
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  Trending
+                  {t.trending}
                 </Link>
                 <Link
                   to="/#how-it-works"
                   className="text-muted-foreground hover:text-foreground transition-colors"
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  How It Works
+                  {t.howItWorks}
                 </Link>
                 {user && (
                   <Link
@@ -146,9 +150,13 @@ const Header = () => {
                     className="text-muted-foreground hover:text-foreground transition-colors"
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    My Bets
+                    {t.myBets}
                   </Link>
                 )}
+                <div className="flex items-center justify-between pt-2 border-t border-border/30">
+                  <span className="text-sm text-muted-foreground">Language</span>
+                  <LanguageSwitcher />
+                </div>
                 <div className="flex flex-col gap-2 pt-2">
                   {user ? (
                     <div className="space-y-2">
@@ -165,7 +173,7 @@ const Header = () => {
                         }}
                       >
                         <LogOut className="w-4 h-4" />
-                        Logout
+                        {t.logout}
                       </Button>
                     </div>
                   ) : (
@@ -178,7 +186,7 @@ const Header = () => {
                       }}
                     >
                       <Wallet className="w-4 h-4" />
-                      Connect
+                      {t.connect}
                     </Button>
                   )}
                 </div>
