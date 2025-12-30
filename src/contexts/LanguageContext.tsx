@@ -28,6 +28,8 @@ interface Translations {
   browseMarkets: string;
   failedToLoad: string;
   noMarketsFound: string;
+  searchPlaceholder: string;
+  searchMarkets: string;
   
   // Trending section
   trendingNow: string;
@@ -180,6 +182,8 @@ const translations: Record<Language, Translations> = {
     browseMarkets: 'Browse prediction markets across categories. Place bets using eCash and win if your prediction is correct.',
     failedToLoad: 'Failed to load markets. Please try again.',
     noMarketsFound: 'No markets found in this category.',
+    searchPlaceholder: 'Search markets...',
+    searchMarkets: 'Search',
     
     // Trending section
     trendingNow: 'Trending Now',
@@ -295,6 +299,8 @@ const translations: Record<Language, Translations> = {
     browseMarkets: 'Navegue pelos mercados de previsão em diversas categorias. Faça apostas usando eCash e ganhe se sua previsão estiver correta.',
     failedToLoad: 'Falha ao carregar mercados. Por favor, tente novamente.',
     noMarketsFound: 'Nenhum mercado encontrado nesta categoria.',
+    searchPlaceholder: 'Buscar mercados...',
+    searchMarkets: 'Buscar',
     
     // Trending section
     trendingNow: 'Em Alta Agora',
