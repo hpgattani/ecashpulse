@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Trophy, Medal, TrendingUp, Wallet, Crown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface LeaderboardEntry {
   user_id: string;
@@ -23,6 +24,7 @@ const formatAddress = (address: string) => {
 export const Leaderboard = () => {
   const [leaders, setLeaders] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const { t } = useLanguage();
 
   useEffect(() => {
     fetchLeaderboard();
@@ -99,11 +101,11 @@ export const Leaderboard = () => {
         >
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-gray-400/30 via-white/20 to-gray-400/30 border border-gray-300/50 mb-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.4),inset_0_-1px_0_rgba(0,0,0,0.2)] backdrop-blur-sm">
             <Crown className="w-4 h-4 text-yellow-400" />
-            <span className="text-sm font-medium bg-gradient-to-b from-white via-gray-200 to-gray-400 bg-clip-text text-transparent">Winners Circle</span>
+            <span className="text-sm font-medium bg-gradient-to-b from-white via-gray-200 to-gray-400 bg-clip-text text-transparent">{t.winnersCircle}</span>
           </div>
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">Top Winners</h2>
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">{t.topWinners}</h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            The most successful bettors who have won predictions
+            {t.leaderboardSubtitle}
           </p>
         </motion.div>
 
@@ -111,7 +113,7 @@ export const Leaderboard = () => {
           {leaders.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Trophy className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p>No winners yet. Be the first to win a prediction!</p>
+              <p>{t.noWinnersYet}</p>
             </div>
           ) : leaders.map((leader, index) => (
             <motion.div
@@ -146,13 +148,13 @@ export const Leaderboard = () => {
                       {formatAddress(leader.ecash_address)}
                     </p>
                   )}
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Trophy className="w-3 h-3 text-green-500" />
-                      <span className="text-green-500 font-medium">{leader.total_wins} wins</span>
-                    </span>
-                    <span>{leader.total_bets} bets</span>
-                  </div>
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Trophy className="w-3 h-3 text-green-500" />
+                        <span className="text-green-500 font-medium">{leader.total_wins} {t.wins}</span>
+                      </span>
+                      <span>{leader.total_bets} {t.bets}</span>
+                    </div>
                 </div>
                 
                 <div className="flex-shrink-0 text-right">
