@@ -58,7 +58,7 @@ const MarketsSection = () => {
               placeholder={t.searchPlaceholder}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-10 bg-card/50 border-border/50 focus:border-primary"
+              className="pl-10 pr-10 bg-card/50 border-transparent focus:border-transparent focus-visible:ring-0 focus-visible:ring-offset-0 shadow-[0_0_15px_rgba(var(--primary-rgb),0.3)] focus:shadow-[0_0_20px_rgba(var(--primary-rgb),0.5)] transition-shadow"
             />
             {searchQuery && (
               <button
