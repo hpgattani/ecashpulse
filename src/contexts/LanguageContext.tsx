@@ -134,6 +134,32 @@ interface Translations {
   bets: string;
   noWinnersYet: string;
   beFirstWinner: string;
+  
+  // Transparent Betting section
+  transparentBetting: string;
+  transparentBettingDesc: string;
+  wallet: string;
+  
+  // My Bets page
+  myBetsTitle: string;
+  trackYourBets: string;
+  backToMarkets: string;
+  noBetsYet: string;
+  noBetsDesc: string;
+  pending: string;
+  confirmed: string;
+  won: string;
+  lost: string;
+  refunded: string;
+  betTx: string;
+  payoutTx: string;
+  
+  // Public Bets statuses
+  statusConfirmed: string;
+  statusPending: string;
+  statusWon: string;
+  statusLost: string;
+  statusRefunded: string;
 }
 
 // Common prediction title translations
@@ -304,6 +330,32 @@ const translations: Record<Language, Translations> = {
     bets: 'bets',
     noWinnersYet: 'No winners yet. Be the first to win a prediction!',
     beFirstWinner: 'Be the first to win a prediction!',
+    
+    // Transparent Betting section
+    transparentBetting: 'Transparent Betting',
+    transparentBettingDesc: 'All bets are publicly visible with verifiable transaction IDs',
+    wallet: 'Wallet',
+    
+    // My Bets page
+    myBetsTitle: 'My Bets',
+    trackYourBets: 'Track all your predictions and winnings',
+    backToMarkets: 'Back to Markets',
+    noBetsYet: 'No bets yet',
+    noBetsDesc: 'Start trading on prediction markets to see your bets here',
+    pending: 'Pending',
+    confirmed: 'Confirmed',
+    won: 'Won',
+    lost: 'Lost',
+    refunded: 'Refunded',
+    betTx: 'Bet TX',
+    payoutTx: 'Payout TX',
+    
+    // Public Bets statuses
+    statusConfirmed: 'Confirmed',
+    statusPending: 'Pending',
+    statusWon: 'Won',
+    statusLost: 'Lost',
+    statusRefunded: 'Refunded',
   },
   'pt-BR': {
     // Navigation
@@ -437,6 +489,32 @@ const translations: Record<Language, Translations> = {
     bets: 'apostas',
     noWinnersYet: 'Nenhum vencedor ainda. Seja o primeiro a vencer uma previsão!',
     beFirstWinner: 'Seja o primeiro a vencer uma previsão!',
+    
+    // Transparent Betting section
+    transparentBetting: 'Apostas Transparentes',
+    transparentBettingDesc: 'Todas as apostas são publicamente visíveis com IDs de transação verificáveis',
+    wallet: 'Carteira',
+    
+    // My Bets page
+    myBetsTitle: 'Minhas Apostas',
+    trackYourBets: 'Acompanhe todas as suas previsões e ganhos',
+    backToMarkets: 'Voltar aos Mercados',
+    noBetsYet: 'Nenhuma aposta ainda',
+    noBetsDesc: 'Comece a negociar nos mercados de previsão para ver suas apostas aqui',
+    pending: 'Pendente',
+    confirmed: 'Confirmado',
+    won: 'Ganhou',
+    lost: 'Perdeu',
+    refunded: 'Reembolsado',
+    betTx: 'TX da Aposta',
+    payoutTx: 'TX do Pagamento',
+    
+    // Public Bets statuses
+    statusConfirmed: 'Confirmado',
+    statusPending: 'Pendente',
+    statusWon: 'Ganhou',
+    statusLost: 'Perdeu',
+    statusRefunded: 'Reembolsado',
   },
 };
 

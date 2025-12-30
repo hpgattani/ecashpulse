@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Zap, Menu, X, Wallet, LogOut, TrendingUp, User } from "lucide-react";
+import { Activity, Menu, X, Wallet, LogOut, TrendingUp, User } from "lucide-react";
 import { ProfileModal } from "./ProfileModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -42,9 +42,9 @@ const Header = () => {
               <motion.div whileHover={{ scale: 1.02 }} className="flex items-center gap-2">
                 <div className="relative">
                   <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                    <Zap className="w-5 h-5 text-primary-foreground" />
+                    <Activity className="w-5 h-5 text-primary-foreground" />
                   </div>
-                  <div className="absolute inset-0 rounded-xl bg-primary/30 blur-xl group-hover:blur-2xl transition-all" />
+                  <div className="absolute inset-0 rounded-xl bg-primary/30 blur-xl group-hover:blur-2xl transition-all animate-pulse" />
                 </div>
                 <div className="flex flex-col">
                   <span className="font-display font-bold text-lg md:text-xl text-foreground">
