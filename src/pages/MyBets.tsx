@@ -10,6 +10,7 @@ import Footer from '@/components/Footer';
 import PredictionDetailModal from '@/components/PredictionDetailModal';
 import CountdownTimer from '@/components/CountdownTimer';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Outcome } from '@/hooks/usePredictions';
 
@@ -51,6 +52,7 @@ interface FullPrediction {
 
 const MyBets = () => {
   const { user, sessionToken, loading: authLoading } = useAuth();
+  const { t, translateTitle, language } = useLanguage();
   const navigate = useNavigate();
   const [bets, setBets] = useState<BetWithPrediction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -173,7 +175,7 @@ const MyBets = () => {
 
   const formatDate = (dateStr: string) => {
     // Display in IST (Asia/Kolkata)
-    return new Date(dateStr).toLocaleDateString('en-IN', {
+    return new Date(dateStr).toLocaleDateString(language === 'pt-BR' ? 'pt-BR' : 'en-IN', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
@@ -186,15 +188,15 @@ const MyBets = () => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
-        return <Badge variant="outline" className="text-yellow-500 border-yellow-500/50"><Clock className="w-3 h-3 mr-1" />Pending</Badge>;
+        return <Badge variant="outline" className="text-yellow-500 border-yellow-500/50"><Clock className="w-3 h-3 mr-1" />{t.pending}</Badge>;
       case 'confirmed':
-        return <Badge variant="outline" className="text-blue-500 border-blue-500/50"><CheckCircle2 className="w-3 h-3 mr-1" />Confirmed</Badge>;
+        return <Badge variant="outline" className="text-blue-500 border-blue-500/50"><CheckCircle2 className="w-3 h-3 mr-1" />{t.confirmed}</Badge>;
       case 'won':
-        return <Badge variant="outline" className="text-emerald-500 border-emerald-500/50"><TrendingUp className="w-3 h-3 mr-1" />Won</Badge>;
+        return <Badge variant="outline" className="text-emerald-500 border-emerald-500/50"><TrendingUp className="w-3 h-3 mr-1" />{t.won}</Badge>;
       case 'lost':
-        return <Badge variant="outline" className="text-red-500 border-red-500/50"><TrendingDown className="w-3 h-3 mr-1" />Lost</Badge>;
+        return <Badge variant="outline" className="text-red-500 border-red-500/50"><TrendingDown className="w-3 h-3 mr-1" />{t.lost}</Badge>;
       case 'refunded':
-        return <Badge variant="outline" className="text-muted-foreground"><XCircle className="w-3 h-3 mr-1" />Refunded</Badge>;
+        return <Badge variant="outline" className="text-muted-foreground"><XCircle className="w-3 h-3 mr-1" />{t.refunded}</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -211,8 +213,8 @@ const MyBets = () => {
   return (
     <>
       <Helmet>
-        <title>My Bets - eCash Pulse</title>
-        <meta name="description" content="View and track your bets on eCash Pulse prediction market." />
+        <title>{t.myBetsTitle} - eCash Pulse</title>
+        <meta name="description" content={t.trackYourBets} />
       </Helmet>
 
       <div className="min-h-screen bg-background">
@@ -225,13 +227,13 @@ const MyBets = () => {
               className="mb-4"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Markets
+              {t.backToMarkets}
             </Button>
             <h1 className="font-display text-3xl font-bold text-foreground">
-              My Bets
+              {t.myBetsTitle}
             </h1>
             <p className="text-muted-foreground mt-2">
-              Track all your predictions and winnings
+              {t.trackYourBets}
             </p>
           </div>
 
@@ -245,13 +247,13 @@ const MyBets = () => {
                 <TrendingUp className="w-8 h-8 text-muted-foreground" />
               </div>
               <h2 className="font-display text-xl font-semibold text-foreground mb-2">
-                No bets yet
+                {t.noBetsYet}
               </h2>
               <p className="text-muted-foreground mb-6">
-                Start trading on prediction markets to see your bets here
+                {t.noBetsDesc}
               </p>
               <Button onClick={() => navigate('/')}>
-                Explore Markets
+                {t.exploreMarkets}
               </Button>
             </motion.div>
           ) : (
@@ -268,7 +270,7 @@ const MyBets = () => {
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex-1">
                       <h3 className="font-display font-semibold text-foreground mb-2 hover:text-primary transition-colors">
-                        {bet.prediction?.title || 'Unknown Prediction'}
+                        {translateTitle(bet.prediction?.title || 'Unknown Prediction')}
                       </h3>
                       <div className="flex flex-wrap items-center gap-2 text-sm">
                         <Badge
@@ -290,7 +292,7 @@ const MyBets = () => {
                       </p>
                       {bet.payout_amount && (
                         <p className="text-sm text-emerald-400">
-                          Won: {formatXEC(bet.payout_amount)}
+                          {t.won}: {formatXEC(bet.payout_amount)}
                         </p>
                       )}
                       <div className="flex gap-2 text-xs">
@@ -302,7 +304,7 @@ const MyBets = () => {
                             className="text-muted-foreground hover:text-primary hover:underline"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            Bet TX
+                            {t.betTx}
                           </a>
                         )}
                         {bet.payout_tx_hash && (
@@ -313,7 +315,7 @@ const MyBets = () => {
                             className="text-emerald-400 hover:underline font-medium"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            Payout TX
+                            {t.payoutTx}
                           </a>
                         )}
                       </div>

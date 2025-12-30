@@ -10,9 +10,11 @@ import { Leaderboard } from '@/components/Leaderboard';
 import HowItWorks from '@/components/HowItWorks';
 import Footer from '@/components/Footer';
 import PublicBets from '@/components/PublicBets';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const Index = () => {
   const location = useLocation();
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (location.hash) {
@@ -46,10 +48,10 @@ const Index = () => {
             <div className="max-w-7xl mx-auto">
               <div className="text-center mb-8">
                 <h2 className="font-display font-bold text-2xl md:text-3xl text-foreground mb-2">
-                  Transparent Betting
+                  {t.transparentBetting}
                 </h2>
                 <p className="text-muted-foreground">
-                  All bets are publicly visible with verifiable transaction IDs
+                  {t.transparentBettingDesc}
                 </p>
               </div>
               <div className="max-w-2xl mx-auto">

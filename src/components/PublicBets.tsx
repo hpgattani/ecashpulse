@@ -121,31 +121,31 @@ const PublicBets = () => {
       case 'confirmed':
         return (
           <Badge variant="default" className="text-xs w-fit">
-            <CheckCircle2 className="w-3 h-3 mr-1" /> Confirmed
+            <CheckCircle2 className="w-3 h-3 mr-1" /> {t.statusConfirmed}
           </Badge>
         );
       case 'pending':
         return (
           <Badge variant="secondary" className="text-xs w-fit">
-            <Clock className="w-3 h-3 mr-1" /> Pending
+            <Clock className="w-3 h-3 mr-1" /> {t.statusPending}
           </Badge>
         );
       case 'won':
         return (
           <Badge variant="outline" className="text-xs w-fit border-primary/40 text-primary">
-            <TrendingUp className="w-3 h-3 mr-1" /> Won
+            <TrendingUp className="w-3 h-3 mr-1" /> {t.statusWon}
           </Badge>
         );
       case 'lost':
         return (
           <Badge variant="destructive" className="text-xs w-fit">
-            <TrendingDown className="w-3 h-3 mr-1" /> Lost
+            <TrendingDown className="w-3 h-3 mr-1" /> {t.statusLost}
           </Badge>
         );
       case 'refunded':
         return (
           <Badge variant="outline" className="text-xs w-fit">
-            <XCircle className="w-3 h-3 mr-1" /> Refunded
+            <XCircle className="w-3 h-3 mr-1" /> {t.statusRefunded}
           </Badge>
         );
       default:
@@ -223,7 +223,7 @@ const PublicBets = () => {
             
             <div className="text-xs text-muted-foreground space-y-1">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-                <span className="truncate">Wallet: {bet.users ? formatAddress(bet.users.ecash_address) : 'Unknown'}</span>
+                <span className="truncate">{t.wallet}: {bet.users ? formatAddress(bet.users.ecash_address) : 'Unknown'}</span>
                 <span className="text-muted-foreground/70">{formatTime(bet.confirmed_at || bet.created_at)}</span>
               </div>
               
