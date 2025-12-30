@@ -118,6 +118,22 @@ interface Translations {
   entertainment: string;
   elections: string;
   tech: string;
+  
+  // Resolved section
+  recentlyResolved: string;
+  resolvedSubtitle: string;
+  yesWon: string;
+  noWon: string;
+  totalPool: string;
+  
+  // Leaderboard section
+  winnersCircle: string;
+  topWinners: string;
+  leaderboardSubtitle: string;
+  wins: string;
+  bets: string;
+  noWinnersYet: string;
+  beFirstWinner: string;
 }
 
 // Common prediction title translations
@@ -272,6 +288,22 @@ const translations: Record<Language, Translations> = {
     entertainment: 'Entertainment',
     elections: 'Elections',
     tech: 'Tech',
+    
+    // Resolved section
+    recentlyResolved: 'Recently Resolved',
+    resolvedSubtitle: 'Markets that have been settled with winners paid out automatically',
+    yesWon: 'YES Won',
+    noWon: 'NO Won',
+    totalPool: 'Total Pool',
+    
+    // Leaderboard section
+    winnersCircle: 'Winners Circle',
+    topWinners: 'Top Winners',
+    leaderboardSubtitle: 'The most successful bettors who have won predictions',
+    wins: 'wins',
+    bets: 'bets',
+    noWinnersYet: 'No winners yet. Be the first to win a prediction!',
+    beFirstWinner: 'Be the first to win a prediction!',
   },
   'pt-BR': {
     // Navigation
@@ -389,6 +421,22 @@ const translations: Record<Language, Translations> = {
     entertainment: 'Entretenimento',
     elections: 'Eleições',
     tech: 'Tecnologia',
+    
+    // Resolved section
+    recentlyResolved: 'Resolvidos Recentemente',
+    resolvedSubtitle: 'Mercados que foram liquidados com vencedores pagos automaticamente',
+    yesWon: 'SIM Venceu',
+    noWon: 'NÃO Venceu',
+    totalPool: 'Pool Total',
+    
+    // Leaderboard section
+    winnersCircle: 'Círculo dos Vencedores',
+    topWinners: 'Maiores Vencedores',
+    leaderboardSubtitle: 'Os apostadores mais bem-sucedidos que venceram previsões',
+    wins: 'vitórias',
+    bets: 'apostas',
+    noWinnersYet: 'Nenhum vencedor ainda. Seja o primeiro a vencer uma previsão!',
+    beFirstWinner: 'Seja o primeiro a vencer uma previsão!',
   },
 };
 

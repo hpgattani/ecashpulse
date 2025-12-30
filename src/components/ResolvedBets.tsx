@@ -4,12 +4,14 @@ import { Trophy, TrendingUp, TrendingDown, Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables } from '@/integrations/supabase/types';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 type Prediction = Tables<'predictions'>;
 
 const ResolvedBets = () => {
   const [resolvedPredictions, setResolvedPredictions] = useState<Prediction[]>([]);
   const [loading, setLoading] = useState(true);
+  const { t, translateTitle, language } = useLanguage();
 
   useEffect(() => {
     fetchResolved();
@@ -57,7 +59,7 @@ const ResolvedBets = () => {
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return '';
-    return new Date(dateStr).toLocaleDateString('en-US', {
+    return new Date(dateStr).toLocaleDateString(language === 'pt-BR' ? 'pt-BR' : 'en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
@@ -80,11 +82,11 @@ const ResolvedBets = () => {
           <div className="inline-flex items-center gap-2 mb-4">
             <Trophy className="w-6 h-6 text-primary" />
             <h2 className="font-display text-2xl md:text-3xl font-bold">
-              Recently <span className="gradient-text">Resolved</span>
+              {t.recentlyResolved.split(' ')[0]} <span className="gradient-text">{t.recentlyResolved.split(' ').slice(1).join(' ')}</span>
             </h2>
           </div>
           <p className="text-muted-foreground max-w-xl mx-auto">
-            Markets that have been settled with winners paid out automatically
+            {t.resolvedSubtitle}
           </p>
         </motion.div>
 
@@ -114,9 +116,9 @@ const ResolvedBets = () => {
                     }
                   >
                     {isYesWin ? (
-                      <><TrendingUp className="w-3 h-3 mr-1" /> YES Won</>
+                      <><TrendingUp className="w-3 h-3 mr-1" /> {t.yesWon}</>
                     ) : (
-                      <><TrendingDown className="w-3 h-3 mr-1" /> NO Won</>
+                      <><TrendingDown className="w-3 h-3 mr-1" /> {t.noWon}</>
                     )}
                   </Badge>
                   <span className="text-xs text-muted-foreground flex items-center">
@@ -126,11 +128,11 @@ const ResolvedBets = () => {
                 </div>
 
                 <h3 className="font-display font-semibold text-foreground text-sm mb-3 line-clamp-2">
-                  {prediction.title}
+                  {translateTitle(prediction.title)}
                 </h3>
 
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">Total Pool</span>
+                  <span className="text-muted-foreground">{t.totalPool}</span>
                   <span className="font-semibold text-primary">{formatXEC(totalPool)}</span>
                 </div>
               </motion.div>
