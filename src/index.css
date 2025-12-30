@@ -47,6 +47,7 @@
     --glow-accent: 270 70% 60%;
     --gradient-start: 168 80% 45%;
     --gradient-end: 200 80% 50%;
+    --primary-rgb: 23, 207, 163;
     
     /* Prediction colors */
     --yes-color: 142 76% 45%;
