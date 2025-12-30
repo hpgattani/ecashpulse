@@ -23,6 +23,7 @@ export type Database = {
           outcome_id: string | null
           payout_amount: number | null
           payout_tx_hash: string | null
+          platform_fee: number | null
           position: Database["public"]["Enums"]["bet_position"]
           prediction_id: string
           status: Database["public"]["Enums"]["bet_status"]
@@ -37,6 +38,7 @@ export type Database = {
           outcome_id?: string | null
           payout_amount?: number | null
           payout_tx_hash?: string | null
+          platform_fee?: number | null
           position: Database["public"]["Enums"]["bet_position"]
           prediction_id: string
           status?: Database["public"]["Enums"]["bet_status"]
@@ -51,6 +53,7 @@ export type Database = {
           outcome_id?: string | null
           payout_amount?: number | null
           payout_tx_hash?: string | null
+          platform_fee?: number | null
           position?: Database["public"]["Enums"]["bet_position"]
           prediction_id?: string
           status?: Database["public"]["Enums"]["bet_status"]
@@ -366,9 +369,28 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      platform_fee_analytics: {
+        Row: {
+          avg_fee_xec: number | null
+          date: string | null
+          total_fees_xec: number | null
+          total_payouts: number | null
+          total_payouts_xec: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      get_platform_fees_summary: {
+        Args: never
+        Returns: {
+          avg_fee_per_payout: number
+          last_payout_date: string
+          total_fees_collected: number
+          total_paid_bets: number
+          total_payouts_sent: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
