@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { usePredictions } from '@/hooks/usePredictions';
 import { TrendingUp, Flame, Loader2 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -6,10 +7,11 @@ import { useLanguage } from '@/contexts/LanguageContext';
 const TrendingSection = () => {
   const { predictions, loading } = usePredictions();
   const { t, translateTitle } = useLanguage();
+  const navigate = useNavigate();
   
-  // Show top 5 predictions by volume as trending
-  const trendingPredictions = predictions
-    .sort((a, b) => (b.yesOdds + b.noOdds) - (a.yesOdds + a.noOdds))
+  // Show top 5 predictions sorted by volume (highest XEC first)
+  const trendingPredictions = [...predictions]
+    .sort((a, b) => b.volume - a.volume)
     .slice(0, 5);
 
   // Category translations
@@ -70,7 +72,8 @@ const TrendingSection = () => {
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ delay: index * 0.1 }}
-              className="flex-shrink-0 w-[260px] sm:w-[300px] md:w-[350px] glass-card p-3 sm:p-4 snap-start"
+              onClick={() => navigate(`/prediction/${prediction.id}`)}
+              className="flex-shrink-0 w-[260px] sm:w-[300px] md:w-[350px] glass-card p-3 sm:p-4 snap-start cursor-pointer hover:border-primary/50 transition-colors"
             >
               <div className="flex items-start justify-between mb-2 sm:mb-3">
                 <span className="text-[10px] sm:text-xs uppercase tracking-wider text-muted-foreground font-medium">
