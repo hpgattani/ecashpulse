@@ -1,18 +1,58 @@
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { usePredictions } from '@/hooks/usePredictions';
-import { TrendingUp, Flame, Loader2 } from 'lucide-react';
+import { TrendingUp, Flame, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const TrendingSection = () => {
   const { predictions, loading } = usePredictions();
   const { t, translateTitle } = useLanguage();
   const navigate = useNavigate();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
   
   // Show top 5 predictions sorted by volume (highest XEC first)
   const trendingPredictions = [...predictions]
     .sort((a, b) => b.volume - a.volume)
     .slice(0, 5);
+
+  const scrollToIndex = useCallback((index: number) => {
+    if (!scrollRef.current || trendingPredictions.length === 0) return;
+    const cardWidth = scrollRef.current.scrollWidth / trendingPredictions.length;
+    scrollRef.current.scrollTo({
+      left: cardWidth * index,
+      behavior: 'smooth'
+    });
+  }, [trendingPredictions.length]);
+
+  // Auto-slide every 4 seconds
+  useEffect(() => {
+    if (isPaused || trendingPredictions.length <= 1) return;
+    
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => {
+        const next = (prev + 1) % trendingPredictions.length;
+        scrollToIndex(next);
+        return next;
+      });
+    }, 4000);
+    
+    return () => clearInterval(interval);
+  }, [isPaused, trendingPredictions.length, scrollToIndex]);
+
+  const handlePrev = () => {
+    const prev = currentIndex === 0 ? trendingPredictions.length - 1 : currentIndex - 1;
+    setCurrentIndex(prev);
+    scrollToIndex(prev);
+  };
+
+  const handleNext = () => {
+    const next = (currentIndex + 1) % trendingPredictions.length;
+    setCurrentIndex(next);
+    scrollToIndex(next);
+  };
 
   // Category translations
   const getCategoryLabel = (category: string) => {
@@ -55,16 +95,43 @@ const TrendingSection = () => {
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="flex items-center gap-3 mb-6 sm:mb-8"
+          className="flex items-center justify-between mb-6 sm:mb-8"
         >
-          <div className="p-2 rounded-lg bg-primary/10">
-            <Flame className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Flame className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+            </div>
+            <h2 className="font-display text-xl sm:text-2xl font-bold">{t.trendingNow}</h2>
           </div>
-          <h2 className="font-display text-xl sm:text-2xl font-bold">{t.trendingNow}</h2>
+          
+          {/* Navigation arrows */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handlePrev}
+              className="p-2 rounded-full bg-background/50 border border-border hover:bg-primary/10 transition-colors"
+              aria-label="Previous"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleNext}
+              className="p-2 rounded-full bg-background/50 border border-border hover:bg-primary/10 transition-colors"
+              aria-label="Next"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         </motion.div>
 
         {/* Trending Cards */}
-        <div className="flex overflow-x-auto gap-3 sm:gap-4 pb-4 -mx-4 px-4 snap-x scrollbar-hide">
+        <div 
+          ref={scrollRef}
+          onMouseEnter={() => setIsPaused(true)}
+          onMouseLeave={() => setIsPaused(false)}
+          onTouchStart={() => setIsPaused(true)}
+          onTouchEnd={() => setIsPaused(false)}
+          className="flex overflow-x-auto gap-3 sm:gap-4 pb-4 -mx-4 px-4 snap-x scrollbar-hide"
+        >
           {trendingPredictions.map((prediction, index) => (
             <motion.div
               key={prediction.id}
@@ -113,6 +180,23 @@ const TrendingSection = () => {
                 </div>
               </div>
             </motion.div>
+          ))}
+        </div>
+
+        {/* Dot indicators */}
+        <div className="flex justify-center gap-2 mt-4">
+          {trendingPredictions.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => {
+                setCurrentIndex(index);
+                scrollToIndex(index);
+              }}
+              className={`w-2 h-2 rounded-full transition-colors ${
+                index === currentIndex ? 'bg-primary' : 'bg-muted-foreground/30'
+              }`}
+              aria-label={`Go to slide ${index + 1}`}
+            />
           ))}
         </div>
       </div>
