@@ -22,8 +22,8 @@ interface BetActivity {
   id: string;
   amount: number;
   position: string;
-  created_at: string;
-  ecash_address: string;
+  address: string;
+  timestamp: string;
   outcome_label?: string;
 }
 
@@ -58,7 +58,16 @@ const PredictionDetailModal = ({ isOpen, onClose, prediction, onSelectOutcome }:
       }
 
       if (data?.activities) {
-        setActivities(data.activities);
+        setActivities(
+          (data.activities as any[]).map((a) => ({
+            id: a.id,
+            amount: a.amount,
+            position: a.position,
+            address: a.address ?? a.ecash_address ?? 'Unknown',
+            timestamp: a.timestamp ?? a.created_at ?? a.createdAt ?? '',
+            outcome_label: a.outcome_label ?? a.outcomeLabel,
+          }))
+        );
       }
     } catch (err) {
       console.error('Error fetching activity:', err);
@@ -66,9 +75,12 @@ const PredictionDetailModal = ({ isOpen, onClose, prediction, onSelectOutcome }:
   };
 
   const formatDate = (dateStr: string) => {
+    if (!dateStr) return '';
     const date = new Date(dateStr);
+    if (Number.isNaN(date.getTime())) return '';
+
     const now = new Date();
-    const diff = now.getTime() - date.getTime();
+    const diff = Math.max(0, now.getTime() - date.getTime());
     const mins = Math.floor(diff / 60000);
     const hours = Math.floor(diff / 3600000);
     const days = Math.floor(diff / 86400000);
@@ -80,6 +92,7 @@ const PredictionDetailModal = ({ isOpen, onClose, prediction, onSelectOutcome }:
   };
 
   const formatAddress = (addr: string) => {
+    if (!addr) return 'Anonymous';
     if (addr.length <= 16) return addr;
     return `${addr.slice(0, 10)}...${addr.slice(-4)}`;
   };
@@ -180,7 +193,7 @@ const PredictionDetailModal = ({ isOpen, onClose, prediction, onSelectOutcome }:
                           <div className="flex items-center gap-2">
                             <div className={`w-2 h-2 rounded-full ${act.position === 'yes' ? 'bg-emerald-400' : 'bg-red-400'}`} />
                             <span className="text-xs font-mono text-muted-foreground">
-                              {formatAddress(act.ecash_address)}
+                              {formatAddress(act.address)}
                             </span>
                           </div>
                           <div className="flex items-center gap-3">
@@ -188,7 +201,7 @@ const PredictionDetailModal = ({ isOpen, onClose, prediction, onSelectOutcome }:
                               {act.outcome_label ? act.outcome_label : (act.position === 'yes' ? 'Yes' : 'No')}
                             </span>
                             <span className="text-sm text-primary font-bold">{formatXEC(act.amount)}</span>
-                            <span className="text-xs text-muted-foreground">{formatDate(act.created_at)}</span>
+                            <span className="text-xs text-muted-foreground">{formatDate(act.timestamp)}</span>
                           </div>
                         </div>
                       ))
