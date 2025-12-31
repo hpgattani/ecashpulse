@@ -39,11 +39,11 @@ const PredictionDetailModal = ({ isOpen, onClose, prediction, onSelectOutcome }:
   const [activities, setActivities] = useState<BetActivity[]>([]);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !prediction) return;
 
     setActiveTab(prediction.isMultiOption && prediction.outcomes && prediction.outcomes.length > 0 ? 'outcomes' : 'activity');
     fetchActivity();
-  }, [isOpen, prediction.id, prediction.isMultiOption, prediction.outcomes?.length]);
+  }, [isOpen, prediction?.id, prediction?.isMultiOption, prediction?.outcomes?.length]);
 
   const fetchActivity = async () => {
     try {
@@ -89,9 +89,11 @@ const PredictionDetailModal = ({ isOpen, onClose, prediction, onSelectOutcome }:
     return xec.toLocaleString() + ' XEC';
   };
 
+  if (!prediction) return null;
+
   return (
     <AnimatePresence>
-      {isOpen && (
+      {isOpen && prediction && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <motion.div
             initial={{ opacity: 0 }}
