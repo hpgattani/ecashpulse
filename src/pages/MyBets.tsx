@@ -329,14 +329,15 @@ const MyBets = () => {
         <Footer />
       </div>
 
-      {selectedPrediction && (
-        <PredictionDetailModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          prediction={selectedPrediction}
-          onSelectOutcome={() => {}}
-        />
-      )}
+      <PredictionDetailModal
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedPrediction(null);
+        }}
+        prediction={selectedPrediction}
+        onSelectOutcome={() => {}}
+      />
     </>
   );
 };
