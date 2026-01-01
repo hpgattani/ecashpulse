@@ -430,25 +430,20 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                         <div className="flex items-center gap-2 mb-2">
                           <Calculator className="w-4 h-4 text-emerald-400" />
                           <span className="text-sm font-medium text-emerald-400">
-                            {hasBetsPlaced ? t.ifYouWin : t.estimatedIfYouWin}
+                            {t.ifYouWin}
                           </span>
                         </div>
-                        {hasBetsPlaced ? (
-                          <>
-                            <div className="flex justify-between text-sm">
-                              <span className="text-muted-foreground">{t.totalPayout}:</span>
-                              <span className="text-emerald-400 font-bold">{potentialPayout} XEC</span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                              <span className="text-muted-foreground">{t.profit}:</span>
-                              <span className="text-emerald-400 font-bold">+{potentialProfit} XEC</span>
-                            </div>
-                          </>
-                        ) : (
-                          <div className="text-xs text-muted-foreground">
-                            {t.payoutDepends}
-                          </div>
-                        )}
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">{t.totalPayout}:</span>
+                          <span className="text-emerald-400 font-bold">{potentialPayout} XEC</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">{t.profit}:</span>
+                          <span className="text-emerald-400 font-bold">+{potentialProfit} XEC</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2 italic">
+                          {t.payoutMayChange}
+                        </p>
                       </div>
                     )}
 
