@@ -130,17 +130,25 @@ const TrendingSection = () => {
           onMouseLeave={() => setIsPaused(false)}
           onTouchStart={() => setIsPaused(true)}
           onTouchEnd={() => setIsPaused(false)}
-          className="flex overflow-x-auto gap-3 sm:gap-4 pb-4 -mx-4 px-4 snap-x scrollbar-hide"
+          className="flex overflow-x-auto gap-3 sm:gap-4 pb-4 -mx-4 px-4 snap-x scrollbar-hide scroll-smooth"
+          style={{ scrollBehavior: 'smooth' }}
         >
           {trendingPredictions.map((prediction, index) => (
             <motion.div
               key={prediction.id}
-              initial={{ opacity: 0, x: 20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: index * 0.1 }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ 
+                opacity: 1, 
+                scale: 1,
+                transition: { 
+                  duration: 0.4, 
+                  ease: [0.25, 0.46, 0.45, 0.94],
+                  delay: index * 0.08 
+                }
+              }}
+              whileHover={{ scale: 1.02, y: -4 }}
               onClick={() => navigate(`/prediction/${prediction.id}`)}
-              className="flex-shrink-0 w-[260px] sm:w-[300px] md:w-[350px] glass-card p-3 sm:p-4 snap-start cursor-pointer hover:border-primary/50 transition-colors"
+              className="flex-shrink-0 w-[260px] sm:w-[300px] md:w-[350px] glass-card p-3 sm:p-4 snap-start cursor-pointer hover:border-primary/50 transition-all duration-300"
             >
               <div className="flex items-start justify-between mb-2 sm:mb-3">
                 <span className="text-[10px] sm:text-xs uppercase tracking-wider text-muted-foreground font-medium">
