@@ -60,9 +60,42 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
   const totalVolume = prediction.volume || 0;
   const hasBetsPlaced = totalVolume > 0 || prediction.yesOdds !== 50 || prediction.noOdds !== 50;
 
-  const winMultiplier = currentOdds > 0 ? 100 / currentOdds : 1;
-  const potentialPayout = betAmount ? (parseFloat(betAmount) * winMultiplier).toFixed(2) : "0";
-  const potentialProfit = betAmount ? (parseFloat(betAmount) * winMultiplier - parseFloat(betAmount)).toFixed(2) : "0";
+  // Calculate win multiplier properly:
+  // - If your pool has 0% and opposing has 100%, you win the ENTIRE opposing pool + your stake
+  // - Formula: totalPool / yourPoolAfterBet = (opposingPool + yourBet) / yourBet
+  // - When opposing pool exists and your pool is empty: multiplier = (opposingPool + yourBet) / yourBet
+  const betAmountNum = parseFloat(betAmount) || 0;
+  
+  // Estimate pool values from odds and volume (volume is in "dollars" - XEC/33333)
+  // For display purposes, use odds-based calculation that accounts for the user's bet
+  const calculateMultiplier = () => {
+    if (!hasBetsPlaced || totalVolume === 0) {
+      return 1; // No bets = stake returned
+    }
+    
+    // Current pool values can be estimated from odds
+    // If YES=100% and NO=0%, all bets are on YES
+    // When user bets on NO, they'd win the entire YES pool
+    
+    if (currentOdds === 0 && opposingOdds === 100) {
+      // User is betting on empty side - they win the entire opposing pool
+      // Multiplier = (opposingPool + userBet) / userBet
+      // Since opposingPool ≈ totalVolume (all bets are on opposing side)
+      // For display, show ~2x when pools are equal after bet
+      const estimatedOpposingPool = totalVolume * 33333; // Convert to XEC
+      if (betAmountNum > 0) {
+        return (estimatedOpposingPool + betAmountNum) / betAmountNum;
+      }
+      return 2; // Default to 2x when betting against full opposing pool
+    }
+    
+    // Standard case: multiplier based on your pool's share
+    return currentOdds > 0 ? 100 / currentOdds : 1;
+  };
+  
+  const winMultiplier = calculateMultiplier();
+  const potentialPayout = betAmount ? (betAmountNum * winMultiplier).toFixed(2) : "0";
+  const potentialProfit = betAmount ? (betAmountNum * winMultiplier - betAmountNum).toFixed(2) : "0";
 
   // Close any PayButton modals/overlays
   const closePayButtonModal = useCallback(() => {
