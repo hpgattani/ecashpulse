@@ -88,7 +88,6 @@ interface Translations {
   totalPayout: string;
   profit: string;
   payoutDepends: string;
-  payoutMayChange: string;
   platformFee: string;
   betPlaced: string;
   betConfirmed: string;
@@ -285,7 +284,6 @@ const translations: Record<Language, Translations> = {
     totalPayout: 'Total Payout',
     profit: 'Profit',
     payoutDepends: 'Payout depends on final pool size. Currently no bets placed.',
-    payoutMayChange: 'Payout may change as more bets are placed.',
     platformFee: '1% platform fee applies. Payments are processed on-chain.',
     betPlaced: 'Bet Placed!',
     betConfirmed: 'Your bet has been confirmed.',
@@ -445,7 +443,6 @@ const translations: Record<Language, Translations> = {
     totalPayout: 'Pagamento Total',
     profit: 'Lucro',
     payoutDepends: 'O pagamento depende do tamanho final do pool. Atualmente sem apostas.',
-    payoutMayChange: 'O pagamento pode mudar conforme mais apostas são feitas.',
     platformFee: 'Taxa de 1% da plataforma. Pagamentos processados na blockchain.',
     betPlaced: 'Aposta Realizada!',
     betConfirmed: 'Sua aposta foi confirmada.',
