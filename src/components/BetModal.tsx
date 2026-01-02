@@ -17,8 +17,8 @@ interface Prediction {
   question: string;
   yesOdds: number;
   noOdds: number;
-  volume?: number;
-  escrowAddress?: string;
+  yes_pool: number; // ✅ REAL POOL (XEC)
+  no_pool: number; // ✅ REAL POOL (XEC)
   outcomes?: Outcome[];
 }
 
@@ -40,6 +40,9 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
   const [betSuccess, setBetSuccess] = useState(false);
   const [betPosition, setBetPosition] = useState<"yes" | "no">(position);
 
+  // --------------------------------------------------
+  // POSITION HANDLING
+  // --------------------------------------------------
   useEffect(() => {
     if (selectedOutcome) {
       setBetPosition("yes");
@@ -48,50 +51,30 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
     }
   }, [position, selectedOutcome]);
 
-  // -----------------------------
-  // ODDS & POOLS
-  // -----------------------------
-  const currentOdds = selectedOutcome
-    ? selectedOutcome.odds
-    : betPosition === "yes"
-      ? prediction.yesOdds
-      : prediction.noOdds;
-
-  const opposingOdds = betPosition === "yes" ? prediction.noOdds : prediction.yesOdds;
-
-  const totalVolume = prediction.volume || 0;
+  // --------------------------------------------------
+  // REAL PARIMUTUEL PAYOUT LOGIC (FIXED)
+  // --------------------------------------------------
   const betAmountNum = parseFloat(betAmount) || 0;
 
-  /**
-   * ✅ FIXED PAYOUT LOGIC
-   *
-   * You win from the OPPOSITE side pool.
-   * If opposing pool = 0 → payout = stake (no free money).
-   */
-  const calculateMultiplier = () => {
-    if (totalVolume <= 0) return 1;
+  const yesPoolXec = Number(prediction.yes_pool || 0);
+  const noPoolXec = Number(prediction.no_pool || 0);
 
-    const totalPoolXec = totalVolume * 33333;
+  const opposingPoolXec = betPosition === "yes" ? noPoolXec : yesPoolXec;
 
-    const opposingPool = (opposingOdds / 100) * totalPoolXec;
+  let winMultiplier = 1;
 
-    const selectedPool = (currentOdds / 100) * totalPoolXec;
+  if (opposingPoolXec > 0) {
+    const totalPoolAfterBet = yesPoolXec + noPoolXec + betAmountNum;
 
-    if (opposingPool <= 0) return 1;
+    winMultiplier = totalPoolAfterBet / opposingPoolXec;
+  }
 
-    const totalAfterBet = totalPoolXec + betAmountNum;
-    const opposingAfterBet = opposingPool;
-
-    return totalAfterBet / opposingAfterBet;
-  };
-
-  const winMultiplier = calculateMultiplier();
   const potentialPayout = (betAmountNum * winMultiplier).toFixed(2);
   const potentialProfit = (betAmountNum * winMultiplier - betAmountNum).toFixed(2);
 
-  // -----------------------------
-  // CLOSE PAYBUTTON MODALS
-  // -----------------------------
+  // --------------------------------------------------
+  // CLOSE PAYBUTTON OVERLAYS
+  // --------------------------------------------------
   const closePayButtonModal = useCallback(() => {
     const selectors = [
       ".paybutton-modal",
@@ -114,9 +97,9 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
     }
   }, []);
 
-  // -----------------------------
+  // --------------------------------------------------
   // RECORD BET
-  // -----------------------------
+  // --------------------------------------------------
   const recordBet = useCallback(
     async (txHash?: string) => {
       if (!user || !sessionToken) return;
@@ -124,7 +107,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
       closePayButtonModal();
       setBetSuccess(true);
 
-      const betAmountSatoshis = Math.round(parseFloat(betAmount) * 100);
+      const betAmountSats = Math.round(betAmountNum * 100);
 
       try {
         const { data, error } = await supabase.functions.invoke("process-bet", {
@@ -132,7 +115,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
             session_token: sessionToken,
             prediction_id: prediction.id,
             position: betPosition,
-            amount: betAmountSatoshis,
+            amount: betAmountSats,
             tx_hash: txHash || `pb_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
             outcome_id: selectedOutcome?.id || null,
           },
@@ -164,12 +147,12 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
         });
       }
     },
-    [user, sessionToken, betAmount, prediction.id, betPosition, selectedOutcome, onClose, closePayButtonModal, t],
+    [user, sessionToken, betAmountNum, prediction.id, betPosition, selectedOutcome, onClose, closePayButtonModal, t],
   );
 
-  // -----------------------------
+  // --------------------------------------------------
   // LOAD PAYBUTTON
-  // -----------------------------
+  // --------------------------------------------------
   useEffect(() => {
     if (!document.querySelector('script[src*="paybutton"]')) {
       const script = document.createElement("script");
@@ -179,17 +162,16 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
     }
   }, []);
 
-  // -----------------------------
+  // --------------------------------------------------
   // RENDER PAYBUTTON
-  // -----------------------------
+  // --------------------------------------------------
   useEffect(() => {
     if (!isOpen || !payButtonRef.current || !user || !sessionToken || betSuccess) {
       if (payButtonRef.current) payButtonRef.current.innerHTML = "";
       return;
     }
 
-    const amount = parseFloat(betAmount) || 0;
-    if (amount <= 0) return;
+    if (betAmountNum <= 0) return;
 
     payButtonRef.current.innerHTML = "";
 
@@ -201,7 +183,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
 
       (window as any).PayButton.render(container, {
         to: ESCROW_ADDRESS,
-        amount,
+        amount: betAmountNum,
         currency: "XEC",
         text: "Place Bet",
         hoverText: "Confirm",
@@ -224,16 +206,103 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
 
     const id = setTimeout(renderButton, 100);
     return () => clearTimeout(id);
-  }, [isOpen, betAmount, user, sessionToken, betSuccess, recordBet]);
+  }, [isOpen, betAmountNum, user, sessionToken, betSuccess, recordBet]);
 
-  // -----------------------------
-  // REST OF UI
-  // -----------------------------
-  // ⬇️ UI BELOW IS 100% UNCHANGED ⬇️
+  // --------------------------------------------------
+  // UNAUTHENTICATED
+  // --------------------------------------------------
+  if (!user || !sessionToken) {
+    return (
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            <motion.div
+              className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50"
+              onClick={onClose}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            />
+            <motion.div
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+            >
+              <div className="glass-card glow-primary p-6 text-center w-full max-w-md">
+                <AlertCircle className="w-12 h-12 text-primary mx-auto mb-4" />
+                <h2 className="font-display font-bold text-xl mb-2">{t.connectWallet}</h2>
+                <p className="text-muted-foreground mb-6">{t.connectWalletDesc}</p>
+                <div className="flex gap-3 justify-center">
+                  <Button variant="outline" onClick={onClose}>
+                    {t.cancel}
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      sessionStorage.setItem("auth_return_url", window.location.pathname + window.location.search);
+                      navigate("/auth");
+                    }}
+                  >
+                    {t.connect}
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    );
+  }
 
-  // (Unauthenticated + Authenticated JSX remains exactly the same as your original)
+  // --------------------------------------------------
+  // AUTHENTICATED UI (UNCHANGED STRUCTURE)
+  // --------------------------------------------------
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <>
+          <motion.div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50" onClick={onClose} />
+          <motion.div className="fixed inset-x-4 top-4 bottom-4 mx-auto max-w-md z-50 flex items-center">
+            <div className="glass-card glow-primary p-4 sm:p-6 w-full">
+              {betSuccess ? (
+                <div className="text-center py-8">
+                  <CheckCircle className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
+                  <h2 className="font-bold text-xl mb-2">{t.betPlaced}</h2>
+                  <p className="text-muted-foreground">{t.betConfirmed}</p>
+                </div>
+              ) : (
+                <>
+                  <div className="flex justify-between mb-4">
+                    <h2 className="font-bold text-lg">{t.placeYourBet}</h2>
+                    <Button variant="ghost" size="icon" onClick={onClose}>
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
 
-  return null; // ⬅️ JSX unchanged from your original paste
+                  <div className="space-y-4">
+                    <Input type="number" value={betAmount} onChange={(e) => setBetAmount(e.target.value)} min="1" />
+
+                    <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                      <div className="flex justify-between text-sm">
+                        <span>{t.totalPayout}</span>
+                        <span className="font-bold text-emerald-400">{potentialPayout} XEC</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>{t.profit}</span>
+                        <span className="font-bold text-emerald-400">+{potentialProfit} XEC</span>
+                      </div>
+                    </div>
+
+                    <div ref={payButtonRef} />
+                  </div>
+                </>
+              )}
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
 };
 
 export default BetModal;
