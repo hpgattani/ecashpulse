@@ -12,13 +12,22 @@ import { useLanguage } from "@/contexts/LanguageContext";
 
 const ESCROW_ADDRESS = "ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp";
 
+/**
+ * IMPORTANT:
+ * yes_pool / no_pool are OPTIONAL so the app builds
+ * even if backend doesn’t send them yet.
+ */
 interface Prediction {
   id: string;
   question: string;
   yesOdds: number;
   noOdds: number;
-  yes_pool: number; // ✅ REAL POOL (XEC)
-  no_pool: number; // ✅ REAL POOL (XEC)
+  volume?: number;
+
+  // ✅ optional – defaults to 0 if missing
+  yes_pool?: number;
+  no_pool?: number;
+
   outcomes?: Outcome[];
 }
 
@@ -52,17 +61,18 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
   }, [position, selectedOutcome]);
 
   // --------------------------------------------------
-  // REAL PARIMUTUEL PAYOUT LOGIC (FIXED)
+  // ✅ REAL, SAFE PAYOUT CALCULATION
   // --------------------------------------------------
   const betAmountNum = parseFloat(betAmount) || 0;
 
-  const yesPoolXec = Number(prediction.yes_pool || 0);
-  const noPoolXec = Number(prediction.no_pool || 0);
+  const yesPoolXec = Number(prediction.yes_pool ?? 0);
+  const noPoolXec = Number(prediction.no_pool ?? 0);
 
   const opposingPoolXec = betPosition === "yes" ? noPoolXec : yesPoolXec;
 
   let winMultiplier = 1;
 
+  // Only pay from REAL opposing pool
   if (opposingPoolXec > 0) {
     const totalPoolAfterBet = yesPoolXec + noPoolXec + betAmountNum;
 
@@ -216,22 +226,11 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
       <AnimatePresence>
         {isOpen && (
           <>
-            <motion.div
-              className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50"
-              onClick={onClose}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            />
-            <motion.div
-              className="fixed inset-0 z-50 flex items-center justify-center p-4"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-            >
+            <motion.div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50" onClick={onClose} />
+            <motion.div className="fixed inset-0 z-50 flex items-center justify-center p-4">
               <div className="glass-card glow-primary p-6 text-center w-full max-w-md">
                 <AlertCircle className="w-12 h-12 text-primary mx-auto mb-4" />
-                <h2 className="font-display font-bold text-xl mb-2">{t.connectWallet}</h2>
+                <h2 className="font-bold text-xl mb-2">{t.connectWallet}</h2>
                 <p className="text-muted-foreground mb-6">{t.connectWalletDesc}</p>
                 <div className="flex gap-3 justify-center">
                   <Button variant="outline" onClick={onClose}>
@@ -255,7 +254,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
   }
 
   // --------------------------------------------------
-  // AUTHENTICATED UI (UNCHANGED STRUCTURE)
+  // AUTHENTICATED UI
   // --------------------------------------------------
   return (
     <AnimatePresence>
@@ -279,21 +278,24 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                     </Button>
                   </div>
 
-                  <div className="space-y-4">
-                    <Input type="number" value={betAmount} onChange={(e) => setBetAmount(e.target.value)} min="1" />
+                  <Input type="number" value={betAmount} onChange={(e) => setBetAmount(e.target.value)} min="1" />
 
-                    <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                      <div className="flex justify-between text-sm">
-                        <span>{t.totalPayout}</span>
-                        <span className="font-bold text-emerald-400">{potentialPayout} XEC</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>{t.profit}</span>
-                        <span className="font-bold text-emerald-400">+{potentialProfit} XEC</span>
-                      </div>
+                  <div className="mt-4 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                    <div className="flex justify-between text-sm">
+                      <span>{t.totalPayout}</span>
+                      <span className="font-bold text-emerald-400">{potentialPayout} XEC</span>
                     </div>
+                    <div className="flex justify-between text-sm">
+                      <span>{t.profit}</span>
+                      <span className="font-bold text-emerald-400">+{potentialProfit} XEC</span>
+                    </div>
+                  </div>
 
-                    <div ref={payButtonRef} />
+                  <div ref={payButtonRef} className="mt-4" />
+
+                  <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/30 mt-4">
+                    <Info className="w-4 h-4 text-muted-foreground mt-0.5" />
+                    <p className="text-xs text-muted-foreground">{t.platformFee}</p>
                   </div>
                 </>
               )}
