@@ -137,15 +137,9 @@ const TrendingSection = () => {
             <motion.div
               key={prediction.id}
               initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ 
-                opacity: 1, 
-                scale: 1,
-                transition: { 
-                  duration: 0.4, 
-                  ease: [0.25, 0.46, 0.45, 0.94],
-                  delay: index * 0.08 
-                }
-              }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94], delay: index * 0.08 }}
               whileHover={{ scale: 1.02, y: -4 }}
               onClick={() => navigate(`/prediction/${prediction.id}`)}
               className="flex-shrink-0 w-[260px] sm:w-[300px] md:w-[350px] glass-card p-3 sm:p-4 snap-start cursor-pointer hover:border-primary/50 transition-all duration-300"
