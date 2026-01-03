@@ -174,7 +174,8 @@ const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) =
     <>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
         transition={{ delay: index * 0.1, duration: 0.4 }}
         whileHover={{ y: -4 }}
         className="glass-card overflow-hidden group cursor-pointer relative"
