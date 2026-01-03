@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useMemo, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { usePredictions } from '@/hooks/usePredictions';
 import { useCryptoPrices } from '@/hooks/useCryptoPrices';
 import PredictionCard from './PredictionCard';
@@ -11,9 +11,55 @@ import { Input } from '@/components/ui/input';
 const MarketsSection = () => {
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
   const { predictions, loading, error } = usePredictions();
   const { getPriceForCrypto } = useCryptoPrices();
-  const { t } = useLanguage();
+  const { t, translateTitle } = useLanguage();
+
+  // Generate search suggestions based on predictions
+  const searchSuggestions = useMemo(() => {
+    if (!searchQuery.trim() || searchQuery.length < 2) return [];
+    
+    const query = searchQuery.toLowerCase();
+    const matches = predictions
+      .filter(p => 
+        p.question.toLowerCase().includes(query) ||
+        p.category.toLowerCase().includes(query)
+      )
+      .slice(0, 5)
+      .map(p => ({
+        id: p.id,
+        text: translateTitle(p.question),
+        category: p.category,
+      }));
+    
+    return matches;
+  }, [searchQuery, predictions, translateTitle]);
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        suggestionsRef.current &&
+        !suggestionsRef.current.contains(event.target as Node) &&
+        inputRef.current &&
+        !inputRef.current.contains(event.target as Node)
+      ) {
+        setShowSuggestions(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSuggestionClick = (suggestion: { text: string }) => {
+    setSearchQuery(suggestion.text);
+    setShowSuggestions(false);
+    inputRef.current?.blur();
+  };
 
   const filteredPredictions = predictions.filter((p) => {
     const matchesCategory = activeCategory === 'all' ? true : p.category === activeCategory;
@@ -43,32 +89,70 @@ const MarketsSection = () => {
           </p>
         </motion.div>
 
-        {/* Search Bar */}
+        {/* Search Bar with Autofill */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ delay: 0.1 }}
-          className="max-w-md mx-auto mb-8"
+          className="max-w-md mx-auto mb-8 relative"
         >
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
+              ref={inputRef}
               type="text"
               placeholder={t.searchPlaceholder}
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setShowSuggestions(true);
+              }}
+              onFocus={() => setShowSuggestions(true)}
               className="pl-10 pr-10 bg-card/50 border-transparent focus:border-transparent focus-visible:ring-0 focus-visible:ring-offset-0 shadow-[0_0_15px_rgba(var(--primary-rgb),0.3)] focus:shadow-[0_0_20px_rgba(var(--primary-rgb),0.5)] transition-shadow"
             />
             {searchQuery && (
               <button
-                onClick={() => setSearchQuery('')}
+                onClick={() => {
+                  setSearchQuery('');
+                  setShowSuggestions(false);
+                }}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
             )}
           </div>
+
+          {/* Suggestions Dropdown */}
+          <AnimatePresence>
+            {showSuggestions && searchSuggestions.length > 0 && (
+              <motion.div
+                ref={suggestionsRef}
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.15 }}
+                className="absolute z-50 w-full mt-2 bg-card border border-border rounded-lg shadow-lg overflow-hidden"
+              >
+                {searchSuggestions.map((suggestion, index) => (
+                  <button
+                    key={suggestion.id}
+                    onClick={() => handleSuggestionClick(suggestion)}
+                    className={`w-full px-4 py-3 text-left hover:bg-muted/50 transition-colors flex items-center gap-3 ${
+                      index !== searchSuggestions.length - 1 ? 'border-b border-border/50' : ''
+                    }`}
+                  >
+                    <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm truncate">{suggestion.text}</p>
+                      <p className="text-xs text-muted-foreground capitalize">{suggestion.category}</p>
+                    </div>
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
 
         {/* Filters */}
