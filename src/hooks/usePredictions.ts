@@ -45,6 +45,9 @@ export interface Prediction {
   status: string;
   isMultiOption: boolean;
   outcomes: Outcome[];
+  // Raw pool values in satoshis for accurate payout calculation
+  yesPool: number;
+  noPool: number;
 }
 
 const detectCategory = (title: string, existingCategory: string): Prediction['category'] => {
@@ -244,6 +247,9 @@ const transformPrediction = (p: DBPrediction, outcomes: DBOutcome[]): Prediction
     status: p.status,
     isMultiOption,
     outcomes: transformedOutcomes,
+    // Include raw pool values for accurate payout calculations
+    yesPool: p.yes_pool,
+    noPool: p.no_pool,
   };
 };
 

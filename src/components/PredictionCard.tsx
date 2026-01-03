@@ -25,6 +25,9 @@ interface Prediction {
   escrowAddress?: string;
   isMultiOption?: boolean;
   outcomes?: Outcome[];
+  // Raw pool values in satoshis for accurate payout calculation
+  yesPool?: number;
+  noPool?: number;
 }
 
 interface PredictionCardProps {

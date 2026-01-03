@@ -405,6 +405,9 @@ const Prediction = () => {
     escrowAddress: prediction.escrow_address,
     isMultiOption,
     outcomes: prediction.outcomes,
+    // Include raw pool values for accurate payout calculations
+    yesPool: prediction.yes_pool,
+    noPool: prediction.no_pool,
   };
 
   return (

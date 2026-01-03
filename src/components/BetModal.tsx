@@ -20,6 +20,9 @@ interface Prediction {
   volume?: number;
   escrowAddress?: string;
   outcomes?: Outcome[];
+  // Pool values in satoshis for accurate payout calculation
+  yesPool?: number;
+  noPool?: number;
 }
 
 interface BetModalProps {
@@ -48,7 +51,37 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
     }
   }, [position, selectedOutcome]);
 
-  // Calculate potential payout
+  // Calculate potential payout using actual pool values (parimutuel formula)
+  const betAmountXec = parseFloat(betAmount) || 0;
+  const betAmountSats = betAmountXec * 100; // Convert XEC to satoshis
+  
+  // Get pool values (in satoshis) - default to 0 if not available
+  const yesPoolSats = prediction.yesPool ?? (prediction.volume ? prediction.volume * 100 * prediction.yesOdds / 100 : 0);
+  const noPoolSats = prediction.noPool ?? (prediction.volume ? prediction.volume * 100 * prediction.noOdds / 100 : 0);
+  
+  // For multi-option, use outcome pool
+  const selectedOutcomePool = selectedOutcome?.pool ?? 0;
+  
+  // Calculate pools based on bet position
+  const yourSidePool = selectedOutcome 
+    ? selectedOutcomePool 
+    : (betPosition === "yes" ? yesPoolSats : noPoolSats);
+  const opposingSidePool = selectedOutcome
+    ? (prediction.outcomes?.reduce((sum, o) => sum + (o.id !== selectedOutcome.id ? o.pool : 0), 0) ?? 0)
+    : (betPosition === "yes" ? noPoolSats : yesPoolSats);
+  
+  // Total pool AFTER your bet is placed
+  const totalPoolAfterBet = yesPoolSats + noPoolSats + betAmountSats;
+  const yourSidePoolAfterBet = yourSidePool + betAmountSats;
+  
+  // Parimutuel payout: you win a share of the ENTIRE pool proportional to your contribution to your side
+  // Formula: (totalPool / yourSidePoolAfterBet) * yourBet = totalPool * (yourBet / yourSidePoolAfterBet)
+  const winMultiplier = yourSidePoolAfterBet > 0 ? totalPoolAfterBet / yourSidePoolAfterBet : 1;
+  const potentialPayoutSats = betAmountSats * winMultiplier;
+  const potentialPayout = (potentialPayoutSats / 100).toFixed(2); // Convert back to XEC
+  const potentialProfit = ((potentialPayoutSats - betAmountSats) / 100).toFixed(2);
+  
+  // Current odds display (percentage)
   const currentOdds = selectedOutcome
     ? selectedOutcome.odds
     : betPosition === "yes"
@@ -56,13 +89,8 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
       : prediction.noOdds;
 
   // Check if there are any bets at all - show warning only if pool is empty
-  const opposingOdds = betPosition === "yes" ? prediction.noOdds : prediction.yesOdds;
   const totalVolume = prediction.volume || 0;
   const hasBetsPlaced = totalVolume > 0 || prediction.yesOdds !== 50 || prediction.noOdds !== 50;
-
-  const winMultiplier = currentOdds > 0 ? 100 / currentOdds : 1;
-  const potentialPayout = betAmount ? (parseFloat(betAmount) * winMultiplier).toFixed(2) : "0";
-  const potentialProfit = betAmount ? (parseFloat(betAmount) * winMultiplier - parseFloat(betAmount)).toFixed(2) : "0";
 
   // Close any PayButton modals/overlays
   const closePayButtonModal = useCallback(() => {
