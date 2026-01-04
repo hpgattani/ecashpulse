@@ -914,10 +914,12 @@ const translatePredictionTitle = (title: string, language: Language): string => 
     }
   }
   
-  // Fallback: translate common words (primarily for pt-BR, basic for ko/ja)
-  if (language === 'pt-BR') {
-    let translated = title;
-    const wordTranslations: Record<string, string> = {
+  // Fallback: translate common words
+  let translated = title;
+  
+  const wordTranslations: Record<Language, Record<string, string>> = {
+    'en': {},
+    'pt-BR': {
       'Will': 'Vai',
       'win': 'ganhar',
       'reach': 'atingir',
@@ -962,22 +964,134 @@ const translatePredictionTitle = (title: string, language: Language): string => 
       'October': 'Outubro',
       'November': 'Novembro',
       'December': 'Dezembro',
-    };
-    
-    for (const [en, pt] of Object.entries(wordTranslations)) {
-      translated = translated.replace(new RegExp(en, 'gi'), pt);
+    },
+    'ko': {
+      'Will': '',
+      'Bitcoin': '비트코인',
+      'Ethereum': '이더리움',
+      'Solana': '솔라나',
+      'XRP': 'XRP',
+      'Dogecoin': '도지코인',
+      'Up or Down': '상승 또는 하락',
+      'go up': '상승할',
+      'go down': '하락할',
+      'reach': '도달',
+      'above': '이상',
+      'below': '이하',
+      'win': '우승',
+      'beat': '이기다',
+      'the House': '하원',
+      'the Senate': '상원',
+      'election': '선거',
+      'elections': '선거',
+      'President': '대통령',
+      'World Cup': '월드컵',
+      'Championship': '챔피언십',
+      'Super Bowl': '슈퍼볼',
+      'Finals': '결승전',
+      'today': '오늘',
+      'tomorrow': '내일',
+      'this week': '이번 주',
+      'this month': '이번 달',
+      'this year': '올해',
+      'next': '다음',
+      'before': '전에',
+      'after': '후에',
+      'January': '1월',
+      'February': '2월',
+      'March': '3월',
+      'April': '4월',
+      'May': '5월',
+      'June': '6월',
+      'July': '7월',
+      'August': '8월',
+      'September': '9월',
+      'October': '10월',
+      'November': '11월',
+      'December': '12월',
+      'on': '에',
+    },
+    'ja': {
+      'Will': '',
+      'Bitcoin': 'ビットコイン',
+      'Ethereum': 'イーサリアム',
+      'Solana': 'ソラナ',
+      'XRP': 'XRP',
+      'Dogecoin': 'ドージコイン',
+      'Up or Down': '上昇か下落か',
+      'go up': '上昇する',
+      'go down': '下落する',
+      'reach': '達する',
+      'above': '以上',
+      'below': '以下',
+      'win': '優勝',
+      'beat': '勝つ',
+      'the House': '下院',
+      'the Senate': '上院',
+      'election': '選挙',
+      'elections': '選挙',
+      'President': '大統領',
+      'World Cup': 'ワールドカップ',
+      'Championship': 'チャンピオンシップ',
+      'Super Bowl': 'スーパーボウル',
+      'Finals': '決勝',
+      'today': '今日',
+      'tomorrow': '明日',
+      'this week': '今週',
+      'this month': '今月',
+      'this year': '今年',
+      'next': '次の',
+      'before': '前に',
+      'after': '後に',
+      'January': '1月',
+      'February': '2月',
+      'March': '3月',
+      'April': '4月',
+      'May': '5月',
+      'June': '6月',
+      'July': '7月',
+      'August': '8月',
+      'September': '9月',
+      'October': '10月',
+      'November': '11月',
+      'December': '12月',
+      'on': 'に',
+    },
+  };
+  
+  const langWords = wordTranslations[language];
+  if (langWords) {
+    for (const [en, trans] of Object.entries(langWords)) {
+      if (trans) {
+        translated = translated.replace(new RegExp(en, 'gi'), trans);
+      }
     }
-    
-    return translated;
   }
   
-  return title;
+  return translated;
+};
+
+// Detect browser language and map to supported languages
+const detectBrowserLanguage = (): Language => {
+  const browserLang = navigator.language || (navigator as any).userLanguage || 'en';
+  const langCode = browserLang.toLowerCase();
+  
+  // Check for exact matches first
+  if (langCode === 'pt-br' || langCode.startsWith('pt')) return 'pt-BR';
+  if (langCode === 'ko' || langCode.startsWith('ko')) return 'ko';
+  if (langCode === 'ja' || langCode.startsWith('ja')) return 'ja';
+  
+  // Default to English
+  return 'en';
 };
 
 export const LanguageProvider = ({ children }: { children: ReactNode }) => {
   const [language, setLanguageState] = useState<Language>(() => {
     const saved = localStorage.getItem('language');
-    return (saved as Language) || 'en';
+    if (saved) return saved as Language;
+    
+    // Auto-detect from browser if no saved preference
+    return detectBrowserLanguage();
   });
 
   const setLanguage = (lang: Language) => {

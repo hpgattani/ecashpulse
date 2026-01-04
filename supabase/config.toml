@@ -86,3 +86,6 @@ verify_jwt = false
 
 [functions.manual-register-bet]
 verify_jwt = false
+
+[functions.cron-oracle-resolver]
+verify_jwt = false
