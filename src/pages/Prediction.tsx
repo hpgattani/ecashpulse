@@ -285,14 +285,13 @@ const Prediction = () => {
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
-    // Display in IST (Asia/Kolkata)
-    return date.toLocaleDateString("en-IN", {
+    // Display in user's local timezone
+    return date.toLocaleDateString(undefined, {
       month: "long",
       day: "numeric",
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
-      timeZone: "Asia/Kolkata",
     });
   };
 
@@ -308,7 +307,7 @@ const Prediction = () => {
     if (diffMins < 60) return `${diffMins}${t.minutesAgo}`;
     if (diffHours < 24) return `${diffHours}${t.hoursAgo}`;
     if (diffDays < 7) return `${diffDays}${t.daysAgo}`;
-    return date.toLocaleDateString("en-IN", { month: "short", day: "numeric", timeZone: "Asia/Kolkata" });
+    return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   };
 
   const formatAddress = (address: string) => {

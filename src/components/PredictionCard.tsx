@@ -124,12 +124,11 @@ const PredictionCard = ({ prediction, index, livePrice, climateData }: Predictio
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
-    // Display in IST (UTC+5:30)
-    return date.toLocaleDateString("en-IN", {
+    // Display in user's local timezone
+    return date.toLocaleDateString(undefined, {
       month: "short",
       day: "numeric",
       year: "numeric",
-      timeZone: "Asia/Kolkata",
     });
   };
 

@@ -212,20 +212,19 @@ const MyBets = () => {
   };
 
   const formatDate = (dateStr: string) => {
-    // Display in IST (Asia/Kolkata) with locale-appropriate formatting
+    // Display in user's local timezone with locale-appropriate formatting
     const localeMap: Record<string, string> = {
-      'en': 'en-IN',
+      'en': 'en-US',
       'pt-BR': 'pt-BR',
       'ko': 'ko-KR',
       'ja': 'ja-JP'
     };
-    return new Date(dateStr).toLocaleDateString(localeMap[language] || 'en-IN', {
+    return new Date(dateStr).toLocaleDateString(localeMap[language] || undefined, {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-      timeZone: 'Asia/Kolkata',
     });
   };
 
