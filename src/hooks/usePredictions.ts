@@ -53,16 +53,31 @@ export interface Prediction {
 const detectCategory = (title: string, existingCategory: string): Prediction['category'] => {
   const q = title.toLowerCase();
   const existing = (existingCategory || '').toLowerCase();
-
-  // World keywords - CHECK FIRST for UN/international affairs
-  if (
-    q.includes('united nations') || q.includes(' un ') || q.includes('un security') ||
-    q.includes('un recognition') || q.includes('recognized by the un') ||
-    q.includes('g7') || q.includes('g20') || q.includes('davos') || q.includes('wef') ||
-    q.includes('new country') || q.includes('summit')
-  ) {
-    return 'world';
+  
+  // TRUST the existing database category if it's valid (not 'crypto' default or empty)
+  const validCategories = ['crypto', 'politics', 'sports', 'tech', 'entertainment', 'economics', 'elections', 'finance', 'geopolitics', 'earnings', 'world', 'climate'];
+  if (existing && validCategories.includes(existing) && existing !== 'crypto') {
+    return existing as Prediction['category'];
   }
+  
+  // Only run detection if existing category is 'crypto' (the default) or invalid
+  // Sports keywords - CHECK EARLY for Africa Cup, sports events
+  if (
+    q.includes('africa cup') || q.includes('afcon') || 
+    q.includes('nfl') || q.includes('nba') || q.includes('nhl') || q.includes('mlb') ||
+    q.includes('super bowl') || q.includes('world series') || q.includes('world cup') ||
+    q.includes('championship') || q.includes('champions league') || q.includes('premier league') ||
+    q.includes('wimbledon') || q.includes('tennis') || q.includes('football') || q.includes('soccer') ||
+    q.includes('basketball') || q.includes('hockey') || q.includes('baseball') || q.includes('cricket') ||
+    q.includes('ipl') || q.includes('olympics') || q.includes('ufc') || q.includes('boxing') ||
+    q.includes('f1') || q.includes('formula 1') || q.includes('grand prix') || q.includes('grand slam') ||
+    q.includes('uefa') || q.includes('euro 20') || (q.includes('euro') && q.includes('final')) ||
+    q.includes('final match') || q.includes('match be held') || q.includes('nations')
+  ) {
+    return 'sports';
+  }
+  
+  // World keywords - for UN/international affairs
 
   // Geopolitics keywords - CHECK EARLY to prevent misclassification
   if (
