@@ -139,7 +139,7 @@ const CreatePrediction = () => {
       if (error) throw error;
 
       toast.success("Prediction Submitted!", {
-        description: "Your prediction is under review and will be live soon.",
+        description: "Your prediction is now live!",
       });
       
       navigate("/");
@@ -313,7 +313,7 @@ const CreatePrediction = () => {
                     </p>
                   )}
                   <p className="text-xs text-muted-foreground mt-2">
-                    Submissions are reviewed before going live. Fee is non-refundable.
+                    Payments are non-refundable. Create your topic responsibly.
                   </p>
                 </div>
 
@@ -321,8 +321,8 @@ const CreatePrediction = () => {
                 <div className="flex gap-2 text-xs text-muted-foreground">
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                   <p>
-                    All submissions are subject to review. Predictions must be clear, 
-                    verifiable, and appropriate. Duplicate or inappropriate topics will be rejected.
+                    Predictions must be clear, verifiable, and appropriate. 
+                    Create topics that can be resolved by AI/Oracle using public data. Payments are non-refundable.
                   </p>
                 </div>
 
