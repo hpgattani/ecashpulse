@@ -108,6 +108,10 @@ export const CreatePredictionModal = ({ open, onOpenChange }: CreatePredictionMo
     }
   };
 
+  // Form validation - moved before useEffect that depends on it
+  const isFormValid = title.trim().length >= 10 && title.trim().endsWith("?") && endDate && feeInXEC && 
+    (!isMultiOptionQuestion || validOutcomes.length >= 2);
+
   // Load PayButton script
   useEffect(() => {
     if (!document.querySelector('script[src*="paybutton"]')) {
@@ -120,48 +124,65 @@ export const CreatePredictionModal = ({ open, onOpenChange }: CreatePredictionMo
 
   // Render PayButton when ready
   useEffect(() => {
-    if (!open || !feeInXEC || paymentComplete || !title || !endDate) return;
+    if (!open || !feeInXEC || paymentComplete || !isFormValid) return;
 
-    const buttonContainer = document.getElementById("create-prediction-paybutton");
-    if (!buttonContainer || !(window as any).PayButton) return;
+    // Wait for PayButton script to load and container to exist
+    const renderPayButton = () => {
+      const buttonContainer = document.getElementById("create-prediction-paybutton");
+      if (!buttonContainer) {
+        // Retry after a short delay if container doesn't exist yet
+        setTimeout(renderPayButton, 100);
+        return;
+      }
+      
+      if (!(window as any).PayButton) {
+        // Retry after a short delay if script isn't loaded yet
+        setTimeout(renderPayButton, 200);
+        return;
+      }
 
-    // Clear previous
-    buttonContainer.innerHTML = "";
+      // Clear previous
+      buttonContainer.innerHTML = "";
 
-    (window as any).PayButton.render(buttonContainer, {
-      to: ESCROW_ADDRESS,
-      amount: feeInXEC,
-      currency: "XEC",
-      text: `Pay $${CREATION_FEE_USD} (${feeInXEC.toLocaleString()} XEC)`,
-      hoverText: "Confirm",
-      successText: "Paid!",
-      autoClose: true,
-      theme: {
-        palette: {
-          primary: "#10b981",
-          secondary: "#1e293b",
-          tertiary: "#ffffff",
+      (window as any).PayButton.render(buttonContainer, {
+        to: ESCROW_ADDRESS,
+        amount: feeInXEC,
+        currency: "XEC",
+        text: `Pay $${CREATION_FEE_USD} (${feeInXEC.toLocaleString()} XEC)`,
+        hoverText: "Confirm",
+        successText: "Paid!",
+        autoClose: true,
+        theme: {
+          palette: {
+            primary: "#10b981",
+            secondary: "#1e293b",
+            tertiary: "#ffffff",
+          },
         },
-      },
-      onSuccess: async (txResult: any) => {
-        let txHash: string | undefined;
-        if (typeof txResult === "string") {
-          txHash = txResult;
-        } else if (txResult?.hash) {
-          txHash = txResult.hash;
-        } else if (txResult?.txid) {
-          txHash = txResult.txid;
-        }
-        
-        setPaymentComplete(true);
-        await submitPrediction(txHash);
-      },
-      onError: (error: any) => {
-        console.error("PayButton error:", error);
-        toast.error("Payment failed", { description: "Please try again." });
-      },
-    });
-  }, [open, feeInXEC, paymentComplete, title, endDate]);
+        onSuccess: async (txResult: any) => {
+          let txHash: string | undefined;
+          if (typeof txResult === "string") {
+            txHash = txResult;
+          } else if (txResult?.hash) {
+            txHash = txResult.hash;
+          } else if (txResult?.txid) {
+            txHash = txResult.txid;
+          }
+          
+          setPaymentComplete(true);
+          await submitPrediction(txHash);
+        },
+        onError: (error: any) => {
+          console.error("PayButton error:", error);
+          toast.error("Payment failed", { description: "Please try again." });
+        },
+      });
+    };
+
+    // Small delay to ensure DOM is ready
+    const timeoutId = setTimeout(renderPayButton, 50);
+    return () => clearTimeout(timeoutId);
+  }, [open, feeInXEC, paymentComplete, isFormValid]);
 
   const submitPrediction = async (txHash?: string) => {
     if (!user || !title || !endDate) return;
@@ -202,8 +223,7 @@ export const CreatePredictionModal = ({ open, onOpenChange }: CreatePredictionMo
     }
   };
 
-  const isFormValid = title.trim().length >= 10 && title.trim().endsWith("?") && endDate && feeInXEC && 
-    (!isMultiOptionQuestion || validOutcomes.length >= 2);
+  // isFormValid is now defined earlier in the component
 
   if (!user) {
     return (
