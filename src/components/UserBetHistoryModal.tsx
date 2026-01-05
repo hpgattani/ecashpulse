@@ -41,11 +41,11 @@ export const UserBetHistoryModal = ({
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
-    return date.toLocaleDateString('en-IN', {
+    // Display in user's local timezone
+    return date.toLocaleDateString(undefined, {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
-      timeZone: 'Asia/Kolkata',
     });
   };
 

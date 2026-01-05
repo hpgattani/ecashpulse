@@ -253,7 +253,7 @@ export const CreatePredictionModal = ({ open, onOpenChange }: CreatePredictionMo
 
           {/* Title */}
           <div className="space-y-2">
-            <Label htmlFor="title">Prediction Question *</Label>
+            <Label htmlFor="title" className="text-foreground font-medium">Prediction Question *</Label>
             <Input
               id="title"
               placeholder="Will Bitcoin reach $150k by end of 2026?"
@@ -331,7 +331,7 @@ export const CreatePredictionModal = ({ open, onOpenChange }: CreatePredictionMo
 
           {/* Description */}
           <div className="space-y-2">
-            <Label htmlFor="description">Description (optional)</Label>
+            <Label htmlFor="description" className="text-foreground font-medium">Description (optional)</Label>
             <Textarea
               id="description"
               placeholder="Add context or resolution criteria..."
@@ -343,7 +343,7 @@ export const CreatePredictionModal = ({ open, onOpenChange }: CreatePredictionMo
 
           {/* Category */}
           <div className="space-y-2">
-            <Label>Category</Label>
+            <Label className="text-foreground font-medium">Category</Label>
             <Select value={category} onValueChange={setCategory}>
               <SelectTrigger>
                 <SelectValue />
@@ -360,7 +360,7 @@ export const CreatePredictionModal = ({ open, onOpenChange }: CreatePredictionMo
 
           {/* End Date */}
           <div className="space-y-2">
-            <Label>Resolution Date *</Label>
+            <Label className="text-foreground font-medium">Resolution Date *</Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
