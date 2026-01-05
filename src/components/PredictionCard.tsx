@@ -3,8 +3,7 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { 
-  TrendingUp, TrendingDown, Clock, Users, Zap, Share2, Check, CheckCircle2,
-  Globe, Landmark, Trophy, Bitcoin, DollarSign, Globe2, BarChart3, Cpu, Theater, Map, Leaf, Vote, Thermometer, Film
+  TrendingUp, TrendingDown, Clock, Users, Zap, Share2, Check, CheckCircle2, Thermometer
 } from "lucide-react";
 import BetModal from "./BetModal";
 import { Outcome } from "@/hooks/usePredictions";
@@ -17,7 +16,7 @@ interface Prediction {
   id: string;
   question: string;
   description: string;
-  category: "crypto" | "politics" | "sports" | "tech" | "entertainment" | "economics" | "elections" | "finance" | "geopolitics" | "earnings" | "culture" | "world" | "climate";
+  category: "crypto" | "politics" | "sports" | "tech" | "entertainment" | "economics" | "elections" | "finance" | "geopolitics" | "earnings" | "world" | "climate";
   yesOdds: number;
   noOdds: number;
   volume: number;
@@ -133,25 +132,30 @@ const PredictionCard = ({ prediction, index, livePrice, climateData }: Predictio
   };
 
   const getCategoryIcon = (category: string) => {
-    const categoryConfig: Record<string, { Icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>, color: string }> = {
-      crypto: { Icon: Bitcoin, color: 'bg-orange-500' },
-      politics: { Icon: Landmark, color: 'bg-slate-500' },
-      sports: { Icon: Trophy, color: 'bg-amber-500' },
-      tech: { Icon: Cpu, color: 'bg-cyan-500' },
-      entertainment: { Icon: Film, color: 'bg-pink-500' },
-      economics: { Icon: TrendingUp, color: 'bg-lime-500' },
-      elections: { Icon: Vote, color: 'bg-indigo-500' },
-      finance: { Icon: DollarSign, color: 'bg-emerald-500' },
-      geopolitics: { Icon: Globe2, color: 'bg-amber-600' },
-      earnings: { Icon: BarChart3, color: 'bg-violet-500' },
-      culture: { Icon: Theater, color: 'bg-fuchsia-500' },
-      world: { Icon: Map, color: 'bg-teal-500' },
-      climate: { Icon: Leaf, color: 'bg-green-500' },
+    const categoryConfig: Record<string, { emoji: string, gradient: string }> = {
+      crypto: { emoji: '₿', gradient: 'from-orange-400 to-amber-500' },
+      politics: { emoji: '🏛️', gradient: 'from-slate-400 to-zinc-500' },
+      sports: { emoji: '🏆', gradient: 'from-amber-400 to-yellow-500' },
+      tech: { emoji: '💻', gradient: 'from-cyan-400 to-blue-500' },
+      entertainment: { emoji: '🎭', gradient: 'from-pink-400 to-rose-500' },
+      economics: { emoji: '📈', gradient: 'from-lime-400 to-green-500' },
+      elections: { emoji: '🗳️', gradient: 'from-indigo-400 to-blue-500' },
+      finance: { emoji: '💵', gradient: 'from-emerald-400 to-green-500' },
+      geopolitics: { emoji: '🌍', gradient: 'from-amber-500 to-orange-600' },
+      earnings: { emoji: '📊', gradient: 'from-violet-400 to-purple-500' },
+      world: { emoji: '🗺️', gradient: 'from-teal-400 to-cyan-500' },
+      climate: { emoji: '🌱', gradient: 'from-green-400 to-emerald-500' },
     };
-    const config = categoryConfig[category] || { Icon: Globe, color: 'bg-blue-500' };
+    const config = categoryConfig[category] || { emoji: '🌐', gradient: 'from-blue-400 to-cyan-400' };
     return (
-      <span className={`${config.color} p-1 rounded-md`}>
-        <config.Icon className="w-3.5 h-3.5 text-white drop-shadow-sm" />
+      <span 
+        className={`text-lg bg-gradient-to-br ${config.gradient} rounded-md p-0.5`}
+        style={{ 
+          filter: 'drop-shadow(0 0 6px rgba(255,255,255,0.3))',
+          textShadow: '0 0 8px rgba(255,255,255,0.5)'
+        }}
+      >
+        {config.emoji}
       </span>
     );
   };

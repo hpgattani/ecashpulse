@@ -33,7 +33,7 @@ export interface Prediction {
   id: string;
   question: string;
   description: string;
-  category: 'crypto' | 'politics' | 'sports' | 'tech' | 'entertainment' | 'economics' | 'elections' | 'finance' | 'geopolitics' | 'earnings' | 'culture' | 'world' | 'climate';
+  category: 'crypto' | 'politics' | 'sports' | 'tech' | 'entertainment' | 'economics' | 'elections' | 'finance' | 'geopolitics' | 'earnings' | 'world' | 'climate';
   yesOdds: number;
   noOdds: number;
   volume: number;
@@ -77,7 +77,7 @@ const detectCategory = (title: string, existingCategory: string): Prediction['ca
     return 'geopolitics';
   }
 
-  // Culture/Entertainment keywords - CHECK BEFORE crypto for K-pop, Grammy, etc.
+  // Entertainment keywords - CHECK BEFORE crypto for K-pop, Grammy, Netflix, YouTube, etc.
   if (
     q.includes('k-pop') || q.includes('kpop') || q.includes('bts') || q.includes('blackpink') ||
     q.includes('grammy') || q.includes('emmy') || q.includes('golden globe') ||
@@ -88,9 +88,12 @@ const detectCategory = (title: string, existingCategory: string): Prediction['ca
     q.includes('taylor swift') || q.includes('beyonce') || q.includes('drake') || q.includes('kanye') ||
     q.includes('marvel') || q.includes('dc comics') || q.includes('box office') ||
     q.includes('mrbeast') || q.includes('podcast') || q.includes('influencer') ||
-    q.includes('met gala') || q.includes('vogue') || q.includes('fashion')
+    q.includes('met gala') || q.includes('vogue') || q.includes('fashion') ||
+    q.includes('celebrity') || q.includes('concert') || q.includes('tour') || q.includes('album') ||
+    q.includes('streaming') || q.includes('kardashian') || q.includes('joe rogan') ||
+    q.includes('viral') || q.includes('views') || q.includes('followers')
   ) {
-    return 'culture';
+    return 'entertainment';
   }
 
   // Climate & Science keywords - CHECK BEFORE crypto for temperature/science predictions
@@ -233,24 +236,14 @@ const detectCategory = (title: string, existingCategory: string): Prediction['ca
     return 'economics';
   }
 
-  // Culture keywords (entertainment, media, arts, celebrities, viral content)
+  // Additional entertainment keywords (fallback for any missed culture/entertainment content)
   if (
-    q.includes('oscar') || q.includes('oscars') || q.includes('academy award') ||
-    q.includes('grammy') || q.includes('emmy') || q.includes('golden globe') ||
-    q.includes('movie') || q.includes('film') || q.includes('director') || q.includes('best director') ||
     q.includes('episode') || q.includes('season') || q.includes('series') ||
     q.includes('released in theaters') || q.includes('theaters') || q.includes('cinema') ||
-    q.includes('album') || q.includes('spotify') || q.includes('viral') ||
-    q.includes('netflix') || q.includes('disney') || q.includes('hbo') || q.includes('prime video') ||
-    q.includes('celebrity') || q.includes('concert') || q.includes('tour') || q.includes('box office') ||
-    q.includes('streaming') || q.includes('youtube') || q.includes('tiktok') || q.includes('instagram') ||
-    q.includes('kardashian') || q.includes('taylor swift') || q.includes('beyonce') ||
-    q.includes('drake') || q.includes('kanye') || q.includes('elon musk') ||
-    q.includes('podcast') || q.includes('influencer') || q.includes('subscriber') ||
-    q.includes('fashion') || q.includes('met gala') || q.includes('vogue') ||
-    q.includes('dune') || q.includes('avatar') || q.includes('marvel') || q.includes('dc comics')
+    q.includes('spotify') ||
+    q.includes('dune') || q.includes('avatar')
   ) {
-    return 'culture';
+    return 'entertainment';
   }
 
   // World keywords (global events, international affairs not geopolitics)
@@ -274,7 +267,7 @@ const detectCategory = (title: string, existingCategory: string): Prediction['ca
   }
 
   // If existing category is valid, keep it (trust the source data)
-  if (['crypto', 'politics', 'sports', 'tech', 'entertainment', 'economics', 'elections', 'finance', 'geopolitics', 'earnings', 'culture', 'world', 'climate'].includes(existing)) {
+  if (['crypto', 'politics', 'sports', 'tech', 'entertainment', 'economics', 'elections', 'finance', 'geopolitics', 'earnings', 'world', 'climate'].includes(existing)) {
     return existing as Prediction['category'];
   }
 
