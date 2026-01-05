@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { 
   TrendingUp, TrendingDown, Clock, Users, Zap, Share2, Check, CheckCircle2,
-  Globe, Landmark, Trophy, Bitcoin, DollarSign, Globe2, BarChart3, Cpu, Theater, Map, Leaf, Vote, Thermometer
+  Globe, Landmark, Trophy, Bitcoin, DollarSign, Globe2, BarChart3, Cpu, Theater, Map, Leaf, Vote, Thermometer, Film
 } from "lucide-react";
 import BetModal from "./BetModal";
 import { Outcome } from "@/hooks/usePredictions";
@@ -133,23 +133,27 @@ const PredictionCard = ({ prediction, index, livePrice, climateData }: Predictio
   };
 
   const getCategoryIcon = (category: string) => {
-    const icons: Record<string, React.ComponentType<{ className?: string }>> = {
-      crypto: Bitcoin,
-      politics: Landmark,
-      sports: Trophy,
-      tech: Cpu,
-      entertainment: Theater,
-      economics: TrendingUp,
-      elections: Vote,
-      finance: DollarSign,
-      geopolitics: Globe2,
-      earnings: BarChart3,
-      culture: Theater,
-      world: Map,
-      climate: Leaf,
+    const categoryConfig: Record<string, { Icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>, color: string }> = {
+      crypto: { Icon: Bitcoin, color: 'from-orange-400 to-amber-300' },
+      politics: { Icon: Landmark, color: 'from-slate-400 to-zinc-300' },
+      sports: { Icon: Trophy, color: 'from-amber-400 to-yellow-300' },
+      tech: { Icon: Cpu, color: 'from-cyan-400 to-blue-300' },
+      entertainment: { Icon: Film, color: 'from-pink-400 to-rose-300' },
+      economics: { Icon: TrendingUp, color: 'from-lime-400 to-green-300' },
+      elections: { Icon: Vote, color: 'from-indigo-400 to-blue-300' },
+      finance: { Icon: DollarSign, color: 'from-emerald-400 to-green-300' },
+      geopolitics: { Icon: Globe2, color: 'from-red-400 to-rose-300' },
+      earnings: { Icon: BarChart3, color: 'from-violet-400 to-purple-300' },
+      culture: { Icon: Theater, color: 'from-fuchsia-400 to-pink-300' },
+      world: { Icon: Map, color: 'from-teal-400 to-emerald-300' },
+      climate: { Icon: Leaf, color: 'from-green-400 to-emerald-300' },
     };
-    const Icon = icons[category] || Globe;
-    return <Icon className="w-4 h-4" />;
+    const config = categoryConfig[category] || { Icon: Globe, color: 'from-blue-400 to-cyan-400' };
+    return (
+      <span className={`bg-gradient-to-br ${config.color} p-1 rounded-md`}>
+        <config.Icon className="w-3.5 h-3.5 text-white drop-shadow-sm" />
+      </span>
+    );
   };
 
   const handleBet = (position: "yes" | "no") => {
@@ -275,7 +279,7 @@ const PredictionCard = ({ prediction, index, livePrice, climateData }: Predictio
         <div className="p-4 md:p-5 border-b border-border/30">
           <div className="flex items-start justify-between gap-3 mb-3">
             <div className="flex items-center gap-2">
-              <span className="text-muted-foreground">{getCategoryIcon(prediction.category)}</span>
+              {getCategoryIcon(prediction.category)}
               <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
                 {getCategoryLabel(prediction.category)}
               </span>
