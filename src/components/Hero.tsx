@@ -1,4 +1,5 @@
-import { motion } from 'framer-motion';
+import { useRef } from 'react';
+import { motion, useScroll, useTransform } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Shield, Zap, Plus } from 'lucide-react';
@@ -7,9 +8,39 @@ import { useLanguage } from '@/contexts/LanguageContext';
 const Hero = () => {
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const sectionRef = useRef<HTMLElement>(null);
+
+  // Parallax scroll effect
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ["start start", "end start"]
+  });
+
+  const leftOrbY = useTransform(scrollYProgress, [0, 1], [0, 150]);
+  const rightOrbY = useTransform(scrollYProgress, [0, 1], [0, 100]);
+  const centerOrbY = useTransform(scrollYProgress, [0, 1], [0, 200]);
+  const leftOrbX = useTransform(scrollYProgress, [0, 1], [0, -50]);
+  const rightOrbX = useTransform(scrollYProgress, [0, 1], [0, 50]);
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center pt-20 overflow-hidden">
+    <section ref={sectionRef} className="relative min-h-screen flex items-center justify-center pt-20 overflow-hidden">
+      {/* Parallax ambient orbs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <motion.div 
+          style={{ y: leftOrbY, x: leftOrbX }}
+          className="absolute top-1/4 left-[10%] w-[500px] h-[500px] bg-primary/8 rounded-full blur-[120px]" 
+        />
+        <motion.div 
+          style={{ y: rightOrbY, x: rightOrbX }}
+          className="absolute top-1/3 right-[10%] w-[400px] h-[400px] bg-accent/8 rounded-full blur-[100px]" 
+        />
+        <motion.div 
+          style={{ y: centerOrbY }}
+          className="absolute bottom-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-primary/5 rounded-full blur-[80px]" 
+        />
+      </div>
+      
+      {/* Background grid - handled by LightModeOrbs component */}
       {/* Background grid - handled by LightModeOrbs component */}
       
       <div className="container mx-auto px-4 relative z-10">
