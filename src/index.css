@@ -292,15 +292,10 @@
       inset 0 1px 0 rgba(255, 255, 255, 0.8);
   }
 
-  /* Dark mode liquid glass body background */
+  /* Dark mode body background - clean solid */
   .dark body,
   :root:not(.light) body {
-    background: 
-      radial-gradient(ellipse 80% 50% at 50% -20%, hsla(168, 80%, 45%, 0.08) 0%, transparent 50%),
-      radial-gradient(ellipse 60% 40% at 80% 100%, hsla(270, 70%, 60%, 0.06) 0%, transparent 40%),
-      radial-gradient(ellipse 50% 30% at 10% 80%, hsla(200, 80%, 50%, 0.05) 0%, transparent 40%),
-      linear-gradient(180deg, hsl(220 20% 4%) 0%, hsl(220 20% 6%) 100%);
-    background-attachment: fixed;
+    background: hsl(220 20% 4%);
   }
 
   /* Dark mode dialog/modal glass effect */
