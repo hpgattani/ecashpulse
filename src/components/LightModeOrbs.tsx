@@ -29,11 +29,12 @@ export const LightModeOrbs = () => {
 
   return (
     <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-      {/* Grid pattern */}
+      {/* Grid pattern with glow */}
       <div 
         className="absolute inset-0 bg-grid-pattern bg-grid"
         style={{
-          opacity: theme === 'light' ? 0.5 : 0.2,
+          opacity: theme === 'light' ? 0.6 : 0.35,
+          filter: theme === 'dark' ? 'drop-shadow(0 0 2px hsl(168 80% 45% / 0.3))' : 'none',
         }}
       />
       
