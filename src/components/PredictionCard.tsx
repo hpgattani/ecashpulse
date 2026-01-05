@@ -2,7 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, TrendingDown, Clock, Users, Zap, Share2, Copy, Check, CheckCircle2 } from "lucide-react";
+import { 
+  TrendingUp, TrendingDown, Clock, Users, Zap, Share2, Check, CheckCircle2,
+  Globe, Landmark, Trophy, Bitcoin, DollarSign, Globe2, BarChart3, Cpu, Theater, Map, Leaf, Vote, Thermometer
+} from "lucide-react";
 import BetModal from "./BetModal";
 import { Outcome } from "@/hooks/usePredictions";
 import { toast } from "sonner";
@@ -30,13 +33,20 @@ interface Prediction {
   noPool?: number;
 }
 
+interface ClimateData {
+  temperature: number;
+  location: string;
+  description: string;
+}
+
 interface PredictionCardProps {
   prediction: Prediction;
   index: number;
   livePrice?: { price: number | null; symbol: string } | null;
+  climateData?: ClimateData | null;
 }
 
-const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) => {
+const PredictionCard = ({ prediction, index, livePrice, climateData }: PredictionCardProps) => {
   const navigate = useNavigate();
   const { t, translateTitle } = useLanguage();
   const { betByPredictionId } = useUserBetSummaries();
@@ -122,17 +132,24 @@ const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) =
     return `$${price.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
   };
 
-  const getCategoryEmoji = (category: string) => {
-    const emojis: Record<string, string> = {
-      crypto: "₿",
-      politics: "🏛️",
-      sports: "⚽",
-      tech: "🚀",
-      entertainment: "🎬",
-      economics: "📈",
-      elections: "🗳️",
+  const getCategoryIcon = (category: string) => {
+    const icons: Record<string, React.ComponentType<{ className?: string }>> = {
+      crypto: Bitcoin,
+      politics: Landmark,
+      sports: Trophy,
+      tech: Cpu,
+      entertainment: Theater,
+      economics: TrendingUp,
+      elections: Vote,
+      finance: DollarSign,
+      geopolitics: Globe2,
+      earnings: BarChart3,
+      culture: Theater,
+      world: Map,
+      climate: Leaf,
     };
-    return emojis[category] || "🌐";
+    const Icon = icons[category] || Globe;
+    return <Icon className="w-4 h-4" />;
   };
 
   const handleBet = (position: "yes" | "no") => {
@@ -258,7 +275,7 @@ const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) =
         <div className="p-4 md:p-5 border-b border-border/30">
           <div className="flex items-start justify-between gap-3 mb-3">
             <div className="flex items-center gap-2">
-              <span className="text-lg">{getCategoryEmoji(prediction.category)}</span>
+              <span className="text-muted-foreground">{getCategoryIcon(prediction.category)}</span>
               <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
                 {getCategoryLabel(prediction.category)}
               </span>
@@ -271,6 +288,12 @@ const PredictionCard = ({ prediction, index, livePrice }: PredictionCardProps) =
                 <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent/20 text-accent text-xs font-mono">
                   <Zap className="w-3 h-3" />
                   {livePrice.symbol}: {formatPrice(livePrice.price, livePrice.symbol)}
+                </div>
+              )}
+              {climateData && (
+                <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-mono">
+                  <Thermometer className="w-3 h-3" />
+                  {climateData.temperature}°C • {climateData.location}
                 </div>
               )}
               {prediction.trending && (
