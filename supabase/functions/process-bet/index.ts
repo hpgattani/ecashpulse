@@ -13,22 +13,34 @@ function isValidUUID(str: string): boolean {
   return uuidRegex.test(str);
 }
 
-// Convert P2PKH outputScript hex back to eCash cashaddr
+// Convert outputScript hex back to eCash cashaddr (supports P2PKH and P2SH)
 function outputScriptToAddress(script: string): string | null {
   try {
+    let hashHex: string;
+    let versionByte: number;
+    
     // P2PKH script format: 76a914<20-byte-hash>88ac
-    if (!script.startsWith('76a914') || !script.endsWith('88ac') || script.length !== 50) {
+    if (script.startsWith('76a914') && script.endsWith('88ac') && script.length === 50) {
+      hashHex = script.slice(6, 46);
+      versionByte = 0; // P2PKH
+    }
+    // P2SH script format: a914<20-byte-hash>87
+    else if (script.startsWith('a914') && script.endsWith('87') && script.length === 46) {
+      hashHex = script.slice(4, 44);
+      versionByte = 8; // P2SH
+    }
+    else {
+      console.log(`Unsupported script format: ${script.substring(0, 20)}... (length: ${script.length})`);
       return null;
     }
     
-    const hashHex = script.slice(6, 46);
-    const hash = [];
+    const hash: number[] = [];
     for (let i = 0; i < hashHex.length; i += 2) {
       hash.push(parseInt(hashHex.substr(i, 2), 16));
     }
     
-    // Add version byte (0 for P2PKH)
-    const payload8bit = [0, ...hash];
+    // Add version byte
+    const payload8bit = [versionByte, ...hash];
     
     // Convert 8-bit bytes to 5-bit groups
     const CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
@@ -71,7 +83,9 @@ function outputScriptToAddress(script: string): string | null {
     }
     
     const fullPayload = [...payload5bit, ...checksum];
-    const address = 'ecash:q' + fullPayload.map(v => CHARSET[v]).join('');
+    // First character of payload determines p vs q prefix
+    const prefix = versionByte === 0 ? 'ecash:q' : 'ecash:p';
+    const address = prefix + fullPayload.slice(1).map(v => CHARSET[v]).join('');
     
     return address;
   } catch (error) {
