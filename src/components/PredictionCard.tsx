@@ -99,12 +99,21 @@ const PredictionCard = ({ prediction, index, livePrice, climateData }: Predictio
       crypto: 'crypto',
       politics: 'politics',
       sports: 'sports',
-      economics: 'economics',
-      entertainment: 'entertainment',
-      elections: 'elections',
       tech: 'tech',
+      entertainment: 'entertainment',
+      economics: 'economics',
+      elections: 'elections',
+      finance: 'finance',
+      geopolitics: 'geopolitics',
+      earnings: 'earnings',
+      world: 'world',
+      climate: 'climate',
+      // legacy/back-compat
+      culture: 'entertainment',
     };
-    return t[categoryMap[category] || 'crypto'] || category;
+
+    const key = categoryMap[category];
+    return key ? (t[key] || category) : category;
   };
 
   const formatVolume = (vol: number) => {
@@ -149,8 +158,9 @@ const PredictionCard = ({ prediction, index, livePrice, climateData }: Predictio
     };
     const config = categoryConfig[category] || { Icon: Globe, gradient: 'from-blue-400 via-sky-500 to-blue-600' };
     return (
-      <span className={`bg-gradient-to-br ${config.gradient} p-1.5 rounded-xl shadow-lg`}>
-        <config.Icon className="w-4 h-4 text-white" />
+      <span className={`relative bg-gradient-to-br ${config.gradient} p-1.5 rounded-xl shadow-sm ring-1 ring-border/40`}>
+        <span className="pointer-events-none absolute inset-0 rounded-xl bg-gradient-to-b from-foreground/20 via-transparent to-transparent opacity-70" />
+        <config.Icon className="relative w-4 h-4 text-white" />
       </span>
     );
   };

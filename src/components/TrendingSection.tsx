@@ -60,18 +60,21 @@ const TrendingSection = () => {
       crypto: 'crypto',
       politics: 'politics',
       sports: 'sports',
-      economics: 'economics',
-      entertainment: 'entertainment',
-      elections: 'elections',
       tech: 'tech',
+      entertainment: 'entertainment',
+      economics: 'economics',
+      elections: 'elections',
       finance: 'finance',
       geopolitics: 'geopolitics',
       earnings: 'earnings',
-      culture: 'culture',
       world: 'world',
       climate: 'climate',
+      // legacy/back-compat
+      culture: 'entertainment',
     };
-    return t[categoryMap[category] || 'crypto'] || category;
+
+    const key = categoryMap[category];
+    return key ? (t[key] || category) : category;
   };
 
   if (loading) {
