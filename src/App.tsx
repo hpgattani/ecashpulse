@@ -11,6 +11,7 @@ import Auth from "./pages/Auth";
 import MyBets from "./pages/MyBets";
 import Admin from "./pages/Admin";
 import Prediction from "./pages/Prediction";
+import CreatePrediction from "./pages/CreatePrediction";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,6 +30,7 @@ const App = () => (
                 <Route path="/my-bets" element={<MyBets />} />
                 <Route path="/admin" element={<Admin />} />
                 <Route path="/prediction/:id" element={<Prediction />} />
+                <Route path="/create-prediction" element={<CreatePrediction />} />
 
                 {/* Catch-all 404 */}
                 <Route path="*" element={<NotFound />} />
