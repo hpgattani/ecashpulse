@@ -89,70 +89,41 @@ export const LightModeOrbs = () => {
     );
   }
 
-  // Dark mode - liquid glass with teal + purple glows
+  // Dark mode - teal + purple glows with subtle grid
   return (
     <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-      {/* Deep dark base */}
+      {/* Base dark */}
       <div 
         className="absolute inset-0"
         style={{
-          background: 'linear-gradient(180deg, hsl(220 25% 5%) 0%, hsl(220 20% 3%) 50%, hsl(220 20% 4%) 100%)',
+          background: 'hsl(220 20% 4%)',
         }}
       />
       
       {/* Subtle grid lines */}
-      <div className="absolute inset-0 bg-grid-pattern bg-grid opacity-15" />
+      <div className="absolute inset-0 bg-grid-pattern bg-grid opacity-20" />
       
-      {/* Frosted glass layer */}
+      {/* Teal glow - left side (original position) */}
       <div 
         className="absolute inset-0"
         style={{
-          background: 'linear-gradient(135deg, hsla(220, 25%, 8%, 0.5) 0%, hsla(220, 20%, 5%, 0.3) 50%, hsla(220, 25%, 6%, 0.4) 100%)',
-          backdropFilter: 'blur(80px)',
+          background: 'radial-gradient(ellipse 100% 60% at 15% -5%, hsla(168, 80%, 45%, 0.25) 0%, transparent 60%)',
         }}
       />
       
-      {/* Primary teal liquid glow - left side */}
+      {/* Purple glow - right side (original position) */}
       <div 
         className="absolute inset-0"
         style={{
-          background: 'radial-gradient(ellipse 90% 70% at 10% 0%, hsla(168, 85%, 45%, 0.3) 0%, hsla(168, 80%, 40%, 0.15) 25%, transparent 55%)',
-          filter: 'blur(60px)',
+          background: 'radial-gradient(ellipse 100% 60% at 85% -5%, hsla(270, 80%, 45%, 0.25) 0%, transparent 60%)',
         }}
       />
       
-      {/* Secondary teal accent - creates depth */}
+      {/* Bottom accent - wider spread */}
       <div 
         className="absolute inset-0"
         style={{
-          background: 'radial-gradient(ellipse 60% 50% at 5% 25%, hsla(166, 90%, 40%, 0.2) 0%, transparent 45%)',
-          filter: 'blur(40px)',
-        }}
-      />
-      
-      {/* Purple liquid glow - right side */}
-      <div 
-        className="absolute inset-0"
-        style={{
-          background: 'radial-gradient(ellipse 90% 70% at 90% 0%, hsla(270, 75%, 50%, 0.25) 0%, hsla(270, 70%, 45%, 0.1) 25%, transparent 55%)',
-          filter: 'blur(60px)',
-        }}
-      />
-      
-      {/* Glass edge highlight - top */}
-      <div 
-        className="absolute inset-0"
-        style={{
-          background: 'linear-gradient(180deg, hsla(168, 70%, 50%, 0.08) 0%, transparent 15%)',
-        }}
-      />
-      
-      {/* Bottom ambient glow */}
-      <div 
-        className="absolute inset-0"
-        style={{
-          background: 'radial-gradient(ellipse 120% 40% at 50% 110%, hsla(200, 70%, 45%, 0.12) 0%, transparent 50%)',
-          filter: 'blur(30px)',
+          background: 'radial-gradient(ellipse 100% 45% at 50% 105%, hsla(200, 70%, 50%, 0.1) 0%, transparent 55%)',
         }}
       />
     </div>
