@@ -326,10 +326,21 @@ export const CreatePredictionModal = ({ open, onOpenChange }: CreatePredictionMo
               <span>Payment complete! Submitting...</span>
             </div>
           ) : isFormValid ? (
-            <div id="create-prediction-paybutton" className="min-h-[50px]" />
+            <div id="create-prediction-paybutton" className="min-h-[50px] flex justify-center" />
           ) : (
             <Button disabled className="w-full">
               Complete form to continue
+            </Button>
+          )}
+
+          {/* Cancel Button */}
+          {!paymentComplete && (
+            <Button
+              variant="ghost"
+              className="w-full"
+              onClick={() => onOpenChange(false)}
+            >
+              Cancel
             </Button>
           )}
         </div>

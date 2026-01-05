@@ -1,13 +1,12 @@
-import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Shield, Zap, Plus } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { CreatePredictionModal } from './CreatePredictionModal';
 
 const Hero = () => {
   const { t } = useLanguage();
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const navigate = useNavigate();
 
   return (
     <section className="relative min-h-screen flex items-center justify-center pt-20 overflow-hidden">
@@ -87,7 +86,7 @@ const Hero = () => {
             className="mb-16"
           >
             <button
-              onClick={() => setIsCreateModalOpen(true)}
+              onClick={() => navigate('/create-prediction')}
               className="group inline-flex items-center gap-2 px-6 py-3 rounded-full border border-dashed border-primary/40 hover:border-primary hover:bg-primary/5 transition-all"
             >
               <Plus className="w-4 h-4 text-primary" />
@@ -142,8 +141,6 @@ const Hero = () => {
           />
         </div>
       </motion.div>
-
-      <CreatePredictionModal open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen} />
     </section>
   );
 };
