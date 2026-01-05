@@ -17,21 +17,13 @@ export const ThemeToggle = () => {
     }
   }, []);
 
-  const toggleTheme = (e: React.MouseEvent) => {
+  const toggleTheme = () => {
+    if (isAnimating) return;
+    
     const newTheme = theme === 'dark' ? 'light' : 'dark';
+    setIsAnimating(true);
     
-    // Get button position for the paint origin
-    const rect = buttonRef.current?.getBoundingClientRect();
-    const x = rect ? rect.left + rect.width / 2 : window.innerWidth / 2;
-    const y = rect ? rect.top + rect.height / 2 : 0;
-    
-    // Calculate the maximum radius needed to cover the screen
-    const maxRadius = Math.hypot(
-      Math.max(x, window.innerWidth - x),
-      Math.max(y, window.innerHeight - y)
-    );
-    
-    // Create paint overlay
+    // Create diagonal brush stroke overlay
     const overlay = document.createElement('div');
     overlay.style.cssText = `
       position: fixed;
@@ -42,30 +34,36 @@ export const ThemeToggle = () => {
       z-index: 9999;
       pointer-events: none;
       background: ${newTheme === 'light' ? 'hsl(210 40% 98%)' : 'hsl(220 20% 4%)'};
-      clip-path: circle(0px at ${x}px ${y}px);
-      transition: clip-path 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      clip-path: polygon(0 0, 0 0, 0 100%, 0 100%);
+      transition: clip-path 0.6s cubic-bezier(0.65, 0, 0.35, 1);
     `;
     document.body.appendChild(overlay);
     
-    // Trigger the animation
-    setIsAnimating(true);
+    // Start the diagonal wipe animation
     requestAnimationFrame(() => {
-      overlay.style.clipPath = `circle(${maxRadius * 1.5}px at ${x}px ${y}px)`;
+      // Brush stroke sweeps from left to right with a slight angle
+      overlay.style.clipPath = 'polygon(0 0, 115% 0, 100% 100%, -15% 100%)';
     });
     
-    // Apply theme change midway through animation
+    // Apply theme change when brush is at ~40% (visible transition point)
     setTimeout(() => {
       setTheme(newTheme);
       localStorage.setItem('theme', newTheme);
       document.documentElement.classList.toggle('light', newTheme === 'light');
       document.documentElement.classList.toggle('dark', newTheme === 'dark');
-    }, 250);
+    }, 240);
+    
+    // Slide the overlay off screen to reveal new theme
+    setTimeout(() => {
+      overlay.style.transition = 'clip-path 0.4s cubic-bezier(0.65, 0, 0.35, 1)';
+      overlay.style.clipPath = 'polygon(100% 0, 115% 0, 100% 100%, 85% 100%)';
+    }, 350);
     
     // Remove overlay after animation
     setTimeout(() => {
       overlay.remove();
       setIsAnimating(false);
-    }, 500);
+    }, 750);
   };
 
   return (
