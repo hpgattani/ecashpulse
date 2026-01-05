@@ -54,7 +54,36 @@ const detectCategory = (title: string, existingCategory: string): Prediction['ca
   const q = title.toLowerCase();
   const existing = (existingCategory || '').toLowerCase();
 
-  // Crypto keywords (check first as these are most specific)
+  // Geopolitics keywords - CHECK FIRST to prevent misclassification
+  if (
+    q.includes('war') || q.includes('conflict') || q.includes('russia') || q.includes('ukraine') ||
+    q.includes('nato') || q.includes('sanctions') || q.includes('diplomacy') ||
+    q.includes('military') || q.includes('troops') || q.includes('invasion') || q.includes('peace deal') ||
+    q.includes('iran') || q.includes('north korea') || q.includes('middle east') || q.includes('israel') ||
+    q.includes('gaza') || q.includes('hamas') || q.includes('hezbollah') || q.includes('taiwan') ||
+    q.includes('china invade') || q.includes('regime') || q.includes('nuclear weapon') ||
+    q.includes('iraqi') || q.includes('syrian') || q.includes('afghan')
+  ) {
+    return 'geopolitics';
+  }
+
+  // Climate & Science keywords - CHECK BEFORE crypto for temperature predictions
+  if (
+    q.includes('climate') || q.includes('carbon') || q.includes('emissions') || q.includes('global warming') ||
+    q.includes('renewable') || q.includes('solar') || q.includes('wind power') || q.includes('ev') ||
+    q.includes('electric vehicle') || q.includes('paris agreement') || q.includes('cop2') ||
+    q.includes('science') || q.includes('research') || q.includes('nasa') || q.includes('space') ||
+    q.includes('mars') || q.includes('moon') || q.includes('asteroid') || q.includes('vaccine') ||
+    q.includes('fda') || q.includes('drug approval') || q.includes('clinical trial') ||
+    q.includes('temperature') || q.includes('°c') || q.includes('°f') || q.includes('celsius') ||
+    q.includes('fahrenheit') || q.includes('weather') || q.includes('hurricane') || q.includes('typhoon') ||
+    q.includes('heatwave') || q.includes('heat wave') || q.includes('drought') || q.includes('flood') ||
+    q.includes('hottest') || q.includes('coldest') || q.includes('record high') || q.includes('record low')
+  ) {
+    return 'climate';
+  }
+
+  // Crypto keywords
   if (
     q.includes('bitcoin') || q.includes('btc') || q.includes('ethereum') || q.includes('eth') ||
     q.includes('solana') || q.includes('sol') || q.includes('xrp') || q.includes('ripple') ||
@@ -134,17 +163,7 @@ const detectCategory = (title: string, existingCategory: string): Prediction['ca
     return 'finance';
   }
 
-  // Geopolitics keywords
-  if (
-    q.includes('war') || q.includes('conflict') || q.includes('russia') || q.includes('china') ||
-    q.includes('ukraine') || q.includes('nato') || q.includes('sanctions') || q.includes('diplomacy') ||
-    q.includes('military') || q.includes('troops') || q.includes('invasion') || q.includes('peace deal') ||
-    q.includes('iran') || q.includes('north korea') || q.includes('middle east') || q.includes('israel') ||
-    q.includes('gaza') || q.includes('hamas') || q.includes('hezbollah') || q.includes('taiwan')
-  ) {
-    return 'geopolitics';
-  }
-
+  // Geopolitics - already checked above, skip duplicate
   // Earnings keywords (corporate earnings reports)
   if (
     q.includes('earnings') || q.includes('quarterly report') || q.includes('revenue beat') ||
@@ -193,18 +212,7 @@ const detectCategory = (title: string, existingCategory: string): Prediction['ca
     return 'world';
   }
 
-  // Climate & Science keywords
-  if (
-    q.includes('climate') || q.includes('carbon') || q.includes('emissions') || q.includes('global warming') ||
-    q.includes('renewable') || q.includes('solar') || q.includes('wind power') || q.includes('ev') ||
-    q.includes('electric vehicle') || q.includes('paris agreement') || q.includes('cop2') ||
-    q.includes('science') || q.includes('research') || q.includes('nasa') || q.includes('space') ||
-    q.includes('mars') || q.includes('moon') || q.includes('asteroid') || q.includes('vaccine') ||
-    q.includes('fda') || q.includes('drug approval') || q.includes('clinical trial')
-  ) {
-    return 'climate';
-  }
-
+  // Climate & Science - already checked above, skip duplicate
   // Elections keywords
   if (
     q.includes('election') || q.includes('presidential') || q.includes('president') ||
