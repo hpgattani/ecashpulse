@@ -332,17 +332,19 @@ const PredictionCard = ({ prediction, index, livePrice, climateData }: Predictio
         {/* Odds Display */}
         <div className="p-4 md:p-5">
           {isMultiOption ? (
-            // Multi-option display - show all outcomes with colors
+            // Multi-option display - show all outcomes with glow effects
             <div className="space-y-2 mb-4 max-h-[200px] overflow-y-auto">
               {prediction.outcomes!.map((outcome, idx) => {
-                const colors = [
-                  'from-emerald-500/20 to-emerald-600/10 border-emerald-500/30 hover:border-emerald-400',
-                  'from-red-500/20 to-red-600/10 border-red-500/30 hover:border-red-400',
-                  'from-blue-500/20 to-blue-600/10 border-blue-500/30 hover:border-blue-400',
-                  'from-purple-500/20 to-purple-600/10 border-purple-500/30 hover:border-purple-400',
+                const glowColors = [
+                  { bg: 'from-emerald-500/20 to-emerald-600/10', border: 'border-emerald-500/40 hover:border-emerald-400', text: 'text-emerald-400', glow: 'hover:shadow-[0_0_20px_rgba(16,185,129,0.3)]' },
+                  { bg: 'from-red-500/20 to-red-600/10', border: 'border-red-500/40 hover:border-red-400', text: 'text-red-400', glow: 'hover:shadow-[0_0_20px_rgba(239,68,68,0.3)]' },
+                  { bg: 'from-blue-500/20 to-blue-600/10', border: 'border-blue-500/40 hover:border-blue-400', text: 'text-blue-400', glow: 'hover:shadow-[0_0_20px_rgba(59,130,246,0.3)]' },
+                  { bg: 'from-purple-500/20 to-purple-600/10', border: 'border-purple-500/40 hover:border-purple-400', text: 'text-purple-400', glow: 'hover:shadow-[0_0_20px_rgba(168,85,247,0.3)]' },
+                  { bg: 'from-amber-500/20 to-amber-600/10', border: 'border-amber-500/40 hover:border-amber-400', text: 'text-amber-400', glow: 'hover:shadow-[0_0_20px_rgba(245,158,11,0.3)]' },
+                  { bg: 'from-cyan-500/20 to-cyan-600/10', border: 'border-cyan-500/40 hover:border-cyan-400', text: 'text-cyan-400', glow: 'hover:shadow-[0_0_20px_rgba(6,182,212,0.3)]' },
                 ];
-                const textColors = ['text-emerald-400', 'text-red-400', 'text-blue-400', 'text-purple-400'];
-                const colorIdx = idx % colors.length;
+                const colorIdx = idx % glowColors.length;
+                const color = glowColors[colorIdx];
                 
                 return (
                   <button
@@ -352,10 +354,10 @@ const PredictionCard = ({ prediction, index, livePrice, climateData }: Predictio
                       e.stopPropagation();
                       handleOutcomeBet(outcome);
                     }}
-                    className={`w-full flex items-center justify-between p-2.5 rounded-lg bg-gradient-to-r ${colors[colorIdx]} border transition-all cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary/60 hover:scale-[1.01]`}
+                    className={`w-full flex items-center justify-between p-2.5 rounded-lg bg-gradient-to-r ${color.bg} border ${color.border} ${color.glow} transition-all duration-200 cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary/60 hover:scale-[1.02]`}
                   >
                     <span className="text-sm text-foreground font-medium truncate flex-1 mr-2">{outcome.label}</span>
-                    <span className={`text-sm font-bold ${textColors[colorIdx]}`}>{outcome.odds}%</span>
+                    <span className={`text-sm font-bold ${color.text}`}>{outcome.odds}%</span>
                   </button>
                 );
               })}
