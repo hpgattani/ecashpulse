@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { usePredictions } from '@/hooks/usePredictions';
-import { TrendingUp, Flame, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { TrendingUp, Flame, Loader2, ChevronLeft, ChevronRight, Bitcoin, Landmark, Trophy, Cpu, Film, Vote, DollarSign, Globe2, BarChart3, Map, Leaf, Globe } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const TrendingSection = () => {
@@ -54,7 +54,31 @@ const TrendingSection = () => {
     scrollToIndex(next);
   };
 
-  // Category translations
+  const getCategoryIcon = (category: string) => {
+    const categoryConfig: Record<string, { Icon: React.ComponentType<{ className?: string }>, gradient: string }> = {
+      crypto: { Icon: Bitcoin, gradient: 'from-orange-400 via-amber-500 to-orange-600' },
+      politics: { Icon: Landmark, gradient: 'from-slate-400 via-slate-500 to-slate-600' },
+      sports: { Icon: Trophy, gradient: 'from-amber-400 via-yellow-500 to-amber-600' },
+      tech: { Icon: Cpu, gradient: 'from-cyan-400 via-blue-500 to-cyan-600' },
+      entertainment: { Icon: Film, gradient: 'from-pink-400 via-rose-500 to-pink-600' },
+      economics: { Icon: TrendingUp, gradient: 'from-lime-400 via-green-500 to-lime-600' },
+      elections: { Icon: Vote, gradient: 'from-indigo-400 via-blue-500 to-indigo-600' },
+      finance: { Icon: DollarSign, gradient: 'from-emerald-400 via-green-500 to-emerald-600' },
+      geopolitics: { Icon: Globe2, gradient: 'from-amber-500 via-orange-500 to-amber-600' },
+      earnings: { Icon: BarChart3, gradient: 'from-violet-400 via-purple-500 to-violet-600' },
+      world: { Icon: Map, gradient: 'from-teal-400 via-cyan-500 to-teal-600' },
+      climate: { Icon: Leaf, gradient: 'from-green-400 via-emerald-500 to-green-600' },
+      culture: { Icon: Film, gradient: 'from-pink-400 via-rose-500 to-pink-600' },
+    };
+    const config = categoryConfig[category] || { Icon: Globe, gradient: 'from-blue-400 via-sky-500 to-blue-600' };
+    return (
+      <span className={`relative bg-gradient-to-br ${config.gradient} p-1.5 rounded-lg shadow-sm ring-1 ring-border/40`}>
+        <span className="pointer-events-none absolute inset-0 rounded-lg bg-gradient-to-b from-foreground/20 via-transparent to-transparent opacity-70" />
+        <config.Icon className="relative w-3.5 h-3.5 text-white" />
+      </span>
+    );
+  };
+
   const getCategoryLabel = (category: string) => {
     const categoryMap: Record<string, keyof typeof t> = {
       crypto: 'crypto',
@@ -69,7 +93,6 @@ const TrendingSection = () => {
       earnings: 'earnings',
       world: 'world',
       climate: 'climate',
-      // legacy/back-compat
       culture: 'entertainment',
     };
 
@@ -154,9 +177,12 @@ const TrendingSection = () => {
               className="flex-shrink-0 w-[260px] sm:w-[300px] md:w-[350px] glass-card p-3 sm:p-4 snap-start cursor-pointer hover:border-primary/50 transition-all duration-300"
             >
               <div className="flex items-start justify-between mb-2 sm:mb-3">
-                <span className="text-[10px] sm:text-xs uppercase tracking-wider text-muted-foreground font-medium">
-                  {getCategoryLabel(prediction.category)}
-                </span>
+                <div className="flex items-center gap-2">
+                  {getCategoryIcon(prediction.category)}
+                  <span className="text-[10px] sm:text-xs uppercase tracking-wider text-muted-foreground font-medium">
+                    {getCategoryLabel(prediction.category)}
+                  </span>
+                </div>
                 <div className="flex items-center gap-1 text-emerald-400 text-xs sm:text-sm">
                   <TrendingUp className="w-3 h-3" />
                   {t.hot}
