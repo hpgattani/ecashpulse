@@ -44,12 +44,18 @@ interface CreatePredictionModalProps {
 }
 
 const categories = [
-  { id: "crypto", label: "Crypto" },
   { id: "politics", label: "Politics" },
   { id: "sports", label: "Sports" },
-  { id: "economics", label: "Economics" },
-  { id: "entertainment", label: "Entertainment" },
+  { id: "crypto", label: "Crypto" },
+  { id: "finance", label: "Finance" },
+  { id: "geopolitics", label: "Geopolitics" },
+  { id: "earnings", label: "Earnings" },
   { id: "tech", label: "Tech" },
+  { id: "culture", label: "Culture" },
+  { id: "world", label: "World" },
+  { id: "economics", label: "Economics" },
+  { id: "climate", label: "Climate & Science" },
+  { id: "elections", label: "Elections" },
 ];
 
 export const CreatePredictionModal = ({ open, onOpenChange }: CreatePredictionModalProps) => {

@@ -64,6 +64,12 @@ const TrendingSection = () => {
       entertainment: 'entertainment',
       elections: 'elections',
       tech: 'tech',
+      finance: 'finance',
+      geopolitics: 'geopolitics',
+      earnings: 'earnings',
+      culture: 'culture',
+      world: 'world',
+      climate: 'climate',
     };
     return t[categoryMap[category] || 'crypto'] || category;
   };

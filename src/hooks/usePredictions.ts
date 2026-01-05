@@ -33,7 +33,7 @@ export interface Prediction {
   id: string;
   question: string;
   description: string;
-  category: 'crypto' | 'politics' | 'sports' | 'tech' | 'entertainment' | 'economics' | 'elections';
+  category: 'crypto' | 'politics' | 'sports' | 'tech' | 'entertainment' | 'economics' | 'elections' | 'finance' | 'geopolitics' | 'earnings' | 'culture' | 'world' | 'climate';
   yesOdds: number;
   noOdds: number;
   volume: number;
@@ -125,6 +125,35 @@ const detectCategory = (title: string, existingCategory: string): Prediction['ca
     return 'entertainment';
   }
 
+  // Finance keywords (banking, stock trading, forex)
+  if (
+    q.includes('bank') || q.includes('forex') || q.includes('currency') || q.includes('dollar') ||
+    q.includes('euro') || q.includes('yen') || q.includes('pound') || q.includes('wall street') ||
+    q.includes('hedge fund') || q.includes('investment') || q.includes('bond') || q.includes('treasury')
+  ) {
+    return 'finance';
+  }
+
+  // Geopolitics keywords
+  if (
+    q.includes('war') || q.includes('conflict') || q.includes('russia') || q.includes('china') ||
+    q.includes('ukraine') || q.includes('nato') || q.includes('sanctions') || q.includes('diplomacy') ||
+    q.includes('military') || q.includes('troops') || q.includes('invasion') || q.includes('peace deal') ||
+    q.includes('iran') || q.includes('north korea') || q.includes('middle east') || q.includes('israel') ||
+    q.includes('gaza') || q.includes('hamas') || q.includes('hezbollah') || q.includes('taiwan')
+  ) {
+    return 'geopolitics';
+  }
+
+  // Earnings keywords (corporate earnings reports)
+  if (
+    q.includes('earnings') || q.includes('quarterly report') || q.includes('revenue beat') ||
+    q.includes('eps') || q.includes('guidance') || q.includes('profit margin') || q.includes('q1') ||
+    q.includes('q2') || q.includes('q3') || q.includes('q4') || q.includes('fiscal year')
+  ) {
+    return 'earnings';
+  }
+
   // Economics keywords (check for company/market valuations)
   if (
     q.includes('fed') || q.includes('interest rate') || q.includes('inflation') || q.includes('gdp') ||
@@ -132,10 +161,48 @@ const detectCategory = (title: string, existingCategory: string): Prediction['ca
     q.includes('nasdaq') || q.includes('unemployment') || q.includes('economy') || q.includes('fiscal') ||
     q.includes('largest company') || q.includes('market value') || q.includes('valuation') ||
     q.includes('trillion') || q.includes('billion') || q.includes('stock price') || q.includes('ipo') ||
-    q.includes('earnings') || q.includes('revenue') || q.includes('profit') || q.includes('market share') ||
+    q.includes('revenue') || q.includes('profit') || q.includes('market share') ||
     q.includes('company worth') || q.includes('most valuable')
   ) {
     return 'economics';
+  }
+
+  // Culture keywords (entertainment, media, arts)
+  if (
+    q.includes('oscar') || q.includes('oscars') || q.includes('academy award') ||
+    q.includes('grammy') || q.includes('emmy') || q.includes('golden globe') ||
+    q.includes('movie') || q.includes('film') || q.includes('director') || q.includes('best director') ||
+    q.includes('episode') || q.includes('season') || q.includes('series') ||
+    q.includes('released in theaters') || q.includes('theaters') || q.includes('cinema') ||
+    q.includes('album') || q.includes('spotify') ||
+    q.includes('netflix') || q.includes('disney') || q.includes('hbo') || q.includes('prime video') ||
+    q.includes('celebrity') || q.includes('concert') || q.includes('tour') || q.includes('box office') ||
+    q.includes('streaming') || q.includes('youtube') || q.includes('tiktok') ||
+    (q.includes('elon musk') && q.includes('tweet')) ||
+    q.includes('dune')
+  ) {
+    return 'culture';
+  }
+
+  // World keywords (global events, international affairs not geopolitics)
+  if (
+    q.includes('world') || q.includes('global') || q.includes('international') ||
+    q.includes('united nations') || q.includes('un ') || q.includes('summit') ||
+    q.includes('g7') || q.includes('g20') || q.includes('davos') || q.includes('wef')
+  ) {
+    return 'world';
+  }
+
+  // Climate & Science keywords
+  if (
+    q.includes('climate') || q.includes('carbon') || q.includes('emissions') || q.includes('global warming') ||
+    q.includes('renewable') || q.includes('solar') || q.includes('wind power') || q.includes('ev') ||
+    q.includes('electric vehicle') || q.includes('paris agreement') || q.includes('cop2') ||
+    q.includes('science') || q.includes('research') || q.includes('nasa') || q.includes('space') ||
+    q.includes('mars') || q.includes('moon') || q.includes('asteroid') || q.includes('vaccine') ||
+    q.includes('fda') || q.includes('drug approval') || q.includes('clinical trial')
+  ) {
+    return 'climate';
   }
 
   // Elections keywords
@@ -149,7 +216,7 @@ const detectCategory = (title: string, existingCategory: string): Prediction['ca
   }
 
   // If existing category is valid, keep it (trust the source data)
-  if (['crypto', 'politics', 'sports', 'tech', 'entertainment', 'economics', 'elections'].includes(existing)) {
+  if (['crypto', 'politics', 'sports', 'tech', 'entertainment', 'economics', 'elections', 'finance', 'geopolitics', 'earnings', 'culture', 'world', 'climate'].includes(existing)) {
     return existing as Prediction['category'];
   }
 
