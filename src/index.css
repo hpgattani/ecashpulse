@@ -126,9 +126,9 @@
     --sidebar-border: 210 20% 85%;
     --sidebar-ring: 168 80% 38%;
     
-    /* Liquid glass effect tokens */
-    --glass-bg: 0 0% 100% / 0.65;
-    --glass-border: 210 30% 90% / 0.8;
+    /* Liquid glass effect tokens - more translucent for true glass feel */
+    --glass-bg: 210 30% 98% / 0.45;
+    --glass-border: 210 30% 80% / 0.5;
   }
 
   .dark {
