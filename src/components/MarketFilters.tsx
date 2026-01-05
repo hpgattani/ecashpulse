@@ -48,8 +48,9 @@ const MarketFilters = ({
             }
           `}
         >
-          <span className={`bg-gradient-to-br ${category.gradient} p-1 rounded-lg shadow-sm`}>
-            <category.Icon className="w-3.5 h-3.5 text-white" />
+          <span className={`relative bg-gradient-to-br ${category.gradient} p-1 rounded-lg shadow-sm ring-1 ring-border/40`}>
+            <span className="pointer-events-none absolute inset-0 rounded-lg bg-gradient-to-b from-foreground/15 via-transparent to-transparent opacity-70" />
+            <category.Icon className="relative w-3.5 h-3.5 text-white" />
           </span>
           <span>
             {category.name}
