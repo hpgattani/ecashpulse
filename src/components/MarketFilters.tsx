@@ -13,19 +13,19 @@ const MarketFilters = ({
   const { t } = useLanguage();
 
   const categories = [
-    { id: 'all', name: t.all, emoji: '🌐', gradient: 'from-blue-400 to-cyan-400' },
-    { id: 'politics', name: t.politics, emoji: '🏛️', gradient: 'from-slate-400 to-zinc-500' },
-    { id: 'sports', name: t.sports, emoji: '🏆', gradient: 'from-amber-400 to-yellow-500' },
-    { id: 'crypto', name: t.crypto, emoji: '₿', gradient: 'from-orange-400 to-amber-500' },
-    { id: 'finance', name: t.finance, emoji: '💵', gradient: 'from-emerald-400 to-green-500' },
-    { id: 'geopolitics', name: t.geopolitics, emoji: '🌍', gradient: 'from-amber-500 to-orange-600' },
-    { id: 'earnings', name: t.earnings, emoji: '📊', gradient: 'from-violet-400 to-purple-500' },
-    { id: 'tech', name: t.tech, emoji: '💻', gradient: 'from-cyan-400 to-blue-500' },
-    { id: 'entertainment', name: t.entertainment, emoji: '🎭', gradient: 'from-pink-400 to-rose-500' },
-    { id: 'world', name: t.world, emoji: '🗺️', gradient: 'from-teal-400 to-cyan-500' },
-    { id: 'economics', name: t.economics, emoji: '📈', gradient: 'from-lime-400 to-green-500' },
-    { id: 'climate', name: t.climate, emoji: '🌱', gradient: 'from-green-400 to-emerald-500' },
-    { id: 'elections', name: t.elections, emoji: '🗳️', gradient: 'from-indigo-400 to-blue-500' },
+    { id: 'all', name: t.all, emoji: '🌐', color: 'text-blue-400' },
+    { id: 'politics', name: t.politics, emoji: '🏛️', color: 'text-slate-400' },
+    { id: 'sports', name: t.sports, emoji: '🏆', color: 'text-amber-400' },
+    { id: 'crypto', name: t.crypto, emoji: '₿', color: 'text-orange-400' },
+    { id: 'finance', name: t.finance, emoji: '💵', color: 'text-emerald-400' },
+    { id: 'geopolitics', name: t.geopolitics, emoji: '🌍', color: 'text-amber-500' },
+    { id: 'earnings', name: t.earnings, emoji: '📊', color: 'text-violet-400' },
+    { id: 'tech', name: t.tech, emoji: '💻', color: 'text-cyan-400' },
+    { id: 'entertainment', name: t.entertainment, emoji: '🎭', color: 'text-pink-400' },
+    { id: 'world', name: t.world, emoji: '🗺️', color: 'text-teal-400' },
+    { id: 'economics', name: t.economics, emoji: '📈', color: 'text-lime-400' },
+    { id: 'climate', name: t.climate, emoji: '🌱', color: 'text-green-400' },
+    { id: 'elections', name: t.elections, emoji: '🗳️', color: 'text-indigo-400' },
   ];
 
   return (
@@ -44,19 +44,10 @@ const MarketFilters = ({
             }
           `}
         >
-          <span 
-            className={`text-base drop-shadow-[0_0_6px_rgba(255,255,255,0.4)] ${
-              activeCategory !== category.id 
-                ? `bg-gradient-to-br ${category.gradient} bg-clip-text` 
-                : ''
-            }`}
-            style={{ 
-              filter: activeCategory !== category.id ? 'drop-shadow(0 0 4px currentColor)' : 'none',
-            }}
-          >
+          <span className="text-base">
             {category.emoji}
           </span>
-          <span className={activeCategory !== category.id ? `bg-gradient-to-r ${category.gradient} bg-clip-text text-transparent font-semibold` : ''}>
+          <span className={activeCategory !== category.id ? category.color : ''}>
             {category.name}
           </span>
           {activeCategory === category.id && (

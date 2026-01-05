@@ -132,29 +132,23 @@ const PredictionCard = ({ prediction, index, livePrice, climateData }: Predictio
   };
 
   const getCategoryIcon = (category: string) => {
-    const categoryConfig: Record<string, { emoji: string, gradient: string }> = {
-      crypto: { emoji: '₿', gradient: 'from-orange-400 to-amber-500' },
-      politics: { emoji: '🏛️', gradient: 'from-slate-400 to-zinc-500' },
-      sports: { emoji: '🏆', gradient: 'from-amber-400 to-yellow-500' },
-      tech: { emoji: '💻', gradient: 'from-cyan-400 to-blue-500' },
-      entertainment: { emoji: '🎭', gradient: 'from-pink-400 to-rose-500' },
-      economics: { emoji: '📈', gradient: 'from-lime-400 to-green-500' },
-      elections: { emoji: '🗳️', gradient: 'from-indigo-400 to-blue-500' },
-      finance: { emoji: '💵', gradient: 'from-emerald-400 to-green-500' },
-      geopolitics: { emoji: '🌍', gradient: 'from-amber-500 to-orange-600' },
-      earnings: { emoji: '📊', gradient: 'from-violet-400 to-purple-500' },
-      world: { emoji: '🗺️', gradient: 'from-teal-400 to-cyan-500' },
-      climate: { emoji: '🌱', gradient: 'from-green-400 to-emerald-500' },
+    const categoryConfig: Record<string, { emoji: string, bgColor: string }> = {
+      crypto: { emoji: '₿', bgColor: 'bg-orange-500/90' },
+      politics: { emoji: '🏛️', bgColor: 'bg-slate-500/90' },
+      sports: { emoji: '🏆', bgColor: 'bg-amber-500/90' },
+      tech: { emoji: '💻', bgColor: 'bg-cyan-500/90' },
+      entertainment: { emoji: '🎭', bgColor: 'bg-pink-500/90' },
+      economics: { emoji: '📈', bgColor: 'bg-lime-500/90' },
+      elections: { emoji: '🗳️', bgColor: 'bg-indigo-500/90' },
+      finance: { emoji: '💵', bgColor: 'bg-emerald-500/90' },
+      geopolitics: { emoji: '🌍', bgColor: 'bg-amber-600/90' },
+      earnings: { emoji: '📊', bgColor: 'bg-violet-500/90' },
+      world: { emoji: '🗺️', bgColor: 'bg-teal-500/90' },
+      climate: { emoji: '🌱', bgColor: 'bg-green-500/90' },
     };
-    const config = categoryConfig[category] || { emoji: '🌐', gradient: 'from-blue-400 to-cyan-400' };
+    const config = categoryConfig[category] || { emoji: '🌐', bgColor: 'bg-blue-500/90' };
     return (
-      <span 
-        className={`text-lg bg-gradient-to-br ${config.gradient} rounded-md p-0.5`}
-        style={{ 
-          filter: 'drop-shadow(0 0 6px rgba(255,255,255,0.3))',
-          textShadow: '0 0 8px rgba(255,255,255,0.5)'
-        }}
-      >
+      <span className={`${config.bgColor} text-sm p-1 rounded-md`}>
         {config.emoji}
       </span>
     );
