@@ -89,3 +89,9 @@ verify_jwt = false
 
 [functions.cron-oracle-resolver]
 verify_jwt = false
+
+[functions.admin-analyze-tx]
+verify_jwt = false
+
+[functions.submit-prediction]
+verify_jwt = false

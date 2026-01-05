@@ -1,0 +1,341 @@
+import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { 
+  Lightbulb, 
+  AlertCircle, 
+  Sparkles, 
+  CalendarIcon,
+  DollarSign,
+  CheckCircle2
+} from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useCryptoPrices } from "@/hooks/useCryptoPrices";
+
+const ESCROW_ADDRESS = "ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp";
+const CREATION_FEE_USD = 1; // $1 USD fee
+
+interface CreatePredictionModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+const categories = [
+  { id: "crypto", label: "Crypto" },
+  { id: "politics", label: "Politics" },
+  { id: "sports", label: "Sports" },
+  { id: "economics", label: "Economics" },
+  { id: "entertainment", label: "Entertainment" },
+  { id: "tech", label: "Tech" },
+];
+
+export const CreatePredictionModal = ({ open, onOpenChange }: CreatePredictionModalProps) => {
+  const { user } = useAuth();
+  const { t } = useLanguage();
+  const { prices } = useCryptoPrices();
+  
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("crypto");
+  const [endDate, setEndDate] = useState<Date>();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [paymentComplete, setPaymentComplete] = useState(false);
+  const [feeInXEC, setFeeInXEC] = useState<number | null>(null);
+
+  // Calculate XEC amount from USD
+  useEffect(() => {
+    if (prices.ecash && prices.ecash > 0) {
+      const xecAmount = Math.ceil(CREATION_FEE_USD / prices.ecash);
+      setFeeInXEC(xecAmount);
+    }
+  }, [prices.ecash]);
+
+  // Load PayButton script
+  useEffect(() => {
+    if (!document.querySelector('script[src*="paybutton"]')) {
+      const script = document.createElement("script");
+      script.src = "https://unpkg.com/@aspect-analytics/paybutton-meep@1.0.0/dist/paybutton.js";
+      script.async = true;
+      document.body.appendChild(script);
+    }
+  }, []);
+
+  // Render PayButton when ready
+  useEffect(() => {
+    if (!open || !feeInXEC || paymentComplete || !title || !endDate) return;
+
+    const buttonContainer = document.getElementById("create-prediction-paybutton");
+    if (!buttonContainer || !(window as any).PayButton) return;
+
+    // Clear previous
+    buttonContainer.innerHTML = "";
+
+    (window as any).PayButton.render(buttonContainer, {
+      to: ESCROW_ADDRESS,
+      amount: feeInXEC,
+      currency: "XEC",
+      text: `Pay $${CREATION_FEE_USD} (${feeInXEC.toLocaleString()} XEC)`,
+      hoverText: "Confirm",
+      successText: "Paid!",
+      autoClose: true,
+      theme: {
+        palette: {
+          primary: "#10b981",
+          secondary: "#1e293b",
+          tertiary: "#ffffff",
+        },
+      },
+      onSuccess: async (txResult: any) => {
+        let txHash: string | undefined;
+        if (typeof txResult === "string") {
+          txHash = txResult;
+        } else if (txResult?.hash) {
+          txHash = txResult.hash;
+        } else if (txResult?.txid) {
+          txHash = txResult.txid;
+        }
+        
+        setPaymentComplete(true);
+        await submitPrediction(txHash);
+      },
+      onError: (error: any) => {
+        console.error("PayButton error:", error);
+        toast.error("Payment failed", { description: "Please try again." });
+      },
+    });
+  }, [open, feeInXEC, paymentComplete, title, endDate]);
+
+  const submitPrediction = async (txHash?: string) => {
+    if (!user || !title || !endDate) return;
+    
+    setIsSubmitting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("submit-prediction", {
+        body: {
+          title: title.trim(),
+          description: description.trim() || null,
+          category,
+          end_date: endDate.toISOString(),
+          user_id: user.id,
+          tx_hash: txHash,
+          fee_amount: feeInXEC,
+        },
+      });
+
+      if (error) throw error;
+
+      toast.success("Prediction Submitted!", {
+        description: "Your prediction is under review and will be live soon.",
+      });
+      
+      // Reset form
+      setTitle("");
+      setDescription("");
+      setCategory("crypto");
+      setEndDate(undefined);
+      setPaymentComplete(false);
+      onOpenChange(false);
+    } catch (err: any) {
+      console.error("Submit error:", err);
+      toast.error("Failed to submit", { description: err.message });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const isFormValid = title.trim().length >= 10 && title.trim().endsWith("?") && endDate && feeInXEC;
+
+  if (!user) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create Prediction</DialogTitle>
+          </DialogHeader>
+          <div className="text-center py-8">
+            <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground mb-4">{t.connectWalletDesc}</p>
+            <Button onClick={() => onOpenChange(false)}>{t.cancel}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Lightbulb className="w-5 h-5 text-primary" />
+            Create Your Prediction
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-6 py-4">
+          {/* AI Resolution Tip */}
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="p-4 rounded-lg bg-primary/10 border border-primary/20"
+          >
+            <div className="flex gap-3">
+              <Sparkles className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <p className="font-medium text-foreground mb-1">AI-Resolvable Topics Preferred</p>
+                <p className="text-muted-foreground">
+                  Create predictions that can be verified by AI using public data sources 
+                  (crypto prices, sports scores, election results, etc.) for automatic resolution.
+                </p>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Title */}
+          <div className="space-y-2">
+            <Label htmlFor="title">Prediction Question *</Label>
+            <Input
+              id="title"
+              placeholder="Will Bitcoin reach $150k by end of 2026?"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className={cn(
+                title && !title.trim().endsWith("?") && "border-destructive"
+              )}
+            />
+            <p className="text-xs text-muted-foreground">
+              Must be a clear Yes/No question ending with "?"
+            </p>
+            {title && !title.trim().endsWith("?") && (
+              <p className="text-xs text-destructive">Question must end with "?"</p>
+            )}
+          </div>
+
+          {/* Description */}
+          <div className="space-y-2">
+            <Label htmlFor="description">Description (optional)</Label>
+            <Textarea
+              id="description"
+              placeholder="Add context or resolution criteria..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+            />
+          </div>
+
+          {/* Category */}
+          <div className="space-y-2">
+            <Label>Category</Label>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    {cat.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* End Date */}
+          <div className="space-y-2">
+            <Label>Resolution Date *</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !endDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {endDate ? format(endDate, "PPP") : "Pick a date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={endDate}
+                  onSelect={setEndDate}
+                  disabled={(date) => date < new Date()}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Fee Info */}
+          <div className="p-4 rounded-lg bg-muted/50 border border-border">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium">Creation Fee</span>
+              <div className="flex items-center gap-1 text-primary font-bold">
+                <DollarSign className="w-4 h-4" />
+                {CREATION_FEE_USD} USD
+              </div>
+            </div>
+            {feeInXEC && (
+              <p className="text-xs text-muted-foreground">
+                ≈ {feeInXEC.toLocaleString()} XEC at current price
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground mt-2">
+              Submissions are reviewed before going live. Fee is non-refundable.
+            </p>
+          </div>
+
+          {/* Review Notice */}
+          <div className="flex gap-2 text-xs text-muted-foreground">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <p>
+              All submissions are subject to review. Predictions must be clear, 
+              verifiable, and appropriate. Duplicate or inappropriate topics will be rejected.
+            </p>
+          </div>
+
+          {/* Payment / Submit */}
+          {paymentComplete ? (
+            <div className="flex items-center justify-center gap-2 py-4 text-primary">
+              <CheckCircle2 className="w-5 h-5" />
+              <span>Payment complete! Submitting...</span>
+            </div>
+          ) : isFormValid ? (
+            <div id="create-prediction-paybutton" className="min-h-[50px]" />
+          ) : (
+            <Button disabled className="w-full">
+              Complete form to continue
+            </Button>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+export default CreatePredictionModal;
