@@ -3,7 +3,8 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { 
-  TrendingUp, TrendingDown, Clock, Users, Zap, Share2, Check, CheckCircle2, Thermometer
+  TrendingUp, TrendingDown, Clock, Users, Zap, Share2, Check, CheckCircle2, Thermometer,
+  Globe, Landmark, Trophy, Bitcoin, DollarSign, Globe2, BarChart3, Cpu, Theater, Map, Leaf, Vote, Film
 } from "lucide-react";
 import BetModal from "./BetModal";
 import { Outcome } from "@/hooks/usePredictions";
@@ -132,24 +133,24 @@ const PredictionCard = ({ prediction, index, livePrice, climateData }: Predictio
   };
 
   const getCategoryIcon = (category: string) => {
-    const categoryConfig: Record<string, { emoji: string, bgColor: string }> = {
-      crypto: { emoji: '₿', bgColor: 'bg-orange-500/90' },
-      politics: { emoji: '🏛️', bgColor: 'bg-slate-500/90' },
-      sports: { emoji: '🏆', bgColor: 'bg-amber-500/90' },
-      tech: { emoji: '💻', bgColor: 'bg-cyan-500/90' },
-      entertainment: { emoji: '🎭', bgColor: 'bg-pink-500/90' },
-      economics: { emoji: '📈', bgColor: 'bg-lime-500/90' },
-      elections: { emoji: '🗳️', bgColor: 'bg-indigo-500/90' },
-      finance: { emoji: '💵', bgColor: 'bg-emerald-500/90' },
-      geopolitics: { emoji: '🌍', bgColor: 'bg-amber-600/90' },
-      earnings: { emoji: '📊', bgColor: 'bg-violet-500/90' },
-      world: { emoji: '🗺️', bgColor: 'bg-teal-500/90' },
-      climate: { emoji: '🌱', bgColor: 'bg-green-500/90' },
+    const categoryConfig: Record<string, { Icon: React.ComponentType<{ className?: string }>, gradient: string }> = {
+      crypto: { Icon: Bitcoin, gradient: 'from-orange-400 via-amber-500 to-orange-600' },
+      politics: { Icon: Landmark, gradient: 'from-slate-400 via-slate-500 to-slate-600' },
+      sports: { Icon: Trophy, gradient: 'from-amber-400 via-yellow-500 to-amber-600' },
+      tech: { Icon: Cpu, gradient: 'from-cyan-400 via-blue-500 to-cyan-600' },
+      entertainment: { Icon: Film, gradient: 'from-pink-400 via-rose-500 to-pink-600' },
+      economics: { Icon: TrendingUp, gradient: 'from-lime-400 via-green-500 to-lime-600' },
+      elections: { Icon: Vote, gradient: 'from-indigo-400 via-blue-500 to-indigo-600' },
+      finance: { Icon: DollarSign, gradient: 'from-emerald-400 via-green-500 to-emerald-600' },
+      geopolitics: { Icon: Globe2, gradient: 'from-amber-500 via-orange-500 to-amber-600' },
+      earnings: { Icon: BarChart3, gradient: 'from-violet-400 via-purple-500 to-violet-600' },
+      world: { Icon: Map, gradient: 'from-teal-400 via-cyan-500 to-teal-600' },
+      climate: { Icon: Leaf, gradient: 'from-green-400 via-emerald-500 to-green-600' },
     };
-    const config = categoryConfig[category] || { emoji: '🌐', bgColor: 'bg-blue-500/90' };
+    const config = categoryConfig[category] || { Icon: Globe, gradient: 'from-blue-400 via-sky-500 to-blue-600' };
     return (
-      <span className={`${config.bgColor} text-sm p-1 rounded-md`}>
-        {config.emoji}
+      <span className={`bg-gradient-to-br ${config.gradient} p-1.5 rounded-xl shadow-lg`}>
+        <config.Icon className="w-4 h-4 text-white" />
       </span>
     );
   };
