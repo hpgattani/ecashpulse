@@ -54,7 +54,17 @@ const detectCategory = (title: string, existingCategory: string): Prediction['ca
   const q = title.toLowerCase();
   const existing = (existingCategory || '').toLowerCase();
 
-  // Geopolitics keywords - CHECK FIRST to prevent misclassification
+  // World keywords - CHECK FIRST for UN/international affairs
+  if (
+    q.includes('united nations') || q.includes(' un ') || q.includes('un security') ||
+    q.includes('un recognition') || q.includes('recognized by the un') ||
+    q.includes('g7') || q.includes('g20') || q.includes('davos') || q.includes('wef') ||
+    q.includes('new country') || q.includes('summit')
+  ) {
+    return 'world';
+  }
+
+  // Geopolitics keywords - CHECK EARLY to prevent misclassification
   if (
     q.includes('war') || q.includes('conflict') || q.includes('russia') || q.includes('ukraine') ||
     q.includes('nato') || q.includes('sanctions') || q.includes('diplomacy') ||
@@ -67,43 +77,62 @@ const detectCategory = (title: string, existingCategory: string): Prediction['ca
     return 'geopolitics';
   }
 
-  // Climate & Science keywords - CHECK BEFORE crypto for temperature predictions
+  // Culture/Entertainment keywords - CHECK BEFORE crypto for K-pop, Grammy, etc.
+  if (
+    q.includes('k-pop') || q.includes('kpop') || q.includes('bts') || q.includes('blackpink') ||
+    q.includes('grammy') || q.includes('emmy') || q.includes('golden globe') ||
+    q.includes('oscar') || q.includes('oscars') || q.includes('academy award') ||
+    q.includes('movie') || q.includes('film') || q.includes('director') || q.includes('best director') ||
+    q.includes('netflix') || q.includes('disney') || q.includes('hbo') || q.includes('prime video') ||
+    q.includes('youtube') || q.includes('tiktok') || q.includes('instagram') || q.includes('subscriber') ||
+    q.includes('taylor swift') || q.includes('beyonce') || q.includes('drake') || q.includes('kanye') ||
+    q.includes('marvel') || q.includes('dc comics') || q.includes('box office') ||
+    q.includes('mrbeast') || q.includes('podcast') || q.includes('influencer') ||
+    q.includes('met gala') || q.includes('vogue') || q.includes('fashion')
+  ) {
+    return 'culture';
+  }
+
+  // Climate & Science keywords - CHECK BEFORE crypto for temperature/science predictions
   if (
     q.includes('climate') || q.includes('carbon') || q.includes('emissions') || q.includes('global warming') ||
-    q.includes('renewable') || q.includes('solar') || q.includes('wind power') || q.includes('ev') ||
-    q.includes('electric vehicle') || q.includes('paris agreement') || q.includes('cop2') ||
-    q.includes('science') || q.includes('research') || q.includes('nasa') || q.includes('space') ||
-    q.includes('mars') || q.includes('moon') || q.includes('asteroid') || q.includes('vaccine') ||
-    q.includes('fda') || q.includes('drug approval') || q.includes('clinical trial') ||
+    q.includes('renewable') || q.includes('solar power') || q.includes('wind power') ||
+    q.includes('paris agreement') || q.includes('cop2') ||
+    q.includes('nasa') || q.includes('mars') || q.includes('moon landing') || q.includes('asteroid') ||
+    q.includes('vaccine') || q.includes('fda') || q.includes('drug approval') || q.includes('clinical trial') ||
     q.includes('temperature') || q.includes('°c') || q.includes('°f') || q.includes('celsius') ||
     q.includes('fahrenheit') || q.includes('weather') || q.includes('hurricane') || q.includes('typhoon') ||
     q.includes('heatwave') || q.includes('heat wave') || q.includes('drought') || q.includes('flood') ||
-    q.includes('hottest') || q.includes('coldest') || q.includes('record high') || q.includes('record low')
+    q.includes('hottest year') || q.includes('coldest') || q.includes('record high') || q.includes('record low') ||
+    q.includes('arctic') || q.includes('sea ice') || q.includes('co2') || q.includes('water on mars')
   ) {
     return 'climate';
   }
 
-  // Crypto keywords
+  // Finance keywords - bank failures, central banks, CBDC (NOT crypto exchanges)
   if (
-    q.includes('bitcoin') || q.includes('btc') || q.includes('ethereum') || q.includes('eth') ||
-    q.includes('solana') || q.includes('sol') || q.includes('xrp') || q.includes('ripple') ||
-    q.includes('cardano') || q.includes('ada') || q.includes('dogecoin') || q.includes('doge') ||
-    q.includes('crypto') || q.includes('token') || q.includes('defi') || q.includes('nft') ||
-    q.includes('market cap') || q.includes('ecash') || q.includes('xec') ||
-    q.includes('zcash') || q.includes('zec') || q.includes('monero') || q.includes('xmr') ||
-    q.includes('dash') || q.includes('kaspa') || q.includes('kas') || q.includes('hbar') ||
-    q.includes('hedera') || q.includes('algorand') || q.includes('algo') || q.includes('fantom') ||
-    q.includes('ftm') || q.includes('arbitrum') || q.includes('arb') || q.includes('optimism') ||
-    q.includes('op token') || q.includes('sei') || q.includes('injective') || q.includes('inj') ||
-    q.includes('chainlink') || q.includes('link') || q.includes('polygon') || q.includes('matic') ||
-    q.includes('avalanche') || q.includes('avax') || q.includes('polkadot') || q.includes('dot') ||
+    q.includes('bank failure') || q.includes('bank fail') || q.includes('banking crisis') ||
+    q.includes('central bank') || q.includes('federal reserve') || q.includes('bank of england') ||
+    q.includes('ecb') || q.includes('digital euro') || q.includes('cbdc') ||
+    q.includes('forex') || q.includes('wall street') || q.includes('hedge fund') ||
+    q.includes('treasury') || q.includes('bond market')
+  ) {
+    return 'finance';
+  }
+
+  // Crypto keywords - MUST contain actual crypto terms
+  if (
+    q.includes('bitcoin') || q.includes('btc') || q.includes('ethereum') || q.includes('eth ') ||
+    q.includes('solana') || q.includes('xrp') || q.includes('ripple') ||
+    q.includes('cardano') || q.includes('ada ') || q.includes('dogecoin') || q.includes('doge') ||
+    q.includes('cryptocurrency') || q.includes('defi') || q.includes('nft') ||
+    q.includes('ecash') || q.includes('xec') || q.includes('zcash') || q.includes('monero') ||
+    q.includes('kaspa') || q.includes('hedera') || q.includes('algorand') ||
+    q.includes('chainlink') || q.includes('polygon') || q.includes('matic') ||
+    q.includes('avalanche') || q.includes('avax') || q.includes('polkadot') ||
     q.includes('litecoin') || q.includes('ltc') || q.includes('uniswap') || q.includes('aave') ||
-    q.includes('tether') || q.includes('usdt') || q.includes('usdc') || q.includes('stablecoin') ||
-    q.includes('altcoin') || q.includes('memecoin') || q.includes('shiba') || q.includes('pepe') ||
-    q.includes('floki') || q.includes('bnb') || q.includes('tron') || q.includes('trx') ||
-    q.includes('near') || q.includes('sui') || q.includes('aptos') || q.includes('apt') ||
-    q.includes('cosmos') || q.includes('atom') || q.includes('binance') || q.includes('coinbase') ||
-    (q.includes('price') && (q.includes('$') || q.includes('usd')))
+    q.includes('stablecoin') || q.includes('memecoin') || q.includes('shiba') || q.includes('pepe coin') ||
+    q.includes('binance') || q.includes('coinbase') || q.includes('crypto exchange')
   ) {
     return 'crypto';
   }

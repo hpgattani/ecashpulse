@@ -134,23 +134,23 @@ const PredictionCard = ({ prediction, index, livePrice, climateData }: Predictio
 
   const getCategoryIcon = (category: string) => {
     const categoryConfig: Record<string, { Icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>, color: string }> = {
-      crypto: { Icon: Bitcoin, color: 'from-orange-400 to-amber-300' },
-      politics: { Icon: Landmark, color: 'from-slate-400 to-zinc-300' },
-      sports: { Icon: Trophy, color: 'from-amber-400 to-yellow-300' },
-      tech: { Icon: Cpu, color: 'from-cyan-400 to-blue-300' },
-      entertainment: { Icon: Film, color: 'from-pink-400 to-rose-300' },
-      economics: { Icon: TrendingUp, color: 'from-lime-400 to-green-300' },
-      elections: { Icon: Vote, color: 'from-indigo-400 to-blue-300' },
-      finance: { Icon: DollarSign, color: 'from-emerald-400 to-green-300' },
-      geopolitics: { Icon: Globe2, color: 'from-red-400 to-rose-300' },
-      earnings: { Icon: BarChart3, color: 'from-violet-400 to-purple-300' },
-      culture: { Icon: Theater, color: 'from-fuchsia-400 to-pink-300' },
-      world: { Icon: Map, color: 'from-teal-400 to-emerald-300' },
-      climate: { Icon: Leaf, color: 'from-green-400 to-emerald-300' },
+      crypto: { Icon: Bitcoin, color: 'bg-orange-500' },
+      politics: { Icon: Landmark, color: 'bg-slate-500' },
+      sports: { Icon: Trophy, color: 'bg-amber-500' },
+      tech: { Icon: Cpu, color: 'bg-cyan-500' },
+      entertainment: { Icon: Film, color: 'bg-pink-500' },
+      economics: { Icon: TrendingUp, color: 'bg-lime-500' },
+      elections: { Icon: Vote, color: 'bg-indigo-500' },
+      finance: { Icon: DollarSign, color: 'bg-emerald-500' },
+      geopolitics: { Icon: Globe2, color: 'bg-amber-600' },
+      earnings: { Icon: BarChart3, color: 'bg-violet-500' },
+      culture: { Icon: Theater, color: 'bg-fuchsia-500' },
+      world: { Icon: Map, color: 'bg-teal-500' },
+      climate: { Icon: Leaf, color: 'bg-green-500' },
     };
-    const config = categoryConfig[category] || { Icon: Globe, color: 'from-blue-400 to-cyan-400' };
+    const config = categoryConfig[category] || { Icon: Globe, color: 'bg-blue-500' };
     return (
-      <span className={`bg-gradient-to-br ${config.color} p-1 rounded-md`}>
+      <span className={`${config.color} p-1 rounded-md`}>
         <config.Icon className="w-3.5 h-3.5 text-white drop-shadow-sm" />
       </span>
     );
