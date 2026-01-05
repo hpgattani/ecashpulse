@@ -191,6 +191,7 @@ export type Database = {
         Row: {
           category: string
           created_at: string
+          creator_id: string | null
           description: string | null
           end_date: string
           escrow_address: string
@@ -206,6 +207,7 @@ export type Database = {
         Insert: {
           category?: string
           created_at?: string
+          creator_id?: string | null
           description?: string | null
           end_date: string
           escrow_address: string
@@ -221,6 +223,7 @@ export type Database = {
         Update: {
           category?: string
           created_at?: string
+          creator_id?: string | null
           description?: string | null
           end_date?: string
           escrow_address?: string
@@ -233,7 +236,15 @@ export type Database = {
           updated_at?: string
           yes_pool?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "predictions_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {

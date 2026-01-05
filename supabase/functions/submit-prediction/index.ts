@@ -99,6 +99,7 @@ Deno.serve(async (req) => {
         status: 'active', // Admin can change to cancelled if rejected
         yes_pool: 0,
         no_pool: 0,
+        creator_id: user_id, // Track who submitted this prediction
       })
       .select()
       .single();

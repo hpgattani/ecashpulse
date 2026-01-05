@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, TrendingUp, TrendingDown, Clock, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, TrendingUp, TrendingDown, Clock, CheckCircle2, XCircle, Loader2, FileText, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import PredictionDetailModal from '@/components/PredictionDetailModal';
@@ -37,6 +38,18 @@ interface BetWithPrediction {
   };
 }
 
+interface UserSubmission {
+  id: string;
+  title: string;
+  description: string | null;
+  category: string;
+  status: string;
+  end_date: string;
+  yes_pool: number;
+  no_pool: number;
+  created_at: string;
+}
+
 interface FullPrediction {
   id: string;
   question: string;
@@ -55,7 +68,9 @@ const MyBets = () => {
   const { t, translateTitle, language } = useLanguage();
   const navigate = useNavigate();
   const [bets, setBets] = useState<BetWithPrediction[]>([]);
+  const [submissions, setSubmissions] = useState<UserSubmission[]>([]);
   const [loading, setLoading] = useState(true);
+  const [submissionsLoading, setSubmissionsLoading] = useState(true);
   const [selectedPrediction, setSelectedPrediction] = useState<FullPrediction | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -68,6 +83,7 @@ const MyBets = () => {
   useEffect(() => {
     if (user && sessionToken) {
       fetchBets();
+      fetchSubmissions();
       // Subscribe to realtime updates
       const channel = supabase
         .channel('my-bets')
@@ -90,6 +106,28 @@ const MyBets = () => {
       };
     }
   }, [user, sessionToken]);
+
+  const fetchSubmissions = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('predictions')
+        .select('id, title, description, category, status, end_date, yes_pool, no_pool, created_at')
+        .eq('creator_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching submissions:', error);
+        return;
+      }
+
+      setSubmissions(data || []);
+    } catch (err) {
+      console.error('Error fetching submissions:', err);
+    }
+    setSubmissionsLoading(false);
+  };
 
   const fetchBets = async () => {
     if (!user || !sessionToken) return;
@@ -208,6 +246,19 @@ const MyBets = () => {
     }
   };
 
+  const getSubmissionStatusBadge = (status: string) => {
+    switch (status) {
+      case 'active':
+        return <Badge variant="outline" className="text-emerald-500 border-emerald-500/50"><CheckCircle2 className="w-3 h-3 mr-1" />{t.active}</Badge>;
+      case 'resolved':
+        return <Badge variant="outline" className="text-blue-500 border-blue-500/50"><CheckCircle2 className="w-3 h-3 mr-1" />{t.resolved}</Badge>;
+      case 'cancelled':
+        return <Badge variant="outline" className="text-red-500 border-red-500/50"><XCircle className="w-3 h-3 mr-1" />{t.cancelled}</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -243,94 +294,176 @@ const MyBets = () => {
             </p>
           </div>
 
-          {bets.length === 0 ? (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="glass-card p-12 text-center"
-            >
-              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
-                <TrendingUp className="w-8 h-8 text-muted-foreground" />
-              </div>
-              <h2 className="font-display text-xl font-semibold text-foreground mb-2">
-                {t.noBetsYet}
-              </h2>
-              <p className="text-muted-foreground mb-6">
-                {t.noBetsDesc}
-              </p>
-              <Button onClick={() => navigate('/')}>
-                {t.exploreMarkets}
-              </Button>
-            </motion.div>
-          ) : (
-            <div className="space-y-4">
-              {bets.map((bet, index) => (
+          <Tabs defaultValue="bets" className="w-full">
+            <TabsList className="mb-6">
+              <TabsTrigger value="bets" className="flex items-center gap-2">
+                <TrendingUp className="w-4 h-4" />
+                {t.myBetsTitle}
+              </TabsTrigger>
+              <TabsTrigger value="submissions" className="flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                {t.mySubmissions}
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="bets">
+              {bets.length === 0 ? (
                 <motion.div
-                  key={bet.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  onClick={() => handleBetClick(bet)}
-                  className="glass-card p-4 md:p-6 cursor-pointer hover:border-primary/50 transition-colors"
+                  className="glass-card p-12 text-center"
                 >
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex-1">
-                      <h3 className="font-display font-semibold text-foreground mb-2 hover:text-primary transition-colors">
-                        {translateTitle(bet.prediction?.title || 'Unknown Prediction')}
-                      </h3>
-                      <div className="flex flex-wrap items-center gap-2 text-sm">
-                        <Badge
-                          variant={bet.position === 'yes' ? 'default' : 'destructive'}
-                          className={bet.position === 'yes' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}
-                        >
-                          {bet.position === 'yes' ? t.yes.toUpperCase() : t.no.toUpperCase()}
-                        </Badge>
-                        {getStatusBadge(bet.status)}
-                        <CountdownTimer endDate={bet.prediction.end_date} />
-                        <span className="text-muted-foreground">
-                          {formatDate(bet.created_at)}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-display font-bold text-lg text-foreground">
-                        {formatXEC(bet.amount)}
-                      </p>
-                      {bet.payout_amount && (
-                        <p className="text-sm text-emerald-400">
-                          {t.won}: {formatXEC(bet.payout_amount)}
-                        </p>
-                      )}
-                      <div className="flex gap-2 text-xs">
-                        {bet.tx_hash && (
-                          <a
-                            href={`https://explorer.e.cash/tx/${bet.tx_hash}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-muted-foreground hover:text-primary hover:underline"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {t.betTx}
-                          </a>
-                        )}
-                        {bet.payout_tx_hash && (
-                          <a
-                            href={`https://explorer.e.cash/tx/${bet.payout_tx_hash}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-emerald-400 hover:underline font-medium"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {t.payoutTx}
-                          </a>
-                        )}
-                      </div>
-                    </div>
+                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                    <TrendingUp className="w-8 h-8 text-muted-foreground" />
                   </div>
+                  <h2 className="font-display text-xl font-semibold text-foreground mb-2">
+                    {t.noBetsYet}
+                  </h2>
+                  <p className="text-muted-foreground mb-6">
+                    {t.noBetsDesc}
+                  </p>
+                  <Button onClick={() => navigate('/')}>
+                    {t.exploreMarkets}
+                  </Button>
                 </motion.div>
-              ))}
-            </div>
-          )}
+              ) : (
+                <div className="space-y-4">
+                  {bets.map((bet, index) => (
+                    <motion.div
+                      key={bet.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      onClick={() => handleBetClick(bet)}
+                      className="glass-card p-4 md:p-6 cursor-pointer hover:border-primary/50 transition-colors"
+                    >
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="flex-1">
+                          <h3 className="font-display font-semibold text-foreground mb-2 hover:text-primary transition-colors">
+                            {translateTitle(bet.prediction?.title || 'Unknown Prediction')}
+                          </h3>
+                          <div className="flex flex-wrap items-center gap-2 text-sm">
+                            <Badge
+                              variant={bet.position === 'yes' ? 'default' : 'destructive'}
+                              className={bet.position === 'yes' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}
+                            >
+                              {bet.position === 'yes' ? t.yes.toUpperCase() : t.no.toUpperCase()}
+                            </Badge>
+                            {getStatusBadge(bet.status)}
+                            <CountdownTimer endDate={bet.prediction.end_date} />
+                            <span className="text-muted-foreground">
+                              {formatDate(bet.created_at)}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-display font-bold text-lg text-foreground">
+                            {formatXEC(bet.amount)}
+                          </p>
+                          {bet.payout_amount && (
+                            <p className="text-sm text-emerald-400">
+                              {t.won}: {formatXEC(bet.payout_amount)}
+                            </p>
+                          )}
+                          <div className="flex gap-2 text-xs">
+                            {bet.tx_hash && (
+                              <a
+                                href={`https://explorer.e.cash/tx/${bet.tx_hash}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-muted-foreground hover:text-primary hover:underline"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {t.betTx}
+                              </a>
+                            )}
+                            {bet.payout_tx_hash && (
+                              <a
+                                href={`https://explorer.e.cash/tx/${bet.payout_tx_hash}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-emerald-400 hover:underline font-medium"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {t.payoutTx}
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="submissions">
+              {submissionsLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              ) : submissions.length === 0 ? (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="glass-card p-12 text-center"
+                >
+                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                    <FileText className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <h2 className="font-display text-xl font-semibold text-foreground mb-2">
+                    {t.noSubmissionsYet}
+                  </h2>
+                  <p className="text-muted-foreground mb-6">
+                    {t.noSubmissionsDesc}
+                  </p>
+                  <Button onClick={() => navigate('/create-prediction')}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    {t.createPrediction}
+                  </Button>
+                </motion.div>
+              ) : (
+                <div className="space-y-4">
+                  {submissions.map((submission, index) => (
+                    <motion.div
+                      key={submission.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      onClick={() => navigate(`/prediction/${submission.id}`)}
+                      className="glass-card p-4 md:p-6 cursor-pointer hover:border-primary/50 transition-colors"
+                    >
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="flex-1">
+                          <h3 className="font-display font-semibold text-foreground mb-2 hover:text-primary transition-colors">
+                            {translateTitle(submission.title)}
+                          </h3>
+                          <div className="flex flex-wrap items-center gap-2 text-sm">
+                            <Badge variant="secondary" className="capitalize">
+                              {submission.category}
+                            </Badge>
+                            {getSubmissionStatusBadge(submission.status)}
+                            <CountdownTimer endDate={submission.end_date} />
+                            <span className="text-muted-foreground">
+                              {formatDate(submission.created_at)}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-display font-bold text-lg text-foreground">
+                            {formatXEC(submission.yes_pool + submission.no_pool)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {t.volume}
+                          </p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         </main>
         <Footer />
       </div>
