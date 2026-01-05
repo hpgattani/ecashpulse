@@ -7,6 +7,7 @@ import { ProfileModal } from "./ProfileModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { ThemeToggle } from "./ThemeToggle";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -74,7 +75,8 @@ const Header = () => {
             </nav>
 
             {/* Desktop Actions */}
-            <div className="hidden md:flex items-center gap-2">
+            <div className="hidden md:flex items-center gap-1">
+              <ThemeToggle />
               <LanguageSwitcher />
               {user ? (
                 <DropdownMenu>
@@ -154,6 +156,10 @@ const Header = () => {
                   </Link>
                 )}
                 <div className="flex items-center justify-between pt-2 border-t border-border/30">
+                  <span className="text-sm text-muted-foreground">Theme</span>
+                  <ThemeToggle />
+                </div>
+                <div className="flex items-center justify-between pt-2">
                   <span className="text-sm text-muted-foreground">Language</span>
                   <LanguageSwitcher />
                 </div>
