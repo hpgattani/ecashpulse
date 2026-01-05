@@ -28,7 +28,7 @@ export const ThemeToggle = () => {
       variant="ghost"
       size="icon"
       onClick={toggleTheme}
-      className="relative w-9 h-9 rounded-full"
+      className="relative w-9 h-9 rounded-full hover:bg-primary/10 dark:hover:bg-primary/10"
       aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
     >
       <motion.div
