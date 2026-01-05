@@ -27,7 +27,7 @@ export const LightModeOrbs = () => {
 
   if (!theme) return null;
 
-  // Light mode - liquid glass aesthetic
+  // Light mode - circular orbs
   if (theme === 'light') {
     return (
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
@@ -42,47 +42,29 @@ export const LightModeOrbs = () => {
         {/* Subtle grid */}
         <div className="absolute inset-0 bg-grid-pattern bg-grid opacity-30" />
         
-        {/* Frosted glass layer */}
+        {/* Teal circular orb - left side */}
         <div 
-          className="absolute inset-0"
+          className="absolute"
           style={{
-            background: 'linear-gradient(135deg, hsla(200, 30%, 98%, 0.6) 0%, hsla(210, 20%, 95%, 0.3) 50%, hsla(200, 25%, 97%, 0.5) 100%)',
-            backdropFilter: 'blur(100px)',
+            width: '500px',
+            height: '500px',
+            left: '-80px',
+            top: '-150px',
+            background: 'radial-gradient(circle, hsla(168, 70%, 55%, 0.25) 0%, hsla(168, 65%, 50%, 0.1) 40%, transparent 70%)',
+            borderRadius: '50%',
           }}
         />
         
-        {/* Teal liquid glow - left side */}
+        {/* Purple circular orb - right side */}
         <div 
-          className="absolute inset-0"
+          className="absolute"
           style={{
-            background: 'radial-gradient(ellipse 80% 60% at 20% 5%, hsla(168, 75%, 55%, 0.25) 0%, hsla(168, 70%, 50%, 0.1) 30%, transparent 60%)',
-            filter: 'blur(40px)',
-          }}
-        />
-        
-        {/* Secondary teal accent */}
-        <div 
-          className="absolute inset-0"
-          style={{
-            background: 'radial-gradient(ellipse 50% 40% at 10% 30%, hsla(166, 80%, 50%, 0.15) 0%, transparent 50%)',
-            filter: 'blur(30px)',
-          }}
-        />
-        
-        {/* Purple liquid glow - right side */}
-        <div 
-          className="absolute inset-0"
-          style={{
-            background: 'radial-gradient(ellipse 80% 60% at 80% 5%, hsla(270, 70%, 60%, 0.2) 0%, hsla(270, 65%, 55%, 0.08) 30%, transparent 60%)',
-            filter: 'blur(40px)',
-          }}
-        />
-        
-        {/* Glass reflection highlight */}
-        <div 
-          className="absolute inset-0"
-          style={{
-            background: 'linear-gradient(165deg, hsla(0, 0%, 100%, 0.4) 0%, transparent 20%, transparent 80%, hsla(0, 0%, 100%, 0.1) 100%)',
+            width: '500px',
+            height: '500px',
+            right: '-80px',
+            top: '-150px',
+            background: 'radial-gradient(circle, hsla(270, 65%, 60%, 0.2) 0%, hsla(270, 60%, 55%, 0.08) 40%, transparent 70%)',
+            borderRadius: '50%',
           }}
         />
       </div>
