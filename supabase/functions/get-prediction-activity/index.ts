@@ -26,6 +26,18 @@ Deno.serve(async (req) => {
     );
 
     // Use service role to bypass RLS and fetch all confirmed bets for this prediction
+    // First get total count
+    const { count: totalCount, error: countError } = await supabase
+      .from('bets')
+      .select('*', { count: 'exact', head: true })
+      .eq('prediction_id', prediction_id)
+      .eq('status', 'confirmed');
+
+    if (countError) {
+      console.error('Error fetching bet count:', countError);
+    }
+
+    // Then get recent activity with limit
     const { data: bets, error } = await supabase
       .from('bets')
       .select(`
@@ -74,10 +86,10 @@ Deno.serve(async (req) => {
       outcome_label: b.outcome_id ? outcomeMap.get(b.outcome_id) : undefined
     }));
 
-    console.log(`Fetched ${activities.length} activities for prediction ${prediction_id}`);
+    console.log(`Fetched ${activities.length} activities (total: ${totalCount || 0}) for prediction ${prediction_id}`);
 
     return new Response(
-      JSON.stringify({ activities }),
+      JSON.stringify({ activities, total_count: totalCount || 0 }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (err) {

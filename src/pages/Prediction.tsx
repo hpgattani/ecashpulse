@@ -53,6 +53,7 @@ const Prediction = () => {
   const [copied, setCopied] = useState(false);
   const [userBet, setUserBet] = useState<UserBet | null>(null);
   const [activities, setActivities] = useState<BetActivity[]>([]);
+  const [totalBetCount, setTotalBetCount] = useState<number>(0);
   const [activitiesLoading, setActivitiesLoading] = useState(true);
 
   const fetchPrediction = async () => {
@@ -235,6 +236,7 @@ const Prediction = () => {
 
         if (!error && data?.activities) {
           setActivities(data.activities);
+          setTotalBetCount(data.total_count || 0);
         }
       } catch (err) {
         console.error('Error fetching activities:', err);
@@ -552,6 +554,10 @@ const Prediction = () => {
                   <div className="flex items-center gap-2">
                     <Users className="w-4 h-4" />
                     <span>{formatVolume(totalPool)} {t.volume}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Activity className="w-4 h-4" />
+                    <span>{totalBetCount} {totalBetCount === 1 ? 'bet' : 'bets'}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4" />
