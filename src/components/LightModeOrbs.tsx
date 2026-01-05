@@ -17,7 +17,6 @@ export const LightModeOrbs = () => {
     
     checkTheme();
     
-    // Watch for theme changes
     const observer = new MutationObserver(checkTheme);
     observer.observe(document.documentElement, { 
       attributes: true, 
@@ -29,267 +28,122 @@ export const LightModeOrbs = () => {
 
   if (!theme) return null;
 
-  // Light mode orbs - vibrant pastel colors
+  // Light mode orbs - slow, gentle movement
   if (theme === 'light') {
     return (
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-        {/* Large teal orb - top left */}
         <motion.div
-          className="absolute w-[600px] h-[600px] rounded-full opacity-40"
+          className="absolute w-[800px] h-[800px] rounded-full"
           style={{
-            background: 'radial-gradient(circle, hsla(168, 80%, 70%, 0.4) 0%, hsla(168, 80%, 70%, 0) 70%)',
-            filter: 'blur(60px)',
-            top: '-10%',
-            left: '-5%',
+            background: 'radial-gradient(circle, hsla(168, 80%, 70%, 0.25) 0%, transparent 70%)',
+            filter: 'blur(100px)',
+            top: '-20%',
+            left: '-10%',
           }}
-          animate={{
-            x: [0, 100, 50, 0],
-            y: [0, 50, 100, 0],
-            scale: [1, 1.1, 0.95, 1],
-          }}
-          transition={{
-            duration: 25,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
+          animate={{ x: [0, 30, 0], y: [0, 20, 0] }}
+          transition={{ duration: 60, repeat: Infinity, ease: 'linear' }}
         />
 
-        {/* Purple orb - top right */}
         <motion.div
-          className="absolute w-[500px] h-[500px] rounded-full opacity-30"
+          className="absolute w-[700px] h-[700px] rounded-full"
           style={{
-            background: 'radial-gradient(circle, hsla(270, 70%, 70%, 0.4) 0%, hsla(270, 70%, 70%, 0) 70%)',
-            filter: 'blur(50px)',
-            top: '5%',
-            right: '-10%',
+            background: 'radial-gradient(circle, hsla(270, 70%, 70%, 0.2) 0%, transparent 70%)',
+            filter: 'blur(100px)',
+            top: '10%',
+            right: '-15%',
           }}
-          animate={{
-            x: [0, -80, -40, 0],
-            y: [0, 80, 40, 0],
-            scale: [1, 0.9, 1.05, 1],
-          }}
-          transition={{
-            duration: 30,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
+          animate={{ x: [0, -25, 0], y: [0, 30, 0] }}
+          transition={{ duration: 70, repeat: Infinity, ease: 'linear' }}
         />
 
-        {/* Pink orb - center right */}
         <motion.div
-          className="absolute w-[400px] h-[400px] rounded-full opacity-25"
+          className="absolute w-[600px] h-[600px] rounded-full"
           style={{
-            background: 'radial-gradient(circle, hsla(330, 70%, 75%, 0.35) 0%, hsla(330, 70%, 75%, 0) 70%)',
-            filter: 'blur(45px)',
-            top: '40%',
-            right: '10%',
+            background: 'radial-gradient(circle, hsla(200, 80%, 70%, 0.2) 0%, transparent 70%)',
+            filter: 'blur(90px)',
+            bottom: '-10%',
+            left: '15%',
           }}
-          animate={{
-            x: [0, -60, 30, 0],
-            y: [0, -50, 50, 0],
-            scale: [1, 1.15, 0.9, 1],
-          }}
-          transition={{
-            duration: 22,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
+          animate={{ x: [0, 20, 0], y: [0, -25, 0] }}
+          transition={{ duration: 55, repeat: Infinity, ease: 'linear' }}
         />
 
-        {/* Blue orb - bottom left */}
         <motion.div
-          className="absolute w-[550px] h-[550px] rounded-full opacity-30"
+          className="absolute w-[500px] h-[500px] rounded-full"
           style={{
-            background: 'radial-gradient(circle, hsla(200, 80%, 70%, 0.35) 0%, hsla(200, 80%, 70%, 0) 70%)',
-            filter: 'blur(55px)',
-            bottom: '-5%',
-            left: '10%',
+            background: 'radial-gradient(circle, hsla(38, 90%, 70%, 0.15) 0%, transparent 70%)',
+            filter: 'blur(80px)',
+            bottom: '20%',
+            right: '5%',
           }}
-          animate={{
-            x: [0, 70, -30, 0],
-            y: [0, -60, -30, 0],
-            scale: [1, 0.95, 1.1, 1],
-          }}
-          transition={{
-            duration: 28,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-        />
-
-        {/* Green orb - center */}
-        <motion.div
-          className="absolute w-[350px] h-[350px] rounded-full opacity-20"
-          style={{
-            background: 'radial-gradient(circle, hsla(142, 70%, 65%, 0.3) 0%, hsla(142, 70%, 65%, 0) 70%)',
-            filter: 'blur(40px)',
-            top: '50%',
-            left: '40%',
-            transform: 'translate(-50%, -50%)',
-          }}
-          animate={{
-            x: [0, 50, -50, 0],
-            y: [0, -40, 40, 0],
-            scale: [1, 1.2, 0.85, 1],
-          }}
-          transition={{
-            duration: 20,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-        />
-
-        {/* Amber orb - bottom right */}
-        <motion.div
-          className="absolute w-[450px] h-[450px] rounded-full opacity-25"
-          style={{
-            background: 'radial-gradient(circle, hsla(38, 90%, 70%, 0.3) 0%, hsla(38, 90%, 70%, 0) 70%)',
-            filter: 'blur(50px)',
-            bottom: '10%',
-            right: '-5%',
-          }}
-          animate={{
-            x: [0, -40, 20, 0],
-            y: [0, -30, -60, 0],
-            scale: [1, 1.1, 0.95, 1],
-          }}
-          transition={{
-            duration: 26,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
+          animate={{ x: [0, -15, 0], y: [0, -20, 0] }}
+          transition={{ duration: 65, repeat: Infinity, ease: 'linear' }}
         />
       </div>
     );
   }
 
-  // Dark mode orbs - deeper, more saturated with glow
+  // Dark mode orbs - subtle, slow ambient glow
   return (
     <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-      {/* Primary teal orb - top left */}
+      <motion.div
+        className="absolute w-[900px] h-[900px] rounded-full"
+        style={{
+          background: 'radial-gradient(circle, hsla(168, 80%, 45%, 0.08) 0%, transparent 60%)',
+          filter: 'blur(120px)',
+          top: '-25%',
+          left: '-15%',
+        }}
+        animate={{ x: [0, 40, 0], y: [0, 30, 0] }}
+        transition={{ duration: 80, repeat: Infinity, ease: 'linear' }}
+      />
+
+      <motion.div
+        className="absolute w-[800px] h-[800px] rounded-full"
+        style={{
+          background: 'radial-gradient(circle, hsla(270, 70%, 50%, 0.06) 0%, transparent 60%)',
+          filter: 'blur(110px)',
+          top: '5%',
+          right: '-20%',
+        }}
+        animate={{ x: [0, -35, 0], y: [0, 40, 0] }}
+        transition={{ duration: 90, repeat: Infinity, ease: 'linear' }}
+      />
+
       <motion.div
         className="absolute w-[700px] h-[700px] rounded-full"
         style={{
-          background: 'radial-gradient(circle, hsla(168, 80%, 45%, 0.15) 0%, hsla(168, 80%, 45%, 0) 60%)',
-          filter: 'blur(80px)',
-          top: '-15%',
-          left: '-10%',
+          background: 'radial-gradient(circle, hsla(200, 80%, 50%, 0.05) 0%, transparent 55%)',
+          filter: 'blur(100px)',
+          top: '40%',
+          left: '25%',
         }}
-        animate={{
-          x: [0, 80, 40, 0],
-          y: [0, 60, 120, 0],
-          scale: [1, 1.15, 0.9, 1],
-        }}
-        transition={{
-          duration: 30,
-          repeat: Infinity,
-          ease: 'easeInOut',
-        }}
+        animate={{ x: [0, 25, 0], y: [0, -30, 0] }}
+        transition={{ duration: 70, repeat: Infinity, ease: 'linear' }}
       />
 
-      {/* Purple/violet orb - top right */}
+      <motion.div
+        className="absolute w-[750px] h-[750px] rounded-full"
+        style={{
+          background: 'radial-gradient(circle, hsla(220, 70%, 40%, 0.06) 0%, transparent 60%)',
+          filter: 'blur(110px)',
+          bottom: '-15%',
+          left: '0%',
+        }}
+        animate={{ x: [0, 30, 0], y: [0, -25, 0] }}
+        transition={{ duration: 85, repeat: Infinity, ease: 'linear' }}
+      />
+
       <motion.div
         className="absolute w-[600px] h-[600px] rounded-full"
         style={{
-          background: 'radial-gradient(circle, hsla(270, 70%, 50%, 0.12) 0%, hsla(270, 70%, 50%, 0) 60%)',
-          filter: 'blur(70px)',
-          top: '0%',
-          right: '-15%',
+          background: 'radial-gradient(circle, hsla(160, 70%, 40%, 0.05) 0%, transparent 55%)',
+          filter: 'blur(90px)',
+          bottom: '10%',
+          right: '10%',
         }}
-        animate={{
-          x: [0, -100, -50, 0],
-          y: [0, 100, 50, 0],
-          scale: [1, 0.85, 1.1, 1],
-        }}
-        transition={{
-          duration: 35,
-          repeat: Infinity,
-          ease: 'easeInOut',
-        }}
-      />
-
-      {/* Cyan orb - center */}
-      <motion.div
-        className="absolute w-[500px] h-[500px] rounded-full"
-        style={{
-          background: 'radial-gradient(circle, hsla(200, 80%, 50%, 0.1) 0%, hsla(200, 80%, 50%, 0) 55%)',
-          filter: 'blur(60px)',
-          top: '35%',
-          left: '30%',
-        }}
-        animate={{
-          x: [0, 60, -40, 0],
-          y: [0, -50, 60, 0],
-          scale: [1, 1.2, 0.8, 1],
-        }}
-        transition={{
-          duration: 25,
-          repeat: Infinity,
-          ease: 'easeInOut',
-        }}
-      />
-
-      {/* Deep blue orb - bottom left */}
-      <motion.div
-        className="absolute w-[650px] h-[650px] rounded-full"
-        style={{
-          background: 'radial-gradient(circle, hsla(220, 70%, 40%, 0.12) 0%, hsla(220, 70%, 40%, 0) 60%)',
-          filter: 'blur(75px)',
-          bottom: '-10%',
-          left: '5%',
-        }}
-        animate={{
-          x: [0, 90, -45, 0],
-          y: [0, -80, -40, 0],
-          scale: [1, 0.9, 1.15, 1],
-        }}
-        transition={{
-          duration: 32,
-          repeat: Infinity,
-          ease: 'easeInOut',
-        }}
-      />
-
-      {/* Magenta orb - right side */}
-      <motion.div
-        className="absolute w-[450px] h-[450px] rounded-full"
-        style={{
-          background: 'radial-gradient(circle, hsla(300, 60%, 45%, 0.08) 0%, hsla(300, 60%, 45%, 0) 55%)',
-          filter: 'blur(55px)',
-          top: '50%',
-          right: '5%',
-        }}
-        animate={{
-          x: [0, -70, 35, 0],
-          y: [0, -60, 70, 0],
-          scale: [1, 1.1, 0.85, 1],
-        }}
-        transition={{
-          duration: 28,
-          repeat: Infinity,
-          ease: 'easeInOut',
-        }}
-      />
-
-      {/* Emerald accent orb - bottom right */}
-      <motion.div
-        className="absolute w-[400px] h-[400px] rounded-full"
-        style={{
-          background: 'radial-gradient(circle, hsla(160, 70%, 40%, 0.1) 0%, hsla(160, 70%, 40%, 0) 55%)',
-          filter: 'blur(50px)',
-          bottom: '5%',
-          right: '20%',
-        }}
-        animate={{
-          x: [0, -50, 25, 0],
-          y: [0, -40, -80, 0],
-          scale: [1, 1.15, 0.9, 1],
-        }}
-        transition={{
-          duration: 24,
-          repeat: Infinity,
-          ease: 'easeInOut',
-        }}
+        animate={{ x: [0, -20, 0], y: [0, -20, 0] }}
+        transition={{ duration: 75, repeat: Infinity, ease: 'linear' }}
       />
     </div>
   );
