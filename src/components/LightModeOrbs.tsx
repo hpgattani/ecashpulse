@@ -42,19 +42,19 @@ export const LightModeOrbs = () => {
         {/* Subtle grid */}
         <div className="absolute inset-0 bg-grid-pattern bg-grid opacity-40" />
         
-        {/* Teal glow */}
+      {/* Teal glow - left side */}
         <div 
           className="absolute inset-0"
           style={{
-            background: 'radial-gradient(ellipse 80% 50% at 30% 10%, hsla(168, 70%, 70%, 0.2) 0%, transparent 50%)',
+            background: 'radial-gradient(ellipse 70% 50% at 25% 10%, hsla(168, 70%, 70%, 0.2) 0%, transparent 50%)',
           }}
         />
         
-        {/* Purple glow - increased to match teal */}
+        {/* Purple glow - right side (mirrored) */}
         <div 
           className="absolute inset-0"
           style={{
-            background: 'radial-gradient(ellipse 75% 45% at 75% 15%, hsla(270, 65%, 70%, 0.22) 0%, transparent 50%)',
+            background: 'radial-gradient(ellipse 70% 50% at 75% 10%, hsla(270, 70%, 70%, 0.2) 0%, transparent 50%)',
           }}
         />
       </div>
@@ -75,19 +75,19 @@ export const LightModeOrbs = () => {
       {/* Subtle grid lines */}
       <div className="absolute inset-0 bg-grid-pattern bg-grid opacity-20" />
       
-      {/* Teal glow - larger area, top left */}
+      {/* Teal glow - left side */}
       <div 
         className="absolute inset-0"
         style={{
-          background: 'radial-gradient(ellipse 120% 70% at 15% -5%, hsla(168, 80%, 45%, 0.2) 0%, transparent 65%)',
+          background: 'radial-gradient(ellipse 100% 60% at 15% -5%, hsla(168, 80%, 45%, 0.2) 0%, transparent 60%)',
         }}
       />
       
-      {/* Purple glow - increased to match teal */}
+      {/* Purple glow - right side (mirrored) */}
       <div 
         className="absolute inset-0"
         style={{
-          background: 'radial-gradient(ellipse 120% 70% at 88% -5%, hsla(270, 75%, 55%, 0.22) 0%, transparent 65%)',
+          background: 'radial-gradient(ellipse 100% 60% at 85% -5%, hsla(270, 80%, 45%, 0.2) 0%, transparent 60%)',
         }}
       />
       
