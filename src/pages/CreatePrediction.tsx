@@ -24,7 +24,7 @@ import {
   ArrowLeft,
   Share2
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, parse, isValid } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -62,9 +62,30 @@ const CreatePrediction = () => {
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("crypto");
   const [endDate, setEndDate] = useState<Date>();
+  const [dateInputValue, setDateInputValue] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [feeInXEC, setFeeInXEC] = useState<number | null>(null);
+
+  const handleDateInputChange = (value: string) => {
+    setDateInputValue(value);
+    // Try to parse the date in common formats
+    const formats = ["MM/dd/yyyy", "yyyy-MM-dd", "dd/MM/yyyy", "MMM d, yyyy"];
+    for (const fmt of formats) {
+      const parsed = parse(value, fmt, new Date());
+      if (isValid(parsed) && parsed > new Date()) {
+        setEndDate(parsed);
+        return;
+      }
+    }
+  };
+
+  const handleCalendarSelect = (date: Date | undefined) => {
+    setEndDate(date);
+    if (date) {
+      setDateInputValue(format(date, "MM/dd/yyyy"));
+    }
+  };
 
   useEffect(() => {
     if (prices.ecash && prices.ecash > 0) {
@@ -304,30 +325,38 @@ const CreatePrediction = () => {
                   className="space-y-2"
                 >
                   <Label>Resolution Date *</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !endDate && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {endDate ? format(endDate, "PPP") : "Pick a date"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={endDate}
-                        onSelect={setEndDate}
-                        disabled={(date) => date < new Date()}
-                        initialFocus
-                        className="pointer-events-auto"
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="MM/DD/YYYY"
+                      value={dateInputValue}
+                      onChange={(e) => handleDateInputChange(e.target.value)}
+                      className="flex-1"
+                    />
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="shrink-0"
+                        >
+                          <CalendarIcon className="h-4 w-4" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="end">
+                        <Calendar
+                          mode="single"
+                          selected={endDate}
+                          onSelect={handleCalendarSelect}
+                          disabled={(date) => date < new Date()}
+                          initialFocus
+                          className="pointer-events-auto"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Type a date or use the calendar picker
+                  </p>
                 </motion.div>
 
                 {/* Fee Info */}

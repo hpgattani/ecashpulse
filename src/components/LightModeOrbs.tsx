@@ -50,11 +50,11 @@ export const LightModeOrbs = () => {
           }}
         />
         
-        {/* Purple glow */}
+        {/* Purple glow - increased to match teal */}
         <div 
           className="absolute inset-0"
           style={{
-            background: 'radial-gradient(ellipse 60% 40% at 75% 20%, hsla(270, 60%, 75%, 0.15) 0%, transparent 45%)',
+            background: 'radial-gradient(ellipse 75% 45% at 75% 15%, hsla(270, 65%, 70%, 0.22) 0%, transparent 50%)',
           }}
         />
       </div>
@@ -83,11 +83,11 @@ export const LightModeOrbs = () => {
         }}
       />
       
-      {/* Purple glow - larger area, top right */}
+      {/* Purple glow - increased to match teal */}
       <div 
         className="absolute inset-0"
         style={{
-          background: 'radial-gradient(ellipse 110% 65% at 90% 0%, hsla(270, 70%, 55%, 0.16) 0%, transparent 60%)',
+          background: 'radial-gradient(ellipse 120% 70% at 88% -5%, hsla(270, 75%, 55%, 0.22) 0%, transparent 65%)',
         }}
       />
       
