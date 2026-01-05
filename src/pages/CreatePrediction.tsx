@@ -214,7 +214,12 @@ const CreatePrediction = () => {
             ) : (
               <div className="space-y-6">
                 {/* AI Resolution Tip */}
-                <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="p-4 rounded-lg bg-primary/10 border border-primary/20"
+                >
                   <div className="flex gap-3">
                     <Sparkles className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                     <div className="text-sm">
@@ -225,10 +230,15 @@ const CreatePrediction = () => {
                       </p>
                     </div>
                   </div>
-                </div>
+                </motion.div>
 
                 {/* Title */}
-                <div className="space-y-2">
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.15 }}
+                  className="space-y-2"
+                >
                   <Label htmlFor="title">Prediction Question *</Label>
                   <Input
                     id="title"
@@ -245,10 +255,15 @@ const CreatePrediction = () => {
                   {title && !title.trim().endsWith("?") && (
                     <p className="text-xs text-destructive">Question must end with "?"</p>
                   )}
-                </div>
+                </motion.div>
 
                 {/* Description */}
-                <div className="space-y-2">
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="space-y-2"
+                >
                   <Label htmlFor="description">Description (optional)</Label>
                   <Textarea
                     id="description"
@@ -257,10 +272,15 @@ const CreatePrediction = () => {
                     onChange={(e) => setDescription(e.target.value)}
                     rows={3}
                   />
-                </div>
+                </motion.div>
 
                 {/* Category */}
-                <div className="space-y-2">
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.25 }}
+                  className="space-y-2"
+                >
                   <Label>Category</Label>
                   <Select value={category} onValueChange={setCategory}>
                     <SelectTrigger>
@@ -274,10 +294,15 @@ const CreatePrediction = () => {
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
+                </motion.div>
 
                 {/* End Date */}
-                <div className="space-y-2">
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="space-y-2"
+                >
                   <Label>Resolution Date *</Label>
                   <Popover>
                     <PopoverTrigger asChild>
@@ -299,13 +324,19 @@ const CreatePrediction = () => {
                         onSelect={setEndDate}
                         disabled={(date) => date < new Date()}
                         initialFocus
+                        className="pointer-events-auto"
                       />
                     </PopoverContent>
                   </Popover>
-                </div>
+                </motion.div>
 
                 {/* Fee Info */}
-                <div className="p-4 rounded-lg bg-muted/50 border border-border">
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.35 }}
+                  className="p-4 rounded-lg bg-muted/50 border border-border"
+                >
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium">Creation Fee</span>
                     <div className="flex items-center gap-1 text-primary font-bold">
@@ -321,30 +352,41 @@ const CreatePrediction = () => {
                   <p className="text-xs text-muted-foreground mt-2">
                     Payments are non-refundable. Create your topic responsibly.
                   </p>
-                </div>
+                </motion.div>
 
                 {/* Review Notice */}
-                <div className="flex gap-2 text-xs text-muted-foreground">
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                  className="flex gap-2 text-xs text-muted-foreground"
+                >
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                   <p>
                     Predictions must be clear, verifiable, and appropriate. 
                     Create topics that can be resolved by AI/Oracle using public data. Payments are non-refundable.
                   </p>
-                </div>
+                </motion.div>
 
                 {/* Payment / Submit */}
-                {paymentComplete ? (
-                  <div className="flex items-center justify-center gap-2 py-4 text-primary">
-                    <CheckCircle2 className="w-5 h-5" />
-                    <span>Payment complete! Submitting...</span>
-                  </div>
-                ) : isFormValid ? (
-                  <div id="create-prediction-paybutton-page" className="min-h-[50px] flex justify-center" />
-                ) : (
-                  <Button disabled className="w-full">
-                    Complete form to continue
-                  </Button>
-                )}
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.45 }}
+                >
+                  {paymentComplete ? (
+                    <div className="flex items-center justify-center gap-2 py-4 text-primary">
+                      <CheckCircle2 className="w-5 h-5" />
+                      <span>Payment complete! Submitting...</span>
+                    </div>
+                  ) : isFormValid ? (
+                    <div id="create-prediction-paybutton-page" className="min-h-[50px] flex justify-center" />
+                  ) : (
+                    <Button disabled className="w-full">
+                      Complete form to continue
+                    </Button>
+                  )}
+                </motion.div>
               </div>
             )}
           </motion.div>
