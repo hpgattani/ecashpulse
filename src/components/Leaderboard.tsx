@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, Medal, TrendingUp, Wallet, Crown } from 'lucide-react';
+import { Trophy, Medal, TrendingUp, Wallet, Crown, ChevronRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { UserBetHistoryModal } from './UserBetHistoryModal';
 
 interface LeaderboardEntry {
   user_id: string;
@@ -24,6 +25,7 @@ const formatAddress = (address: string) => {
 export const Leaderboard = () => {
   const [leaders, setLeaders] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedUser, setSelectedUser] = useState<LeaderboardEntry | null>(null);
   const { t } = useLanguage();
 
   useEffect(() => {
@@ -122,7 +124,8 @@ export const Leaderboard = () => {
               whileInView={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.4, delay: index * 0.1 }}
               viewport={{ once: true }}
-              className={`rounded-xl border p-4 backdrop-blur-sm transition-all hover:scale-[1.02] ${getRankBg(index)}`}
+              onClick={() => setSelectedUser(leader)}
+              className={`rounded-xl border p-4 backdrop-blur-sm transition-all hover:scale-[1.02] cursor-pointer group ${getRankBg(index)}`}
             >
               <div className="flex items-center gap-4">
                 <div className="flex-shrink-0">
@@ -157,22 +160,34 @@ export const Leaderboard = () => {
                     </div>
                 </div>
                 
-                <div className="flex-shrink-0 text-right">
-                  <div className="flex items-center gap-1 text-lg font-bold text-green-500">
-                    <TrendingUp className="w-4 h-4" />
-                    {leader.win_rate}%
-                  </div>
-                  {leader.total_winnings > 0 && (
-                    <div className="text-sm font-semibold text-yellow-400">
-                      💰 {formatXEC(leader.total_winnings)}
+                <div className="flex-shrink-0 text-right flex items-center gap-2">
+                  <div>
+                    <div className="flex items-center gap-1 text-lg font-bold text-green-500">
+                      <TrendingUp className="w-4 h-4" />
+                      {leader.win_rate}%
                     </div>
-                  )}
+                    {leader.total_winnings > 0 && (
+                      <div className="text-sm font-semibold text-yellow-400">
+                        💰 {formatXEC(leader.total_winnings)}
+                      </div>
+                    )}
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
               </div>
             </motion.div>
           ))}
         </div>
       </div>
+
+      {/* User Bet History Modal */}
+      <UserBetHistoryModal
+        open={!!selectedUser}
+        onOpenChange={(open) => !open && setSelectedUser(null)}
+        userId={selectedUser?.user_id || ''}
+        displayName={selectedUser?.display_name || null}
+        ecashAddress={formatAddress(selectedUser?.ecash_address || '')}
+      />
     </section>
   );
 };
