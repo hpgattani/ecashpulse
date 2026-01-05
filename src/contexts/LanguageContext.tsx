@@ -154,6 +154,14 @@ interface Translations {
   betTx: string;
   payoutTx: string;
   
+  // My Submissions
+  mySubmissions: string;
+  noSubmissionsYet: string;
+  noSubmissionsDesc: string;
+  active: string;
+  cancelled: string;
+  resolved: string;
+  
   // Public Bets statuses
   statusConfirmed: string;
   statusPending: string;
@@ -402,6 +410,13 @@ const translations: Record<Language, Translations> = {
     betTx: 'Bet TX',
     payoutTx: 'Payout TX',
     
+    // My Submissions
+    mySubmissions: 'My Submissions',
+    noSubmissionsYet: 'No submissions yet',
+    noSubmissionsDesc: 'Create your own prediction to see it here',
+    active: 'Active',
+    cancelled: 'Cancelled',
+    resolved: 'Resolved',
     // Public Bets statuses
     statusConfirmed: 'Confirmed',
     statusPending: 'Pending',
@@ -565,6 +580,13 @@ const translations: Record<Language, Translations> = {
     betTx: 'TX da Aposta',
     payoutTx: 'TX do Pagamento',
     
+    // My Submissions
+    mySubmissions: 'Minhas Submissões',
+    noSubmissionsYet: 'Nenhuma submissão ainda',
+    noSubmissionsDesc: 'Crie sua própria previsão para vê-la aqui',
+    active: 'Ativo',
+    cancelled: 'Cancelado',
+    resolved: 'Resolvido',
     // Public Bets statuses
     statusConfirmed: 'Confirmado',
     statusPending: 'Pendente',
@@ -728,6 +750,13 @@ const translations: Record<Language, Translations> = {
     betTx: '베팅 TX',
     payoutTx: '지급 TX',
     
+    // My Submissions
+    mySubmissions: '내 제출',
+    noSubmissionsYet: '아직 제출이 없습니다',
+    noSubmissionsDesc: '여기서 보려면 직접 예측을 만드세요',
+    active: '활성',
+    cancelled: '취소됨',
+    resolved: '해결됨',
     // Public Bets statuses
     statusConfirmed: '확인됨',
     statusPending: '대기 중',
@@ -891,6 +920,13 @@ const translations: Record<Language, Translations> = {
     betTx: 'ベットTX',
     payoutTx: '支払いTX',
     
+    // My Submissions
+    mySubmissions: 'マイ提出',
+    noSubmissionsYet: 'まだ提出がありません',
+    noSubmissionsDesc: 'ここで見るには自分の予測を作成してください',
+    active: 'アクティブ',
+    cancelled: 'キャンセル',
+    resolved: '解決済み',
     // Public Bets statuses
     statusConfirmed: '確認済み',
     statusPending: '保留中',
