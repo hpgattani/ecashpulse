@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import { LightModeOrbs } from "@/components/LightModeOrbs";
 
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -22,6 +23,7 @@ const App = () => (
       <LanguageProvider>
         <AuthProvider>
           <TooltipProvider>
+            <LightModeOrbs />
             <Sonner />
             <BrowserRouter>
               <Routes>
