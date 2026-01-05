@@ -75,19 +75,19 @@ export const LightModeOrbs = () => {
       {/* Subtle grid lines */}
       <div className="absolute inset-0 bg-grid-pattern bg-grid opacity-20" />
       
-      {/* Teal glow - top left, larger area */}
+      {/* Teal glow - larger area, top left */}
       <div 
         className="absolute inset-0"
         style={{
-          background: 'radial-gradient(ellipse 100% 60% at 20% 0%, hsla(168, 80%, 45%, 0.18) 0%, transparent 60%)',
+          background: 'radial-gradient(ellipse 120% 70% at 15% -5%, hsla(168, 80%, 45%, 0.2) 0%, transparent 65%)',
         }}
       />
       
-      {/* Purple glow - top right, larger area */}
+      {/* Purple glow - larger area, top right */}
       <div 
         className="absolute inset-0"
         style={{
-          background: 'radial-gradient(ellipse 90% 55% at 85% 5%, hsla(270, 70%, 55%, 0.14) 0%, transparent 55%)',
+          background: 'radial-gradient(ellipse 110% 65% at 90% 0%, hsla(270, 70%, 55%, 0.16) 0%, transparent 60%)',
         }}
       />
       
@@ -95,7 +95,7 @@ export const LightModeOrbs = () => {
       <div 
         className="absolute inset-0"
         style={{
-          background: 'radial-gradient(ellipse 80% 35% at 50% 100%, hsla(200, 70%, 50%, 0.08) 0%, transparent 50%)',
+          background: 'radial-gradient(ellipse 100% 45% at 50% 105%, hsla(200, 70%, 50%, 0.1) 0%, transparent 55%)',
         }}
       />
     </div>

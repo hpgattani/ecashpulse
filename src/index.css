@@ -202,6 +202,23 @@
       inset 0 -1px 0 rgba(0, 0, 0, 0.2);
   }
 
+  /* Disable hover effect for specific elements */
+  .no-hover-effect:hover {
+    box-shadow: 
+      0 4px 24px -1px rgba(0, 0, 0, 0.4),
+      0 2px 8px -1px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.2) !important;
+  }
+
+  .light .no-hover-effect:hover {
+    box-shadow: 
+      0 4px 24px -1px rgba(0, 0, 0, 0.06),
+      0 2px 8px -1px rgba(0, 0, 0, 0.04),
+      inset 0 1px 0 rgba(255, 255, 255, 0.8),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.02) !important;
+  }
+
   .glow-primary {
     box-shadow: 0 0 40px hsl(var(--glow-primary) / 0.15),
                 0 0 80px hsl(var(--glow-primary) / 0.1);
