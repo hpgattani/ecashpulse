@@ -160,6 +160,10 @@ interface Translations {
   statusWon: string;
   statusLost: string;
   statusRefunded: string;
+  
+  // Create Prediction
+  createPrediction: string;
+  createPredictionDesc: string;
 }
 
 // Common prediction title translations
@@ -404,6 +408,10 @@ const translations: Record<Language, Translations> = {
     statusWon: 'Won',
     statusLost: 'Lost',
     statusRefunded: 'Refunded',
+    
+    // Create Prediction
+    createPrediction: 'Create Your Own Prediction',
+    createPredictionDesc: 'Submit your prediction topic for $1. AI-resolvable topics preferred.',
   },
   'pt-BR': {
     // Navigation
@@ -563,6 +571,10 @@ const translations: Record<Language, Translations> = {
     statusWon: 'Ganhou',
     statusLost: 'Perdeu',
     statusRefunded: 'Reembolsado',
+    
+    // Create Prediction
+    createPrediction: 'Crie Sua Própria Previsão',
+    createPredictionDesc: 'Envie seu tópico de previsão por $1. Tópicos resolvíveis por IA são preferidos.',
   },
   ko: {
     // Navigation
@@ -722,6 +734,10 @@ const translations: Record<Language, Translations> = {
     statusWon: '승리',
     statusLost: '패배',
     statusRefunded: '환불됨',
+    
+    // Create Prediction
+    createPrediction: '나만의 예측 만들기',
+    createPredictionDesc: '$1에 예측 주제를 제출하세요. AI로 해결 가능한 주제 선호.',
   },
   ja: {
     // Navigation
@@ -881,6 +897,10 @@ const translations: Record<Language, Translations> = {
     statusWon: '勝利',
     statusLost: '敗北',
     statusRefunded: '返金済み',
+    
+    // Create Prediction
+    createPrediction: '自分の予測を作成',
+    createPredictionDesc: '$1で予測トピックを送信。AI解決可能なトピック推奨。',
   },
 };
 

@@ -1,10 +1,13 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Shield, Zap } from 'lucide-react';
+import { ArrowRight, Shield, Zap, Plus } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { CreatePredictionModal } from './CreatePredictionModal';
 
 const Hero = () => {
   const { t } = useLanguage();
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   return (
     <section className="relative min-h-screen flex items-center justify-center pt-20 overflow-hidden">
@@ -55,7 +58,7 @@ const Hero = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.7 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-16 px-4 sm:px-0"
+            className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-8 px-4 sm:px-0"
           >
             <Button 
               variant="glow" 
@@ -74,6 +77,25 @@ const Hero = () => {
             >
               {t.exploreMarkets}
             </Button>
+          </motion.div>
+
+          {/* Create Prediction CTA */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8 }}
+            className="mb-16"
+          >
+            <button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="group inline-flex items-center gap-2 px-6 py-3 rounded-full border border-dashed border-primary/40 hover:border-primary hover:bg-primary/5 transition-all"
+            >
+              <Plus className="w-4 h-4 text-primary" />
+              <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
+                {t.createPrediction || "Create Your Own Prediction"} 
+                <span className="text-primary ml-1">($1)</span>
+              </span>
+            </button>
           </motion.div>
 
           {/* Wallet Info */}
@@ -120,6 +142,8 @@ const Hero = () => {
           />
         </div>
       </motion.div>
+
+      <CreatePredictionModal open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen} />
     </section>
   );
 };
