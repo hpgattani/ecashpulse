@@ -49,7 +49,7 @@ export const LightModeOrbs = () => {
             width: '500px',
             height: '500px',
             left: '-80px',
-            top: '-150px',
+            top: '-50px',
             background: 'radial-gradient(circle, hsla(168, 70%, 55%, 0.25) 0%, hsla(168, 65%, 50%, 0.1) 40%, transparent 70%)',
             borderRadius: '50%',
           }}
@@ -62,7 +62,7 @@ export const LightModeOrbs = () => {
             width: '500px',
             height: '500px',
             right: '-80px',
-            top: '-150px',
+            top: '-50px',
             background: 'radial-gradient(circle, hsla(270, 65%, 60%, 0.2) 0%, hsla(270, 60%, 55%, 0.08) 40%, transparent 70%)',
             borderRadius: '50%',
           }}
@@ -92,7 +92,7 @@ export const LightModeOrbs = () => {
           width: '600px',
           height: '600px',
           left: '-100px',
-          top: '-200px',
+          top: '-100px',
           background: 'radial-gradient(circle, hsla(168, 80%, 45%, 0.35) 0%, hsla(168, 75%, 40%, 0.15) 40%, transparent 70%)',
           borderRadius: '50%',
         }}
@@ -105,7 +105,7 @@ export const LightModeOrbs = () => {
           width: '600px',
           height: '600px',
           right: '-100px',
-          top: '-200px',
+          top: '-100px',
           background: 'radial-gradient(circle, hsla(270, 75%, 50%, 0.3) 0%, hsla(270, 70%, 45%, 0.12) 40%, transparent 70%)',
           borderRadius: '50%',
         }}
