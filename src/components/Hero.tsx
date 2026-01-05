@@ -24,19 +24,19 @@ const Hero = () => {
 
   return (
     <section ref={sectionRef} className="relative min-h-screen flex items-center justify-center pt-20 overflow-hidden">
-      {/* Parallax ambient orbs */}
+      {/* Parallax ambient orbs - very subtle */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <motion.div 
           style={{ y: leftOrbY, x: leftOrbX }}
-          className="absolute top-1/4 left-[10%] w-[500px] h-[500px] bg-primary/8 rounded-full blur-[120px]" 
+          className="absolute top-1/4 left-[10%] w-[500px] h-[500px] bg-primary/[0.03] rounded-full blur-[150px]" 
         />
         <motion.div 
           style={{ y: rightOrbY, x: rightOrbX }}
-          className="absolute top-1/3 right-[10%] w-[400px] h-[400px] bg-accent/8 rounded-full blur-[100px]" 
+          className="absolute top-1/3 right-[10%] w-[400px] h-[400px] bg-accent/[0.03] rounded-full blur-[120px]" 
         />
         <motion.div 
           style={{ y: centerOrbY }}
-          className="absolute bottom-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-primary/5 rounded-full blur-[80px]" 
+          className="absolute bottom-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-primary/[0.02] rounded-full blur-[100px]" 
         />
       </div>
       
