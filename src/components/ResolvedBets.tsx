@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Trophy, TrendingUp, TrendingDown, Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +10,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 type Prediction = Tables<'predictions'>;
 
 const ResolvedBets = () => {
+  const navigate = useNavigate();
   const [resolvedPredictions, setResolvedPredictions] = useState<Prediction[]>([]);
   const [loading, setLoading] = useState(true);
   const { t, translateTitle, language } = useLanguage();
@@ -102,7 +104,8 @@ const ResolvedBets = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.05 }}
-                className="glass-card p-4 border-l-4"
+                onClick={() => navigate(`/prediction/${prediction.id}`)}
+                className="glass-card p-4 border-l-4 cursor-pointer hover:bg-muted/30 transition-colors"
                 style={{
                   borderLeftColor: isYesWin ? 'hsl(var(--chart-2))' : 'hsl(var(--destructive))'
                 }}
