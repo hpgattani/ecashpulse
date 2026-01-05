@@ -902,15 +902,17 @@ const translatePredictionTitle = (title: string, language: Language): string => 
     return predictionTitleTranslations[title][language] || title;
   }
   
-  // Try pattern matching
-  for (const { pattern, ptBR, ko, ja } of translationPatterns) {
-    const match = title.match(pattern);
-    if (match) {
-      let translated = language === 'pt-BR' ? ptBR : language === 'ko' ? ko : ja;
-      for (let i = 1; i < match.length; i++) {
-        translated = translated.replace(`$${i}`, match[i]);
+  // Try pattern matching - only for Portuguese (Korean/Japanese patterns cause broken mixed text)
+  if (language === 'pt-BR') {
+    for (const { pattern, ptBR } of translationPatterns) {
+      const match = title.match(pattern);
+      if (match) {
+        let translated = ptBR;
+        for (let i = 1; i < match.length; i++) {
+          translated = translated.replace(`$${i}`, match[i]);
+        }
+        return translated;
       }
-      return translated;
     }
   }
   
