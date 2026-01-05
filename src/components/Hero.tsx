@@ -15,17 +15,20 @@ const Hero = () => {
       <div className="container mx-auto px-4 relative z-10">
         <div className="max-w-4xl mx-auto text-center">
           {/* Badge */}
-          <motion.div
+          <motion.a
+            href="https://e.cash"
+            target="_blank"
+            rel="noopener noreferrer"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card border-primary/30 mb-8"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card border-primary/30 mb-8 cursor-pointer no-hover-effect"
           >
             <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
             <span className="text-sm text-muted-foreground">
               {t.poweredBy} <span className="text-primary font-semibold">eCash (XEC)</span>
             </span>
-          </motion.div>
+          </motion.a>
 
           {/* Main Heading */}
           <motion.h1
