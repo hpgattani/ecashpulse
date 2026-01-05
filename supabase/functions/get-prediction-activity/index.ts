@@ -25,13 +25,16 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // Use service role to bypass RLS and fetch all confirmed bets for this prediction
+    // Use service role to bypass RLS and fetch all bets for this prediction
+    // Include confirmed, won, lost, refunded (exclude only pending)
+    const validStatuses = ['confirmed', 'won', 'lost', 'refunded'];
+    
     // First get total count
     const { count: totalCount, error: countError } = await supabase
       .from('bets')
       .select('*', { count: 'exact', head: true })
       .eq('prediction_id', prediction_id)
-      .eq('status', 'confirmed');
+      .in('status', validStatuses);
 
     if (countError) {
       console.error('Error fetching bet count:', countError);
@@ -49,7 +52,7 @@ Deno.serve(async (req) => {
         user_id
       `)
       .eq('prediction_id', prediction_id)
-      .eq('status', 'confirmed')
+      .in('status', validStatuses)
       .order('created_at', { ascending: false })
       .limit(20);
 
