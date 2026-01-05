@@ -27,34 +27,59 @@ export const LightModeOrbs = () => {
 
   if (!theme) return null;
 
+  // Light mode - soft gradient background with glass overlay
+  if (theme === 'light') {
+    return (
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+        {/* Soft gradient background */}
+        <div 
+          className="absolute inset-0"
+          style={{
+            background: 'linear-gradient(180deg, hsl(200 30% 97%) 0%, hsl(210 25% 95%) 50%, hsl(200 20% 96%) 100%)',
+          }}
+        />
+        
+        {/* Subtle colored accents */}
+        <div 
+          className="absolute inset-0"
+          style={{
+            background: 'radial-gradient(ellipse 100% 60% at 50% 0%, hsla(168, 70%, 75%, 0.15) 0%, transparent 50%)',
+          }}
+        />
+        <div 
+          className="absolute inset-0"
+          style={{
+            background: 'radial-gradient(ellipse 80% 40% at 80% 100%, hsla(270, 60%, 80%, 0.1) 0%, transparent 40%)',
+          }}
+        />
+      </div>
+    );
+  }
+
+  // Dark mode - clean dark with subtle teal glow at top (the "peak" look)
   return (
     <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-      {/* Grid pattern with glow */}
-      <div 
-        className="absolute inset-0 bg-grid-pattern bg-grid"
-        style={{
-          opacity: theme === 'light' ? 0.6 : 0.35,
-          filter: theme === 'dark' ? 'drop-shadow(0 0 2px hsl(168 80% 45% / 0.3))' : 'none',
-        }}
-      />
-      
-      {/* Subtle vignette effect - edges darker */}
+      {/* Base dark gradient */}
       <div 
         className="absolute inset-0"
         style={{
-          background: theme === 'light'
-            ? 'radial-gradient(ellipse at center, transparent 0%, hsla(210, 20%, 90%, 0.3) 100%)'
-            : 'radial-gradient(ellipse at center, transparent 0%, hsla(220, 20%, 2%, 0.5) 100%)',
+          background: 'linear-gradient(180deg, hsl(220 20% 6%) 0%, hsl(220 20% 4%) 100%)',
         }}
       />
       
-      {/* Very subtle top highlight for glass depth */}
+      {/* Subtle teal glow at top center */}
       <div 
-        className="absolute inset-x-0 top-0 h-[30vh]"
+        className="absolute inset-0"
         style={{
-          background: theme === 'light' 
-            ? 'linear-gradient(180deg, hsla(0, 0%, 100%, 0.3) 0%, transparent 100%)'
-            : 'linear-gradient(180deg, hsla(220, 20%, 8%, 0.4) 0%, transparent 100%)',
+          background: 'radial-gradient(ellipse 80% 35% at 50% -5%, hsla(168, 80%, 45%, 0.12) 0%, transparent 60%)',
+        }}
+      />
+      
+      {/* Very subtle accent glow bottom right */}
+      <div 
+        className="absolute inset-0"
+        style={{
+          background: 'radial-gradient(ellipse 50% 30% at 85% 100%, hsla(270, 70%, 50%, 0.05) 0%, transparent 50%)',
         }}
       />
     </div>
