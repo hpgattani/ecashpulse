@@ -89,7 +89,7 @@ export const LightModeOrbs = () => {
     );
   }
 
-  // Dark mode - teal + purple glows with subtle grid
+  // Dark mode - teal + purple circular orbs with subtle grid
   return (
     <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
       {/* Base dark */}
@@ -103,23 +103,33 @@ export const LightModeOrbs = () => {
       {/* Subtle grid lines */}
       <div className="absolute inset-0 bg-grid-pattern bg-grid opacity-20" />
       
-      {/* Teal glow - left side (original position) */}
+      {/* Teal circular orb - left side */}
       <div 
-        className="absolute inset-0"
+        className="absolute"
         style={{
-          background: 'radial-gradient(ellipse 100% 60% at 15% -5%, hsla(168, 80%, 45%, 0.25) 0%, transparent 60%)',
+          width: '600px',
+          height: '600px',
+          left: '-100px',
+          top: '-200px',
+          background: 'radial-gradient(circle, hsla(168, 80%, 45%, 0.35) 0%, hsla(168, 75%, 40%, 0.15) 40%, transparent 70%)',
+          borderRadius: '50%',
         }}
       />
       
-      {/* Purple glow - right side (original position) */}
+      {/* Purple circular orb - right side */}
       <div 
-        className="absolute inset-0"
+        className="absolute"
         style={{
-          background: 'radial-gradient(ellipse 100% 60% at 85% -5%, hsla(270, 80%, 45%, 0.25) 0%, transparent 60%)',
+          width: '600px',
+          height: '600px',
+          right: '-100px',
+          top: '-200px',
+          background: 'radial-gradient(circle, hsla(270, 75%, 50%, 0.3) 0%, hsla(270, 70%, 45%, 0.12) 40%, transparent 70%)',
+          borderRadius: '50%',
         }}
       />
       
-      {/* Bottom accent - wider spread */}
+      {/* Bottom accent glow */}
       <div 
         className="absolute inset-0"
         style={{
