@@ -205,7 +205,7 @@ const PublicBets = () => {
                     bet.position === 'yes' ? 'text-emerald-400' : 'text-red-400'
                   }`}
                 >
-                  {bet.position.toUpperCase()}
+                  {bet.position === 'yes' ? t.yes.toUpperCase() : t.no.toUpperCase()}
                 </span>
                 <span className="text-foreground font-medium text-sm">
                   {formatAmount(bet.amount)}

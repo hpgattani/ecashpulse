@@ -174,8 +174,14 @@ const MyBets = () => {
   };
 
   const formatDate = (dateStr: string) => {
-    // Display in IST (Asia/Kolkata)
-    return new Date(dateStr).toLocaleDateString(language === 'pt-BR' ? 'pt-BR' : 'en-IN', {
+    // Display in IST (Asia/Kolkata) with locale-appropriate formatting
+    const localeMap: Record<string, string> = {
+      'en': 'en-IN',
+      'pt-BR': 'pt-BR',
+      'ko': 'ko-KR',
+      'ja': 'ja-JP'
+    };
+    return new Date(dateStr).toLocaleDateString(localeMap[language] || 'en-IN', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
@@ -277,7 +283,7 @@ const MyBets = () => {
                           variant={bet.position === 'yes' ? 'default' : 'destructive'}
                           className={bet.position === 'yes' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}
                         >
-                          {bet.position.toUpperCase()}
+                          {bet.position === 'yes' ? t.yes.toUpperCase() : t.no.toUpperCase()}
                         </Badge>
                         {getStatusBadge(bet.status)}
                         <CountdownTimer endDate={bet.prediction.end_date} />
