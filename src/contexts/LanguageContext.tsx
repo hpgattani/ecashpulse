@@ -1063,7 +1063,8 @@ const translatePredictionTitle = (title: string, language: Language): string => 
   if (langWords) {
     for (const [en, trans] of Object.entries(langWords)) {
       if (trans) {
-        translated = translated.replace(new RegExp(en, 'gi'), trans);
+        // Use word boundary regex to avoid partial word replacements
+        translated = translated.replace(new RegExp(`\\b${en}\\b`, 'gi'), trans);
       }
     }
   }
