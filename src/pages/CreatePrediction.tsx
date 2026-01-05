@@ -196,7 +196,7 @@ const CreatePrediction = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-card border border-border rounded-xl p-6 md:p-8"
+            className="glass-card p-6 md:p-8 dark:bg-[hsl(220_18%_8%/0.95)] bg-white/95"
           >
             <div className="flex items-center gap-3 mb-6">
               <div className="p-2 rounded-lg bg-primary/10">
