@@ -154,13 +154,31 @@ const detectCategory = (title: string, existingCategory: string): Prediction['ca
     return 'entertainment';
   }
 
-  // Finance keywords (banking, stock trading, forex)
+  // Finance keywords (banking, stock trading, forex) - NOT crypto!
+  // Must NOT match crypto keywords, so check for absence of crypto terms
+  const hasCryptoKeywords = q.includes('bitcoin') || q.includes('btc') || q.includes('ethereum') || 
+    q.includes('crypto') || q.includes('token') || q.includes('defi');
   if (
-    q.includes('bank') || q.includes('forex') || q.includes('currency') || q.includes('dollar') ||
-    q.includes('euro') || q.includes('yen') || q.includes('pound') || q.includes('wall street') ||
-    q.includes('hedge fund') || q.includes('investment') || q.includes('bond') || q.includes('treasury')
+    !hasCryptoKeywords && (
+      q.includes('bank') || q.includes('forex') || q.includes('currency') || 
+      q.includes('wall street') || q.includes('hedge fund') || q.includes('investment') || 
+      q.includes('bond') || q.includes('treasury') || q.includes('interest rate') ||
+      q.includes('uk economy') || q.includes('us economy') || q.includes('federal reserve') ||
+      q.includes('bank of england') || q.includes('ecb') || q.includes('central bank')
+    )
   ) {
     return 'finance';
+  }
+
+  // Politics keywords (UK/US specific political events, not geopolitics)
+  if (
+    q.includes('labour') || q.includes('tory') || q.includes('conservative party') || 
+    q.includes('starmer') || q.includes('sunak') || q.includes('uk government') ||
+    q.includes('democrat') || q.includes('republican') || q.includes('biden') || q.includes('trump') ||
+    q.includes('white house') || q.includes('downing street') || q.includes('westminster') ||
+    q.includes('impeach') || q.includes('cabinet') || q.includes('secretary of')
+  ) {
+    return 'politics';
   }
 
   // Geopolitics - already checked above, skip duplicate
@@ -186,19 +204,22 @@ const detectCategory = (title: string, existingCategory: string): Prediction['ca
     return 'economics';
   }
 
-  // Culture keywords (entertainment, media, arts)
+  // Culture keywords (entertainment, media, arts, celebrities, viral content)
   if (
     q.includes('oscar') || q.includes('oscars') || q.includes('academy award') ||
     q.includes('grammy') || q.includes('emmy') || q.includes('golden globe') ||
     q.includes('movie') || q.includes('film') || q.includes('director') || q.includes('best director') ||
     q.includes('episode') || q.includes('season') || q.includes('series') ||
     q.includes('released in theaters') || q.includes('theaters') || q.includes('cinema') ||
-    q.includes('album') || q.includes('spotify') ||
+    q.includes('album') || q.includes('spotify') || q.includes('viral') ||
     q.includes('netflix') || q.includes('disney') || q.includes('hbo') || q.includes('prime video') ||
     q.includes('celebrity') || q.includes('concert') || q.includes('tour') || q.includes('box office') ||
-    q.includes('streaming') || q.includes('youtube') || q.includes('tiktok') ||
-    (q.includes('elon musk') && q.includes('tweet')) ||
-    q.includes('dune')
+    q.includes('streaming') || q.includes('youtube') || q.includes('tiktok') || q.includes('instagram') ||
+    q.includes('kardashian') || q.includes('taylor swift') || q.includes('beyonce') ||
+    q.includes('drake') || q.includes('kanye') || q.includes('elon musk') ||
+    q.includes('podcast') || q.includes('influencer') || q.includes('subscriber') ||
+    q.includes('fashion') || q.includes('met gala') || q.includes('vogue') ||
+    q.includes('dune') || q.includes('avatar') || q.includes('marvel') || q.includes('dc comics')
   ) {
     return 'culture';
   }

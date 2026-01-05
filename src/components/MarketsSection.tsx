@@ -2,9 +2,10 @@ import { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePredictions } from '@/hooks/usePredictions';
 import { useCryptoPrices } from '@/hooks/useCryptoPrices';
+import { useWeatherData } from '@/hooks/useWeatherData';
 import PredictionCard from './PredictionCard';
 import MarketFilters from './MarketFilters';
-import { Loader2, Search, X } from 'lucide-react';
+import { Loader2, Search, X, Thermometer } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Input } from '@/components/ui/input';
 
@@ -16,7 +17,20 @@ const MarketsSection = () => {
   const suggestionsRef = useRef<HTMLDivElement>(null);
   const { predictions, loading, error } = usePredictions();
   const { getPriceForCrypto } = useCryptoPrices();
+  const { globalTemp } = useWeatherData();
   const { t, translateTitle } = useLanguage();
+
+  // Get weather data for climate predictions
+  const getClimateData = (category: string) => {
+    if (category === 'climate' && globalTemp) {
+      return {
+        temperature: globalTemp.temperature,
+        location: globalTemp.location,
+        description: globalTemp.description,
+      };
+    }
+    return null;
+  };
 
   // Generate search suggestions based on predictions
   const searchSuggestions = useMemo(() => {
@@ -196,6 +210,7 @@ const MarketsSection = () => {
                 prediction={prediction}
                 index={index}
                 livePrice={prediction.category === 'crypto' ? getPriceForCrypto(prediction.question) : null}
+                climateData={getClimateData(prediction.category)}
               />
             ))}
           </div>
