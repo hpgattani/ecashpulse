@@ -19,11 +19,15 @@ const TrendingSection = () => {
     .slice(0, 5);
 
   const scrollToIndex = useCallback((index: number) => {
-    if (!scrollRef.current || trendingPredictions.length === 0) return;
-    const cardWidth = scrollRef.current.scrollWidth / trendingPredictions.length;
-    scrollRef.current.scrollTo({
-      left: cardWidth * index,
-      behavior: 'smooth'
+    const container = scrollRef.current;
+    if (!container || trendingPredictions.length === 0) return;
+
+    const child = container.children.item(index) as HTMLElement | null;
+    if (!child) return;
+
+    container.scrollTo({
+      left: child.offsetLeft,
+      behavior: 'smooth',
     });
   }, [trendingPredictions.length]);
 
@@ -162,7 +166,7 @@ const TrendingSection = () => {
           onMouseLeave={() => setIsPaused(false)}
           onTouchStart={() => setIsPaused(true)}
           onTouchEnd={() => setIsPaused(false)}
-          className="flex overflow-x-auto gap-3 sm:gap-4 pb-4 snap-x scrollbar-hide scroll-smooth"
+          className="flex overflow-x-auto gap-3 sm:gap-4 pb-4 snap-x snap-mandatory scrollbar-hide scroll-smooth"
           style={{ scrollBehavior: 'smooth' }}
         >
           {trendingPredictions.map((prediction, index) => (
