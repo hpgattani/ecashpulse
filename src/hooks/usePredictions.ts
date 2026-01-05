@@ -252,6 +252,50 @@ const transformPrediction = (p: DBPrediction, outcomes: DBOutcome[]): Prediction
     noPool: p.no_pool,
   };
 };
+// Filter to show only the next upcoming daily prediction for repeated series
+const filterDailyPredictions = (predictions: Prediction[]): Prediction[] => {
+  // Patterns for daily recurring predictions (e.g., "eCash (XEC) Up or Down on January X?")
+  const dailyPatterns = [
+    /^eCash \(XEC\) Up or Down on (January|February|March|April|May|June|July|August|September|October|November|December) \d+\?$/i,
+    /^Bitcoin \(BTC\) Up or Down on (January|February|March|April|May|June|July|August|September|October|November|December) \d+\?$/i,
+    /^Ethereum \(ETH\) Up or Down on (January|February|March|April|May|June|July|August|September|October|November|December) \d+\?$/i,
+  ];
+  
+  const dailyGroups: Map<string, Prediction[]> = new Map();
+  const nonDaily: Prediction[] = [];
+  
+  for (const p of predictions) {
+    let isDaily = false;
+    for (const pattern of dailyPatterns) {
+      const match = p.question.match(pattern);
+      if (match) {
+        // Group by the base pattern (coin name)
+        const coinName = p.question.split(' Up or Down')[0];
+        if (!dailyGroups.has(coinName)) {
+          dailyGroups.set(coinName, []);
+        }
+        dailyGroups.get(coinName)!.push(p);
+        isDaily = true;
+        break;
+      }
+    }
+    if (!isDaily) {
+      nonDaily.push(p);
+    }
+  }
+  
+  // For each daily series, keep only the closest upcoming one (by end_date)
+  const result = [...nonDaily];
+  for (const [, group] of dailyGroups) {
+    // Sort by end_date ascending, take the first (closest)
+    group.sort((a, b) => new Date(a.endDate).getTime() - new Date(b.endDate).getTime());
+    if (group.length > 0) {
+      result.push(group[0]);
+    }
+  }
+  
+  return result;
+};
 
 export const usePredictions = () => {
   const [predictions, setPredictions] = useState<Prediction[]>([]);
@@ -290,7 +334,12 @@ export const usePredictions = () => {
         }
 
         const outcomes = (outcomesResult.data || []) as DBOutcome[];
-        setPredictions((predictionsResult.data as DBPrediction[]).map((p) => transformPrediction(p, outcomes)));
+        const allPredictions = (predictionsResult.data as DBPrediction[]).map((p) => transformPrediction(p, outcomes));
+        
+        // Filter to show only next upcoming daily prediction per series
+        const filteredPredictions = filterDailyPredictions(allPredictions);
+        
+        setPredictions(filteredPredictions);
         setError(null);
       } catch (err: any) {
         setError(err?.message || 'Failed to load markets');
