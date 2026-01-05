@@ -162,7 +162,7 @@ const TrendingSection = () => {
           onMouseLeave={() => setIsPaused(false)}
           onTouchStart={() => setIsPaused(true)}
           onTouchEnd={() => setIsPaused(false)}
-          className="flex overflow-x-auto gap-3 sm:gap-4 pb-4 -mx-4 px-4 snap-x scrollbar-hide scroll-smooth"
+          className="flex overflow-x-auto gap-3 sm:gap-4 pb-4 snap-x scrollbar-hide scroll-smooth"
           style={{ scrollBehavior: 'smooth' }}
         >
           {trendingPredictions.map((prediction, index) => (
