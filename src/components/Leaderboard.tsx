@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useRef } from 'react';
+import { motion, useScroll, useTransform } from 'framer-motion';
 import { Trophy, Medal, TrendingUp, Wallet, Crown, ChevronRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -27,6 +27,18 @@ export const Leaderboard = () => {
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<LeaderboardEntry | null>(null);
   const { t } = useLanguage();
+  const sectionRef = useRef<HTMLElement>(null);
+
+  // Parallax scroll effect
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ["start end", "end start"]
+  });
+
+  const leftOrbY = useTransform(scrollYProgress, [0, 1], [80, -80]);
+  const rightOrbY = useTransform(scrollYProgress, [0, 1], [-60, 100]);
+  const leftOrbX = useTransform(scrollYProgress, [0, 1], [-30, 30]);
+  const rightOrbX = useTransform(scrollYProgress, [0, 1], [30, -30]);
 
   useEffect(() => {
     fetchLeaderboard();
@@ -90,7 +102,19 @@ export const Leaderboard = () => {
   }
 
   return (
-    <section className="py-16 relative overflow-hidden">
+    <section ref={sectionRef} className="py-16 relative overflow-hidden">
+      {/* Parallax ambient orbs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <motion.div 
+          style={{ y: leftOrbY, x: leftOrbX }}
+          className="absolute top-1/3 left-[5%] w-[350px] h-[350px] bg-yellow-500/[0.04] rounded-full blur-[100px]" 
+        />
+        <motion.div 
+          style={{ y: rightOrbY, x: rightOrbX }}
+          className="absolute top-1/2 right-[5%] w-[300px] h-[300px] bg-primary/[0.05] rounded-full blur-[80px]" 
+        />
+      </div>
+      
       <div className="absolute inset-0 bg-gradient-to-b from-background via-primary/5 to-background" />
       
       <div className="container mx-auto px-4 relative z-10">
