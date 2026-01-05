@@ -640,7 +640,7 @@ const Prediction = () => {
                           <p className={`text-xs font-medium ${
                             activity.position === 'yes' ? 'text-emerald-400' : 'text-red-400'
                           }`}>
-                            {activity.outcome_label || activity.position.toUpperCase()}
+                            {activity.outcome_label || (activity.position === 'yes' ? t.yes.toUpperCase() : t.no.toUpperCase())}
                           </p>
                         </div>
                       </motion.div>
