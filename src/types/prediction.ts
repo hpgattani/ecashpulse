@@ -2,7 +2,7 @@ export interface Prediction {
   id: string;
   question: string;
   description: string;
-  category: 'crypto' | 'politics' | 'sports' | 'tech' | 'entertainment' | 'economics' | 'elections';
+  category: 'crypto' | 'politics' | 'sports' | 'tech' | 'entertainment' | 'economics' | 'elections' | 'finance' | 'geopolitics' | 'earnings' | 'culture' | 'world' | 'climate';
   yesOdds: number;
   noOdds: number;
   volume: number;

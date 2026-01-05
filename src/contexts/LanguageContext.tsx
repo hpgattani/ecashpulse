@@ -118,6 +118,12 @@ interface Translations {
   entertainment: string;
   elections: string;
   tech: string;
+  finance: string;
+  geopolitics: string;
+  earnings: string;
+  culture: string;
+  world: string;
+  climate: string;
   
   // Resolved section
   recentlyResolved: string;
@@ -374,6 +380,12 @@ const translations: Record<Language, Translations> = {
     entertainment: 'Entertainment',
     elections: 'Elections',
     tech: 'Tech',
+    finance: 'Finance',
+    geopolitics: 'Geopolitics',
+    earnings: 'Earnings',
+    culture: 'Culture',
+    world: 'World',
+    climate: 'Climate & Science',
     
     // Resolved section
     recentlyResolved: 'Recently Resolved',
@@ -544,6 +556,12 @@ const translations: Record<Language, Translations> = {
     entertainment: 'Entretenimento',
     elections: 'Eleições',
     tech: 'Tecnologia',
+    finance: 'Finanças',
+    geopolitics: 'Geopolítica',
+    earnings: 'Resultados',
+    culture: 'Cultura',
+    world: 'Mundo',
+    climate: 'Clima & Ciência',
     
     // Resolved section
     recentlyResolved: 'Resolvidos Recentemente',
@@ -714,6 +732,12 @@ const translations: Record<Language, Translations> = {
     entertainment: '엔터테인먼트',
     elections: '선거',
     tech: '기술',
+    finance: '금융',
+    geopolitics: '지정학',
+    earnings: '실적',
+    culture: '문화',
+    world: '세계',
+    climate: '기후 & 과학',
     
     // Resolved section
     recentlyResolved: '최근 해결됨',
@@ -884,6 +908,12 @@ const translations: Record<Language, Translations> = {
     entertainment: 'エンターテインメント',
     elections: '選挙',
     tech: 'テクノロジー',
+    finance: '金融',
+    geopolitics: '地政学',
+    earnings: '決算',
+    culture: '文化',
+    world: '世界',
+    climate: '気候 & 科学',
     
     // Resolved section
     recentlyResolved: '最近解決',

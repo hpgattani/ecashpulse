@@ -38,12 +38,18 @@ const ESCROW_ADDRESS = "ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp";
 const CREATION_FEE_USD = 1;
 
 const categories = [
-  { id: "crypto", label: "Crypto" },
   { id: "politics", label: "Politics" },
   { id: "sports", label: "Sports" },
-  { id: "economics", label: "Economics" },
-  { id: "entertainment", label: "Entertainment" },
+  { id: "crypto", label: "Crypto" },
+  { id: "finance", label: "Finance" },
+  { id: "geopolitics", label: "Geopolitics" },
+  { id: "earnings", label: "Earnings" },
   { id: "tech", label: "Tech" },
+  { id: "culture", label: "Culture" },
+  { id: "world", label: "World" },
+  { id: "economics", label: "Economics" },
+  { id: "climate", label: "Climate & Science" },
+  { id: "elections", label: "Elections" },
 ];
 
 const CreatePrediction = () => {
