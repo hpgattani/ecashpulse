@@ -211,7 +211,7 @@ const PredictionCard = ({ prediction, index, livePrice, climateData }: Predictio
         viewport={{ once: true }}
         transition={{ delay: index * 0.1, duration: 0.4 }}
         whileHover={{ y: -4 }}
-        className="glass-card overflow-hidden group cursor-pointer relative"
+        className="glass-card overflow-hidden group cursor-pointer relative h-full flex flex-col"
         onClick={handleCardClick}
       >
         {/* Bet Placed Watermark Stamp (rubber-stamp seal) */}
