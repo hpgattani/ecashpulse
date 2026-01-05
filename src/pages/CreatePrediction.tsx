@@ -22,7 +22,10 @@ import {
   DollarSign,
   CheckCircle2,
   ArrowLeft,
-  Share2
+  Share2,
+  Plus,
+  X,
+  ListChecks
 } from "lucide-react";
 import { format, parse, isValid } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -66,6 +69,32 @@ const CreatePrediction = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [feeInXEC, setFeeInXEC] = useState<number | null>(null);
+  const [outcomes, setOutcomes] = useState<string[]>(["", "", ""]);
+
+  // Detect if question requires multi-option outcomes
+  const multiOptionKeywords = /^(where|which|who|what|how many|how much)\b/i;
+  const isMultiOptionQuestion = multiOptionKeywords.test(title.trim());
+  
+  // Filter out empty outcomes
+  const validOutcomes = outcomes.filter(o => o.trim().length > 0);
+  
+  const handleOutcomeChange = (index: number, value: string) => {
+    const newOutcomes = [...outcomes];
+    newOutcomes[index] = value;
+    setOutcomes(newOutcomes);
+  };
+  
+  const addOutcome = () => {
+    if (outcomes.length < 6) {
+      setOutcomes([...outcomes, ""]);
+    }
+  };
+  
+  const removeOutcome = (index: number) => {
+    if (outcomes.length > 2) {
+      setOutcomes(outcomes.filter((_, i) => i !== index));
+    }
+  };
 
   const handleDateInputChange = (value: string) => {
     setDateInputValue(value);
@@ -160,6 +189,7 @@ const CreatePrediction = () => {
           user_id: user.id,
           tx_hash: txHash,
           fee_amount: feeInXEC,
+          outcomes: isMultiOptionQuestion ? validOutcomes : null,
         },
       });
 
@@ -185,7 +215,8 @@ const CreatePrediction = () => {
     toast.success("Link copied to clipboard!");
   };
 
-  const isFormValid = title.trim().length >= 10 && title.trim().endsWith("?") && endDate && feeInXEC;
+  const isFormValid = title.trim().length >= 10 && title.trim().endsWith("?") && endDate && feeInXEC &&
+    (!isMultiOptionQuestion || validOutcomes.length >= 2);
 
   return (
     <div className="min-h-screen bg-background">
@@ -267,16 +298,75 @@ const CreatePrediction = () => {
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     className={cn(
-                      title && !title.trim().endsWith("?") && "border-destructive"
+                      title && !title.trim().endsWith("?") && "border-destructive",
+                      isMultiOptionQuestion && "border-primary"
                     )}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Must be a clear Yes/No question ending with "?"
+                    {isMultiOptionQuestion 
+                      ? "Multi-option question detected - add outcome options below"
+                      : "Must be a clear Yes/No question ending with \"?\""}
                   </p>
                   {title && !title.trim().endsWith("?") && (
                     <p className="text-xs text-destructive">Question must end with "?"</p>
                   )}
                 </motion.div>
+
+                {/* Multi-option outcomes */}
+                {isMultiOptionQuestion && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    transition={{ delay: 0.17 }}
+                    className="space-y-3 p-4 rounded-lg bg-primary/5 border border-primary/20"
+                  >
+                    <div className="flex items-center gap-2">
+                      <ListChecks className="w-4 h-4 text-primary" />
+                      <Label className="text-primary font-medium">Outcome Options *</Label>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Add 2-6 possible outcomes for this prediction
+                    </p>
+                    <div className="space-y-2">
+                      {outcomes.map((outcome, index) => (
+                        <div key={index} className="flex gap-2">
+                          <Input
+                            placeholder={`Option ${index + 1} (e.g., ${index === 0 ? 'Turkey' : index === 1 ? 'Switzerland' : 'Other'})`}
+                            value={outcome}
+                            onChange={(e) => handleOutcomeChange(index, e.target.value)}
+                            className="flex-1"
+                          />
+                          {outcomes.length > 2 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeOutcome(index)}
+                              className="shrink-0 text-muted-foreground hover:text-destructive"
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    {outcomes.length < 6 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={addOutcome}
+                        className="w-full gap-2"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add Option
+                      </Button>
+                    )}
+                    {validOutcomes.length < 2 && (
+                      <p className="text-xs text-destructive">At least 2 outcomes are required</p>
+                    )}
+                  </motion.div>
+                )}
 
                 {/* Description */}
                 <motion.div 

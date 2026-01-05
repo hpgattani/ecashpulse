@@ -29,7 +29,8 @@ Deno.serve(async (req) => {
       end_date, 
       user_id, 
       tx_hash,
-      fee_amount 
+      fee_amount,
+      outcomes // Array of outcome labels for multi-option predictions
     } = await req.json();
 
     // Validation
@@ -52,6 +53,26 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: 'Title must be at least 10 characters' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+    
+    // Detect multi-option questions
+    const multiOptionPattern = /^(where|which|who|what|how many|how much)\b/i;
+    const isMultiOption = multiOptionPattern.test(title.trim());
+    
+    // Validate outcomes for multi-option questions
+    if (isMultiOption) {
+      if (!outcomes || !Array.isArray(outcomes) || outcomes.length < 2) {
+        return new Response(
+          JSON.stringify({ error: 'Multi-option questions require at least 2 outcome options' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (outcomes.length > 6) {
+        return new Response(
+          JSON.stringify({ error: 'Maximum 6 outcome options allowed' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     if (!end_date) {
@@ -86,8 +107,7 @@ Deno.serve(async (req) => {
       console.log(`Warning: Similar prediction may exist: ${existingPredictions[0].title}`);
     }
 
-    // Insert the prediction as pending (needs admin approval)
-    // For now, we'll insert directly but mark for review via a separate system
+    // Insert the prediction
     const { data: prediction, error: insertError } = await supabase
       .from('predictions')
       .insert({
@@ -96,10 +116,10 @@ Deno.serve(async (req) => {
         category: category || 'crypto',
         end_date: endDateParsed.toISOString(),
         escrow_address: generatePendingEscrowAddress(),
-        status: 'active', // Admin can change to cancelled if rejected
+        status: 'active',
         yes_pool: 0,
         no_pool: 0,
-        creator_id: user_id, // Track who submitted this prediction
+        creator_id: user_id,
       })
       .select()
       .single();
@@ -111,8 +131,27 @@ Deno.serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    
+    // Insert outcomes for multi-option predictions
+    if (isMultiOption && outcomes && outcomes.length >= 2) {
+      const outcomesToInsert = outcomes.map((label: string) => ({
+        prediction_id: prediction.id,
+        label: label.trim(),
+        pool: 0,
+      }));
+      
+      const { error: outcomesError } = await supabase
+        .from('outcomes')
+        .insert(outcomesToInsert);
+      
+      if (outcomesError) {
+        console.error('Error inserting outcomes:', outcomesError);
+      } else {
+        console.log(`Inserted ${outcomes.length} outcomes for prediction ${prediction.id}`);
+      }
+    }
 
-    // Log the submission for admin review
+    // Log the submission
     console.log(`New prediction submitted by user ${user_id}:`);
     console.log(`  Title: ${title}`);
     console.log(`  Category: ${category}`);
@@ -120,13 +159,14 @@ Deno.serve(async (req) => {
     console.log(`  TX Hash: ${tx_hash}`);
     console.log(`  Fee: ${fee_amount} XEC`);
     console.log(`  Prediction ID: ${prediction.id}`);
+    console.log(`  Multi-option: ${isMultiOption}, Outcomes: ${outcomes?.join(', ') || 'N/A'}`);
 
-    // Record the fee payment (optional - for tracking)
+    // Record the fee payment
     if (tx_hash && fee_amount) {
       await supabase.from('platform_fees').insert({
         amount: fee_amount,
         tx_hash: tx_hash,
-        bet_id: null, // Not associated with a bet
+        bet_id: null,
       });
     }
 
