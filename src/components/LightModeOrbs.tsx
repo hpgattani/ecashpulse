@@ -28,106 +28,91 @@ export const LightModeOrbs = () => {
 
   if (!theme) return null;
 
-  // Light mode orbs
-  if (theme === 'light') {
-    return (
-      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-        <motion.div
-          className="absolute w-[600px] h-[600px] rounded-full"
-          style={{
-            background: 'radial-gradient(circle at center, hsla(168, 85%, 65%, 0.4) 0%, hsla(168, 85%, 65%, 0.1) 40%, transparent 70%)',
-            top: '-15%',
-            left: '-5%',
-          }}
-          animate={{ x: [0, 50, 0], y: [0, 30, 0] }}
-          transition={{ duration: 40, repeat: Infinity, ease: 'easeInOut' }}
-        />
-
-        <motion.div
-          className="absolute w-[500px] h-[500px] rounded-full"
-          style={{
-            background: 'radial-gradient(circle at center, hsla(270, 75%, 70%, 0.35) 0%, hsla(270, 75%, 70%, 0.1) 40%, transparent 70%)',
-            top: '5%',
-            right: '-10%',
-          }}
-          animate={{ x: [0, -40, 0], y: [0, 50, 0] }}
-          transition={{ duration: 50, repeat: Infinity, ease: 'easeInOut' }}
-        />
-
-        <motion.div
-          className="absolute w-[550px] h-[550px] rounded-full"
-          style={{
-            background: 'radial-gradient(circle at center, hsla(200, 80%, 65%, 0.3) 0%, hsla(200, 80%, 65%, 0.08) 40%, transparent 70%)',
-            bottom: '-5%',
-            left: '10%',
-          }}
-          animate={{ x: [0, 35, 0], y: [0, -40, 0] }}
-          transition={{ duration: 45, repeat: Infinity, ease: 'easeInOut' }}
-        />
-
-        <motion.div
-          className="absolute w-[400px] h-[400px] rounded-full"
-          style={{
-            background: 'radial-gradient(circle at center, hsla(330, 70%, 70%, 0.25) 0%, hsla(330, 70%, 70%, 0.06) 40%, transparent 70%)',
-            bottom: '15%',
-            right: '5%',
-          }}
-          animate={{ x: [0, -30, 0], y: [0, -35, 0] }}
-          transition={{ duration: 55, repeat: Infinity, ease: 'easeInOut' }}
-        />
-      </div>
-    );
-  }
-
-  // Dark mode orbs - more visible, cleaner gradients
   return (
     <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-      {/* Primary teal glow - top left */}
-      <motion.div
-        className="absolute w-[700px] h-[700px] rounded-full"
+      {/* Grid pattern overlay */}
+      <div 
+        className="absolute inset-0 bg-grid-pattern bg-grid"
         style={{
-          background: 'radial-gradient(circle at center, hsla(168, 80%, 50%, 0.2) 0%, hsla(168, 80%, 50%, 0.05) 50%, transparent 70%)',
-          top: '-20%',
-          left: '-10%',
+          opacity: theme === 'light' ? 0.4 : 0.25,
         }}
-        animate={{ x: [0, 60, 0], y: [0, 40, 0] }}
-        transition={{ duration: 50, repeat: Infinity, ease: 'easeInOut' }}
       />
-
-      {/* Purple glow - top right */}
-      <motion.div
-        className="absolute w-[600px] h-[600px] rounded-full"
+      
+      {/* Liquid glass gradient overlays */}
+      {theme === 'light' ? (
+        <>
+          {/* Light mode - soft colored glass overlays */}
+          <motion.div
+            className="absolute inset-0"
+            style={{
+              background: 'radial-gradient(ellipse 80% 60% at 20% 10%, hsla(168, 80%, 70%, 0.15) 0%, transparent 50%)',
+            }}
+            animate={{ opacity: [0.8, 1, 0.8] }}
+            transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
+          />
+          <motion.div
+            className="absolute inset-0"
+            style={{
+              background: 'radial-gradient(ellipse 70% 50% at 80% 20%, hsla(270, 70%, 75%, 0.12) 0%, transparent 50%)',
+            }}
+            animate={{ opacity: [1, 0.7, 1] }}
+            transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
+          />
+          <motion.div
+            className="absolute inset-0"
+            style={{
+              background: 'radial-gradient(ellipse 60% 40% at 30% 90%, hsla(200, 80%, 70%, 0.1) 0%, transparent 45%)',
+            }}
+            animate={{ opacity: [0.7, 1, 0.7] }}
+            transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        </>
+      ) : (
+        <>
+          {/* Dark mode - deeper colored glass overlays */}
+          <motion.div
+            className="absolute inset-0"
+            style={{
+              background: 'radial-gradient(ellipse 80% 60% at 15% 5%, hsla(168, 80%, 50%, 0.12) 0%, transparent 50%)',
+            }}
+            animate={{ opacity: [0.8, 1, 0.8] }}
+            transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
+          />
+          <motion.div
+            className="absolute inset-0"
+            style={{
+              background: 'radial-gradient(ellipse 70% 50% at 85% 15%, hsla(270, 70%, 55%, 0.1) 0%, transparent 50%)',
+            }}
+            animate={{ opacity: [1, 0.7, 1] }}
+            transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
+          />
+          <motion.div
+            className="absolute inset-0"
+            style={{
+              background: 'radial-gradient(ellipse 60% 45% at 25% 85%, hsla(200, 80%, 50%, 0.08) 0%, transparent 45%)',
+            }}
+            animate={{ opacity: [0.7, 1, 0.7] }}
+            transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut' }}
+          />
+          <motion.div
+            className="absolute inset-0"
+            style={{
+              background: 'radial-gradient(ellipse 50% 35% at 75% 80%, hsla(168, 70%, 45%, 0.06) 0%, transparent 40%)',
+            }}
+            animate={{ opacity: [0.9, 0.6, 0.9] }}
+            transition={{ duration: 11, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        </>
+      )}
+      
+      {/* Top glass sheen effect */}
+      <div 
+        className="absolute inset-x-0 top-0 h-[40vh]"
         style={{
-          background: 'radial-gradient(circle at center, hsla(270, 70%, 55%, 0.18) 0%, hsla(270, 70%, 55%, 0.04) 50%, transparent 70%)',
-          top: '0%',
-          right: '-15%',
+          background: theme === 'light' 
+            ? 'linear-gradient(180deg, hsla(0, 0%, 100%, 0.4) 0%, transparent 100%)'
+            : 'linear-gradient(180deg, hsla(220, 20%, 10%, 0.3) 0%, transparent 100%)',
         }}
-        animate={{ x: [0, -50, 0], y: [0, 60, 0] }}
-        transition={{ duration: 60, repeat: Infinity, ease: 'easeInOut' }}
-      />
-
-      {/* Blue glow - center bottom */}
-      <motion.div
-        className="absolute w-[650px] h-[650px] rounded-full"
-        style={{
-          background: 'radial-gradient(circle at center, hsla(210, 80%, 50%, 0.15) 0%, hsla(210, 80%, 50%, 0.03) 50%, transparent 70%)',
-          bottom: '-15%',
-          left: '20%',
-        }}
-        animate={{ x: [0, 45, 0], y: [0, -35, 0] }}
-        transition={{ duration: 55, repeat: Infinity, ease: 'easeInOut' }}
-      />
-
-      {/* Accent teal - right side */}
-      <motion.div
-        className="absolute w-[500px] h-[500px] rounded-full"
-        style={{
-          background: 'radial-gradient(circle at center, hsla(175, 75%, 45%, 0.15) 0%, hsla(175, 75%, 45%, 0.03) 50%, transparent 70%)',
-          top: '35%',
-          right: '0%',
-        }}
-        animate={{ x: [0, -40, 0], y: [0, 50, 0] }}
-        transition={{ duration: 45, repeat: Infinity, ease: 'easeInOut' }}
       />
     </div>
   );
