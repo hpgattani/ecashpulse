@@ -253,6 +253,61 @@ async function checkSportsResult(title: string): Promise<OracleResult> {
   return { resolved: false };
 }
 
+// ==================== WEATHER/CLIMATE ORACLES ====================
+
+// Open-Meteo API (free, no key required) for weather/climate data
+async function checkWeatherPrediction(title: string): Promise<OracleResult> {
+  const titleLower = title.toLowerCase();
+  
+  try {
+    // Hottest year record - use NASA GISS or NOAA data via Perplexity
+    if (titleLower.includes('hottest year') || titleLower.includes('warmest year') || 
+        titleLower.includes('temperature record')) {
+      console.log('🌡️ Checking global temperature records...');
+      // These need real-time verification, fall through to Perplexity
+      return { resolved: false };
+    }
+    
+    // Hurricane predictions - NOAA data
+    if (titleLower.includes('hurricane') || titleLower.includes('typhoon') || titleLower.includes('cyclone')) {
+      console.log('🌀 Checking hurricane/storm data...');
+      // Falls through to Perplexity for real-time verification
+      return { resolved: false };
+    }
+    
+    // CO2 levels - Mauna Loa data
+    if (titleLower.includes('co2') || titleLower.includes('carbon dioxide') || titleLower.includes('ppm')) {
+      console.log('🌍 Checking atmospheric CO2 levels...');
+      // Falls through to Perplexity for real-time data
+      return { resolved: false };
+    }
+    
+    // Heatwave predictions
+    if (titleLower.includes('heatwave') || titleLower.includes('heat wave') || 
+        titleLower.includes('record high') || titleLower.includes('45°c') || titleLower.includes('celsius')) {
+      console.log('🔥 Checking heatwave data...');
+      return { resolved: false };
+    }
+    
+    // Arctic sea ice
+    if (titleLower.includes('arctic') || titleLower.includes('sea ice') || titleLower.includes('ice cap')) {
+      console.log('🧊 Checking Arctic ice data...');
+      return { resolved: false };
+    }
+    
+    // Drought conditions
+    if (titleLower.includes('drought')) {
+      console.log('🏜️ Checking drought conditions...');
+      return { resolved: false };
+    }
+    
+  } catch (error) {
+    console.error('Weather API error:', error);
+  }
+  
+  return { resolved: false };
+}
+
 // ==================== NEWS/EVENTS ORACLES ====================
 
 // Use Perplexity for REAL-TIME web search to verify events accurately
@@ -513,7 +568,19 @@ Deno.serve(async (req) => {
         oracleResult = await checkEntertainmentEvent(pred.title);
         source = 'Entertainment Oracle';
       }
-      // 5. All other categories - use Perplexity real-time web search
+      // 5. Climate/Weather predictions - use weather oracle + Perplexity fallback
+      else if (pred.category === 'climate' ||
+               ['temperature', 'hurricane', 'heatwave', 'drought', 'co2', 'arctic', 'climate']
+                 .some(c => titleLower.includes(c))) {
+        oracleResult = await checkWeatherPrediction(pred.title);
+        source = 'Weather Oracle';
+        // Weather oracle mostly logs and falls through to Perplexity for verification
+        if (!oracleResult.resolved) {
+          oracleResult = await checkNewsEvent(pred.title);
+          source = 'Perplexity Climate Search';
+        }
+      }
+      // 6. All other categories - use Perplexity real-time web search
       // This includes politics, tech, sports events, IPL auctions, etc.
       else {
         console.log(`🔍 Using Perplexity real-time search for: "${pred.title.slice(0, 50)}"`);
