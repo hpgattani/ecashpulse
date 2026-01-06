@@ -1,9 +1,22 @@
-import { motion } from 'framer-motion';
+import { useRef } from 'react';
+import { motion, useScroll, useTransform } from 'framer-motion';
 import { Wallet, Search, MousePointer, Trophy } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const HowItWorks = () => {
   const { t } = useLanguage();
+  const sectionRef = useRef<HTMLElement>(null);
+
+  // Parallax scroll effect
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ["start end", "end start"]
+  });
+
+  const leftOrbY = useTransform(scrollYProgress, [0, 1], [60, -60]);
+  const rightOrbY = useTransform(scrollYProgress, [0, 1], [-40, 80]);
+  const leftOrbX = useTransform(scrollYProgress, [0, 1], [-20, 20]);
+  const rightOrbX = useTransform(scrollYProgress, [0, 1], [20, -20]);
 
   const steps = [
     {
@@ -29,8 +42,20 @@ const HowItWorks = () => {
   ];
 
   return (
-    <section id="how-it-works" className="py-20 relative">
-      <div className="container mx-auto px-4">
+    <section ref={sectionRef} id="how-it-works" className="py-20 relative overflow-hidden">
+      {/* Parallax ambient orbs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <motion.div 
+          style={{ y: leftOrbY, x: leftOrbX }}
+          className="absolute top-1/4 left-[8%] w-[300px] h-[300px] bg-primary/[0.04] rounded-full blur-[100px]" 
+        />
+        <motion.div 
+          style={{ y: rightOrbY, x: rightOrbX }}
+          className="absolute top-1/2 right-[8%] w-[350px] h-[350px] bg-accent/[0.05] rounded-full blur-[90px]" 
+        />
+      </div>
+
+      <div className="container mx-auto px-4 relative z-10">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
