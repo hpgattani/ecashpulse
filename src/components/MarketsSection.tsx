@@ -95,39 +95,43 @@ const MarketsSection = () => {
           </p>
         </motion.div>
 
-        {/* Search Bar with Autofill */}
+        {/* Search Bar with Liquid Glass Effect */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ delay: 0.1 }}
-          className="max-w-md mx-auto mb-8 relative"
+          className="max-w-lg mx-auto mb-8 relative"
         >
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              ref={inputRef}
-              type="text"
-              placeholder={t.searchPlaceholder}
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setShowSuggestions(true);
-              }}
-              onFocus={() => setShowSuggestions(true)}
-              className="pl-10 pr-10 bg-card/50 border-transparent focus:border-transparent focus-visible:ring-0 focus-visible:ring-offset-0 shadow-[0_0_15px_rgba(var(--primary-rgb),0.3)] focus:shadow-[0_0_20px_rgba(var(--primary-rgb),0.5)] transition-shadow"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => {
-                  setSearchQuery('');
-                  setShowSuggestions(false);
+          {/* Outer glass container with glow */}
+          <div className="relative p-1 rounded-full bg-gradient-to-r from-white/10 via-white/5 to-white/10 dark:from-white/[0.08] dark:via-white/[0.03] dark:to-white/[0.08]">
+            {/* Inner liquid glass bar */}
+            <div className="relative flex items-center rounded-full bg-background/40 dark:bg-background/30 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,0.2)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)]">
+              <Search className="absolute left-4 h-5 w-5 text-muted-foreground/70" />
+              <Input
+                ref={inputRef}
+                type="text"
+                placeholder={t.searchPlaceholder}
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setShowSuggestions(true);
                 }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
+                onFocus={() => setShowSuggestions(true)}
+                className="pl-12 pr-12 py-3 h-12 bg-transparent border-0 focus:border-0 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/60 text-foreground"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => {
+                    setSearchQuery('');
+                    setShowSuggestions(false);
+                  }}
+                  className="absolute right-4 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Suggestions Dropdown */}

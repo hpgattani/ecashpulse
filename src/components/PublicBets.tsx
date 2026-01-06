@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { useEffect, useState, useRef } from 'react';
+import { motion, useScroll, useTransform } from 'framer-motion';
 import {
   ExternalLink,
   TrendingUp,
@@ -34,6 +34,18 @@ const PublicBets = () => {
   const { t, translateTitle } = useLanguage();
   const [bets, setBets] = useState<Bet[]>([]);
   const [loading, setLoading] = useState(true);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Parallax scroll effect
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start end", "end start"]
+  });
+
+  const leftOrbY = useTransform(scrollYProgress, [0, 1], [50, -50]);
+  const rightOrbY = useTransform(scrollYProgress, [0, 1], [-30, 70]);
+  const leftOrbX = useTransform(scrollYProgress, [0, 1], [-15, 15]);
+  const rightOrbX = useTransform(scrollYProgress, [0, 1], [15, -15]);
 
   useEffect(() => {
     fetchBets();
@@ -178,71 +190,85 @@ const PublicBets = () => {
   }
 
   return (
-    <div className="glass-card p-4 sm:p-6">
-      <h3 className="font-display font-bold text-base sm:text-lg text-foreground mb-4 flex items-center gap-2">
-        <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-        {t.recentActivity}
-      </h3>
-      
-      <div className="space-y-2 sm:space-y-3 max-h-[350px] sm:max-h-[400px] overflow-y-auto">
-        {bets.map((bet, index) => (
-          <motion.div
-            key={bet.id}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.05 }}
-            className="p-2 sm:p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
-          >
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
-              <div className="flex items-center gap-2 flex-wrap">
-                {bet.position === 'yes' ? (
-                  <TrendingUp className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                ) : (
-                  <TrendingDown className="w-4 h-4 text-red-400 flex-shrink-0" />
-                )}
-                <span
-                  className={`font-semibold text-sm ${
-                    bet.position === 'yes' ? 'text-emerald-400' : 'text-red-400'
-                  }`}
-                >
-                  {bet.position === 'yes' ? t.yes.toUpperCase() : t.no.toUpperCase()}
-                </span>
-                <span className="text-foreground font-medium text-sm">
-                  {formatAmount(bet.amount)}
-                </span>
-              </div>
+    <div ref={containerRef} className="relative overflow-hidden">
+      {/* Parallax ambient orbs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <motion.div 
+          style={{ y: leftOrbY, x: leftOrbX }}
+          className="absolute top-1/4 left-[5%] w-[250px] h-[250px] bg-primary/[0.04] rounded-full blur-[80px]" 
+        />
+        <motion.div 
+          style={{ y: rightOrbY, x: rightOrbX }}
+          className="absolute top-1/3 right-[5%] w-[300px] h-[300px] bg-accent/[0.05] rounded-full blur-[90px]" 
+        />
+      </div>
 
-              {getStatusBadge(bet.status)}
-            </div>
-            
-            {bet.predictions?.title && (
-              <p className="text-xs text-foreground/80 mb-2 line-clamp-1">
-                {translateTitle(bet.predictions.title)}
-              </p>
-            )}
-            
-            <div className="text-xs text-muted-foreground space-y-1">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-                <span className="truncate">{t.wallet}: {bet.users ? formatAddress(bet.users.ecash_address) : 'Unknown'}</span>
-                <span className="text-muted-foreground/70">{formatTime(bet.confirmed_at || bet.created_at)}</span>
+      <div className="glass-card p-4 sm:p-6 relative z-10">
+        <h3 className="font-display font-bold text-base sm:text-lg text-foreground mb-4 flex items-center gap-2">
+          <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+          {t.recentActivity}
+        </h3>
+        
+        <div className="space-y-2 sm:space-y-3 max-h-[350px] sm:max-h-[400px] overflow-y-auto">
+          {bets.map((bet, index) => (
+            <motion.div
+              key={bet.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05 }}
+              className="p-2 sm:p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {bet.position === 'yes' ? (
+                    <TrendingUp className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                  ) : (
+                    <TrendingDown className="w-4 h-4 text-red-400 flex-shrink-0" />
+                  )}
+                  <span
+                    className={`font-semibold text-sm ${
+                      bet.position === 'yes' ? 'text-emerald-400' : 'text-red-400'
+                    }`}
+                  >
+                    {bet.position === 'yes' ? t.yes.toUpperCase() : t.no.toUpperCase()}
+                  </span>
+                  <span className="text-foreground font-medium text-sm">
+                    {formatAmount(bet.amount)}
+                  </span>
+                </div>
+
+                {getStatusBadge(bet.status)}
               </div>
               
-              {bet.tx_hash && (
-                <a
-                  href={`https://explorer.e.cash/tx/${bet.tx_hash}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-primary hover:underline break-all"
-                >
-                  <span className="font-mono text-[10px] sm:text-xs">
-                    TX: {bet.tx_hash.slice(0, 12)}...{bet.tx_hash.slice(-6)}
-                  </span>
-                  <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                </a>
+              {bet.predictions?.title && (
+                <p className="text-xs text-foreground/80 mb-2 line-clamp-1">
+                  {translateTitle(bet.predictions.title)}
+                </p>
               )}
-            </div>
-          </motion.div>
-        ))}
+              
+              <div className="text-xs text-muted-foreground space-y-1">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                  <span className="truncate">{t.wallet}: {bet.users ? formatAddress(bet.users.ecash_address) : 'Unknown'}</span>
+                  <span className="text-muted-foreground/70">{formatTime(bet.confirmed_at || bet.created_at)}</span>
+                </div>
+                
+                {bet.tx_hash && (
+                  <a
+                    href={`https://explorer.e.cash/tx/${bet.tx_hash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-primary hover:underline break-all"
+                  >
+                    <span className="font-mono text-[10px] sm:text-xs">
+                      TX: {bet.tx_hash.slice(0, 12)}...{bet.tx_hash.slice(-6)}
+                    </span>
+                    <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                  </a>
+                )}
+              </div>
+            </motion.div>
+          ))}
+        </div>
       </div>
     </div>
   );

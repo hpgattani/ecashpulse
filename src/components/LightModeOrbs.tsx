@@ -71,43 +71,53 @@ export const LightModeOrbs = () => {
     );
   }
 
-  // Dark mode - teal + purple circular orbs with subtle grid
+  // Dark mode - teal + purple circular orbs with subtle grid (matching reference)
   return (
     <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
       {/* Base dark */}
       <div 
         className="absolute inset-0"
         style={{
-          background: 'hsl(220 20% 4%)',
+          background: 'hsl(222 25% 6%)',
         }}
       />
       
       {/* Subtle grid lines */}
-      <div className="absolute inset-0 bg-grid-pattern bg-grid opacity-20" />
+      <div className="absolute inset-0 bg-grid-pattern bg-grid opacity-15" />
       
-      {/* Teal circular orb - left side */}
+      {/* Teal circular orb - positioned at top left (15%) */}
       <div 
         className="absolute"
         style={{
-          width: '600px',
-          height: '600px',
-          left: '-100px',
-          top: '-100px',
-          background: 'radial-gradient(circle, hsla(168, 80%, 45%, 0.35) 0%, hsla(168, 75%, 40%, 0.15) 40%, transparent 70%)',
+          width: '700px',
+          height: '700px',
+          left: '15%',
+          top: '-150px',
+          transform: 'translateX(-50%)',
+          background: 'radial-gradient(circle, hsla(170, 85%, 42%, 0.4) 0%, hsla(170, 80%, 38%, 0.18) 35%, hsla(170, 75%, 35%, 0.06) 55%, transparent 70%)',
           borderRadius: '50%',
         }}
       />
       
-      {/* Purple circular orb - right side */}
+      {/* Purple/violet circular orb - positioned at top right (85%) - deeper violet shade */}
       <div 
         className="absolute"
         style={{
-          width: '600px',
-          height: '600px',
-          right: '-100px',
-          top: '-100px',
-          background: 'radial-gradient(circle, hsla(270, 75%, 50%, 0.3) 0%, hsla(270, 70%, 45%, 0.12) 40%, transparent 70%)',
+          width: '700px',
+          height: '700px',
+          right: '15%',
+          top: '-150px',
+          transform: 'translateX(50%)',
+          background: 'radial-gradient(circle, hsla(280, 70%, 55%, 0.35) 0%, hsla(275, 65%, 50%, 0.15) 35%, hsla(270, 60%, 45%, 0.05) 55%, transparent 70%)',
           borderRadius: '50%',
+        }}
+      />
+      
+      {/* Subtle center gradient for depth */}
+      <div 
+        className="absolute inset-0"
+        style={{
+          background: 'radial-gradient(ellipse 80% 50% at 50% 0%, hsla(200, 60%, 40%, 0.04) 0%, transparent 60%)',
         }}
       />
       
@@ -115,7 +125,7 @@ export const LightModeOrbs = () => {
       <div 
         className="absolute inset-0"
         style={{
-          background: 'radial-gradient(ellipse 100% 45% at 50% 105%, hsla(200, 70%, 50%, 0.1) 0%, transparent 55%)',
+          background: 'radial-gradient(ellipse 100% 40% at 50% 110%, hsla(200, 70%, 45%, 0.08) 0%, transparent 50%)',
         }}
       />
     </div>
