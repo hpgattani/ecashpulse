@@ -95,19 +95,25 @@ const MarketsSection = () => {
           </p>
         </motion.div>
 
-        {/* Search Bar with Liquid Glass Effect */}
+        {/* Search Bar with Liquid Glass Effect & Neon Glow */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ delay: 0.1 }}
-          className="max-w-lg mx-auto mb-8 relative"
+          className="max-w-lg mx-auto mb-8 relative group"
         >
-          {/* Outer glass container with glow */}
-          <div className="relative p-1 rounded-full bg-gradient-to-r from-white/10 via-white/5 to-white/10 dark:from-white/[0.08] dark:via-white/[0.03] dark:to-white/[0.08]">
+          {/* Neon glow layer - appears on focus/hover */}
+          <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-primary/40 via-accent/30 to-primary/40 opacity-0 group-focus-within:opacity-100 group-hover:opacity-60 blur-xl transition-opacity duration-500" />
+          
+          {/* Secondary neon pulse */}
+          <div className="absolute -inset-0.5 rounded-full bg-gradient-to-r from-primary/20 to-accent/20 opacity-0 group-focus-within:opacity-100 blur-md transition-opacity duration-300" />
+          
+          {/* Outer glass container with gradient border */}
+          <div className="relative p-[2px] rounded-full bg-gradient-to-r from-primary/30 via-white/10 to-accent/30 dark:from-primary/40 dark:via-white/[0.08] dark:to-accent/40 group-focus-within:from-primary/50 group-focus-within:via-white/20 group-focus-within:to-accent/50 transition-all duration-300">
             {/* Inner liquid glass bar */}
-            <div className="relative flex items-center rounded-full bg-background/40 dark:bg-background/30 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,0.2)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)]">
-              <Search className="absolute left-4 h-5 w-5 text-muted-foreground/70" />
+            <div className="relative flex items-center rounded-full bg-background/60 dark:bg-background/40 backdrop-blur-2xl border border-white/30 dark:border-white/15 shadow-[0_8px_32px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.25),inset_0_-1px_0_rgba(0,0,0,0.05)] dark:shadow-[0_8px_40px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.12),0_0_20px_rgba(45,212,191,0.1)] group-focus-within:shadow-[0_8px_40px_rgba(45,212,191,0.2),inset_0_1px_0_rgba(255,255,255,0.3),0_0_30px_rgba(45,212,191,0.15)] dark:group-focus-within:shadow-[0_8px_50px_rgba(45,212,191,0.3),inset_0_1px_0_rgba(255,255,255,0.15),0_0_40px_rgba(45,212,191,0.2)] transition-shadow duration-300">
+              <Search className="absolute left-4 h-5 w-5 text-muted-foreground/70 group-focus-within:text-primary transition-colors duration-300" />
               <Input
                 ref={inputRef}
                 type="text"
@@ -118,7 +124,7 @@ const MarketsSection = () => {
                   setShowSuggestions(true);
                 }}
                 onFocus={() => setShowSuggestions(true)}
-                className="pl-12 pr-12 py-3 h-12 bg-transparent border-0 focus:border-0 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/60 text-foreground"
+                className="pl-12 pr-12 py-3 h-12 bg-transparent border-0 focus:border-0 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/50 text-foreground"
               />
               {searchQuery && (
                 <button
