@@ -60,9 +60,7 @@ const PublicBets = () => {
           schema: 'public',
           table: 'bets'
         },
-        (payload) => {
-          console.log('New bet detected:', payload);
-          // Immediately fetch to get full bet data with joins
+        () => {
           fetchBets();
         }
       )
@@ -73,14 +71,11 @@ const PublicBets = () => {
           schema: 'public',
           table: 'bets'
         },
-        (payload) => {
-          console.log('Bet updated:', payload);
+        () => {
           fetchBets();
         }
       )
-      .subscribe((status) => {
-        console.log('PublicBets realtime subscription status:', status);
-      });
+      .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
@@ -89,11 +84,9 @@ const PublicBets = () => {
 
   const fetchBets = async () => {
     try {
-      // Use edge function to bypass RLS for public visibility
       const { data, error } = await supabase.functions.invoke('get-public-bets');
 
       if (error) throw error;
-      // Filter out bets with missing prediction or user data
       const validBets = ((data?.bets as Bet[]) || []).filter(
         (bet) => bet.predictions?.title && bet.users?.ecash_address
       );
@@ -169,40 +162,29 @@ const PublicBets = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="glass-card p-6">
-        <div className="animate-pulse space-y-4">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-16 bg-muted/50 rounded-lg" />
-          ))}
+  // Render content based on state
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <div className="glass-card p-6 relative z-10">
+          <div className="animate-pulse space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="h-16 bg-muted/50 rounded-lg" />
+            ))}
+          </div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  if (bets.length === 0) {
+    if (bets.length === 0) {
+      return (
+        <div className="glass-card p-6 text-center relative z-10">
+          <p className="text-muted-foreground">{t.noActivity} {t.beFirst}</p>
+        </div>
+      );
+    }
+
     return (
-      <div className="glass-card p-6 text-center">
-        <p className="text-muted-foreground">{t.noActivity} {t.beFirst}</p>
-      </div>
-    );
-  }
-
-  return (
-    <div ref={containerRef} className="relative overflow-hidden">
-      {/* Parallax ambient orbs */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <motion.div 
-          style={{ y: leftOrbY, x: leftOrbX }}
-          className="absolute top-1/4 left-[5%] w-[250px] h-[250px] bg-primary/[0.04] rounded-full blur-[80px]" 
-        />
-        <motion.div 
-          style={{ y: rightOrbY, x: rightOrbX }}
-          className="absolute top-1/3 right-[5%] w-[300px] h-[300px] bg-accent/[0.05] rounded-full blur-[90px]" 
-        />
-      </div>
-
       <div className="glass-card p-4 sm:p-6 relative z-10">
         <h3 className="font-display font-bold text-base sm:text-lg text-foreground mb-4 flex items-center gap-2">
           <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
@@ -270,6 +252,24 @@ const PublicBets = () => {
           ))}
         </div>
       </div>
+    );
+  };
+
+  return (
+    <div ref={containerRef} className="relative overflow-hidden">
+      {/* Parallax ambient orbs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <motion.div 
+          style={{ y: leftOrbY, x: leftOrbX }}
+          className="absolute top-1/4 left-[5%] w-[250px] h-[250px] bg-primary/[0.04] rounded-full blur-[80px]" 
+        />
+        <motion.div 
+          style={{ y: rightOrbY, x: rightOrbX }}
+          className="absolute top-1/3 right-[5%] w-[300px] h-[300px] bg-accent/[0.05] rounded-full blur-[90px]" 
+        />
+      </div>
+
+      {renderContent()}
     </div>
   );
 };
