@@ -358,6 +358,85 @@
     transform: translateY(-2px) scale(1.02);
   }
 
+  /* ===== LIQUID GLASS CLEAR - More transparent variant with localized dimming (Apple HIG) ===== */
+  /* Use for small controls over media-rich content; needs bold/bright content on top */
+  .liquid-glass-clear {
+    @apply relative isolate backdrop-blur-2xl backdrop-saturate-200 rounded-full;
+    background: hsl(0 0% 100% / 0.06);
+    border: 1px solid hsl(0 0% 100% / 0.08);
+    transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* Localized dimming layer behind for legibility */
+  .liquid-glass-clear::before {
+    content: "";
+    position: absolute;
+    inset: -4px;
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: -1;
+    background: radial-gradient(
+      ellipse 120% 120% at 50% 50%,
+      hsl(0 0% 0% / 0.25) 0%,
+      transparent 70%
+    );
+    filter: blur(8px);
+    opacity: 0.8;
+  }
+
+  /* Subtle specular arc */
+  .liquid-glass-clear::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: 0;
+    background: radial-gradient(
+      ellipse 80% 40% at 50% -10%,
+      hsl(0 0% 100% / 0.12) 0%,
+      transparent 50%
+    );
+  }
+
+  .liquid-glass-clear > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Dark mode clear variant */
+  .dark .liquid-glass-clear,
+  :root:not(.light) .liquid-glass-clear {
+    box-shadow: 
+      0 1px 4px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 hsl(0 0% 100% / 0.05);
+  }
+
+  .dark .liquid-glass-clear:hover,
+  :root:not(.light) .liquid-glass-clear:hover {
+    background: hsl(0 0% 100% / 0.1);
+    border-color: hsl(0 0% 100% / 0.12);
+  }
+
+  /* Light mode clear variant */
+  .light .liquid-glass-clear {
+    background: hsl(0 0% 0% / 0.04);
+    border-color: hsl(0 0% 0% / 0.06);
+  }
+
+  .light .liquid-glass-clear::before {
+    background: radial-gradient(
+      ellipse 120% 120% at 50% 50%,
+      hsl(0 0% 100% / 0.5) 0%,
+      transparent 70%
+    );
+  }
+
+  .light .liquid-glass-clear:hover {
+    background: hsl(0 0% 0% / 0.06);
+    border-color: hsl(0 0% 0% / 0.08);
+  }
+
   /* ===== LIQUID GLASS BUBBLE GROUP - Connected bubble container (Apple-style) ===== */
   .liquid-glass-bubble-group {
     @apply relative isolate backdrop-blur-xl backdrop-saturate-150 rounded-full;

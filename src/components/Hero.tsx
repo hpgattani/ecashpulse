@@ -139,18 +139,18 @@ const Hero = () => {
               href="https://cashtab.com" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="liquid-glass-button group px-6 py-3.5 flex items-center justify-center gap-3 w-full sm:w-[240px] whitespace-nowrap"
+              className="liquid-glass-button group py-3.5 flex items-center justify-start gap-3 w-full sm:w-[220px] pl-6 pr-8"
             >
-              <Zap className="w-5 h-5 text-primary group-hover:scale-110 transition-transform" />
+              <Zap className="w-5 h-5 text-primary group-hover:scale-110 transition-transform shrink-0" />
               <span className="text-foreground font-medium">{t.payWithCashtab}</span>
             </a>
             <a 
               href="https://marlinwallet.com" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="liquid-glass-button group px-6 py-3.5 flex items-center justify-center gap-3 w-full sm:w-[240px] whitespace-nowrap"
+              className="liquid-glass-button group py-3.5 flex items-center justify-start gap-3 w-full sm:w-[220px] pl-6 pr-8"
             >
-              <Shield className="w-5 h-5 text-accent group-hover:scale-110 transition-transform" />
+              <Shield className="w-5 h-5 text-accent group-hover:scale-110 transition-transform shrink-0" />
               <span className="text-foreground font-medium">{t.payWithMarlin}</span>
             </a>
           </motion.div>
