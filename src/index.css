@@ -64,10 +64,10 @@
     --sidebar-border: 220 15% 18%;
     --sidebar-ring: 168 80% 45%;
     
-    /* Glass effect tokens - translucent with color tint */
-    --glass-bg: 190 60% 20% / 0.35;
-    --glass-border: 180 40% 40% / 0.25;
-    --glass-highlight: 180 70% 70% / 0.12;
+    /* Glass effect tokens - neutral warm translucency (Apple Liquid Glass) */
+    --glass-bg: 240 10% 12% / 0.65;
+    --glass-border: 240 8% 30% / 0.3;
+    --glass-highlight: 0 0% 100% / 0.08;
   }
 
   .light {
@@ -127,20 +127,20 @@
     --sidebar-border: 210 20% 85%;
     --sidebar-ring: 168 80% 38%;
     
-    /* Liquid glass effect tokens - light mode */
-    --glass-bg: 200 40% 96% / 0.55;
-    --glass-border: 200 30% 80% / 0.4;
-    --glass-highlight: 200 50% 90% / 0.6;
+    /* Liquid glass effect tokens - light mode (Apple-inspired neutral) */
+    --glass-bg: 0 0% 100% / 0.72;
+    --glass-border: 0 0% 0% / 0.08;
+    --glass-highlight: 0 0% 100% / 0.9;
   }
 
   .dark {
     --background: 220 20% 4%;
     --foreground: 210 40% 98%;
     
-    /* Dark mode liquid glass tokens - teal/purple tinted */
-    --glass-bg: 185 50% 18% / 0.45;
-    --glass-border: 175 45% 35% / 0.3;
-    --glass-highlight: 170 60% 55% / 0.15;
+    /* Dark mode liquid glass tokens - neutral with subtle primary accent */
+    --glass-bg: 220 15% 10% / 0.72;
+    --glass-border: 0 0% 100% / 0.1;
+    --glass-highlight: 0 0% 100% / 0.06;
   }
 }
 
@@ -209,77 +209,69 @@
     z-index: 1;
   }
 
-  /* Dark mode liquid glass - teal/cyan tinted translucency */
+  /* Dark mode liquid glass - Apple-inspired neutral translucency */
   .dark .glass-card,
   :root:not(.light) .glass-card {
     box-shadow: 
-      0 4px 30px -4px rgba(0, 0, 0, 0.5),
-      0 2px 12px -2px rgba(0, 0, 0, 0.4),
-      0 0 0 1px hsl(var(--glass-border)),
-      inset 0 1px 0 hsl(var(--glass-highlight)),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.25);
-    border: none;
+      0 2px 20px -4px rgba(0, 0, 0, 0.5),
+      0 1px 6px -1px rgba(0, 0, 0, 0.3),
+      inset 0 0.5px 0 hsl(var(--glass-highlight)),
+      inset 0 -0.5px 0 rgba(0, 0, 0, 0.2);
+    border: 1px solid hsl(var(--glass-border));
   }
 
-  /* Dark mode hover - enhanced glow */
+  /* Dark mode hover - subtle elevation */
   .dark .glass-card:hover,
   :root:not(.light) .glass-card:hover {
-    background: hsl(185 50% 20% / 0.55);
+    background: hsl(220 15% 12% / 0.78);
     box-shadow: 
-      0 8px 40px -6px rgba(0, 0, 0, 0.6),
-      0 4px 16px -4px rgba(0, 0, 0, 0.5),
-      0 0 0 1px hsl(175 50% 40% / 0.4),
-      0 0 40px -10px hsl(var(--primary) / 0.2),
-      inset 0 1px 0 hsl(175 60% 60% / 0.2),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+      0 8px 32px -8px rgba(0, 0, 0, 0.6),
+      0 4px 12px -4px rgba(0, 0, 0, 0.4),
+      inset 0 0.5px 0 hsl(0 0% 100% / 0.1),
+      inset 0 -0.5px 0 rgba(0, 0, 0, 0.25);
+    border-color: hsl(0 0% 100% / 0.15);
   }
 
   .dark .glass-card:hover::before,
   :root:not(.light) .glass-card:hover::before {
-    opacity: 1.3;
+    opacity: 1.2;
   }
 
   /* Dark mode focus state */
   .dark .glass-card:focus-within,
   :root:not(.light) .glass-card:focus-within {
     box-shadow: 
-      0 8px 40px -6px rgba(0, 0, 0, 0.6),
-      0 0 0 2px hsl(var(--primary) / 0.5),
-      0 0 50px -10px hsl(var(--primary) / 0.3),
-      inset 0 1px 0 hsl(175 60% 60% / 0.25);
+      0 8px 32px -8px rgba(0, 0, 0, 0.6),
+      0 0 0 2px hsl(var(--primary) / 0.4),
+      inset 0 0.5px 0 hsl(0 0% 100% / 0.1);
   }
 
-  /* Light mode floating water effect - more translucent */
+  /* Light mode - Apple-inspired clean glass */
   .light .glass-card {
     background: hsl(var(--glass-bg));
     box-shadow: 
-      0 8px 32px -4px rgba(100, 180, 200, 0.18),
-      0 4px 16px -2px rgba(100, 150, 180, 0.12),
-      0 20px 40px -8px rgba(80, 140, 180, 0.1),
-      0 0 0 1px hsl(var(--glass-border)),
-      inset 0 1px 0 hsl(var(--glass-highlight)),
-      inset 0 -1px 0 rgba(100, 150, 200, 0.08);
-    border: none;
+      0 2px 16px -4px rgba(0, 0, 0, 0.1),
+      0 1px 4px -1px rgba(0, 0, 0, 0.06),
+      inset 0 0.5px 0 hsl(var(--glass-highlight)),
+      inset 0 -0.5px 0 rgba(0, 0, 0, 0.04);
+    border: 1px solid hsl(var(--glass-border));
   }
 
   .light .glass-card:hover {
-    background: hsl(200 40% 97% / 0.65);
+    background: hsl(0 0% 100% / 0.82);
     box-shadow: 
-      0 16px 48px -8px rgba(100, 180, 200, 0.22),
-      0 8px 24px -4px rgba(100, 150, 180, 0.15),
-      0 28px 56px -12px rgba(80, 140, 180, 0.12),
-      0 0 0 1px hsl(200 40% 85% / 0.5),
-      0 0 30px -8px hsl(var(--primary) / 0.15),
-      inset 0 1px 0 hsl(var(--glass-highlight)),
-      inset 0 -1px 0 rgba(100, 150, 200, 0.1);
+      0 8px 32px -8px rgba(0, 0, 0, 0.15),
+      0 4px 12px -4px rgba(0, 0, 0, 0.08),
+      inset 0 0.5px 0 hsl(var(--glass-highlight)),
+      inset 0 -0.5px 0 rgba(0, 0, 0, 0.05);
+    border-color: hsl(0 0% 0% / 0.12);
   }
 
   .light .glass-card:focus-within {
     box-shadow: 
-      0 16px 48px -8px rgba(100, 180, 200, 0.22),
-      0 0 0 2px hsl(var(--primary) / 0.4),
-      0 0 40px -8px hsl(var(--primary) / 0.2),
-      inset 0 1px 0 hsl(var(--glass-highlight));
+      0 8px 32px -8px rgba(0, 0, 0, 0.15),
+      0 0 0 2px hsl(var(--primary) / 0.3),
+      inset 0 0.5px 0 hsl(var(--glass-highlight));
   }
 
   /* Disable hover effect for specific elements */

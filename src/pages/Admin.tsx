@@ -425,25 +425,27 @@ const Admin = () => {
             </div>
 
             {/* Tabs for Bets, Users, and Predictions */}
-            <Tabs defaultValue="bets" className="space-y-4">
-              <TabsList className="grid h-auto w-full max-w-2xl grid-cols-2 sm:grid-cols-4 gap-1">
-                <TabsTrigger value="bets" className="gap-2">
-                  <TrendingUp className="w-4 h-4" />
-                  All Bets
-                </TabsTrigger>
-                <TabsTrigger value="users" className="gap-2">
-                  <Users className="w-4 h-4" />
-                  All Users
-                </TabsTrigger>
-                <TabsTrigger value="predictions" className="gap-2">
-                  <Target className="w-4 h-4" />
-                  Predictions
-                </TabsTrigger>
-                <TabsTrigger value="register" className="gap-2">
-                  <Sparkles className="w-4 h-4" />
-                  Register TX
-                </TabsTrigger>
-              </TabsList>
+            <Tabs defaultValue="bets" className="space-y-6">
+              <div className="glass-card p-2 w-fit">
+                <TabsList className="flex flex-wrap gap-2 bg-transparent h-auto p-0">
+                  <TabsTrigger value="bets" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-4 py-2">
+                    <TrendingUp className="w-4 h-4" />
+                    All Bets
+                  </TabsTrigger>
+                  <TabsTrigger value="users" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-4 py-2">
+                    <Users className="w-4 h-4" />
+                    All Users
+                  </TabsTrigger>
+                  <TabsTrigger value="predictions" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-4 py-2">
+                    <Target className="w-4 h-4" />
+                    Predictions
+                  </TabsTrigger>
+                  <TabsTrigger value="register" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-4 py-2">
+                    <Sparkles className="w-4 h-4" />
+                    Register TX
+                  </TabsTrigger>
+                </TabsList>
+              </div>
 
               <TabsContent value="bets">
                 <div className="glass-card overflow-hidden">
