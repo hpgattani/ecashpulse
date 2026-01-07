@@ -139,7 +139,7 @@ const Hero = () => {
               href="https://cashtab.com" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="liquid-glass-button group px-6 py-3.5 flex items-center justify-center gap-3 min-w-[180px]"
+              className="liquid-glass-button group px-6 py-3.5 flex items-center justify-center gap-3 w-full sm:w-[240px] whitespace-nowrap"
             >
               <Zap className="w-5 h-5 text-primary group-hover:scale-110 transition-transform" />
               <span className="text-foreground font-medium">{t.payWithCashtab}</span>
@@ -148,7 +148,7 @@ const Hero = () => {
               href="https://marlinwallet.com" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="liquid-glass-button group px-6 py-3.5 flex items-center justify-center gap-3 min-w-[180px]"
+              className="liquid-glass-button group px-6 py-3.5 flex items-center justify-center gap-3 w-full sm:w-[240px] whitespace-nowrap"
             >
               <Shield className="w-5 h-5 text-accent group-hover:scale-110 transition-transform" />
               <span className="text-foreground font-medium">{t.payWithMarlin}</span>
