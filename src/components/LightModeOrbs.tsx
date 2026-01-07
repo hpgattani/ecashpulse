@@ -71,7 +71,7 @@ export const LightModeOrbs = () => {
     );
   }
 
-  // Dark mode - teal + purple circular orbs with vibrant glow (matching reference)
+  // Dark mode - teal + purple circular orbs positioned diagonally (A and C corners)
   return (
     <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
       {/* Base dark */}
@@ -85,30 +85,28 @@ export const LightModeOrbs = () => {
       {/* Subtle grid lines */}
       <div className="absolute inset-0 bg-grid-pattern bg-grid opacity-15" />
       
-      {/* Teal circular orb - positioned at top left - MORE VISIBLE */}
+      {/* Teal circular orb - positioned at top-left (corner A, near "Predict") */}
       <div 
         className="absolute"
         style={{
           width: '800px',
           height: '800px',
-          left: '10%',
-          top: '-200px',
-          transform: 'translateX(-50%)',
+          left: '-150px',
+          top: '-150px',
           background: 'radial-gradient(circle, hsla(170, 90%, 45%, 0.55) 0%, hsla(170, 85%, 40%, 0.25) 30%, hsla(170, 80%, 35%, 0.08) 50%, transparent 70%)',
           borderRadius: '50%',
           filter: 'blur(40px)',
         }}
       />
       
-      {/* Purple/violet circular orb - positioned at top right - MORE VISIBLE */}
+      {/* Purple/violet circular orb - positioned at bottom-right (corner C, near "Confidence") */}
       <div 
         className="absolute"
         style={{
           width: '800px',
           height: '800px',
-          right: '10%',
-          top: '-200px',
-          transform: 'translateX(50%)',
+          right: '-150px',
+          top: '200px',
           background: 'radial-gradient(circle, hsla(280, 75%, 58%, 0.5) 0%, hsla(275, 70%, 52%, 0.22) 30%, hsla(270, 65%, 48%, 0.07) 50%, transparent 70%)',
           borderRadius: '50%',
           filter: 'blur(40px)',
@@ -119,15 +117,7 @@ export const LightModeOrbs = () => {
       <div 
         className="absolute inset-0"
         style={{
-          background: 'radial-gradient(ellipse 80% 50% at 50% 0%, hsla(200, 60%, 40%, 0.06) 0%, transparent 60%)',
-        }}
-      />
-      
-      {/* Bottom accent glow */}
-      <div 
-        className="absolute inset-0"
-        style={{
-          background: 'radial-gradient(ellipse 100% 40% at 50% 110%, hsla(200, 70%, 45%, 0.1) 0%, transparent 50%)',
+          background: 'radial-gradient(ellipse 80% 50% at 50% 30%, hsla(200, 60%, 40%, 0.06) 0%, transparent 60%)',
         }}
       />
     </div>
