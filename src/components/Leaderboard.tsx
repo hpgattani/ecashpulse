@@ -46,7 +46,6 @@ export const Leaderboard = () => {
 
   const fetchLeaderboard = async () => {
     try {
-      // Use edge function to bypass RLS restrictions on bets table
       const { data, error } = await supabase.functions.invoke('get-leaderboard');
 
       if (error) {
@@ -89,129 +88,136 @@ export const Leaderboard = () => {
     return 'bg-card/50 border-border/50';
   };
 
-  if (loading) {
-    return (
-      <section className="py-16">
+  // Render content based on state
+  const renderContent = () => {
+    if (loading) {
+      return (
         <div className="container mx-auto px-4">
-          <div className="flex items-center justify-center">
+          <div className="flex items-center justify-center py-16">
             <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
         </div>
-      </section>
+      );
+    }
+
+    return (
+      <>
+        {/* Parallax ambient orbs */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <motion.div 
+            style={{ y: leftOrbY, x: leftOrbX }}
+            className="absolute top-1/3 left-[5%] w-[350px] h-[350px] bg-yellow-500/[0.04] rounded-full blur-[100px]" 
+          />
+          <motion.div 
+            style={{ y: rightOrbY, x: rightOrbX }}
+            className="absolute top-1/2 right-[5%] w-[300px] h-[300px] bg-primary/[0.05] rounded-full blur-[80px]" 
+          />
+        </div>
+        
+        <div className="absolute inset-0 bg-gradient-to-b from-background via-primary/5 to-background" />
+      
+        <div className="container mx-auto px-4 relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            viewport={{ once: true }}
+            className="text-center mb-12"
+          >
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-gray-400/30 via-white/20 to-gray-400/30 border border-gray-300/50 mb-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.4),inset_0_-1px_0_rgba(0,0,0,0.2)] backdrop-blur-sm">
+              <Crown className="w-4 h-4 text-yellow-400" />
+              <span className="text-sm font-medium bg-gradient-to-b from-white via-gray-200 to-gray-400 bg-clip-text text-transparent">{t.winnersCircle}</span>
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">{t.topWinners}</h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              {t.leaderboardSubtitle}
+            </p>
+          </motion.div>
+
+          <div className="max-w-3xl mx-auto space-y-3">
+            {leaders.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <Trophy className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                <p>{t.noWinnersYet}</p>
+              </div>
+            ) : leaders.map((leader, index) => (
+              <motion.div
+                key={leader.user_id}
+                initial={{ opacity: 0, x: -20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.4, delay: index * 0.1 }}
+                viewport={{ once: true }}
+                onClick={() => setSelectedUser(leader)}
+                className={`rounded-xl border p-4 backdrop-blur-sm transition-all hover:scale-[1.02] cursor-pointer group ${getRankBg(index)}`}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="flex-shrink-0">
+                    {getRankIcon(index)}
+                  </div>
+                  
+                  <div className="flex-shrink-0">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center border-2 ${
+                      index === 0 
+                        ? 'bg-gradient-to-br from-yellow-500/30 to-amber-600/30 border-yellow-500/50' 
+                        : 'bg-primary/20 border-primary/30'
+                    }`}>
+                      <Wallet className={`w-6 h-6 ${index === 0 ? 'text-yellow-400' : 'text-primary'}`} />
+                    </div>
+                  </div>
+                  
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-sm truncate">
+                      {leader.display_name || formatAddress(leader.ecash_address)}
+                    </h3>
+                    {leader.display_name && (
+                      <p className="font-mono text-xs text-muted-foreground truncate">
+                        {formatAddress(leader.ecash_address)}
+                      </p>
+                    )}
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Trophy className="w-3 h-3 text-green-500" />
+                          <span className="text-green-500 font-medium">{leader.total_wins} {t.wins}</span>
+                        </span>
+                        <span>{leader.total_bets} {t.bets}</span>
+                      </div>
+                  </div>
+                  
+                  <div className="flex-shrink-0 text-right flex items-center gap-2">
+                    <div>
+                      <div className="flex items-center gap-1 text-lg font-bold text-green-500">
+                        <TrendingUp className="w-4 h-4" />
+                        {leader.win_rate}%
+                      </div>
+                      {leader.total_winnings > 0 && (
+                        <div className="text-sm font-semibold text-yellow-400">
+                          💰 {formatXEC(leader.total_winnings)}
+                        </div>
+                      )}
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+
+        {/* User Bet History Modal */}
+        <UserBetHistoryModal
+          open={!!selectedUser}
+          onOpenChange={(open) => !open && setSelectedUser(null)}
+          userId={selectedUser?.user_id || ''}
+          displayName={selectedUser?.display_name || null}
+          ecashAddress={formatAddress(selectedUser?.ecash_address || '')}
+        />
+      </>
     );
-  }
+  };
 
   return (
     <section ref={sectionRef} className="py-16 relative overflow-hidden">
-      {/* Parallax ambient orbs */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <motion.div 
-          style={{ y: leftOrbY, x: leftOrbX }}
-          className="absolute top-1/3 left-[5%] w-[350px] h-[350px] bg-yellow-500/[0.04] rounded-full blur-[100px]" 
-        />
-        <motion.div 
-          style={{ y: rightOrbY, x: rightOrbX }}
-          className="absolute top-1/2 right-[5%] w-[300px] h-[300px] bg-primary/[0.05] rounded-full blur-[80px]" 
-        />
-      </div>
-      
-      <div className="absolute inset-0 bg-gradient-to-b from-background via-primary/5 to-background" />
-      
-      <div className="container mx-auto px-4 relative z-10">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          viewport={{ once: true }}
-          className="text-center mb-12"
-        >
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-gray-400/30 via-white/20 to-gray-400/30 border border-gray-300/50 mb-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.4),inset_0_-1px_0_rgba(0,0,0,0.2)] backdrop-blur-sm">
-            <Crown className="w-4 h-4 text-yellow-400" />
-            <span className="text-sm font-medium bg-gradient-to-b from-white via-gray-200 to-gray-400 bg-clip-text text-transparent">{t.winnersCircle}</span>
-          </div>
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">{t.topWinners}</h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
-            {t.leaderboardSubtitle}
-          </p>
-        </motion.div>
-
-        <div className="max-w-3xl mx-auto space-y-3">
-          {leaders.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <Trophy className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p>{t.noWinnersYet}</p>
-            </div>
-          ) : leaders.map((leader, index) => (
-            <motion.div
-              key={leader.user_id}
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.4, delay: index * 0.1 }}
-              viewport={{ once: true }}
-              onClick={() => setSelectedUser(leader)}
-              className={`rounded-xl border p-4 backdrop-blur-sm transition-all hover:scale-[1.02] cursor-pointer group ${getRankBg(index)}`}
-            >
-              <div className="flex items-center gap-4">
-                <div className="flex-shrink-0">
-                  {getRankIcon(index)}
-                </div>
-                
-                <div className="flex-shrink-0">
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center border-2 ${
-                    index === 0 
-                      ? 'bg-gradient-to-br from-yellow-500/30 to-amber-600/30 border-yellow-500/50' 
-                      : 'bg-primary/20 border-primary/30'
-                  }`}>
-                    <Wallet className={`w-6 h-6 ${index === 0 ? 'text-yellow-400' : 'text-primary'}`} />
-                  </div>
-                </div>
-                
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-sm truncate">
-                    {leader.display_name || formatAddress(leader.ecash_address)}
-                  </h3>
-                  {leader.display_name && (
-                    <p className="font-mono text-xs text-muted-foreground truncate">
-                      {formatAddress(leader.ecash_address)}
-                    </p>
-                  )}
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Trophy className="w-3 h-3 text-green-500" />
-                        <span className="text-green-500 font-medium">{leader.total_wins} {t.wins}</span>
-                      </span>
-                      <span>{leader.total_bets} {t.bets}</span>
-                    </div>
-                </div>
-                
-                <div className="flex-shrink-0 text-right flex items-center gap-2">
-                  <div>
-                    <div className="flex items-center gap-1 text-lg font-bold text-green-500">
-                      <TrendingUp className="w-4 h-4" />
-                      {leader.win_rate}%
-                    </div>
-                    {leader.total_winnings > 0 && (
-                      <div className="text-sm font-semibold text-yellow-400">
-                        💰 {formatXEC(leader.total_winnings)}
-                      </div>
-                    )}
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-
-      {/* User Bet History Modal */}
-      <UserBetHistoryModal
-        open={!!selectedUser}
-        onOpenChange={(open) => !open && setSelectedUser(null)}
-        userId={selectedUser?.user_id || ''}
-        displayName={selectedUser?.display_name || null}
-        ecashAddress={formatAddress(selectedUser?.ecash_address || '')}
-      />
+      {renderContent()}
     </section>
   );
 };
