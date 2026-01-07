@@ -294,16 +294,24 @@ const MyBets = () => {
           </div>
 
           <Tabs defaultValue="bets" className="w-full">
-            <TabsList className="mb-6">
-              <TabsTrigger value="bets" className="flex items-center gap-2">
-                <TrendingUp className="w-4 h-4" />
-                {t.myBetsTitle}
-              </TabsTrigger>
-              <TabsTrigger value="submissions" className="flex items-center gap-2">
-                <FileText className="w-4 h-4" />
-                {t.mySubmissions}
-              </TabsTrigger>
-            </TabsList>
+            <div className="glass-card inline-flex p-1.5 mb-6 rounded-xl">
+              <TabsList className="bg-transparent h-auto p-0 gap-1">
+                <TabsTrigger 
+                  value="bets" 
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all"
+                >
+                  <TrendingUp className="w-4 h-4" />
+                  {t.myBetsTitle}
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="submissions" 
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all"
+                >
+                  <FileText className="w-4 h-4" />
+                  {t.mySubmissions}
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
             <TabsContent value="bets">
               {bets.length === 0 ? (
