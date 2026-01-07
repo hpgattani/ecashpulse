@@ -33,34 +33,53 @@ const MarketFilters = ({
   ];
 
   return (
-    <div className="liquid-glass-bubble-group flex flex-wrap gap-0 justify-center mb-8 mx-auto w-fit">
-      {categories.map((category, index) => (
+    <div className="flex flex-wrap gap-2 justify-center mb-8 mx-auto">
+      {categories.map((category) => (
         <motion.button
           key={category.id}
           onClick={() => onCategoryChange(category.id)}
-          whileTap={{ scale: 0.98 }}
+          whileTap={{ scale: 0.96 }}
           className={`
-            liquid-glass-filter-item relative px-4 py-2.5 text-sm font-medium transition-all duration-300 flex items-center gap-1.5
+            relative px-4 py-2.5 text-sm font-medium flex items-center gap-2 rounded-full
+            transition-colors duration-200
             ${activeCategory === category.id
-              ? 'liquid-glass-filter-active text-primary-foreground'
+              ? 'text-primary-foreground'
               : 'text-muted-foreground hover:text-foreground'
             }
           `}
         >
-          <span className={`relative bg-gradient-to-br ${category.gradient} p-1 rounded-lg shadow-sm ring-1 ring-white/20`}>
+          {/* Liquid glass active indicator - morphs between buttons */}
+          {activeCategory === category.id && (
+            <motion.div
+              layoutId="liquidGlassFilter"
+              className="absolute inset-0 rounded-full liquid-glass-button"
+              style={{
+                background: 'hsl(var(--primary))',
+              }}
+              transition={{ 
+                type: 'spring', 
+                stiffness: 400, 
+                damping: 30,
+                mass: 0.8,
+              }}
+            />
+          )}
+          
+          {/* Inactive state background */}
+          {activeCategory !== category.id && (
+            <div className="absolute inset-0 rounded-full bg-muted/60 border border-border/40" />
+          )}
+          
+          {/* Icon with gradient */}
+          <span className={`relative z-10 bg-gradient-to-br ${category.gradient} p-1 rounded-lg shadow-sm ring-1 ring-white/20`}>
             <span className="pointer-events-none absolute inset-0 rounded-lg bg-gradient-to-b from-white/30 via-transparent to-transparent" />
             <category.Icon className="relative w-3.5 h-3.5 text-white" />
           </span>
-          <span>
+          
+          {/* Label */}
+          <span className="relative z-10">
             {category.name}
           </span>
-          {activeCategory === category.id && (
-            <motion.div
-              layoutId="activeCategoryFilter"
-              className="absolute inset-0 rounded-full bg-primary/90 -z-10"
-              transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
-            />
-          )}
         </motion.button>
       ))}
     </div>
