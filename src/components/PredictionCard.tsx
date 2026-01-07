@@ -415,7 +415,7 @@ const PredictionCard = ({ prediction, index, livePrice, climateData }: Predictio
 
           {/* Bet Buttons - Only show for non-multi-option */}
           {!isMultiOption && (
-            <div className="flex gap-2">
+            <div className="flex gap-3 sm:gap-4">
               <Button variant="yes" size="sm" className="flex-1" onClick={(e) => { e.stopPropagation(); handleBet("yes"); }}>
                 {positiveBetLabel}
               </Button>

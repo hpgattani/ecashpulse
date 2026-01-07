@@ -133,13 +133,13 @@ const Hero = () => {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.9 }}
-            className="flex flex-wrap items-center justify-center gap-4"
+            className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 sm:gap-6 px-4"
           >
             <a 
               href="https://cashtab.com" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="glass-card px-6 py-3 flex items-center gap-2 hover:border-primary/50 transition-colors"
+              className="glass-card px-6 py-3 flex items-center justify-center gap-2 hover:border-primary/50 transition-colors w-full sm:w-auto"
             >
               <Zap className="w-5 h-5 text-primary" />
               <span className="text-foreground font-medium">{t.payWithCashtab}</span>
@@ -148,7 +148,7 @@ const Hero = () => {
               href="https://marlinwallet.com" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="glass-card px-6 py-3 flex items-center gap-2 hover:border-primary/50 transition-colors"
+              className="glass-card px-6 py-3 flex items-center justify-center gap-2 hover:border-primary/50 transition-colors w-full sm:w-auto"
             >
               <Shield className="w-5 h-5 text-accent" />
               <span className="text-foreground font-medium">{t.payWithMarlin}</span>

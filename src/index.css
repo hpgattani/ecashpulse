@@ -158,9 +158,46 @@
 
 @layer components {
   .glass-card {
-    @apply backdrop-blur-xl border rounded-xl;
+    @apply relative isolate backdrop-blur-xl backdrop-saturate-150 border rounded-xl;
     background: hsl(var(--glass-bg));
     border-color: hsl(var(--glass-border));
+  }
+
+  /* Specular highlight + depth layer (Apple-like "Liquid Glass" cues) */
+  .glass-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: radial-gradient(
+      120% 80% at 20% 0%,
+      hsl(var(--foreground) / 0.14) 0%,
+      transparent 55%
+    );
+    opacity: 0.9;
+    z-index: 0;
+  }
+
+  .glass-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(
+      135deg,
+      hsl(var(--foreground) / 0.06) 0%,
+      transparent 35%,
+      hsl(var(--foreground) / 0.02) 100%
+    );
+    opacity: 0.7;
+    z-index: 0;
+  }
+
+  .glass-card > * {
+    position: relative;
+    z-index: 1;
   }
 
   /* Light mode floating water effect */
