@@ -70,6 +70,7 @@ export const CreatePredictionModal = ({ open, onOpenChange }: CreatePredictionMo
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("crypto");
   const [endDate, setEndDate] = useState<Date>();
+  const [endTime, setEndTime] = useState("23:59");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [feeInXEC, setFeeInXEC] = useState<number | null>(null);
@@ -187,6 +188,11 @@ export const CreatePredictionModal = ({ open, onOpenChange }: CreatePredictionMo
   const submitPrediction = async (txHash?: string) => {
     if (!user || !title || !endDate) return;
     
+    // Combine date and time
+    const [hours, minutes] = endTime.split(':').map(Number);
+    const combinedDateTime = new Date(endDate);
+    combinedDateTime.setHours(hours, minutes, 0, 0);
+    
     setIsSubmitting(true);
     try {
       const { data, error } = await supabase.functions.invoke("submit-prediction", {
@@ -194,7 +200,7 @@ export const CreatePredictionModal = ({ open, onOpenChange }: CreatePredictionMo
           title: title.trim(),
           description: description.trim() || null,
           category,
-          end_date: endDate.toISOString(),
+          end_date: combinedDateTime.toISOString(),
           user_id: user.id,
           tx_hash: txHash,
           fee_amount: feeInXEC,
@@ -213,6 +219,7 @@ export const CreatePredictionModal = ({ open, onOpenChange }: CreatePredictionMo
       setDescription("");
       setCategory("crypto");
       setEndDate(undefined);
+      setEndTime("23:59");
       setPaymentComplete(false);
       onOpenChange(false);
     } catch (err: any) {
@@ -378,32 +385,43 @@ export const CreatePredictionModal = ({ open, onOpenChange }: CreatePredictionMo
             </Select>
           </div>
 
-          {/* End Date */}
+          {/* End Date & Time */}
           <div className="space-y-2">
-            <Label className="text-foreground font-medium">Resolution Date *</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !endDate && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {endDate ? format(endDate, "PPP") : "Pick a date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={endDate}
-                  onSelect={setEndDate}
-                  disabled={(date) => date < new Date()}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
+            <Label className="text-foreground font-medium">Resolution Date & Time *</Label>
+            <div className="flex gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "flex-1 justify-start text-left font-normal",
+                      !endDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {endDate ? format(endDate, "PPP") : "Pick a date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={endDate}
+                    onSelect={setEndDate}
+                    disabled={(date) => date < new Date()}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+              <Input
+                type="time"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                className="w-32"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Set the exact time when this prediction should be resolved
+            </p>
           </div>
 
           {/* Fee Info */}
