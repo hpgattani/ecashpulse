@@ -33,23 +33,22 @@ const MarketFilters = ({
   ];
 
   return (
-    <div className="flex flex-wrap gap-2 justify-center mb-8">
-      {categories.map((category) => (
+    <div className="liquid-glass-bubble-group flex flex-wrap gap-0 justify-center mb-8 mx-auto w-fit">
+      {categories.map((category, index) => (
         <motion.button
           key={category.id}
           onClick={() => onCategoryChange(category.id)}
-          whileHover={{ scale: 1.03 }}
           whileTap={{ scale: 0.98 }}
           className={`
-            relative px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 flex items-center gap-1.5
+            liquid-glass-filter-item relative px-4 py-2.5 text-sm font-medium transition-all duration-300 flex items-center gap-1.5
             ${activeCategory === category.id
-              ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/25'
-              : 'bg-muted/80 text-muted-foreground hover:bg-muted hover:text-foreground border border-border/50'
+              ? 'liquid-glass-filter-active text-primary-foreground'
+              : 'text-muted-foreground hover:text-foreground'
             }
           `}
         >
-          <span className={`relative bg-gradient-to-br ${category.gradient} p-1 rounded-lg shadow-sm ring-1 ring-border/40`}>
-            <span className="pointer-events-none absolute inset-0 rounded-lg bg-gradient-to-b from-foreground/15 via-transparent to-transparent opacity-70" />
+          <span className={`relative bg-gradient-to-br ${category.gradient} p-1 rounded-lg shadow-sm ring-1 ring-white/20`}>
+            <span className="pointer-events-none absolute inset-0 rounded-lg bg-gradient-to-b from-white/30 via-transparent to-transparent" />
             <category.Icon className="relative w-3.5 h-3.5 text-white" />
           </span>
           <span>
@@ -58,7 +57,7 @@ const MarketFilters = ({
           {activeCategory === category.id && (
             <motion.div
               layoutId="activeCategoryFilter"
-              className="absolute inset-0 rounded-full bg-primary -z-10"
+              className="absolute inset-0 rounded-full bg-primary/90 -z-10"
               transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
             />
           )}

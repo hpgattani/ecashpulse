@@ -128,18 +128,18 @@ const Hero = () => {
             </button>
           </motion.div>
 
-          {/* Wallet Info - Apple Liquid Glass buttons */}
+          {/* Wallet Info - Apple Liquid Glass connected bubble */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.9 }}
-            className="inline-flex flex-col sm:flex-row items-center justify-center gap-4 px-4"
+            className="liquid-glass-bubble-group inline-flex flex-col sm:flex-row items-stretch justify-center px-4"
           >
             <a 
               href="https://cashtab.com" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="liquid-glass-button group px-6 py-3.5 flex items-center justify-center gap-3"
+              className="liquid-glass-bubble-item group px-6 py-3.5 flex items-center justify-center gap-3"
             >
               <Zap className="w-5 h-5 text-primary group-hover:scale-110 transition-transform" />
               <span className="text-foreground font-medium">{t.payWithCashtab}</span>
@@ -148,7 +148,7 @@ const Hero = () => {
               href="https://marlinwallet.com" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="liquid-glass-button group px-6 py-3.5 flex items-center justify-center gap-3"
+              className="liquid-glass-bubble-item group px-6 py-3.5 flex items-center justify-center gap-3"
             >
               <Shield className="w-5 h-5 text-accent group-hover:scale-110 transition-transform" />
               <span className="text-foreground font-medium">{t.payWithMarlin}</span>
