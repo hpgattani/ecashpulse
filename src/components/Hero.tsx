@@ -128,29 +128,29 @@ const Hero = () => {
             </button>
           </motion.div>
 
-          {/* Wallet Info */}
+          {/* Wallet Info - Apple Liquid Glass buttons */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.9 }}
-            className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 sm:gap-6 px-4"
+            className="inline-flex flex-col sm:flex-row items-center justify-center gap-4 px-4"
           >
             <a 
               href="https://cashtab.com" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="glass-card px-6 py-3 flex items-center justify-center gap-2 hover:border-primary/50 transition-colors w-full sm:w-auto"
+              className="liquid-glass-button group px-6 py-3.5 flex items-center justify-center gap-3"
             >
-              <Zap className="w-5 h-5 text-primary" />
+              <Zap className="w-5 h-5 text-primary group-hover:scale-110 transition-transform" />
               <span className="text-foreground font-medium">{t.payWithCashtab}</span>
             </a>
             <a 
               href="https://marlinwallet.com" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="glass-card px-6 py-3 flex items-center justify-center gap-2 hover:border-primary/50 transition-colors w-full sm:w-auto"
+              className="liquid-glass-button group px-6 py-3.5 flex items-center justify-center gap-3"
             >
-              <Shield className="w-5 h-5 text-accent" />
+              <Shield className="w-5 h-5 text-accent group-hover:scale-110 transition-transform" />
               <span className="text-foreground font-medium">{t.payWithMarlin}</span>
             </a>
           </motion.div>
