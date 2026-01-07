@@ -64,9 +64,10 @@
     --sidebar-border: 220 15% 18%;
     --sidebar-ring: 168 80% 45%;
     
-    /* Glass effect tokens */
-    --glass-bg: 220 20% 8% / 0.8;
-    --glass-border: 220 15% 25% / 0.5;
+    /* Glass effect tokens - translucent with color tint */
+    --glass-bg: 190 60% 20% / 0.35;
+    --glass-border: 180 40% 40% / 0.25;
+    --glass-highlight: 180 70% 70% / 0.12;
   }
 
   .light {
@@ -126,18 +127,20 @@
     --sidebar-border: 210 20% 85%;
     --sidebar-ring: 168 80% 38%;
     
-    /* Liquid glass effect tokens - more translucent for true glass feel */
-    --glass-bg: 210 30% 98% / 0.45;
-    --glass-border: 210 30% 80% / 0.5;
+    /* Liquid glass effect tokens - light mode */
+    --glass-bg: 200 40% 96% / 0.55;
+    --glass-border: 200 30% 80% / 0.4;
+    --glass-highlight: 200 50% 90% / 0.6;
   }
 
   .dark {
     --background: 220 20% 4%;
     --foreground: 210 40% 98%;
     
-    /* Dark mode liquid glass tokens */
-    --glass-bg: 220 20% 6% / 0.7;
-    --glass-border: 220 15% 20% / 0.6;
+    /* Dark mode liquid glass tokens - teal/purple tinted */
+    --glass-bg: 185 50% 18% / 0.45;
+    --glass-border: 175 45% 35% / 0.3;
+    --glass-highlight: 170 60% 55% / 0.15;
   }
 }
 
@@ -158,40 +161,46 @@
 
 @layer components {
   .glass-card {
-    @apply relative isolate backdrop-blur-xl backdrop-saturate-150 border rounded-xl;
+    @apply relative isolate backdrop-blur-2xl backdrop-saturate-[1.8] border rounded-xl;
     background: hsl(var(--glass-bg));
     border-color: hsl(var(--glass-border));
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  /* Specular highlight + depth layer (Apple-like "Liquid Glass" cues) */
+  /* Specular highlight - top-left light source (Apple Liquid Glass style) */
   .glass-card::before {
     content: "";
     position: absolute;
     inset: 0;
     border-radius: inherit;
     pointer-events: none;
-    background: radial-gradient(
-      120% 80% at 20% 0%,
-      hsl(var(--foreground) / 0.14) 0%,
-      transparent 55%
-    );
-    opacity: 0.9;
+    background: 
+      radial-gradient(
+        ellipse 100% 60% at 15% -10%,
+        hsl(var(--glass-highlight)) 0%,
+        transparent 50%
+      ),
+      radial-gradient(
+        ellipse 80% 50% at 80% 110%,
+        hsl(var(--primary) / 0.06) 0%,
+        transparent 45%
+      );
+    opacity: 1;
     z-index: 0;
+    transition: opacity 0.35s ease;
   }
 
+  /* Noise texture overlay for liquid depth */
   .glass-card::after {
     content: "";
     position: absolute;
     inset: 0;
     border-radius: inherit;
     pointer-events: none;
-    background: linear-gradient(
-      135deg,
-      hsl(var(--foreground) / 0.06) 0%,
-      transparent 35%,
-      hsl(var(--foreground) / 0.02) 100%
-    );
-    opacity: 0.7;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    background-size: 180px 180px;
+    opacity: 0.025;
+    mix-blend-mode: overlay;
     z-index: 0;
   }
 
@@ -200,64 +209,95 @@
     z-index: 1;
   }
 
-  /* Light mode floating water effect */
-  .light .glass-card {
-    background: rgba(255, 255, 255, 0.7);
-    box-shadow: 
-      0 8px 32px -4px rgba(100, 180, 200, 0.15),
-      0 4px 16px -2px rgba(100, 150, 180, 0.1),
-      0 20px 40px -8px rgba(80, 140, 180, 0.08),
-      inset 0 1px 0 rgba(255, 255, 255, 0.9),
-      inset 0 -1px 0 rgba(100, 150, 200, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.8);
-    transition: box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .light .glass-card:hover {
-    box-shadow: 
-      0 16px 48px -8px rgba(100, 180, 200, 0.2),
-      0 8px 24px -4px rgba(100, 150, 180, 0.12),
-      0 28px 56px -12px rgba(80, 140, 180, 0.1),
-      inset 0 1px 0 rgba(255, 255, 255, 1),
-      inset 0 -1px 0 rgba(100, 150, 200, 0.08);
-  }
-
-  /* Dark mode liquid glass enhancements */
+  /* Dark mode liquid glass - teal/cyan tinted translucency */
   .dark .glass-card,
   :root:not(.light) .glass-card {
     box-shadow: 
-      0 4px 24px -1px rgba(0, 0, 0, 0.4),
-      0 2px 8px -1px rgba(0, 0, 0, 0.3),
-      inset 0 1px 0 rgba(255, 255, 255, 0.05),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+      0 4px 30px -4px rgba(0, 0, 0, 0.5),
+      0 2px 12px -2px rgba(0, 0, 0, 0.4),
+      0 0 0 1px hsl(var(--glass-border)),
+      inset 0 1px 0 hsl(var(--glass-highlight)),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.25);
+    border: none;
   }
 
+  /* Dark mode hover - enhanced glow */
   .dark .glass-card:hover,
   :root:not(.light) .glass-card:hover {
+    background: hsl(185 50% 20% / 0.55);
     box-shadow: 
-      0 8px 32px -2px rgba(0, 0, 0, 0.5),
-      0 4px 12px -2px rgba(0, 0, 0, 0.4),
-      0 0 30px rgba(23, 207, 163, 0.08),
-      inset 0 1px 0 rgba(255, 255, 255, 0.08),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+      0 8px 40px -6px rgba(0, 0, 0, 0.6),
+      0 4px 16px -4px rgba(0, 0, 0, 0.5),
+      0 0 0 1px hsl(175 50% 40% / 0.4),
+      0 0 40px -10px hsl(var(--primary) / 0.2),
+      inset 0 1px 0 hsl(175 60% 60% / 0.2),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+  }
+
+  .dark .glass-card:hover::before,
+  :root:not(.light) .glass-card:hover::before {
+    opacity: 1.3;
+  }
+
+  /* Dark mode focus state */
+  .dark .glass-card:focus-within,
+  :root:not(.light) .glass-card:focus-within {
+    box-shadow: 
+      0 8px 40px -6px rgba(0, 0, 0, 0.6),
+      0 0 0 2px hsl(var(--primary) / 0.5),
+      0 0 50px -10px hsl(var(--primary) / 0.3),
+      inset 0 1px 0 hsl(175 60% 60% / 0.25);
+  }
+
+  /* Light mode floating water effect - more translucent */
+  .light .glass-card {
+    background: hsl(var(--glass-bg));
+    box-shadow: 
+      0 8px 32px -4px rgba(100, 180, 200, 0.18),
+      0 4px 16px -2px rgba(100, 150, 180, 0.12),
+      0 20px 40px -8px rgba(80, 140, 180, 0.1),
+      0 0 0 1px hsl(var(--glass-border)),
+      inset 0 1px 0 hsl(var(--glass-highlight)),
+      inset 0 -1px 0 rgba(100, 150, 200, 0.08);
+    border: none;
+  }
+
+  .light .glass-card:hover {
+    background: hsl(200 40% 97% / 0.65);
+    box-shadow: 
+      0 16px 48px -8px rgba(100, 180, 200, 0.22),
+      0 8px 24px -4px rgba(100, 150, 180, 0.15),
+      0 28px 56px -12px rgba(80, 140, 180, 0.12),
+      0 0 0 1px hsl(200 40% 85% / 0.5),
+      0 0 30px -8px hsl(var(--primary) / 0.15),
+      inset 0 1px 0 hsl(var(--glass-highlight)),
+      inset 0 -1px 0 rgba(100, 150, 200, 0.1);
+  }
+
+  .light .glass-card:focus-within {
+    box-shadow: 
+      0 16px 48px -8px rgba(100, 180, 200, 0.22),
+      0 0 0 2px hsl(var(--primary) / 0.4),
+      0 0 40px -8px hsl(var(--primary) / 0.2),
+      inset 0 1px 0 hsl(var(--glass-highlight));
   }
 
   /* Disable hover effect for specific elements */
+  .no-hover-effect,
   .no-hover-effect:hover {
+    background: hsl(var(--glass-bg)) !important;
     box-shadow: 
-      0 4px 24px -1px rgba(0, 0, 0, 0.4),
-      0 2px 8px -1px rgba(0, 0, 0, 0.3),
-      inset 0 1px 0 rgba(255, 255, 255, 0.05),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.2) !important;
+      0 4px 24px -4px rgba(0, 0, 0, 0.3),
+      0 0 0 1px hsl(var(--glass-border)),
+      inset 0 1px 0 hsl(var(--glass-highlight)) !important;
   }
 
+  .light .no-hover-effect,
   .light .no-hover-effect:hover {
     box-shadow: 
-      0 4px 24px -1px rgba(0, 0, 0, 0.06),
-      0 2px 8px -1px rgba(0, 0, 0, 0.04),
-      inset 0 1px 0 rgba(255, 255, 255, 0.8),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.02) !important;
+      0 4px 20px -4px rgba(100, 150, 180, 0.12),
+      0 0 0 1px hsl(var(--glass-border)),
+      inset 0 1px 0 hsl(var(--glass-highlight)) !important;
   }
 
   .glow-primary {
