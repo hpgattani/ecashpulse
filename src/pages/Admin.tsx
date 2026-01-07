@@ -426,7 +426,7 @@ const Admin = () => {
 
             {/* Tabs for Bets, Users, and Predictions */}
             <Tabs defaultValue="bets" className="space-y-4">
-              <TabsList className="grid w-full max-w-2xl grid-cols-4">
+              <TabsList className="grid h-auto w-full max-w-2xl grid-cols-2 sm:grid-cols-4 gap-1">
                 <TabsTrigger value="bets" className="gap-2">
                   <TrendingUp className="w-4 h-4" />
                   All Bets

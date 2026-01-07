@@ -587,7 +587,7 @@ const Prediction = () => {
 
                 {/* Bet Buttons */}
                 {prediction.status === "active" && !isMultiOption && (
-                  <div className="flex gap-3">
+                  <div className="flex gap-4 sm:gap-5">
                     <Button variant="yes" size="lg" className="flex-1" onClick={() => handleBet("yes")}>
                       {t.betYes}
                     </Button>
