@@ -246,10 +246,12 @@ const TrendingSection = () => {
                         
                         <div className="text-right">
                           <div className="text-xs sm:text-sm font-semibold text-foreground">
-                            {prediction.volume >= 1 
-                              ? `$${(prediction.volume / 1000).toFixed(1)}K`
-                              : `${(prediction.volume * 33333).toFixed(0)} XEC`
-                            }
+                            {prediction.volume >= 1000000
+                              ? `${(prediction.volume / 1000000).toFixed(2)}M`
+                              : prediction.volume >= 1000
+                                ? `${(prediction.volume / 1000).toFixed(1)}K`
+                                : prediction.volume.toLocaleString()
+                            } XEC
                           </div>
                           <div className="text-[10px] sm:text-xs text-muted-foreground">{t.volume}</div>
                         </div>
