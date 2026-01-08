@@ -48,7 +48,7 @@ const MarketFilters = ({
             }
           `}
         >
-          {/* Liquid glass active indicator - morphs between buttons */}
+          {/* Liquid glass active indicator - morphs between buttons with water-like motion */}
           {activeCategory === category.id && (
             <motion.div
               layoutId="liquidGlassFilter"
@@ -58,9 +58,10 @@ const MarketFilters = ({
               }}
               transition={{ 
                 type: 'spring', 
-                stiffness: 400, 
-                damping: 30,
-                mass: 0.8,
+                stiffness: 150, 
+                damping: 20,
+                mass: 1.2,
+                restDelta: 0.001,
               }}
             />
           )}
