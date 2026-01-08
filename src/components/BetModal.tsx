@@ -408,16 +408,19 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                   {/* Bet Amount + Payout Preview */}
                   <div className="space-y-4">
                     <div>
-                      <label className="text-sm text-muted-foreground mb-1.5 block">{t.betAmount}</label>
-                      <Input
-                        type="number"
-                        placeholder={t.enterAmount}
-                        value={betAmount}
-                        onChange={(e) => setBetAmount(e.target.value)}
-                        min="1"
-                        step="1"
-                        className="text-lg font-semibold h-12"
-                      />
+                      <label className="text-sm text-muted-foreground mb-1.5 block">{t.betAmount} (XEC)</label>
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          placeholder={t.enterAmount}
+                          value={betAmount}
+                          onChange={(e) => setBetAmount(e.target.value)}
+                          min="1"
+                          step="1"
+                          className="text-lg font-semibold h-12 pr-14"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium text-sm">XEC</span>
+                      </div>
                     </div>
 
                     {betAmount && parseFloat(betAmount) > 0 && (
