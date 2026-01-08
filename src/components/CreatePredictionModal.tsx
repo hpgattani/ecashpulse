@@ -385,42 +385,75 @@ export const CreatePredictionModal = ({ open, onOpenChange }: CreatePredictionMo
             </Select>
           </div>
 
-          {/* End Date & Time */}
+          {/* End Date */}
           <div className="space-y-2">
-            <Label className="text-foreground font-medium">Resolution Date & Time *</Label>
-            <div className="flex gap-2">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "flex-1 justify-start text-left font-normal",
-                      !endDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {endDate ? format(endDate, "PPP") : "Pick a date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={endDate}
-                    onSelect={setEndDate}
-                    disabled={(date) => date < new Date()}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-              <Input
-                type="time"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                className="w-32"
-              />
+            <Label className="text-foreground font-medium">Resolution Date *</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !endDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {endDate ? format(endDate, "PPP") : "Pick a date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={endDate}
+                  onSelect={setEndDate}
+                  disabled={(date) => date < new Date()}
+                  initialFocus
+                  className="pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+            <p className="text-xs text-muted-foreground">
+              Type a date or use the calendar picker
+            </p>
+          </div>
+
+          {/* Resolution Time */}
+          <div className="space-y-2">
+            <Label className="text-foreground font-medium">Resolution Time *</Label>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="relative">
+                <Input
+                  type="number"
+                  placeholder="HH"
+                  min="0"
+                  max="23"
+                  value={endTime.split(':')[0]}
+                  onChange={(e) => {
+                    const hours = Math.min(23, Math.max(0, parseInt(e.target.value) || 0)).toString().padStart(2, '0');
+                    setEndTime(`${hours}:${endTime.split(':')[1]}`);
+                  }}
+                  className="pr-12"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">Hours</span>
+              </div>
+              <div className="relative">
+                <Input
+                  type="number"
+                  placeholder="MM"
+                  min="0"
+                  max="59"
+                  value={endTime.split(':')[1]}
+                  onChange={(e) => {
+                    const minutes = Math.min(59, Math.max(0, parseInt(e.target.value) || 0)).toString().padStart(2, '0');
+                    setEndTime(`${endTime.split(':')[0]}:${minutes}`);
+                  }}
+                  className="pr-16"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">Minutes</span>
+              </div>
             </div>
             <p className="text-xs text-muted-foreground">
-              Set the exact time when this prediction should be resolved
+              Set the exact time when this prediction should be resolved (24h format, your local time)
             </p>
           </div>
 
