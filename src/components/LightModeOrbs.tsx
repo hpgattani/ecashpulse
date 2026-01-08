@@ -42,29 +42,31 @@ export const LightModeOrbs = () => {
         {/* Subtle grid */}
         <div className="absolute inset-0 bg-grid-pattern bg-grid opacity-30" />
         
-        {/* Teal circular orb - left side */}
+        {/* Teal circular orb - positioned at top-left (matching dark mode diagonal placement) */}
         <div 
-          className="absolute"
+          className="absolute opacity-60 md:opacity-100"
           style={{
-            width: '500px',
-            height: '500px',
-            left: '-80px',
-            top: '-50px',
-            background: 'radial-gradient(circle, hsla(168, 70%, 55%, 0.25) 0%, hsla(168, 65%, 50%, 0.1) 40%, transparent 70%)',
+            width: '600px',
+            height: '600px',
+            left: '-150px',
+            top: '-150px',
+            background: 'radial-gradient(circle, hsla(168, 70%, 55%, 0.3) 0%, hsla(168, 65%, 50%, 0.12) 40%, transparent 70%)',
             borderRadius: '50%',
+            filter: 'blur(20px)',
           }}
         />
         
-        {/* Purple circular orb - right side */}
+        {/* Purple circular orb - positioned at bottom-right (matching dark mode diagonal placement) */}
         <div 
-          className="absolute"
+          className="absolute opacity-60 md:opacity-100"
           style={{
-            width: '500px',
-            height: '500px',
-            right: '-80px',
-            top: '-50px',
-            background: 'radial-gradient(circle, hsla(270, 65%, 60%, 0.2) 0%, hsla(270, 60%, 55%, 0.08) 40%, transparent 70%)',
+            width: '600px',
+            height: '600px',
+            right: '-150px',
+            top: '200px',
+            background: 'radial-gradient(circle, hsla(270, 65%, 60%, 0.25) 0%, hsla(270, 60%, 55%, 0.1) 40%, transparent 70%)',
             borderRadius: '50%',
+            filter: 'blur(20px)',
           }}
         />
       </div>
@@ -87,7 +89,7 @@ export const LightModeOrbs = () => {
       
       {/* Teal circular orb - positioned at top-left (corner A, near "Predict") */}
       <div 
-        className="absolute"
+        className="absolute opacity-50 md:opacity-100"
         style={{
           width: '800px',
           height: '800px',
@@ -101,7 +103,7 @@ export const LightModeOrbs = () => {
       
       {/* Purple/violet circular orb - positioned at bottom-right (corner C, near "Confidence") */}
       <div 
-        className="absolute"
+        className="absolute opacity-50 md:opacity-100"
         style={{
           width: '800px',
           height: '800px',
