@@ -85,6 +85,9 @@ const PredictionCard = ({ prediction, index, livePrice, climateData }: Predictio
   const isMultiOption =
     Boolean(prediction.isMultiOption) && Array.isArray(prediction.outcomes) && prediction.outcomes.length > 0;
 
+  // Check if betting is closed (endDate has passed but not yet resolved)
+  const isBettingClosed = new Date(prediction.endDate) < new Date();
+
   // Detect if this is an Up/Down prediction (binary but not Yes/No)
   const outcomeLabels = prediction.outcomes?.map(o => o.label.toLowerCase().trim()) || [];
   const isUpDown = !isMultiOption && outcomeLabels.includes('up') && outcomeLabels.includes('down');
@@ -349,11 +352,12 @@ const PredictionCard = ({ prediction, index, livePrice, climateData }: Predictio
                   <button
                     key={outcome.id}
                     type="button"
+                    disabled={isBettingClosed}
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleOutcomeBet(outcome);
+                      if (!isBettingClosed) handleOutcomeBet(outcome);
                     }}
-                    className={`w-full flex items-center justify-between p-2.5 rounded-lg bg-gradient-to-r ${color.bg} border ${color.border} ${color.glow} transition-all duration-200 cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary/60 hover:scale-[1.02]`}
+                    className={`w-full flex items-center justify-between p-2.5 rounded-lg bg-gradient-to-r ${color.bg} border ${color.border} ${isBettingClosed ? 'opacity-50 cursor-not-allowed' : `${color.glow} cursor-pointer hover:scale-[1.02]`} transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-primary/60`}
                   >
                     <span className="text-sm text-foreground font-medium truncate flex-1 mr-2">{outcome.label}</span>
                     <span className={`text-sm font-bold ${color.text}`}>{outcome.odds}%</span>
@@ -415,14 +419,21 @@ const PredictionCard = ({ prediction, index, livePrice, climateData }: Predictio
 
           {/* Bet Buttons - Only show for non-multi-option */}
           {!isMultiOption && (
-            <div className="flex gap-3 sm:gap-4">
-              <Button variant="yes" size="sm" className="flex-1" onClick={(e) => { e.stopPropagation(); handleBet("yes"); }}>
-                {positiveBetLabel}
-              </Button>
-              <Button variant="no" size="sm" className="flex-1" onClick={(e) => { e.stopPropagation(); handleBet("no"); }}>
-                {negativeBetLabel}
-              </Button>
-            </div>
+            isBettingClosed ? (
+              <div className="flex items-center justify-center gap-2 py-3 px-4 rounded-lg bg-muted/50 border border-border/50">
+                <Clock className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-muted-foreground">Betting Closed - Awaiting Resolution</span>
+              </div>
+            ) : (
+              <div className="flex gap-3 sm:gap-4">
+                <Button variant="yes" size="sm" className="flex-1" onClick={(e) => { e.stopPropagation(); handleBet("yes"); }}>
+                  {positiveBetLabel}
+                </Button>
+                <Button variant="no" size="sm" className="flex-1" onClick={(e) => { e.stopPropagation(); handleBet("no"); }}>
+                  {negativeBetLabel}
+                </Button>
+              </div>
+            )
           )}
 
           {/* NOTE: "Comments & Activity" button removed per request */}
