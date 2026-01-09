@@ -595,28 +595,37 @@ Deno.serve(async (req) => {
       }
       
       if (oracleResult.resolved && oracleResult.outcome) {
-        const status = oracleResult.outcome === 'yes' ? 'resolved_yes' : 'resolved_no';
-        
+        const normalizedOutcome = oracleResult.outcome.toLowerCase();
+        if (normalizedOutcome !== 'yes' && normalizedOutcome !== 'no') {
+          console.error(`Invalid oracle outcome for ${pred.id}:`, oracleResult.outcome);
+          continue;
+        }
+
+        // IMPORTANT: ensure winners match the stored prediction status
+        // resolved_yes -> YES bettors win, resolved_no -> NO bettors win
+        const winningPosition = normalizedOutcome as 'yes' | 'no';
+        const status = winningPosition === 'yes' ? 'resolved_yes' : 'resolved_no';
+
         await supabase
           .from('predictions')
-          .update({ 
-            status, 
+          .update({
+            status,
             resolved_at: new Date().toISOString(),
             description: `${pred.description || ''}\n\n🔮 Oracle Resolution (${source}): ${oracleResult.reason}`
           })
           .eq('id', pred.id);
-        
-        await processPayouts(supabase, pred.id, oracleResult.outcome);
-        
+
+        await processPayouts(supabase, pred.id, winningPosition);
+
         results.push({
           id: pred.id,
           title: pred.title,
-          outcome: oracleResult.outcome,
+          outcome: winningPosition,
           reason: oracleResult.reason || 'Oracle verified',
           source
         });
-        
-        console.log(`✓ Resolved: ${pred.title.slice(0, 50)} -> ${oracleResult.outcome} (${source})`);
+
+        console.log(`✓ Resolved: ${pred.title.slice(0, 50)} -> ${winningPosition} (${source})`);
       } else {
         console.log(`⏳ Could not resolve: ${pred.title.slice(0, 50)}`);
       }
