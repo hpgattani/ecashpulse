@@ -385,9 +385,9 @@ export const CreatePredictionModal = ({ open, onOpenChange }: CreatePredictionMo
             </Select>
           </div>
 
-          {/* End Date */}
+          {/* End Date - When betting closes */}
           <div className="space-y-2">
-            <Label className="text-foreground font-medium">Resolution Date *</Label>
+            <Label className="text-foreground font-medium">Betting Closes Date *</Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -413,13 +413,13 @@ export const CreatePredictionModal = ({ open, onOpenChange }: CreatePredictionMo
               </PopoverContent>
             </Popover>
             <p className="text-xs text-muted-foreground">
-              Type a date or use the calendar picker
+              Select when betting should close (no more bets accepted after this)
             </p>
           </div>
 
-          {/* Resolution Time */}
+          {/* Betting Close Time */}
           <div className="space-y-2">
-            <Label className="text-foreground font-medium">Resolution Time *</Label>
+            <Label className="text-foreground font-medium">Betting Closes Time *</Label>
             <div className="grid grid-cols-2 gap-3">
               <div className="relative">
                 <Input
@@ -453,7 +453,7 @@ export const CreatePredictionModal = ({ open, onOpenChange }: CreatePredictionMo
               </div>
             </div>
             <p className="text-xs text-muted-foreground">
-              Set the exact time when this prediction should be resolved (24h format, your local time)
+              Set the exact time when betting closes (24h format, your local timezone). The prediction will auto-resolve after the event ends.
             </p>
           </div>
 
