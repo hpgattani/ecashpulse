@@ -38,37 +38,68 @@ const MarketFilters = ({
         <motion.button
           key={category.id}
           onClick={() => onCategoryChange(category.id)}
-          whileTap={{ scale: 0.96 }}
+          whileTap={{ scale: 0.97 }}
           className={`
             relative px-4 py-2.5 text-sm font-medium flex items-center gap-2 rounded-full
-            transition-colors duration-200
+            transition-colors duration-300
             ${activeCategory === category.id
               ? 'text-primary-foreground'
               : 'text-muted-foreground hover:text-foreground'
             }
           `}
         >
-          {/* Liquid glass active indicator - morphs between buttons with water-like motion */}
+          {/* Liquid glass water-flow indicator - smooth flowing transition like water */}
           {activeCategory === category.id && (
             <motion.div
-              layoutId="liquidGlassFilter"
-              className="absolute inset-0 rounded-full liquid-glass-button"
+              layoutId="liquidWaterFlow"
+              className="absolute inset-0 rounded-full overflow-hidden"
               style={{
                 background: 'hsl(var(--primary))',
               }}
+              initial={false}
               transition={{ 
-                type: 'spring', 
-                stiffness: 150, 
-                damping: 20,
-                mass: 1.2,
-                restDelta: 0.001,
+                type: 'tween',
+                ease: [0.25, 0.1, 0.25, 1], // Smooth cubic-bezier like water settling
+                duration: 0.4,
               }}
-            />
+            >
+              {/* Water ripple effect overlay */}
+              <motion.div
+                className="absolute inset-0 rounded-full"
+                style={{
+                  background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.3) 0%, transparent 50%)',
+                }}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3, ease: 'easeOut' }}
+              />
+              {/* Subtle shimmer flow */}
+              <motion.div
+                className="absolute inset-0"
+                style={{
+                  background: 'linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.15) 50%, transparent 70%)',
+                }}
+                initial={{ x: '-100%' }}
+                animate={{ x: '100%' }}
+                transition={{ 
+                  duration: 0.6, 
+                  ease: 'easeInOut',
+                  delay: 0.1,
+                }}
+              />
+            </motion.div>
           )}
           
           {/* Inactive state background */}
           {activeCategory !== category.id && (
-            <div className="absolute inset-0 rounded-full bg-muted/60 border border-border/40" />
+            <motion.div 
+              className="absolute inset-0 rounded-full bg-muted/60 border border-border/40"
+              initial={false}
+              whileHover={{ 
+                backgroundColor: 'hsl(var(--muted) / 0.8)',
+                transition: { duration: 0.2 }
+              }}
+            />
           )}
           
           {/* Icon with gradient */}
