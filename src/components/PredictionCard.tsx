@@ -201,6 +201,14 @@ const PredictionCard = ({ prediction, index, livePrice, climateData }: Predictio
     }
   };
 
+  const handleShareToX = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const url = `${window.location.origin}/prediction/${prediction.id}`;
+    const text = `${prediction.question}\n\nPlace your bet on eCash Pulse! 🎯`;
+    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+    window.open(twitterUrl, '_blank', 'noopener,noreferrer,width=550,height=420');
+  };
+
   const handleCardClick = () => {
     navigate(`/prediction/${prediction.id}`);
   };
@@ -317,6 +325,15 @@ const PredictionCard = ({ prediction, index, livePrice, climateData }: Predictio
                   {t.hot}
                 </div>
               )}
+              <button
+                onClick={handleShareToX}
+                className="hidden sm:flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground text-xs transition-colors"
+                title="Share to X"
+              >
+                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                </svg>
+              </button>
               <button
                 onClick={handleShare}
                 className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground text-xs transition-colors"
