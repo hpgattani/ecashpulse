@@ -391,6 +391,10 @@ const Prediction = () => {
   const totalPool = prediction.yes_pool + prediction.no_pool;
   const yesOdds = totalPool > 0 ? Math.round((prediction.yes_pool / totalPool) * 100) : 50;
   const noOdds = totalPool > 0 ? Math.round((prediction.no_pool / totalPool) * 100) : 50;
+  
+  // Check if betting is closed (end_date has passed)
+  const isBettingClosed = new Date(prediction.end_date) < new Date();
+  
   const isMultiOption = (() => {
     const outcomes = prediction.outcomes;
     if (!outcomes || outcomes.length === 0) return false;
@@ -531,8 +535,8 @@ const Prediction = () => {
                         <button
                           key={outcome.id}
                           type="button"
-                          onClick={() => prediction.status === "active" && handleOutcomeBet(outcome)}
-                          disabled={prediction.status !== "active"}
+                          onClick={() => prediction.status === "active" && !isBettingClosed && handleOutcomeBet(outcome)}
+                          disabled={prediction.status !== "active" || isBettingClosed}
                           className={`w-full flex items-center justify-between p-4 rounded-xl bg-gradient-to-r ${colors[colorIndex]} border transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/60 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.01]`}
                         >
                           <span className="text-foreground font-semibold text-base">{outcome.label}</span>
@@ -586,7 +590,7 @@ const Prediction = () => {
                 </div>
 
                 {/* Bet Buttons */}
-                {prediction.status === "active" && !isMultiOption && (
+                {prediction.status === "active" && !isMultiOption && !isBettingClosed && (
                   <div className="flex gap-4 sm:gap-5">
                     <Button variant="yes" size="lg" className="flex-1" onClick={() => handleBet("yes")}>
                       {t.betYes}
@@ -594,6 +598,14 @@ const Prediction = () => {
                     <Button variant="no" size="lg" className="flex-1" onClick={() => handleBet("no")}>
                       {t.betNo}
                     </Button>
+                  </div>
+                )}
+                
+                {/* Betting Closed Notice */}
+                {prediction.status === "active" && isBettingClosed && (
+                  <div className="text-center py-4 px-6 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                    <Clock className="w-5 h-5 text-amber-400 mx-auto mb-2" />
+                    <p className="text-amber-400 font-medium text-sm">Betting Closed - Awaiting Resolution</p>
                   </div>
                 )}
               </div>

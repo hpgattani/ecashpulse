@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Info, AlertCircle, Calculator, CheckCircle } from "lucide-react";
+import { X, Info, AlertCircle, Calculator, CheckCircle, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
@@ -23,6 +23,7 @@ interface Prediction {
   // Pool values in satoshis for accurate payout calculation
   yesPool?: number;
   noPool?: number;
+  endDate?: string;
 }
 
 interface BetModalProps {
@@ -91,6 +92,9 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
   // Check if there are any bets at all - show warning only if pool is empty
   const totalVolume = prediction.volume || 0;
   const hasBetsPlaced = totalVolume > 0 || prediction.yesOdds !== 50 || prediction.noOdds !== 50;
+  
+  // Check if betting is closed (end_date has passed)
+  const isBettingClosed = prediction.endDate ? new Date(prediction.endDate) < new Date() : false;
 
   // Close any PayButton modals/overlays
   const closePayButtonModal = useCallback(() => {
@@ -324,8 +328,19 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
             className="fixed inset-x-4 top-4 bottom-4 mx-auto max-w-md z-50 flex items-center"
           >
             <div className="glass-card glow-primary p-4 sm:p-6 w-full max-h-full overflow-y-auto">
-              {/* Success State */}
-              {betSuccess ? (
+              {/* Betting Closed State */}
+              {isBettingClosed ? (
+                <div className="text-center py-8">
+                  <Clock className="w-16 h-16 text-amber-400 mx-auto mb-4" />
+                  <h2 className="font-display font-bold text-xl text-foreground mb-2">Betting Closed</h2>
+                  <p className="text-muted-foreground mb-6">
+                    This market is no longer accepting bets. Awaiting resolution.
+                  </p>
+                  <Button variant="outline" onClick={onClose}>
+                    Close
+                  </Button>
+                </div>
+              ) : betSuccess ? (
                 <div className="text-center py-8">
                   <CheckCircle className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
                   <h2 className="font-display font-bold text-xl text-foreground mb-2">{t.betPlaced}</h2>
