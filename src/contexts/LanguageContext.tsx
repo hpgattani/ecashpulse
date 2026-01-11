@@ -182,6 +182,11 @@ interface Translations {
   // Create Prediction
   createPrediction: string;
   createPredictionDesc: string;
+  
+  // Awaiting Resolution
+  awaitingResolution: string;
+  awaitingResolutionDesc: string;
+  awaitingLabel: string;
 }
 
 // Common prediction title translations
@@ -447,6 +452,11 @@ const translations: Record<Language, Translations> = {
     // Create Prediction
     createPrediction: 'Create Your Own Prediction',
     createPredictionDesc: 'Submit your prediction topic for $1. AI-resolvable topics preferred.',
+    
+    // Awaiting Resolution
+    awaitingResolution: 'Awaiting Resolution',
+    awaitingResolutionDesc: 'Betting has closed on these markets. Results will be determined by our oracle system.',
+    awaitingLabel: 'Awaiting',
   },
   'pt-BR': {
     // Navigation
@@ -627,6 +637,11 @@ const translations: Record<Language, Translations> = {
     // Create Prediction
     createPrediction: 'Crie Sua Própria Previsão',
     createPredictionDesc: 'Envie seu tópico de previsão por $1. Tópicos resolvíveis por IA são preferidos.',
+    
+    // Awaiting Resolution
+    awaitingResolution: 'Aguardando Resolução',
+    awaitingResolutionDesc: 'As apostas foram encerradas nestes mercados. Os resultados serão determinados pelo nosso sistema oráculo.',
+    awaitingLabel: 'Aguardando',
   },
   ko: {
     // Navigation
@@ -807,6 +822,11 @@ const translations: Record<Language, Translations> = {
     // Create Prediction
     createPrediction: '나만의 예측 만들기',
     createPredictionDesc: '$1에 예측 주제를 제출하세요. AI로 해결 가능한 주제 선호.',
+    
+    // Awaiting Resolution
+    awaitingResolution: '해결 대기 중',
+    awaitingResolutionDesc: '이 마켓들의 베팅이 종료되었습니다. 결과는 오라클 시스템에 의해 결정됩니다.',
+    awaitingLabel: '대기 중',
   },
   ja: {
     // Navigation
@@ -987,6 +1007,11 @@ const translations: Record<Language, Translations> = {
     // Create Prediction
     createPrediction: '自分の予測を作成',
     createPredictionDesc: '$1で予測トピックを送信。AI解決可能なトピック推奨。',
+    
+    // Awaiting Resolution
+    awaitingResolution: '解決待ち',
+    awaitingResolutionDesc: 'これらのマーケットのベットは終了しました。結果はオラクルシステムによって決定されます。',
+    awaitingLabel: '待機中',
   },
 };
 
