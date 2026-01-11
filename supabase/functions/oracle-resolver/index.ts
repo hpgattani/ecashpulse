@@ -541,6 +541,34 @@ Deno.serve(async (req) => {
       // Route to appropriate oracle based on category and content
       const titleLower = pred.title.toLowerCase();
       
+      // CRITICAL: Skip spread-based sports predictions - require manual resolution
+      // AI cannot accurately verify point spreads without exact final scores
+      const isSpreadPrediction = 
+        titleLower.includes('cover') || 
+        titleLower.includes('spread') || 
+        titleLower.match(/-\d+\.?\d*\s*points?/) || // -10.5 points, -7 point, etc.
+        titleLower.match(/[+-]\d+\.5/) || // +3.5, -10.5
+        titleLower.includes('against the spread') ||
+        titleLower.includes('ats');
+      
+      if (isSpreadPrediction) {
+        console.log(`⚠️ SKIPPING spread prediction (requires manual resolution): ${pred.title.slice(0, 60)}`);
+        continue; // Skip to next prediction - admin must resolve manually
+      }
+      
+      // CRITICAL: Skip over/under predictions - require exact final scores
+      const isOverUnderPrediction = 
+        titleLower.includes('over/under') || 
+        titleLower.includes('over under') ||
+        (titleLower.includes('total') && titleLower.includes('points')) ||
+        titleLower.match(/over\s+\d+\.?\d*/) ||
+        titleLower.match(/under\s+\d+\.?\d*/);
+      
+      if (isOverUnderPrediction) {
+        console.log(`⚠️ SKIPPING over/under prediction (requires manual resolution): ${pred.title.slice(0, 60)}`);
+        continue; // Skip to next prediction - admin must resolve manually
+      }
+      
       // 1. Check for flippening predictions first
       if (titleLower.includes('flippen') || 
           (titleLower.includes('ethereum') && titleLower.includes('bitcoin') && titleLower.includes('market cap'))) {
@@ -554,7 +582,7 @@ Deno.serve(async (req) => {
         oracleResult = await checkCryptoPrediction(pred.title);
         source = 'CoinGecko Price';
       }
-      // 3. Sports predictions
+      // 3. Sports predictions - only simple win/lose (no spreads)
       else if (pred.category === 'sports' ||
                ['super bowl', 'world series', 'wimbledon', 'premier league', 'nba', 'nfl', 'champions league']
                  .some(s => titleLower.includes(s))) {
