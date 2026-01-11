@@ -32,9 +32,43 @@ const AUTO_BLOCKED_TITLE_KEYWORDS = [
   'deepmind',
 ];
 
-function shouldBlockAutoMarket(title: string): boolean {
+// Patterns that are obviously trivially-true or nonsense (e.g., "American team win Super Bowl")
+const TRIVIALLY_TRUE_PATTERNS: RegExp[] = [
+  /american team.*(win|super bowl)/i,
+  /nfl team.*(win|super bowl)/i,
+];
+
+// Keywords that belong to a specific category - reject if detected category doesn't match
+const CATEGORY_KEYWORD_MAP: Record<string, string[]> = {
+  economics: ['inflation', 'gdp', 'interest rate', 'unemployment', 'recession', 'cpi', 'fed rate'],
+  sports: ['nfl', 'nba', 'mlb', 'nhl', 'super bowl', 'playoffs', 'championship', 'ipl', 'cricket', 'world cup'],
+  crypto: ['bitcoin', 'ethereum', 'btc', 'eth', 'token', 'blockchain'],
+  politics: ['election', 'president', 'congress', 'senate', 'vote'],
+};
+
+function isMiscategorized(title: string, detectedCategory: string): boolean {
   const t = title.toLowerCase();
-  return AUTO_BLOCKED_TITLE_KEYWORDS.some((k) => t.includes(k));
+  for (const [correctCategory, keywords] of Object.entries(CATEGORY_KEYWORD_MAP)) {
+    if (correctCategory === detectedCategory) continue;
+    for (const kw of keywords) {
+      if (t.includes(kw)) {
+        // Title has a keyword belonging to a different category
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function shouldBlockAutoMarket(title: string, category?: string): boolean {
+  const t = title.toLowerCase();
+  // Block AI/tech hype keywords
+  if (AUTO_BLOCKED_TITLE_KEYWORDS.some((k) => t.includes(k))) return true;
+  // Block trivially true patterns
+  if (TRIVIALLY_TRUE_PATTERNS.some((p) => p.test(t))) return true;
+  // Block miscategorized markets (e.g., inflation question in sports)
+  if (category && isMiscategorized(t, category)) return true;
+  return false;
 }
 
 // Extract date from title like "December 29" or "December 22-28" and return proper end date
@@ -516,8 +550,8 @@ async function syncPredictions(supabase: any): Promise<{ created: number; resolv
       ? (market.category as Category)
       : 'politics';
 
-    if (shouldBlockAutoMarket(market.title)) {
-      console.log(`Skipping blocked topic: ${market.title.slice(0, 50)}`);
+    if (shouldBlockAutoMarket(market.title, category)) {
+      console.log(`Skipping blocked/miscategorized topic: ${market.title.slice(0, 50)}`);
       continue;
     }
 
