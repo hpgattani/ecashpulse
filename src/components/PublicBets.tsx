@@ -234,7 +234,7 @@ const PublicBets = () => {
                   <span className="text-muted-foreground/70">{formatTime(bet.confirmed_at || bet.created_at)}</span>
                 </div>
                 
-                {bet.tx_hash && (
+                {bet.tx_hash && bet.tx_hash.length === 64 && (
                   <a
                     href={`https://explorer.e.cash/tx/${bet.tx_hash}`}
                     target="_blank"
@@ -242,7 +242,7 @@ const PublicBets = () => {
                     className="flex items-center gap-1 text-primary hover:underline break-all"
                   >
                     <span className="font-mono text-[10px] sm:text-xs">
-                      TX: {bet.tx_hash.slice(0, 12)}...{bet.tx_hash.slice(-6)}
+                      TX: {bet.tx_hash.slice(0, 8)}...{bet.tx_hash.slice(-8)}
                     </span>
                     <ExternalLink className="w-3 h-3 flex-shrink-0" />
                   </a>

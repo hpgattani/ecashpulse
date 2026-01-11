@@ -25,9 +25,10 @@ const TrendingSection = () => {
   const leftOrbX = useTransform(scrollYProgress, [0, 1], [-20, 20]);
   const rightOrbX = useTransform(scrollYProgress, [0, 1], [20, -20]);
   
-  // Show top 5 predictions sorted by volume (highest XEC first)
+  // Show top 5 predictions sorted by nearest expiry (soonest first), only active ones
   const trendingPredictions = [...predictions]
-    .sort((a, b) => b.volume - a.volume)
+    .filter(p => new Date(p.endDate) > new Date()) // Only active predictions
+    .sort((a, b) => new Date(a.endDate).getTime() - new Date(b.endDate).getTime())
     .slice(0, 5);
 
   const scrollToIndex = useCallback((index: number) => {
