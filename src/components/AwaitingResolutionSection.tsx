@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Hourglass } from 'lucide-react';
+import { Hourglass, Clock } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
 import PredictionCard from './PredictionCard';
@@ -38,12 +38,10 @@ const AwaitingResolutionSection = () => {
   const { t } = useLanguage();
   const [predictions, setPredictions] = useState<PredictionForCard[]>([]);
   const [loading, setLoading] = useState(true);
-  const [hasData, setHasData] = useState<boolean | null>(null); // null = unknown, true/false = determined
 
   useEffect(() => {
     fetchAwaitingResolution();
 
-    // Subscribe to realtime updates
     const channel = supabase
       .channel('awaiting-resolution')
       .on(
@@ -66,7 +64,6 @@ const AwaitingResolutionSection = () => {
 
   const fetchAwaitingResolution = async () => {
     try {
-      // Fetch active predictions where end_date has passed
       const now = new Date().toISOString();
       const { data, error } = await supabase
         .from('predictions')
@@ -83,8 +80,7 @@ const AwaitingResolutionSection = () => {
       }
 
       const predictionRows = (data || []) as PredictionRow[];
-      
-      // Fetch outcomes for all predictions
+
       const predictionIds = predictionRows.map(p => p.id);
       const { data: allOutcomes } = await supabase
         .from('outcomes')
@@ -99,7 +95,6 @@ const AwaitingResolutionSection = () => {
         outcomesByPrediction[outcome.prediction_id].push(outcome);
       }
 
-      // Convert to card format
       const cards: PredictionForCard[] = predictionRows.map(pred => {
         const totalPool = pred.yes_pool + pred.no_pool;
         const yesOdds = totalPool > 0 ? Math.round((pred.yes_pool / totalPool) * 100) : 50;
@@ -141,27 +136,83 @@ const AwaitingResolutionSection = () => {
       });
 
       setPredictions(cards);
-      setHasData(cards.length > 0);
     } catch (err) {
       console.error('Error fetching awaiting resolution:', err);
-      setHasData(false);
     }
     setLoading(false);
   };
 
-  // Don't render if we've determined there's no data
-  if (hasData === false) {
-    return null;
-  }
+  // Render content based on state
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="rounded-2xl border border-border bg-card p-5 animate-pulse">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-8 h-8 rounded-xl bg-muted/50" />
+                <div className="h-4 w-16 bg-muted/50 rounded" />
+              </div>
+              <div className="h-5 w-full bg-muted/50 rounded mb-2" />
+              <div className="h-5 w-3/4 bg-muted/50 rounded mb-4" />
+              <div className="h-3 w-full bg-muted/30 rounded mb-4" />
+              <div className="flex gap-2">
+                <div className="h-10 flex-1 bg-muted/40 rounded-xl" />
+                <div className="h-10 flex-1 bg-muted/40 rounded-xl" />
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
 
-  // Don't render anything while initial loading - prevents flash
-  if (hasData === null && loading) {
-    return null;
-  }
+    if (predictions.length === 0) {
+      return (
+        <div className="rounded-2xl border border-dashed border-border bg-card/50 p-8 text-center">
+          <Clock className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
+          <h3 className="text-lg font-medium text-foreground mb-2">
+            No Markets Awaiting Resolution
+          </h3>
+          <p className="text-muted-foreground text-sm max-w-md mx-auto">
+            When betting closes on active markets, they will appear here while we determine the outcome using our oracle system.
+          </p>
+        </div>
+      );
+    }
 
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {predictions.map((prediction, index) => (
+          <div key={prediction.id} className="relative">
+            {/* Orange awaiting indicator border */}
+            <div className="absolute inset-0 rounded-2xl border-2 border-orange-500/40 pointer-events-none z-10" />
+            {/* Top badges row */}
+            <div className="absolute top-3 left-3 right-3 z-20 flex items-center justify-between gap-2 flex-wrap">
+              {/* Awaiting badge */}
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-500/90 text-white text-xs font-medium shadow-lg">
+                <Hourglass className="w-3 h-3" />
+                {t.awaitingLabel || "Awaiting"}
+              </div>
+              {/* Sports Score Badge */}
+              {prediction.category === 'sports' && (
+                <SportsScoreBadge title={prediction.question} category={prediction.category} />
+              )}
+            </div>
+            <PredictionCard
+              prediction={prediction}
+              index={index}
+            />
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  // ALWAYS render the section - never return null
   return (
     <section id="awaiting" className="py-8 sm:py-12 px-4">
       <div className="max-w-7xl mx-auto">
+        {/* Header - always visible */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 rounded-xl bg-orange-500/20">
@@ -181,52 +232,8 @@ const AwaitingResolutionSection = () => {
           </p>
         </div>
 
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="glass-card rounded-2xl overflow-hidden animate-pulse">
-                <div className="p-5">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="w-8 h-8 rounded-xl bg-muted/50" />
-                    <div className="h-4 w-16 bg-muted/50 rounded" />
-                  </div>
-                  <div className="h-5 w-full bg-muted/50 rounded mb-2" />
-                  <div className="h-5 w-3/4 bg-muted/50 rounded mb-4" />
-                  <div className="h-3 w-full bg-muted/30 rounded mb-4" />
-                  <div className="flex gap-2">
-                    <div className="h-10 flex-1 bg-muted/40 rounded-xl" />
-                    <div className="h-10 flex-1 bg-muted/40 rounded-xl" />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {predictions.map((prediction, index) => (
-              <div key={prediction.id} className="relative">
-                {/* Orange awaiting indicator border */}
-                <div className="absolute inset-0 rounded-2xl border-2 border-orange-500/40 pointer-events-none z-10" />
-                {/* Top badges row */}
-                <div className="absolute top-3 left-3 right-3 z-20 flex items-center justify-between gap-2">
-                  {/* Awaiting badge */}
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-500/90 text-white text-xs font-medium shadow-lg">
-                    <Hourglass className="w-3 h-3" />
-                    {t.awaitingLabel || "Awaiting"}
-                  </div>
-                  {/* Sports Score Badge */}
-                  {prediction.category === 'sports' && (
-                    <SportsScoreBadge title={prediction.question} category={prediction.category} />
-                  )}
-                </div>
-                <PredictionCard
-                  prediction={prediction}
-                  index={index}
-                />
-              </div>
-            ))}
-          </div>
-        )}
+        {/* Content - loading, empty, or cards */}
+        {renderContent()}
       </div>
     </section>
   );
