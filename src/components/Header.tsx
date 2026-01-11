@@ -27,17 +27,28 @@ const Header = () => {
   const HEADER_OFFSET = 96; // fixed header + breathing room
 
   const scrollToSection = (sectionId: string) => {
+    const hash = `#${sectionId}`;
+
+    // If we're not on the homepage, navigate there with the hash.
     if (location.pathname !== '/') {
-      navigate('/', { state: { scrollTo: sectionId } });
+      navigate({ pathname: '/', hash });
       setIsMenuOpen(false);
       return;
     }
 
-    const element = document.getElementById(sectionId);
-    if (element) {
-      const top = element.getBoundingClientRect().top + window.scrollY - HEADER_OFFSET;
-      window.scrollTo({ top: Math.max(top, 0), behavior: 'smooth' });
+    // If we're already on the same hash, re-run the scroll manually.
+    if (location.hash === hash) {
+      const element = document.getElementById(sectionId);
+      if (element) {
+        const top = element.getBoundingClientRect().top + window.scrollY - HEADER_OFFSET;
+        window.scrollTo({ top: Math.max(top, 0), behavior: 'smooth' });
+      }
+      setIsMenuOpen(false);
+      return;
     }
+
+    // Update hash so the homepage hash-scroll effect always runs reliably.
+    navigate({ hash });
     setIsMenuOpen(false);
   };
 
