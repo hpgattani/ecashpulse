@@ -159,9 +159,226 @@ async function checkFlippening(): Promise<OracleResult> {
 
 // ==================== SPORTS ORACLES ====================
 
-// TheSportsDB API (free, no key required for basic queries)
+// NFL team name mappings for matching
+const NFL_TEAMS: Record<string, string[]> = {
+  'rams': ['los angeles rams', 'la rams', 'rams'],
+  'panthers': ['carolina panthers', 'panthers'],
+  'packers': ['green bay packers', 'packers', 'green bay'],
+  'bears': ['chicago bears', 'bears', 'chicago'],
+  'chiefs': ['kansas city chiefs', 'chiefs', 'kc chiefs'],
+  'eagles': ['philadelphia eagles', 'eagles', 'philly'],
+  '49ers': ['san francisco 49ers', '49ers', 'niners', 'sf 49ers'],
+  'ravens': ['baltimore ravens', 'ravens'],
+  'bills': ['buffalo bills', 'bills'],
+  'cowboys': ['dallas cowboys', 'cowboys'],
+  'lions': ['detroit lions', 'lions'],
+  'vikings': ['minnesota vikings', 'vikings'],
+  'commanders': ['washington commanders', 'commanders'],
+  'steelers': ['pittsburgh steelers', 'steelers'],
+  'broncos': ['denver broncos', 'broncos'],
+  'chargers': ['los angeles chargers', 'la chargers', 'chargers'],
+  'raiders': ['las vegas raiders', 'raiders'],
+  'dolphins': ['miami dolphins', 'dolphins'],
+  'patriots': ['new england patriots', 'patriots'],
+  'jets': ['new york jets', 'jets'],
+  'bengals': ['cincinnati bengals', 'bengals'],
+  'browns': ['cleveland browns', 'browns'],
+  'texans': ['houston texans', 'texans'],
+  'colts': ['indianapolis colts', 'colts'],
+  'jaguars': ['jacksonville jaguars', 'jaguars'],
+  'titans': ['tennessee titans', 'titans'],
+  'falcons': ['atlanta falcons', 'falcons'],
+  'saints': ['new orleans saints', 'saints'],
+  'buccaneers': ['tampa bay buccaneers', 'buccaneers', 'bucs'],
+  'cardinals': ['arizona cardinals', 'cardinals'],
+  'seahawks': ['seattle seahawks', 'seahawks'],
+  'giants': ['new york giants', 'giants'],
+};
+
+// Parse spread from title like "-10.5", "+3.5", "cover -7"
+function parseSpread(title: string): { team: string; spread: number; opponent: string } | null {
+  const titleLower = title.toLowerCase();
+  
+  // Match patterns like "Rams cover -10.5" or "will the packers cover -7 points"
+  const spreadMatch = title.match(/([+-]?\d+\.?\d*)\s*(?:points?|pts)?/i);
+  if (!spreadMatch) return null;
+  
+  const spread = parseFloat(spreadMatch[1]);
+  if (isNaN(spread)) return null;
+  
+  // Find team names
+  let favoredTeam: string | null = null;
+  let opponent: string | null = null;
+  
+  for (const [key, aliases] of Object.entries(NFL_TEAMS)) {
+    for (const alias of aliases) {
+      if (titleLower.includes(alias)) {
+        if (!favoredTeam) {
+          favoredTeam = key;
+        } else if (!opponent) {
+          opponent = key;
+        }
+      }
+    }
+  }
+  
+  if (!favoredTeam || !opponent) return null;
+  
+  return { team: favoredTeam, spread, opponent };
+}
+
+// Get actual game scores using Perplexity - just the numbers
+async function getGameScores(team1: string, team2: string): Promise<{ team1Score: number; team2Score: number; finished: boolean } | null> {
+  const perplexityKey = Deno.env.get('PERPLEXITY_API_KEY');
+  if (!perplexityKey) return null;
+
+  try {
+    console.log(`🏈 Fetching scores for ${team1} vs ${team2}...`);
+    
+    const response = await fetch('https://api.perplexity.ai/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${perplexityKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'sonar',
+        messages: [
+          { 
+            role: 'system', 
+            content: `You are a sports score lookup tool. Return ONLY a JSON object with final game scores. 
+            
+CRITICAL: Only respond if the game is FINISHED. Do not predict or estimate scores.
+
+Response format (JSON only, no other text):
+{"team1_score": 30, "team2_score": 24, "finished": true}
+
+If the game hasn't finished yet or you can't find final scores:
+{"finished": false}`
+          },
+          { 
+            role: 'user', 
+            content: `What was the FINAL score of the most recent NFL game between the ${team1} and the ${team2}? Today is ${new Date().toISOString().split('T')[0]}. Only provide final scores if the game has ended.` 
+          }
+        ],
+        search_recency_filter: 'day',
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('Perplexity scores API error:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || '';
+    console.log('Score response:', content);
+    
+    // Parse JSON response
+    let cleaned = content.trim();
+    if (cleaned.startsWith('```')) {
+      cleaned = cleaned.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+    }
+    
+    const result = JSON.parse(cleaned);
+    
+    if (!result.finished) {
+      console.log('Game not finished yet');
+      return null;
+    }
+    
+    return {
+      team1Score: parseInt(result.team1_score),
+      team2Score: parseInt(result.team2_score),
+      finished: true
+    };
+  } catch (error) {
+    console.error('Score lookup error:', error);
+    return null;
+  }
+}
+
+// Check spread-based predictions with actual score math
+async function checkSpreadPrediction(title: string): Promise<OracleResult> {
+  const parsed = parseSpread(title);
+  if (!parsed) {
+    console.log('Could not parse spread from title');
+    return { resolved: false };
+  }
+  
+  console.log(`📊 Spread prediction: ${parsed.team} at ${parsed.spread} vs ${parsed.opponent}`);
+  
+  // Get actual scores
+  const scores = await getGameScores(parsed.team, parsed.opponent);
+  if (!scores) {
+    console.log('Could not get game scores');
+    return { resolved: false };
+  }
+  
+  // Calculate if spread was covered
+  // Negative spread means favored team must win by more than that amount
+  // e.g., Rams -10.5 means Rams must win by 11+ points
+  const margin = scores.team1Score - scores.team2Score;
+  const spreadCovered = margin > Math.abs(parsed.spread);
+  
+  // If spread is negative (favorite), they need to win by more than spread
+  // If spread is positive (underdog), they can lose by less than spread
+  let covered: boolean;
+  if (parsed.spread < 0) {
+    // Favorite: must win by more than spread
+    covered = margin > Math.abs(parsed.spread);
+  } else {
+    // Underdog: can lose by less than spread or win
+    covered = margin > -parsed.spread;
+  }
+  
+  const outcome = covered ? 'yes' : 'no';
+  
+  return {
+    resolved: true,
+    outcome,
+    reason: `Final Score: ${parsed.team.charAt(0).toUpperCase() + parsed.team.slice(1)} ${scores.team1Score} - ${scores.team2Score} ${parsed.opponent.charAt(0).toUpperCase() + parsed.opponent.slice(1)}. Margin: ${margin > 0 ? '+' : ''}${margin}. Spread: ${parsed.spread}. ${covered ? 'COVERED' : 'DID NOT COVER'}.`,
+    currentValue: `${scores.team1Score}-${scores.team2Score}`
+  };
+}
+
+// Simple win/lose sports predictions (no spread)
 async function checkSportsResult(title: string): Promise<OracleResult> {
   const titleLower = title.toLowerCase();
+  
+  // Check if this is a spread prediction - delegate to spread oracle
+  if (titleLower.includes('cover') || titleLower.match(/[+-]\d+\.?\d*\s*points?/i)) {
+    return await checkSpreadPrediction(title);
+  }
+  
+  // Check if this is a simple "will team X beat team Y" prediction
+  const beatMatch = titleLower.match(/will\s+(?:the\s+)?(\w+)\s+beat\s+(?:the\s+)?(\w+)/);
+  if (beatMatch) {
+    const team1 = beatMatch[1].toLowerCase();
+    const team2 = beatMatch[2].toLowerCase();
+    
+    // Look up team in NFL teams
+    let team1Key: string | null = null;
+    let team2Key: string | null = null;
+    
+    for (const [key, aliases] of Object.entries(NFL_TEAMS)) {
+      if (aliases.some(a => a.includes(team1) || team1.includes(key))) team1Key = key;
+      if (aliases.some(a => a.includes(team2) || team2.includes(key))) team2Key = key;
+    }
+    
+    if (team1Key && team2Key) {
+      const scores = await getGameScores(team1Key, team2Key);
+      if (scores && scores.finished) {
+        const team1Won = scores.team1Score > scores.team2Score;
+        return {
+          resolved: true,
+          outcome: team1Won ? 'yes' : 'no',
+          reason: `Final Score: ${team1Key} ${scores.team1Score} - ${scores.team2Score} ${team2Key}`,
+          currentValue: `${scores.team1Score}-${scores.team2Score}`
+        };
+      }
+    }
+  }
   
   try {
     // Super Bowl predictions
@@ -169,7 +386,6 @@ async function checkSportsResult(title: string): Promise<OracleResult> {
       const teamMatch = title.match(/(?:chiefs|eagles|49ers|ravens|bills|cowboys|packers|lions)/i);
       if (teamMatch) {
         const team = teamMatch[0].toLowerCase();
-        // Query TheSportsDB for NFL events
         const response = await fetch(
           `https://www.thesportsdb.com/api/v1/json/3/searchevents.php?e=Super_Bowl`
         );
@@ -216,32 +432,6 @@ async function checkSportsResult(title: string): Promise<OracleResult> {
               };
             }
           }
-        }
-      }
-    }
-
-    // World Series / MLB
-    if (titleLower.includes('world series') || titleLower.includes('mlb')) {
-      const response = await fetch(
-        `https://www.thesportsdb.com/api/v1/json/3/searchevents.php?e=World_Series`
-      );
-      if (response.ok) {
-        const data = await response.json();
-        // Process MLB results
-      }
-    }
-
-    // Premier League / Soccer
-    if (titleLower.includes('premier league') || titleLower.includes('champions league')) {
-      const teamMatch = title.match(/(?:manchester|liverpool|chelsea|arsenal|tottenham|city)/i);
-      if (teamMatch) {
-        const team = teamMatch[0].toLowerCase();
-        const response = await fetch(
-          `https://www.thesportsdb.com/api/v1/json/3/searchteams.php?t=${team}`
-        );
-        if (response.ok) {
-          const data = await response.json();
-          // Process team results
         }
       }
     }
@@ -541,8 +731,7 @@ Deno.serve(async (req) => {
       // Route to appropriate oracle based on category and content
       const titleLower = pred.title.toLowerCase();
       
-      // CRITICAL: Skip spread-based sports predictions - require manual resolution
-      // AI cannot accurately verify point spreads without exact final scores
+      // Check if this is a spread-based prediction - use dedicated spread oracle
       const isSpreadPrediction = 
         titleLower.includes('cover') || 
         titleLower.includes('spread') || 
@@ -552,25 +741,22 @@ Deno.serve(async (req) => {
         titleLower.includes('ats');
       
       if (isSpreadPrediction) {
-        console.log(`⚠️ SKIPPING spread prediction (requires manual resolution): ${pred.title.slice(0, 60)}`);
-        continue; // Skip to next prediction - admin must resolve manually
+        console.log(`🏈 Processing spread prediction with score-based oracle...`);
+        oracleResult = await checkSpreadPrediction(pred.title);
+        source = 'NFL Score Oracle';
       }
-      
-      // CRITICAL: Skip over/under predictions - require exact final scores
-      const isOverUnderPrediction = 
-        titleLower.includes('over/under') || 
-        titleLower.includes('over under') ||
-        (titleLower.includes('total') && titleLower.includes('points')) ||
-        titleLower.match(/over\s+\d+\.?\d*/) ||
-        titleLower.match(/under\s+\d+\.?\d*/);
-      
-      if (isOverUnderPrediction) {
-        console.log(`⚠️ SKIPPING over/under prediction (requires manual resolution): ${pred.title.slice(0, 60)}`);
-        continue; // Skip to next prediction - admin must resolve manually
+      // Check for over/under - use total score calculation
+      else if (titleLower.includes('over/under') || 
+               titleLower.includes('over under') ||
+               (titleLower.includes('total') && titleLower.includes('points'))) {
+        console.log(`🏈 Processing over/under prediction...`);
+        // TODO: Implement over/under oracle when needed
+        // For now, skip these
+        console.log(`⚠️ Over/under predictions not yet supported`);
+        continue;
       }
-      
       // 1. Check for flippening predictions first
-      if (titleLower.includes('flippen') || 
+      else if (titleLower.includes('flippen') || 
           (titleLower.includes('ethereum') && titleLower.includes('bitcoin') && titleLower.includes('market cap'))) {
         oracleResult = await checkFlippening();
         source = 'CoinGecko Market Cap';
@@ -582,12 +768,12 @@ Deno.serve(async (req) => {
         oracleResult = await checkCryptoPrediction(pred.title);
         source = 'CoinGecko Price';
       }
-      // 3. Sports predictions - only simple win/lose (no spreads)
+      // 3. Sports predictions - handles both spread and simple win/lose
       else if (pred.category === 'sports' ||
-               ['super bowl', 'world series', 'wimbledon', 'premier league', 'nba', 'nfl', 'champions league']
+               ['super bowl', 'world series', 'wimbledon', 'premier league', 'nba', 'nfl', 'champions league', 'college football', 'cfp', 'playoff']
                  .some(s => titleLower.includes(s))) {
         oracleResult = await checkSportsResult(pred.title);
-        source = 'TheSportsDB';
+        source = 'Sports Score Oracle';
       }
       // 4. Entertainment predictions
       else if (pred.category === 'entertainment' ||
