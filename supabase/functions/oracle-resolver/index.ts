@@ -195,45 +195,122 @@ const NFL_TEAMS: Record<string, string[]> = {
   'giants': ['new york giants', 'giants'],
 };
 
-// Parse spread from title like "-10.5", "+3.5", "cover -7"
+// Parse spread from title like "-10.5", "+3.5", "cover -7", or "win by at least 1.5 points"
 function parseSpread(title: string): { team: string; spread: number; opponent: string } | null {
   const titleLower = title.toLowerCase();
   
-  // Match patterns like "Rams cover -10.5" or "will the packers cover -7 points"
+  // Match "win by at least X points" pattern (the favored team needs to win by that margin)
+  const winByMatch = titleLower.match(/win\s+by\s+(?:at\s+least\s+)?(\d+\.?\d*)\s*(?:points?|pts)?/i);
+  // Match patterns like "cover -10.5" or "will the packers cover -7 points"
   const spreadMatch = title.match(/([+-]?\d+\.?\d*)\s*(?:points?|pts)?/i);
-  if (!spreadMatch) return null;
   
-  const spread = parseFloat(spreadMatch[1]);
+  let spread: number;
+  
+  if (winByMatch) {
+    // "win by at least X" means they need margin > X (like a negative spread)
+    spread = -parseFloat(winByMatch[1]); // Negative because it's a "must win by" condition
+    console.log(`Parsed "win by at least" pattern: spread = ${spread}`);
+  } else if (spreadMatch) {
+    spread = parseFloat(spreadMatch[1]);
+    console.log(`Parsed standard spread pattern: spread = ${spread}`);
+  } else {
+    return null;
+  }
+  
   if (isNaN(spread)) return null;
   
-  // Find team names
-  let favoredTeam: string | null = null;
-  let opponent: string | null = null;
+  // Find team names in order of appearance
+  const teamMatches: string[] = [];
   
   for (const [key, aliases] of Object.entries(NFL_TEAMS)) {
     for (const alias of aliases) {
-      if (titleLower.includes(alias)) {
-        if (!favoredTeam) {
-          favoredTeam = key;
-        } else if (!opponent) {
-          opponent = key;
-        }
+      const idx = titleLower.indexOf(alias);
+      if (idx !== -1 && !teamMatches.includes(key)) {
+        teamMatches.push(key);
+        break;
       }
     }
   }
   
-  if (!favoredTeam || !opponent) return null;
+  if (teamMatches.length < 2) return null;
   
-  return { team: favoredTeam, spread, opponent };
+  // First team mentioned is the "favored" team (the one the question is about)
+  return { team: teamMatches[0], spread, opponent: teamMatches[1] };
 }
 
-// Get actual game scores using Perplexity - just the numbers
-async function getGameScores(team1: string, team2: string): Promise<{ team1Score: number; team2Score: number; finished: boolean } | null> {
+// Get actual game scores using ESPN API as primary source
+async function getScoresFromEspn(team1: string, team2: string): Promise<{ team1Score: number; team2Score: number; finished: boolean; source: string } | null> {
+  try {
+    console.log(`🏈 [ESPN] Fetching scores for ${team1} vs ${team2}...`);
+    
+    const scoreboardRes = await fetch('https://site.api.espn.com/apis/v2/sports/football/nfl/scoreboard');
+    if (!scoreboardRes.ok) {
+      console.error('ESPN scoreboard fetch failed:', scoreboardRes.status);
+      return null;
+    }
+
+    const scoreboard = await scoreboardRes.json();
+    const events = scoreboard?.events || [];
+
+    const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
+    const t1 = normalize(team1);
+    const t2 = normalize(team2);
+
+    for (const ev of events) {
+      const comp = ev?.competitions?.[0];
+      const competitors = comp?.competitors || [];
+      if (competitors.length < 2) continue;
+
+      const names = competitors.map((c: any) => normalize(c?.team?.displayName || c?.team?.name || ''));
+      const has1 = names.some((n: string) => n.includes(t1) || t1.includes(n));
+      const has2 = names.some((n: string) => n.includes(t2) || t2.includes(n));
+      if (!has1 || !has2) continue;
+
+      const statusObj = comp?.status?.type;
+      const state = statusObj?.state as string | undefined;
+      const completed = Boolean(statusObj?.completed);
+
+      if (!completed && state !== 'post') {
+        console.log(`[ESPN] Game found but not finished yet (state: ${state})`);
+        return null;
+      }
+
+      // Find which competitor matches team1 and team2
+      let team1Score: number | null = null;
+      let team2Score: number | null = null;
+      
+      for (const c of competitors) {
+        const cName = normalize(c?.team?.displayName || c?.team?.name || '');
+        const score = c?.score != null ? Number(c.score) : null;
+        
+        if (cName.includes(t1) || t1.includes(cName)) {
+          team1Score = score;
+        } else if (cName.includes(t2) || t2.includes(cName)) {
+          team2Score = score;
+        }
+      }
+
+      if (team1Score !== null && team2Score !== null) {
+        console.log(`✅ [ESPN] Final scores: ${team1} ${team1Score} - ${team2Score} ${team2}`);
+        return { team1Score, team2Score, finished: true, source: 'ESPN' };
+      }
+    }
+
+    console.log('[ESPN] No matching game found');
+    return null;
+  } catch (error) {
+    console.error('[ESPN] Score lookup error:', error);
+    return null;
+  }
+}
+
+// Fallback: Get scores using Perplexity (only if ESPN fails)
+async function getScoresFromPerplexity(team1: string, team2: string): Promise<{ team1Score: number; team2Score: number; finished: boolean; source: string } | null> {
   const perplexityKey = Deno.env.get('PERPLEXITY_API_KEY');
   if (!perplexityKey) return null;
 
   try {
-    console.log(`🏈 Fetching scores for ${team1} vs ${team2}...`);
+    console.log(`🏈 [Perplexity] Fetching scores for ${team1} vs ${team2}...`);
     
     const response = await fetch('https://api.perplexity.ai/chat/completions', {
       method: 'POST',
@@ -246,19 +323,20 @@ async function getGameScores(team1: string, team2: string): Promise<{ team1Score
         messages: [
           { 
             role: 'system', 
-            content: `You are a sports score lookup tool. Return ONLY a JSON object with final game scores. 
-            
+            content: `You are a sports score lookup tool. Return ONLY a JSON object with final game scores.
+
 CRITICAL: Only respond if the game is FINISHED. Do not predict or estimate scores.
+Double-check the score from official NFL sources.
 
 Response format (JSON only, no other text):
 {"team1_score": 30, "team2_score": 24, "finished": true}
 
-If the game hasn't finished yet or you can't find final scores:
+If the game hasn't finished yet or you can't find verified final scores:
 {"finished": false}`
           },
           { 
             role: 'user', 
-            content: `What was the FINAL score of the most recent NFL game between the ${team1} and the ${team2}? Today is ${new Date().toISOString().split('T')[0]}. Only provide final scores if the game has ended.` 
+            content: `What was the OFFICIAL FINAL score of the most recent NFL game between the ${team1} and the ${team2}? Today is ${new Date().toISOString().split('T')[0]}. Verify from NFL.com or ESPN. Only provide final scores if the game has completely ended.` 
           }
         ],
         search_recency_filter: 'day',
@@ -266,15 +344,14 @@ If the game hasn't finished yet or you can't find final scores:
     });
 
     if (!response.ok) {
-      console.error('Perplexity scores API error:', response.status);
+      console.error('[Perplexity] API error:', response.status);
       return null;
     }
 
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || '';
-    console.log('Score response:', content);
+    console.log('[Perplexity] Response:', content);
     
-    // Parse JSON response
     let cleaned = content.trim();
     if (cleaned.startsWith('```')) {
       cleaned = cleaned.replace(/```json\n?/g, '').replace(/```\n?/g, '');
@@ -283,19 +360,61 @@ If the game hasn't finished yet or you can't find final scores:
     const result = JSON.parse(cleaned);
     
     if (!result.finished) {
-      console.log('Game not finished yet');
+      console.log('[Perplexity] Game not finished yet');
       return null;
     }
     
     return {
       team1Score: parseInt(result.team1_score),
       team2Score: parseInt(result.team2_score),
-      finished: true
+      finished: true,
+      source: 'Perplexity'
     };
   } catch (error) {
-    console.error('Score lookup error:', error);
+    console.error('[Perplexity] Score lookup error:', error);
     return null;
   }
+}
+
+// Multi-source score verification - ESPN primary, Perplexity fallback/verification
+async function getGameScores(team1: string, team2: string): Promise<{ team1Score: number; team2Score: number; finished: boolean; source: string } | null> {
+  // Primary: ESPN API (official live data)
+  const espnScores = await getScoresFromEspn(team1, team2);
+  
+  if (espnScores) {
+    console.log(`✅ Using ESPN scores: ${team1} ${espnScores.team1Score} - ${espnScores.team2Score} ${team2}`);
+    
+    // Optional: Cross-verify with Perplexity for high-stakes predictions
+    const perplexityScores = await getScoresFromPerplexity(team1, team2);
+    
+    if (perplexityScores) {
+      // Check if scores match
+      if (espnScores.team1Score === perplexityScores.team1Score && 
+          espnScores.team2Score === perplexityScores.team2Score) {
+        console.log(`✅ Scores VERIFIED by both sources!`);
+        return { ...espnScores, source: 'ESPN + Perplexity (verified)' };
+      } else {
+        // MISMATCH - log warning and trust ESPN (official source)
+        console.warn(`⚠️ SCORE MISMATCH! ESPN: ${espnScores.team1Score}-${espnScores.team2Score}, Perplexity: ${perplexityScores.team1Score}-${perplexityScores.team2Score}`);
+        console.warn(`⚠️ Trusting ESPN as official source.`);
+        return { ...espnScores, source: 'ESPN (Perplexity mismatch - ignored)' };
+      }
+    }
+    
+    return espnScores;
+  }
+  
+  // Fallback: Perplexity only (when ESPN doesn't have the game)
+  console.log(`⚠️ ESPN did not return scores, falling back to Perplexity only...`);
+  const perplexityScores = await getScoresFromPerplexity(team1, team2);
+  
+  if (perplexityScores) {
+    console.warn(`⚠️ Using Perplexity-only scores (unverified): ${team1} ${perplexityScores.team1Score} - ${perplexityScores.team2Score} ${team2}`);
+    return { ...perplexityScores, source: 'Perplexity (unverified - ESPN unavailable)' };
+  }
+  
+  console.error(`❌ Could not get scores from any source`);
+  return null;
 }
 
 // Check spread-based predictions with actual score math
@@ -337,7 +456,7 @@ async function checkSpreadPrediction(title: string): Promise<OracleResult> {
   return {
     resolved: true,
     outcome,
-    reason: `Final Score: ${parsed.team.charAt(0).toUpperCase() + parsed.team.slice(1)} ${scores.team1Score} - ${scores.team2Score} ${parsed.opponent.charAt(0).toUpperCase() + parsed.opponent.slice(1)}. Margin: ${margin > 0 ? '+' : ''}${margin}. Spread: ${parsed.spread}. ${covered ? 'COVERED' : 'DID NOT COVER'}.`,
+    reason: `Final Score: ${parsed.team.charAt(0).toUpperCase() + parsed.team.slice(1)} ${scores.team1Score} - ${scores.team2Score} ${parsed.opponent.charAt(0).toUpperCase() + parsed.opponent.slice(1)}. Margin: ${margin > 0 ? '+' : ''}${margin}. Spread: ${parsed.spread}. ${covered ? 'COVERED' : 'DID NOT COVER'}. (Source: ${scores.source})`,
     currentValue: `${scores.team1Score}-${scores.team2Score}`
   };
 }
