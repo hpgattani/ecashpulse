@@ -34,10 +34,15 @@ interface PredictionForCard {
   noPool?: number;
 }
 
-const AwaitingResolutionSection = () => {
+type AwaitingResolutionSectionProps = {
+  embedded?: boolean;
+};
+
+const AwaitingResolutionSection = ({ embedded = false }: AwaitingResolutionSectionProps) => {
   const { t } = useLanguage();
   const [predictions, setPredictions] = useState<PredictionForCard[]>([]);
   const [loading, setLoading] = useState(true);
+
 
   useEffect(() => {
     fetchAwaitingResolution();
@@ -214,8 +219,11 @@ const AwaitingResolutionSection = () => {
 
   // ALWAYS render the section - never return null
   return (
-    <section id="awaiting" className="py-8 sm:py-12 px-4 scroll-mt-24">
-      <div className="max-w-7xl mx-auto">
+    <section
+      id="awaiting"
+      className={embedded ? "scroll-mt-24" : "py-8 sm:py-12 px-4 scroll-mt-24"}
+    >
+      <div className={embedded ? "" : "max-w-7xl mx-auto"}>
         {/* Header - always visible */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">

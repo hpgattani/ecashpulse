@@ -4,7 +4,6 @@ import { useLocation } from 'react-router-dom';
 import Header from '@/components/Header';
 import Hero from '@/components/Hero';
 import PendingBetsSection from '@/components/PendingBetsSection';
-import AwaitingResolutionSection from '@/components/AwaitingResolutionSection';
 import TrendingSection from '@/components/TrendingSection';
 import MarketsSection from '@/components/MarketsSection';
 import ResolvedBets from '@/components/ResolvedBets';
@@ -50,14 +49,13 @@ const Index = () => {
       
       <div className="min-h-screen bg-background">
         <Header />
-        <main>
-          <Hero />
-          <PendingBetsSection />
-          <TrendingSection />
-          <MarketsSection />
-          <AwaitingResolutionSection />
-          <ResolvedBets />
-          <Leaderboard />
+          <main>
+            <Hero />
+            <PendingBetsSection />
+            <TrendingSection />
+            <MarketsSection />
+            <ResolvedBets />
+            <Leaderboard />
           
           {/* Transparent Public Bets Section */}
           <section className="py-8 sm:py-16 px-4">
