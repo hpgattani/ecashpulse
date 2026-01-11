@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { useUserBetSummaries, type UserBetSummary } from "@/hooks/useUserBetSummaries";
 import CountdownTimer from "./CountdownTimer";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { getKnownScore } from "@/hooks/useSportsScores";
 
 interface Prediction {
   id: string;
@@ -87,6 +88,9 @@ const PredictionCard = ({ prediction, index, livePrice, climateData }: Predictio
 
   // Check if betting is closed (endDate has passed but not yet resolved)
   const isBettingClosed = new Date(prediction.endDate) < new Date();
+
+  // Get sports team logos if applicable
+  const sportsScore = prediction.category === 'sports' ? getKnownScore(prediction.question) : null;
 
   // Detect if this is an Up/Down prediction (binary but not Yes/No)
   const outcomeLabels = prediction.outcomes?.map(o => o.label.toLowerCase().trim()) || [];
@@ -343,6 +347,35 @@ const PredictionCard = ({ prediction, index, livePrice, climateData }: Predictio
               </button>
             </div>
           </div>
+
+          {/* Sports Team Logos */}
+          {sportsScore && (sportsScore.homeLogo || sportsScore.awayLogo) && (
+            <div className="flex items-center justify-center gap-4 mb-3 py-2 px-3 rounded-lg bg-muted/30">
+              <div className="flex items-center gap-2">
+                {sportsScore.homeLogo && (
+                  <img 
+                    src={sportsScore.homeLogo} 
+                    alt={sportsScore.homeTeam} 
+                    className="w-8 h-8 object-contain"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                )}
+                <span className="text-sm font-medium text-foreground">{sportsScore.homeTeam}</span>
+              </div>
+              <span className="text-xs text-muted-foreground font-medium">vs</span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-foreground">{sportsScore.awayTeam}</span>
+                {sportsScore.awayLogo && (
+                  <img 
+                    src={sportsScore.awayLogo} 
+                    alt={sportsScore.awayTeam} 
+                    className="w-8 h-8 object-contain"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                )}
+              </div>
+            </div>
+          )}
 
           <h3 className="font-display font-semibold text-foreground text-base md:text-lg leading-snug group-hover:text-primary transition-colors pr-12">
             {translateTitle(prediction.question)}
