@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, TrendingUp, TrendingDown, Clock, CheckCircle2, XCircle, Loader2, FileText, Plus } from 'lucide-react';
+import { ArrowLeft, TrendingUp, TrendingDown, Clock, CheckCircle2, XCircle, Loader2, FileText, Plus, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import PredictionDetailModal from '@/components/PredictionDetailModal';
+import BetModal from '@/components/BetModal';
 import CountdownTimer from '@/components/CountdownTimer';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -59,8 +60,11 @@ interface FullPrediction {
   noOdds: number;
   volume: number;
   endDate: string;
+  escrowAddress?: string;
   isMultiOption?: boolean;
   outcomes?: Outcome[];
+  yesPool?: number;
+  noPool?: number;
 }
 
 const MyBets = () => {
@@ -73,6 +77,9 @@ const MyBets = () => {
   const [submissionsLoading, setSubmissionsLoading] = useState(true);
   const [selectedPrediction, setSelectedPrediction] = useState<FullPrediction | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [hedgeBetOpen, setHedgeBetOpen] = useState(false);
+  const [hedgePosition, setHedgePosition] = useState<'yes' | 'no'>('yes');
+  const [hedgePrediction, setHedgePrediction] = useState<FullPrediction | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -198,12 +205,57 @@ const MyBets = () => {
       noOdds,
       volume: totalPool,
       endDate: prediction.end_date,
+      escrowAddress: prediction.escrow_address,
       isMultiOption,
-      outcomes: mappedOutcomes
+      outcomes: mappedOutcomes,
+      yesPool: prediction.yes_pool,
+      noPool: prediction.no_pool,
     };
 
     setSelectedPrediction(fullPrediction);
     setIsModalOpen(true);
+  };
+
+  const handleHedgeBet = async (bet: BetWithPrediction, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    // Fetch full prediction
+    const { data: prediction, error } = await supabase
+      .from('predictions')
+      .select('*')
+      .eq('id', bet.prediction_id)
+      .single();
+
+    if (error || !prediction) return;
+
+    // Check if betting is still open
+    if (new Date(prediction.end_date) < new Date()) {
+      return;
+    }
+
+    const totalPool = prediction.yes_pool + prediction.no_pool;
+    const yesOdds = totalPool > 0 ? Math.round((prediction.yes_pool / totalPool) * 100) : 50;
+    const noOdds = totalPool > 0 ? Math.round((prediction.no_pool / totalPool) * 100) : 50;
+
+    const fullPrediction: FullPrediction = {
+      id: prediction.id,
+      question: prediction.title,
+      description: prediction.description || '',
+      category: prediction.category,
+      yesOdds,
+      noOdds,
+      volume: totalPool,
+      endDate: prediction.end_date,
+      escrowAddress: prediction.escrow_address,
+      yesPool: prediction.yes_pool,
+      noPool: prediction.no_pool,
+    };
+
+    // Set opposite position for hedge
+    const oppositePosition = bet.position === 'yes' ? 'no' : 'yes';
+    setHedgePosition(oppositePosition);
+    setHedgePrediction(fullPrediction);
+    setHedgeBetOpen(true);
   };
 
   const formatXEC = (satoshis: number) => {
@@ -378,38 +430,54 @@ const MyBets = () => {
                             </span>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="font-display font-bold text-lg text-foreground">
-                            {formatXEC(bet.amount)}
-                          </p>
-                          {bet.payout_amount && (
-                            <p className="text-sm text-emerald-400">
-                              {t.won}: {formatXEC(bet.payout_amount)}
-                            </p>
+                        <div className="flex items-center gap-3">
+                          {/* Hedge Button - only show for active predictions with confirmed bets */}
+                          {bet.status === 'confirmed' && 
+                           bet.prediction.status === 'active' && 
+                           new Date(bet.prediction.end_date) > new Date() && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-1.5 border-amber-500/50 text-amber-500 hover:bg-amber-500/10 hover:text-amber-400"
+                              onClick={(e) => handleHedgeBet(bet, e)}
+                            >
+                              <Shield className="w-3.5 h-3.5" />
+                              {t.hedge || "Hedge"}
+                            </Button>
                           )}
-                          <div className="flex gap-2 text-xs">
-                            {bet.tx_hash && (
-                              <a
-                                href={`https://explorer.e.cash/tx/${bet.tx_hash}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-muted-foreground hover:text-primary hover:underline"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                {t.betTx}
-                              </a>
+                          <div className="text-right">
+                            <p className="font-display font-bold text-lg text-foreground">
+                              {formatXEC(bet.amount)}
+                            </p>
+                            {bet.payout_amount && (
+                              <p className="text-sm text-emerald-400">
+                                {t.won}: {formatXEC(bet.payout_amount)}
+                              </p>
                             )}
-                            {bet.payout_tx_hash && (
-                              <a
-                                href={`https://explorer.e.cash/tx/${bet.payout_tx_hash}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-emerald-400 hover:underline font-medium"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                {t.payoutTx}
-                              </a>
-                            )}
+                            <div className="flex gap-2 text-xs">
+                              {bet.tx_hash && (
+                                <a
+                                  href={`https://explorer.e.cash/tx/${bet.tx_hash}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-muted-foreground hover:text-primary hover:underline"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {t.betTx}
+                                </a>
+                              )}
+                              {bet.payout_tx_hash && (
+                                <a
+                                  href={`https://explorer.e.cash/tx/${bet.payout_tx_hash}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-emerald-400 hover:underline font-medium"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {t.payoutTx}
+                                </a>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -579,6 +647,29 @@ const MyBets = () => {
         prediction={selectedPrediction}
         onSelectOutcome={() => {}}
       />
+
+      {hedgePrediction && (
+        <BetModal
+          isOpen={hedgeBetOpen}
+          onClose={() => {
+            setHedgeBetOpen(false);
+            setHedgePrediction(null);
+          }}
+          prediction={{
+            id: hedgePrediction.id,
+            question: hedgePrediction.question,
+            yesOdds: hedgePrediction.yesOdds,
+            noOdds: hedgePrediction.noOdds,
+            volume: hedgePrediction.volume / 100,
+            endDate: hedgePrediction.endDate,
+            escrowAddress: hedgePrediction.escrowAddress || '',
+            yesPool: hedgePrediction.yesPool,
+            noPool: hedgePrediction.noPool,
+          }}
+          position={hedgePosition}
+          selectedOutcome={null}
+        />
+      )}
     </>
   );
 };
