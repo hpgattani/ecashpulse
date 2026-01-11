@@ -66,6 +66,7 @@ const CreatePrediction = () => {
   const [category, setCategory] = useState("crypto");
   const [endDate, setEndDate] = useState<Date>();
   const [dateInputValue, setDateInputValue] = useState("");
+  const [endTime, setEndTime] = useState("23:59");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [feeInXEC, setFeeInXEC] = useState<number | null>(null);
@@ -178,6 +179,11 @@ const CreatePrediction = () => {
   const submitPrediction = async (txHash?: string) => {
     if (!user || !title || !endDate) return;
     
+    // Combine date and time
+    const [hours, minutes] = endTime.split(':').map(Number);
+    const combinedDateTime = new Date(endDate);
+    combinedDateTime.setHours(hours, minutes, 0, 0);
+    
     setIsSubmitting(true);
     try {
       const { data, error } = await supabase.functions.invoke("submit-prediction", {
@@ -185,7 +191,7 @@ const CreatePrediction = () => {
           title: title.trim(),
           description: description.trim() || null,
           category,
-          end_date: endDate.toISOString(),
+          end_date: combinedDateTime.toISOString(),
           user_id: user.id,
           tx_hash: txHash,
           fee_amount: feeInXEC,
@@ -414,7 +420,7 @@ const CreatePrediction = () => {
                   transition={{ delay: 0.3 }}
                   className="space-y-2"
                 >
-                  <Label>Resolution Date *</Label>
+                  <Label>Betting Closes Date *</Label>
                   <div className="flex gap-2">
                     <Input
                       placeholder="MM/DD/YYYY"
@@ -445,7 +451,52 @@ const CreatePrediction = () => {
                     </Popover>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Type a date or use the calendar picker
+                    Select when betting should close (no more bets accepted after this)
+                  </p>
+                </motion.div>
+
+                {/* Betting Close Time */}
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.32 }}
+                  className="space-y-2"
+                >
+                  <Label>Betting Closes Time *</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        placeholder="HH"
+                        min="0"
+                        max="23"
+                        value={endTime.split(':')[0]}
+                        onChange={(e) => {
+                          const hours = Math.min(23, Math.max(0, parseInt(e.target.value) || 0)).toString().padStart(2, '0');
+                          setEndTime(`${hours}:${endTime.split(':')[1]}`);
+                        }}
+                        className="pr-12"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">Hours</span>
+                    </div>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        placeholder="MM"
+                        min="0"
+                        max="59"
+                        value={endTime.split(':')[1]}
+                        onChange={(e) => {
+                          const minutes = Math.min(59, Math.max(0, parseInt(e.target.value) || 0)).toString().padStart(2, '0');
+                          setEndTime(`${endTime.split(':')[0]}:${minutes}`);
+                        }}
+                        className="pr-16"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">Minutes</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Set the exact time when betting closes (24h format, your local timezone)
                   </p>
                 </motion.div>
 
