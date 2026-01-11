@@ -78,7 +78,7 @@ const MarketsSection = () => {
   });
 
   return (
-    <section id="markets" className="py-20 relative">
+    <section id="markets" className="py-12 sm:py-20 relative">
       <div className="container mx-auto px-4">
         {/* Section Header */}
         <motion.div
