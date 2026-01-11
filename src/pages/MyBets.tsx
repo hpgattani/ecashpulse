@@ -6,6 +6,7 @@ import { ArrowLeft, TrendingUp, TrendingDown, Clock, CheckCircle2, XCircle, Load
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import PredictionDetailModal from '@/components/PredictionDetailModal';
@@ -435,15 +436,24 @@ const MyBets = () => {
                           {bet.status === 'confirmed' && 
                            bet.prediction.status === 'active' && 
                            new Date(bet.prediction.end_date) > new Date() && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="gap-1.5 border-amber-500/50 text-amber-500 hover:bg-amber-500/10 hover:text-amber-400"
-                              onClick={(e) => handleHedgeBet(bet, e)}
-                            >
-                              <Shield className="w-3.5 h-3.5" />
-                              {t.hedge || "Hedge"}
-                            </Button>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="gap-1.5 border-amber-500/50 text-amber-500 hover:bg-amber-500/10 hover:text-amber-400"
+                                    onClick={(e) => handleHedgeBet(bet, e)}
+                                  >
+                                    <Shield className="w-3.5 h-3.5" />
+                                    {t.hedge || "Hedge"}
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-[200px] text-center">
+                                  <p className="text-xs">{t.hedgeTooltip}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           )}
                           <div className="text-right">
                             <p className="font-display font-bold text-lg text-foreground">
