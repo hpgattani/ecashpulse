@@ -294,14 +294,29 @@ const MyBets = () => {
           </div>
 
           <Tabs defaultValue="bets" className="w-full">
-            <div className="glass-card inline-flex p-1.5 mb-6 rounded-xl">
-              <TabsList className="bg-transparent h-auto p-0 gap-1">
+            <div className="glass-card inline-flex p-1.5 mb-6 rounded-xl flex-wrap">
+              <TabsList className="bg-transparent h-auto p-0 gap-1 flex-wrap">
                 <TabsTrigger 
                   value="bets" 
                   className="flex items-center gap-2 px-4 py-2.5 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all"
                 >
                   <TrendingUp className="w-4 h-4" />
                   {t.myBetsTitle}
+                  {bets.length > 0 && (
+                    <span className="ml-1 text-xs bg-muted/50 px-1.5 py-0.5 rounded-full">{bets.length}</span>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="pending" 
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-lg data-[state=active]:bg-yellow-500 data-[state=active]:text-yellow-950 transition-all"
+                >
+                  <Clock className="w-4 h-4" />
+                  {t.pending}
+                  {bets.filter(b => b.status === 'pending').length > 0 && (
+                    <span className="ml-1 text-xs bg-yellow-400/30 px-1.5 py-0.5 rounded-full">
+                      {bets.filter(b => b.status === 'pending').length}
+                    </span>
+                  )}
                 </TabsTrigger>
                 <TabsTrigger 
                   value="submissions" 
@@ -396,6 +411,86 @@ const MyBets = () => {
                               </a>
                             )}
                           </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="pending">
+              {bets.filter(b => b.status === 'pending').length === 0 ? (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="glass-card p-12 text-center"
+                >
+                  <div className="w-16 h-16 rounded-full bg-yellow-500/20 flex items-center justify-center mx-auto mb-4">
+                    <Clock className="w-8 h-8 text-yellow-500" />
+                  </div>
+                  <h2 className="font-display text-xl font-semibold text-foreground mb-2">
+                    {t.noPendingBets || "No Pending Bets"}
+                  </h2>
+                  <p className="text-muted-foreground mb-6">
+                    {t.noPendingBetsDesc || "All your bets have been confirmed on the blockchain."}
+                  </p>
+                  <Button onClick={() => navigate('/')}>
+                    {t.exploreMarkets}
+                  </Button>
+                </motion.div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="glass-card p-4 border-yellow-500/30 bg-yellow-500/5">
+                    <div className="flex items-center gap-2 text-yellow-500">
+                      <Clock className="w-5 h-5" />
+                      <p className="text-sm font-medium">
+                        {t.pendingBetsInfo || "These bets are waiting for blockchain confirmation. This usually takes 1-2 minutes."}
+                      </p>
+                    </div>
+                  </div>
+                  {bets.filter(b => b.status === 'pending').map((bet, index) => (
+                    <motion.div
+                      key={bet.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      onClick={() => handleBetClick(bet)}
+                      className="glass-card p-4 md:p-6 cursor-pointer hover:border-yellow-500/50 transition-colors border-yellow-500/20"
+                    >
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="flex-1">
+                          <h3 className="font-display font-semibold text-foreground mb-2 hover:text-primary transition-colors">
+                            {translateTitle(bet.prediction?.title || 'Unknown Prediction')}
+                          </h3>
+                          <div className="flex flex-wrap items-center gap-2 text-sm">
+                            <Badge
+                              variant={bet.position === 'yes' ? 'default' : 'destructive'}
+                              className={bet.position === 'yes' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}
+                            >
+                              {bet.position === 'yes' ? t.yes.toUpperCase() : t.no.toUpperCase()}
+                            </Badge>
+                            {getStatusBadge(bet.status)}
+                            <span className="text-muted-foreground">
+                              {formatDate(bet.created_at)}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-display font-bold text-lg text-foreground">
+                            {formatXEC(bet.amount)}
+                          </p>
+                          {bet.tx_hash && (
+                            <a
+                              href={`https://explorer.e.cash/tx/${bet.tx_hash}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-muted-foreground hover:text-primary hover:underline"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {t.viewTransaction || "View Transaction"}
+                            </a>
+                          )}
                         </div>
                       </div>
                     </motion.div>

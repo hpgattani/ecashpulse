@@ -159,6 +159,10 @@ interface Translations {
   refunded: string;
   betTx: string;
   payoutTx: string;
+  noPendingBets: string;
+  noPendingBetsDesc: string;
+  pendingBetsInfo: string;
+  viewTransaction: string;
   
   // My Submissions
   mySubmissions: string;
@@ -421,6 +425,10 @@ const translations: Record<Language, Translations> = {
     refunded: 'Refunded',
     betTx: 'Bet TX',
     payoutTx: 'Payout TX',
+    noPendingBets: 'No Pending Bets',
+    noPendingBetsDesc: 'All your bets have been confirmed on the blockchain.',
+    pendingBetsInfo: 'These bets are waiting for blockchain confirmation. This usually takes 1-2 minutes.',
+    viewTransaction: 'View Transaction',
     
     // My Submissions
     mySubmissions: 'My Submissions',
@@ -597,6 +605,10 @@ const translations: Record<Language, Translations> = {
     refunded: 'Reembolsado',
     betTx: 'TX da Aposta',
     payoutTx: 'TX do Pagamento',
+    noPendingBets: 'Sem Apostas Pendentes',
+    noPendingBetsDesc: 'Todas as suas apostas foram confirmadas na blockchain.',
+    pendingBetsInfo: 'Essas apostas estão aguardando confirmação na blockchain. Isso geralmente leva 1-2 minutos.',
+    viewTransaction: 'Ver Transação',
     
     // My Submissions
     mySubmissions: 'Minhas Submissões',
@@ -773,6 +785,10 @@ const translations: Record<Language, Translations> = {
     refunded: '환불됨',
     betTx: '베팅 TX',
     payoutTx: '지급 TX',
+    noPendingBets: '대기 중인 베팅 없음',
+    noPendingBetsDesc: '모든 베팅이 블록체인에서 확인되었습니다.',
+    pendingBetsInfo: '이 베팅들은 블록체인 확인을 기다리고 있습니다. 보통 1-2분 소요됩니다.',
+    viewTransaction: '거래 보기',
     
     // My Submissions
     mySubmissions: '내 제출',
@@ -949,6 +965,10 @@ const translations: Record<Language, Translations> = {
     refunded: '返金済み',
     betTx: 'ベットTX',
     payoutTx: '支払いTX',
+    noPendingBets: '保留中のベットなし',
+    noPendingBetsDesc: 'すべてのベットがブロックチェーンで確認されました。',
+    pendingBetsInfo: 'これらのベットはブロックチェーンの確認を待っています。通常1-2分かかります。',
+    viewTransaction: '取引を見る',
     
     // My Submissions
     mySubmissions: 'マイ提出',
