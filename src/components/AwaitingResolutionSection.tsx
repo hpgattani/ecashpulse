@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import { Clock, Loader2, Hourglass } from 'lucide-react';
+import { Hourglass } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
 import PredictionCard from './PredictionCard';
@@ -163,12 +162,7 @@ const AwaitingResolutionSection = () => {
   return (
     <section id="awaiting" className="py-8 sm:py-12 px-4">
       <div className="max-w-7xl mx-auto">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="mb-8"
-        >
+        <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 rounded-xl bg-orange-500/20">
               <Hourglass className="w-5 h-5 text-orange-500" />
@@ -185,7 +179,7 @@ const AwaitingResolutionSection = () => {
           <p className="text-muted-foreground">
             {t.awaitingResolutionDesc || "Betting has closed on these markets. Results will be determined by our oracle system."}
           </p>
-        </motion.div>
+        </div>
 
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

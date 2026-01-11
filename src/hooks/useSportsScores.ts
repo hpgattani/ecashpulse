@@ -79,36 +79,51 @@ export function useSportsScores(predictionTitle: string, category: string): Game
       return;
     }
 
-    // For now, return a placeholder that can be updated via admin
-    // In production, this would call TheSportsDB API
     const fetchScore = async () => {
       try {
-        // TheSportsDB free API for past events
+        // Try TheSportsDB last events API for NFL
         const response = await fetch(
-          `https://www.thesportsdb.com/api/v1/json/3/searchevents.php?e=${encodeURIComponent(teams.team1)}_vs_${encodeURIComponent(teams.team2)}`
+          `https://www.thesportsdb.com/api/v1/json/3/eventslast.php?id=134925`
         );
         
         if (response.ok) {
           const data = await response.json();
-          if (data.event && data.event.length > 0) {
-            const event = data.event[0];
-            setScore({
-              homeTeam: event.strHomeTeam || teams.team1,
-              awayTeam: event.strAwayTeam || teams.team2,
-              homeScore: event.intHomeScore !== null ? parseInt(event.intHomeScore) : null,
-              awayScore: event.intAwayScore !== null ? parseInt(event.intAwayScore) : null,
-              status: event.strStatus === 'Match Finished' ? 'final' : 
-                      event.strStatus === 'Not Started' ? 'scheduled' : 'unknown',
-              league: 'NFL',
-            });
-            return;
+          if (data.results && data.results.length > 0) {
+            // Find matching game
+            for (const event of data.results) {
+              const homeTeam = event.strHomeTeam?.toLowerCase() || '';
+              const awayTeam = event.strAwayTeam?.toLowerCase() || '';
+              const team1Lower = teams.team1.toLowerCase();
+              const team2Lower = teams.team2.toLowerCase();
+              
+              if ((homeTeam.includes(team1Lower.split(' ').pop()!) || homeTeam.includes(team2Lower.split(' ').pop()!)) &&
+                  (awayTeam.includes(team1Lower.split(' ').pop()!) || awayTeam.includes(team2Lower.split(' ').pop()!))) {
+                setScore({
+                  homeTeam: event.strHomeTeam || teams.team1,
+                  awayTeam: event.strAwayTeam || teams.team2,
+                  homeScore: event.intHomeScore !== null ? parseInt(event.intHomeScore) : null,
+                  awayScore: event.intAwayScore !== null ? parseInt(event.intAwayScore) : null,
+                  status: event.strStatus === 'Match Finished' ? 'final' : 
+                          event.strStatus === 'Not Started' ? 'scheduled' : 'in_progress',
+                  league: 'NFL',
+                });
+                return;
+              }
+            }
           }
         }
       } catch (error) {
-        console.log('Could not fetch sports score:', error);
+        console.log('TheSportsDB fetch failed:', error);
       }
       
-      // Fallback - just show team names without scores
+      // Fallback to known scores
+      const knownScore = getKnownScore(predictionTitle);
+      if (knownScore) {
+        setScore(knownScore);
+        return;
+      }
+      
+      // Final fallback - just show team names
       setScore({
         homeTeam: teams.team1,
         awayTeam: teams.team2,
@@ -125,19 +140,27 @@ export function useSportsScores(predictionTitle: string, category: string): Game
   return score;
 }
 
-// Static scores cache that can be updated
+// Static scores cache - manually updated for accuracy
 const KNOWN_SCORES: Record<string, GameScore> = {
   'jaguars_bills': {
     homeTeam: 'Buffalo Bills',
     awayTeam: 'Jacksonville Jaguars',
     homeScore: 31,
-    awayScore: 10,
+    awayScore: 23,
     status: 'final',
     league: 'NFL',
   },
   'eagles_49ers': {
     homeTeam: 'Philadelphia Eagles',
     awayTeam: 'San Francisco 49ers',
+    homeScore: null,
+    awayScore: null,
+    status: 'scheduled',
+    league: 'NFL',
+  },
+  'rams_panthers': {
+    homeTeam: 'Los Angeles Rams',
+    awayTeam: 'Carolina Panthers',
     homeScore: null,
     awayScore: null,
     status: 'scheduled',
@@ -153,6 +176,9 @@ export function getKnownScore(title: string): GameScore | null {
   }
   if (lowerTitle.includes('eagles') && lowerTitle.includes('49ers')) {
     return KNOWN_SCORES['eagles_49ers'];
+  }
+  if (lowerTitle.includes('rams') && lowerTitle.includes('panthers')) {
+    return KNOWN_SCORES['rams_panthers'];
   }
   
   return null;
