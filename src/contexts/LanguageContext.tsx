@@ -187,6 +187,10 @@ interface Translations {
   awaitingResolution: string;
   awaitingResolutionDesc: string;
   awaitingLabel: string;
+  
+  // Hedge
+  hedge: string;
+  hedgeYourBet: string;
 }
 
 // Common prediction title translations
@@ -457,6 +461,10 @@ const translations: Record<Language, Translations> = {
     awaitingResolution: 'Awaiting Resolution',
     awaitingResolutionDesc: 'Betting has closed on these markets. Results will be determined by our oracle system.',
     awaitingLabel: 'Awaiting',
+    
+    // Hedge
+    hedge: 'Hedge',
+    hedgeYourBet: 'Hedge Your Bet',
   },
   'pt-BR': {
     // Navigation
@@ -642,6 +650,10 @@ const translations: Record<Language, Translations> = {
     awaitingResolution: 'Aguardando Resolução',
     awaitingResolutionDesc: 'As apostas foram encerradas nestes mercados. Os resultados serão determinados pelo nosso sistema oráculo.',
     awaitingLabel: 'Aguardando',
+    
+    // Hedge
+    hedge: 'Hedge',
+    hedgeYourBet: 'Proteger Sua Aposta',
   },
   ko: {
     // Navigation
@@ -827,6 +839,10 @@ const translations: Record<Language, Translations> = {
     awaitingResolution: '해결 대기 중',
     awaitingResolutionDesc: '이 마켓들의 베팅이 종료되었습니다. 결과는 오라클 시스템에 의해 결정됩니다.',
     awaitingLabel: '대기 중',
+    
+    // Hedge
+    hedge: '헤지',
+    hedgeYourBet: '베팅 헤지',
   },
   ja: {
     // Navigation
@@ -1012,6 +1028,10 @@ const translations: Record<Language, Translations> = {
     awaitingResolution: '解決待ち',
     awaitingResolutionDesc: 'これらのマーケットのベットは終了しました。結果はオラクルシステムによって決定されます。',
     awaitingLabel: '待機中',
+    
+    // Hedge
+    hedge: 'ヘッジ',
+    hedgeYourBet: 'ベットをヘッジ',
   },
 };
 
