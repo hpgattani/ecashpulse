@@ -146,8 +146,13 @@ const AwaitingResolutionSection = () => {
     setLoading(false);
   };
 
-  // Don't render if no predictions awaiting resolution
+  // Don't render if no predictions awaiting resolution (only check after loading complete)
   if (!loading && predictions.length === 0) {
+    return null;
+  }
+
+  // Don't render anything while loading - prevents flash
+  if (loading) {
     return null;
   }
 
