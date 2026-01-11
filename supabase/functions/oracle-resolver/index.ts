@@ -963,12 +963,24 @@ Deno.serve(async (req) => {
         const winningPosition = normalizedOutcome as 'yes' | 'no';
         const status = winningPosition === 'yes' ? 'resolved_yes' : 'resolved_no';
 
+        const baseDescription = (pred.description || '').trim();
+        const oracleStamp = (
+          [
+            '---',
+            `Oracle resolution: ${winningPosition.toUpperCase()}`,
+            `Source: ${source}`,
+            oracleResult.reason ? `Evidence: ${oracleResult.reason}` : undefined,
+          ] as Array<string | undefined>
+        )
+          .filter((line): line is string => Boolean(line))
+          .join('\n');
+
         await supabase
           .from('predictions')
           .update({
             status,
             resolved_at: new Date().toISOString(),
-            description: `${pred.description || ''}\n\n🔮 Oracle Resolution (${source}): ${oracleResult.reason}`
+            description: `${baseDescription}${baseDescription ? '\n\n' : ''}${oracleStamp}`,
           })
           .eq('id', pred.id);
 

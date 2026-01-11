@@ -24,46 +24,54 @@ const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const HEADER_OFFSET = 96; // fixed header + breathing room
+  const getHeaderOffset = () => {
+    // motion.header renders a real <header> element
+    const headerEl = document.querySelector('header');
+    const height = headerEl?.getBoundingClientRect().height ?? 80;
+    // a little extra breathing room so headings never sit under the header
+    return Math.ceil(height + 16);
+  };
+
+  const scrollToIdWithRetry = (sectionId: string) => {
+    let tries = 0;
+    const maxTries = 60; // ~3s
+
+    const attempt = () => {
+      const element = document.getElementById(sectionId);
+      if (element) {
+        const top = element.getBoundingClientRect().top + window.scrollY - getHeaderOffset();
+        window.scrollTo({ top: Math.max(top, 0), behavior: 'smooth' });
+        return;
+      }
+      if (tries++ < maxTries) window.setTimeout(attempt, 50);
+    };
+
+    window.setTimeout(attempt, 0);
+  };
 
   const scrollToSection = (sectionId: string) => {
     const hash = `#${sectionId}`;
-
-    // If we're not on the homepage, navigate there with the hash.
-    if (location.pathname !== '/') {
-      navigate({ pathname: '/', hash });
-      setIsMenuOpen(false);
-      return;
-    }
-
-    // If we're already on the same hash, re-run the scroll manually.
-    if (location.hash === hash) {
-      const element = document.getElementById(sectionId);
-      if (element) {
-        const top = element.getBoundingClientRect().top + window.scrollY - HEADER_OFFSET;
-        window.scrollTo({ top: Math.max(top, 0), behavior: 'smooth' });
-      }
-      setIsMenuOpen(false);
-      return;
-    }
-
-    // Update hash so the homepage hash-scroll effect always runs reliably.
-    navigate({ hash });
     setIsMenuOpen(false);
+
+    // Always keep the hash in the URL (shareable + refresh-safe).
+    if (location.pathname !== '/') {
+      navigate({ pathname: '/', hash }, { state: { scrollTo: sectionId } });
+      return;
+    }
+
+    if (location.hash !== hash) {
+      navigate({ pathname: '/', hash }, { state: { scrollTo: sectionId } });
+    }
+
+    // Also scroll immediately (don’t rely solely on hash effects).
+    scrollToIdWithRetry(sectionId);
   };
 
-  // Handle scroll after navigation
+  // Handle scroll after navigation (from other routes)
   useEffect(() => {
     const scrollTo = (location.state as any)?.scrollTo as string | undefined;
-    if (scrollTo) {
-      setTimeout(() => {
-        const element = document.getElementById(scrollTo);
-        if (element) {
-          const top = element.getBoundingClientRect().top + window.scrollY - HEADER_OFFSET;
-          window.scrollTo({ top: Math.max(top, 0), behavior: 'smooth' });
-        }
-      }, 100);
-    }
+    if (!scrollTo) return;
+    scrollToIdWithRetry(scrollTo);
   }, [location]);
 
   const truncateAddress = (address: string) => {
