@@ -22,8 +22,10 @@ const Index = () => {
     if (location.hash) {
       const element = document.getElementById(location.hash.slice(1));
       if (element) {
+        const HEADER_OFFSET = 96;
         setTimeout(() => {
-          element.scrollIntoView({ behavior: 'smooth' });
+          const top = element.getBoundingClientRect().top + window.scrollY - HEADER_OFFSET;
+          window.scrollTo({ top: Math.max(top, 0), behavior: 'smooth' });
         }, 100);
       }
     }

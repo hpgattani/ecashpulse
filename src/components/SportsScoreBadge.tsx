@@ -1,5 +1,5 @@
 import { Trophy } from 'lucide-react';
-import { useSportsScores } from '@/hooks/useSportsScores';
+import { useNflScoreFromTitle } from '@/hooks/useNflScore';
 
 interface SportsScoreBadgeProps {
   title: string;
@@ -20,50 +20,48 @@ const TeamLogo = ({ src, alt }: { src: string | null | undefined; alt: string })
 };
 
 const SportsScoreBadge = ({ title, category }: SportsScoreBadgeProps) => {
-  const score = useSportsScores(title, category);
+  const score = useNflScoreFromTitle(title, category === 'sports');
 
   if (category !== 'sports' || !score) return null;
 
-  const hasScores = score.homeScore !== null && score.awayScore !== null;
-
-  // homeTeam/awayTeam now represent first/second team in title order (not actual home/away)
-  const firstTeam = score.homeTeam;
-  const secondTeam = score.awayTeam;
-  const firstScore = score.homeScore;
-  const secondScore = score.awayScore;
-  const firstLogo = score.homeLogo;
-  const secondLogo = score.awayLogo;
+  const hasScores = score.team1Score !== null && score.team2Score !== null;
+  const liveLabel =
+    score.status === 'in_progress' && score.period && score.clock
+      ? `Q${score.period} · ${score.clock}`
+      : score.status === 'in_progress'
+        ? 'Live'
+        : null;
 
   return (
     <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-card/90 backdrop-blur-sm border border-border shadow-lg text-xs">
       <Trophy className="w-3.5 h-3.5 text-amber-500" />
-      
-      {/* First Team (as appears in title) */}
+
+      {/* Team 1 (title order) */}
       <div className="flex items-center gap-1.5">
-        <TeamLogo src={firstLogo} alt={`${firstTeam} logo`} />
-        <span className="text-foreground font-medium">{firstTeam}</span>
+        <TeamLogo src={score.team1Logo} alt={`${score.team1} logo`} />
+        <span className="text-foreground font-medium">{score.team1}</span>
         <span className={`font-bold tabular-nums ${hasScores ? 'text-foreground' : 'text-muted-foreground'}`}>
-          {hasScores ? firstScore : '-'}
+          {hasScores ? score.team1Score : '-'}
         </span>
       </div>
 
       <span className="text-muted-foreground font-medium">vs</span>
 
-      {/* Second Team (as appears in title) */}
+      {/* Team 2 (title order) */}
       <div className="flex items-center gap-1.5">
         <span className={`font-bold tabular-nums ${hasScores ? 'text-foreground' : 'text-muted-foreground'}`}>
-          {hasScores ? secondScore : '-'}
+          {hasScores ? score.team2Score : '-'}
         </span>
-        <span className="text-foreground font-medium">{secondTeam}</span>
-        <TeamLogo src={secondLogo} alt={`${secondTeam} logo`} />
+        <span className="text-foreground font-medium">{score.team2}</span>
+        <TeamLogo src={score.team2Logo} alt={`${score.team2} logo`} />
       </div>
 
       {/* Status */}
       {score.status === 'final' && (
         <span className="text-[10px] text-emerald-500 font-semibold uppercase tracking-wide">Final</span>
       )}
-      {score.status === 'in_progress' && (
-        <span className="text-[10px] text-orange-500 font-semibold uppercase tracking-wide animate-pulse">Live</span>
+      {score.status === 'in_progress' && liveLabel && (
+        <span className="text-[10px] text-orange-500 font-semibold uppercase tracking-wide">{liveLabel}</span>
       )}
       {score.status === 'scheduled' && (
         <span className="text-[10px] text-muted-foreground font-medium uppercase">Upcoming</span>
