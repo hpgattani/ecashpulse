@@ -207,17 +207,18 @@ const AwaitingResolutionSection = () => {
               <div key={prediction.id} className="relative">
                 {/* Orange awaiting indicator border */}
                 <div className="absolute inset-0 rounded-2xl border-2 border-orange-500/40 pointer-events-none z-10" />
-                {/* Awaiting badge */}
-                <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-500/90 text-white text-xs font-medium shadow-lg">
-                  <Hourglass className="w-3 h-3" />
-                  {t.awaitingLabel || "Awaiting"}
-                </div>
-                {/* Sports Score Badge */}
-                {prediction.category === 'sports' && (
-                  <div className="absolute top-3 right-12 z-20">
-                    <SportsScoreBadge title={prediction.question} category={prediction.category} />
+                {/* Top badges row */}
+                <div className="absolute top-3 left-3 right-3 z-20 flex items-center justify-between gap-2">
+                  {/* Awaiting badge */}
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-500/90 text-white text-xs font-medium shadow-lg">
+                    <Hourglass className="w-3 h-3" />
+                    {t.awaitingLabel || "Awaiting"}
                   </div>
-                )}
+                  {/* Sports Score Badge */}
+                  {prediction.category === 'sports' && (
+                    <SportsScoreBadge title={prediction.question} category={prediction.category} />
+                  )}
+                </div>
                 <PredictionCard
                   prediction={prediction}
                   index={index}
