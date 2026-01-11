@@ -12,6 +12,7 @@ import { Outcome } from "@/hooks/usePredictions";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { getKnownScore } from "@/hooks/useSportsScores";
 
 interface PredictionData {
   id: string;
@@ -492,6 +493,41 @@ const Prediction = () => {
                     {copied ? "Copied!" : "Share"}
                   </Button>
                 </div>
+
+                {/* Sports Team Logos */}
+                {prediction.category === 'sports' && (() => {
+                  const sportsScore = getKnownScore(prediction.title);
+                  if (sportsScore && (sportsScore.homeLogo || sportsScore.awayLogo)) {
+                    return (
+                      <div className="flex items-center justify-center gap-6 mb-4 py-4 px-4 rounded-xl bg-muted/30 border border-border/30">
+                        <div className="flex items-center gap-3">
+                          {sportsScore.homeLogo && (
+                            <img 
+                              src={sportsScore.homeLogo} 
+                              alt={sportsScore.homeTeam} 
+                              className="w-12 h-12 object-contain"
+                              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                            />
+                          )}
+                          <span className="text-base font-semibold text-foreground">{sportsScore.homeTeam}</span>
+                        </div>
+                        <span className="text-sm text-muted-foreground font-medium px-2">vs</span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-base font-semibold text-foreground">{sportsScore.awayTeam}</span>
+                          {sportsScore.awayLogo && (
+                            <img 
+                              src={sportsScore.awayLogo} 
+                              alt={sportsScore.awayTeam} 
+                              className="w-12 h-12 object-contain"
+                              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
 
                 <h1 className="font-display font-bold text-2xl md:text-3xl text-foreground leading-tight">
                   {translateTitle(prediction.title)}
