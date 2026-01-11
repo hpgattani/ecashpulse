@@ -212,7 +212,7 @@ const AwaitingResolutionSection = () => {
 
   // ALWAYS render the section - never return null
   return (
-    <section id="awaiting" className="py-8 sm:py-12 px-4">
+    <section id="awaiting" className="py-8 sm:py-12 px-4 scroll-mt-24">
       <div className="max-w-7xl mx-auto">
         {/* Header - always visible */}
         <div className="mb-8">

@@ -12,76 +12,108 @@ export interface GameScore {
 }
 
 // Hardcoded accurate NFL Playoff scores - manually updated for reliability
-const KNOWN_SCORES: Record<string, GameScore> = {
+// Returns teams in title order (team1 vs team2) not home/away format
+interface KnownGame {
+  team1: string;
+  team2: string;
+  team1Score: number | null;
+  team2Score: number | null;
+  status: 'scheduled' | 'in_progress' | 'final' | 'unknown';
+  league: string;
+  team1Logo: string;
+  team2Logo: string;
+}
+
+const KNOWN_GAMES: Record<string, KnownGame> = {
   'jaguars_bills': {
-    homeTeam: 'Bills',
-    awayTeam: 'Jaguars',
-    homeScore: 31,
-    awayScore: 23,
+    team1: 'Jaguars',
+    team2: 'Bills',
+    team1Score: 23,
+    team2Score: 31,
     status: 'final',
     league: 'NFL',
-    homeLogo: 'https://a.espncdn.com/i/teamlogos/nfl/500/buf.png',
-    awayLogo: 'https://a.espncdn.com/i/teamlogos/nfl/500/jax.png',
+    team1Logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/jax.png',
+    team2Logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/buf.png',
   },
   'eagles_49ers': {
-    homeTeam: 'Eagles',
-    awayTeam: '49ers',
-    homeScore: null,
-    awayScore: null,
+    team1: 'Eagles',
+    team2: '49ers',
+    team1Score: null,
+    team2Score: null,
     status: 'scheduled',
     league: 'NFL',
-    homeLogo: 'https://a.espncdn.com/i/teamlogos/nfl/500/phi.png',
-    awayLogo: 'https://a.espncdn.com/i/teamlogos/nfl/500/sf.png',
-  },
-  'rams_panthers': {
-    homeTeam: 'Rams',
-    awayTeam: 'Panthers',
-    homeScore: null,
-    awayScore: null,
-    status: 'scheduled',
-    league: 'NFL',
-    homeLogo: 'https://a.espncdn.com/i/teamlogos/nfl/500/lar.png',
-    awayLogo: 'https://a.espncdn.com/i/teamlogos/nfl/500/car.png',
+    team1Logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/phi.png',
+    team2Logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/sf.png',
   },
   'patriots_chargers': {
-    homeTeam: 'Patriots',
-    awayTeam: 'Chargers',
-    homeScore: null,
-    awayScore: null,
+    team1: 'Patriots',
+    team2: 'Chargers',
+    team1Score: null,
+    team2Score: null,
     status: 'scheduled',
     league: 'NFL',
-    homeLogo: 'https://a.espncdn.com/i/teamlogos/nfl/500/ne.png',
-    awayLogo: 'https://a.espncdn.com/i/teamlogos/nfl/500/lac.png',
-  },
-  'packers_bears': {
-    homeTeam: 'Packers',
-    awayTeam: 'Bears',
-    homeScore: null,
-    awayScore: null,
-    status: 'scheduled',
-    league: 'NFL',
-    homeLogo: 'https://a.espncdn.com/i/teamlogos/nfl/500/gb.png',
-    awayLogo: 'https://a.espncdn.com/i/teamlogos/nfl/500/chi.png',
+    team1Logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/ne.png',
+    team2Logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/lac.png',
   },
 };
 
 export function getKnownScore(title: string): GameScore | null {
   const lower = title.toLowerCase();
   
+  // Match games and return in title order
   if (lower.includes('jaguars') && lower.includes('bills')) {
-    return KNOWN_SCORES['jaguars_bills'];
+    const game = KNOWN_GAMES['jaguars_bills'];
+    // Check title order: if "jaguars" appears before "bills", keep that order
+    const jaguarsIdx = lower.indexOf('jaguars');
+    const billsIdx = lower.indexOf('bills');
+    const jaguarsFirst = jaguarsIdx < billsIdx;
+    
+    return {
+      homeTeam: jaguarsFirst ? game.team1 : game.team2,
+      awayTeam: jaguarsFirst ? game.team2 : game.team1,
+      homeScore: jaguarsFirst ? game.team1Score : game.team2Score,
+      awayScore: jaguarsFirst ? game.team2Score : game.team1Score,
+      homeLogo: jaguarsFirst ? game.team1Logo : game.team2Logo,
+      awayLogo: jaguarsFirst ? game.team2Logo : game.team1Logo,
+      status: game.status,
+      league: game.league,
+    };
   }
+  
   if (lower.includes('eagles') && lower.includes('49ers')) {
-    return KNOWN_SCORES['eagles_49ers'];
+    const game = KNOWN_GAMES['eagles_49ers'];
+    const eaglesIdx = lower.indexOf('eagles');
+    const ninersIdx = lower.indexOf('49ers');
+    const eaglesFirst = eaglesIdx < ninersIdx;
+    
+    return {
+      homeTeam: eaglesFirst ? game.team1 : game.team2,
+      awayTeam: eaglesFirst ? game.team2 : game.team1,
+      homeScore: eaglesFirst ? game.team1Score : game.team2Score,
+      awayScore: eaglesFirst ? game.team2Score : game.team1Score,
+      homeLogo: eaglesFirst ? game.team1Logo : game.team2Logo,
+      awayLogo: eaglesFirst ? game.team2Logo : game.team1Logo,
+      status: game.status,
+      league: game.league,
+    };
   }
-  if (lower.includes('rams') && lower.includes('panthers')) {
-    return KNOWN_SCORES['rams_panthers'];
-  }
+  
   if (lower.includes('patriots') && lower.includes('chargers')) {
-    return KNOWN_SCORES['patriots_chargers'];
-  }
-  if (lower.includes('packers') && lower.includes('bears')) {
-    return KNOWN_SCORES['packers_bears'];
+    const game = KNOWN_GAMES['patriots_chargers'];
+    const patriotsIdx = lower.indexOf('patriots');
+    const chargersIdx = lower.indexOf('chargers');
+    const patriotsFirst = patriotsIdx < chargersIdx;
+    
+    return {
+      homeTeam: patriotsFirst ? game.team1 : game.team2,
+      awayTeam: patriotsFirst ? game.team2 : game.team1,
+      homeScore: patriotsFirst ? game.team1Score : game.team2Score,
+      awayScore: patriotsFirst ? game.team2Score : game.team1Score,
+      homeLogo: patriotsFirst ? game.team1Logo : game.team2Logo,
+      awayLogo: patriotsFirst ? game.team2Logo : game.team1Logo,
+      status: game.status,
+      league: game.league,
+    };
   }
   
   return null;
