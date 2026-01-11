@@ -48,7 +48,7 @@ const Index = () => {
           <Leaderboard />
           
           {/* Transparent Public Bets Section */}
-          <section className="py-16 px-4">
+          <section className="py-8 sm:py-16 px-4">
             <div className="max-w-7xl mx-auto">
               <div className="text-center mb-8">
                 <h2 className="font-display font-bold text-2xl md:text-3xl text-foreground mb-2">
