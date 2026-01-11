@@ -20,9 +20,10 @@ const TeamLogo = ({ src, alt }: { src: string | null | undefined; alt: string })
 };
 
 const SportsScoreBadge = ({ title, category }: SportsScoreBadgeProps) => {
-  const score = useNflScoreFromTitle(title, category === 'sports');
+  const isSports = category?.toLowerCase().trim() === 'sports';
+  const score = useNflScoreFromTitle(title, isSports);
 
-  if (category !== 'sports' || !score) return null;
+  if (!isSports || !score) return null;
 
   const hasScores = score.team1Score !== null && score.team2Score !== null;
   const liveLabel =

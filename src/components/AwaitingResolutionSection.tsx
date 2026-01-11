@@ -118,11 +118,13 @@ const AwaitingResolutionSection = () => {
           }));
         }
 
+        const normalizedCategory = (pred.category || "").toLowerCase().trim() as PredictionForCard["category"];
+
         return {
           id: pred.id,
           question: pred.title,
           description: pred.description || '',
-          category: pred.category as PredictionForCard['category'],
+          category: normalizedCategory,
           yesOdds,
           noOdds,
           volume: totalPool / 100,

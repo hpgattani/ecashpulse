@@ -19,16 +19,26 @@ const Index = () => {
   const { t } = useLanguage();
 
   useEffect(() => {
-    if (location.hash) {
-      const element = document.getElementById(location.hash.slice(1));
+    if (!location.hash) return;
+
+    const id = location.hash.slice(1);
+    const HEADER_OFFSET = 96;
+
+    let tries = 0;
+    const maxTries = 40; // ~2s total
+
+    const attempt = () => {
+      const element = document.getElementById(id);
       if (element) {
-        const HEADER_OFFSET = 96;
-        setTimeout(() => {
-          const top = element.getBoundingClientRect().top + window.scrollY - HEADER_OFFSET;
-          window.scrollTo({ top: Math.max(top, 0), behavior: 'smooth' });
-        }, 100);
+        const top = element.getBoundingClientRect().top + window.scrollY - HEADER_OFFSET;
+        window.scrollTo({ top: Math.max(top, 0), behavior: 'smooth' });
+        return;
       }
-    }
+      if (tries++ < maxTries) window.setTimeout(attempt, 50);
+    };
+
+    // Wait a tick so layout is ready, then retry until the element exists.
+    window.setTimeout(attempt, 0);
   }, [location.hash]);
   return (
     <>
