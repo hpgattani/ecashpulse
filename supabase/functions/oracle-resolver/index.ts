@@ -731,6 +731,30 @@ Deno.serve(async (req) => {
       // Route to appropriate oracle based on category and content
       const titleLower = pred.title.toLowerCase();
       
+      // Check if this is an NFL/sports prediction that needs a time buffer
+      const isNFLPrediction = 
+        pred.category === 'sports' ||
+        ['nfl', 'super bowl', 'playoff', 'patriots', 'eagles', 'chiefs', 'packers', 'bears', 
+         'rams', 'cowboys', 'bills', 'ravens', '49ers', 'lions', 'vikings', 'jaguars',
+         'chargers', 'broncos', 'raiders', 'dolphins', 'jets', 'bengals', 'browns',
+         'texans', 'colts', 'titans', 'falcons', 'saints', 'buccaneers', 'cardinals',
+         'seahawks', 'giants', 'commanders', 'steelers', 'panthers']
+          .some(team => titleLower.includes(team));
+      
+      // For NFL/sports predictions, require at least 3 hours after end_date
+      // This ensures the game has actually finished before we try to resolve
+      if (isNFLPrediction) {
+        const endDate = new Date(pred.end_date);
+        const now = new Date();
+        const hoursSinceEnd = (now.getTime() - endDate.getTime()) / (1000 * 60 * 60);
+        
+        if (hoursSinceEnd < 3) {
+          console.log(`⏳ Skipping NFL prediction (only ${hoursSinceEnd.toFixed(1)}h since end_date, waiting for 3h buffer): ${pred.title.slice(0, 50)}`);
+          continue;
+        }
+        console.log(`✅ NFL prediction passed 3h buffer (${hoursSinceEnd.toFixed(1)}h since end): ${pred.title.slice(0, 50)}`);
+      }
+      
       // Check if this is a spread-based prediction - use dedicated spread oracle
       const isSpreadPrediction = 
         titleLower.includes('cover') || 
