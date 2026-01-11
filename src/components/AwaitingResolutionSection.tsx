@@ -179,8 +179,24 @@ const AwaitingResolutionSection = () => {
         </motion.div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="glass-card rounded-2xl overflow-hidden animate-pulse">
+                <div className="p-5">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-8 h-8 rounded-xl bg-muted/50" />
+                    <div className="h-4 w-16 bg-muted/50 rounded" />
+                  </div>
+                  <div className="h-5 w-full bg-muted/50 rounded mb-2" />
+                  <div className="h-5 w-3/4 bg-muted/50 rounded mb-4" />
+                  <div className="h-3 w-full bg-muted/30 rounded mb-4" />
+                  <div className="flex gap-2">
+                    <div className="h-10 flex-1 bg-muted/40 rounded-xl" />
+                    <div className="h-10 flex-1 bg-muted/40 rounded-xl" />
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
