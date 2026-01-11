@@ -183,25 +183,27 @@ const AwaitingResolutionSection = () => {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {predictions.map((prediction, index) => (
-          <div key={prediction.id} className="relative">
-            {/* Orange awaiting indicator border */}
-            <div className="absolute inset-0 rounded-2xl border-2 border-orange-500/40 pointer-events-none z-10" />
-            {/* Top badges row */}
-            <div className="absolute top-3 left-3 right-3 z-20 flex items-center justify-between gap-2 flex-wrap">
+          <div key={prediction.id} className="flex flex-col gap-2">
+            {/* Floating Score Badge - outside the card */}
+            {prediction.category === 'sports' && (
+              <div className="flex justify-center">
+                <SportsScoreBadge title={prediction.question} category={prediction.category} />
+              </div>
+            )}
+            
+            {/* Card with orange border */}
+            <div className="relative">
+              <div className="absolute inset-0 rounded-2xl border-2 border-orange-500/40 pointer-events-none z-10" />
               {/* Awaiting badge */}
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-500/90 text-white text-xs font-medium shadow-lg">
+              <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-500/90 text-white text-xs font-medium shadow-lg">
                 <Hourglass className="w-3 h-3" />
                 {t.awaitingLabel || "Awaiting"}
               </div>
-              {/* Sports Score Badge */}
-              {prediction.category === 'sports' && (
-                <SportsScoreBadge title={prediction.question} category={prediction.category} />
-              )}
+              <PredictionCard
+                prediction={prediction}
+                index={index}
+              />
             </div>
-            <PredictionCard
-              prediction={prediction}
-              index={index}
-            />
           </div>
         ))}
       </div>
