@@ -24,26 +24,32 @@ const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Handle hash navigation
+  const HEADER_OFFSET = 96; // fixed header + breathing room
+
   const scrollToSection = (sectionId: string) => {
     if (location.pathname !== '/') {
       navigate('/', { state: { scrollTo: sectionId } });
-    } else {
-      const element = document.getElementById(sectionId);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth' });
-      }
+      setIsMenuOpen(false);
+      return;
+    }
+
+    const element = document.getElementById(sectionId);
+    if (element) {
+      const top = element.getBoundingClientRect().top + window.scrollY - HEADER_OFFSET;
+      window.scrollTo({ top: Math.max(top, 0), behavior: 'smooth' });
     }
     setIsMenuOpen(false);
   };
 
   // Handle scroll after navigation
   useEffect(() => {
-    if (location.state?.scrollTo) {
+    const scrollTo = (location.state as any)?.scrollTo as string | undefined;
+    if (scrollTo) {
       setTimeout(() => {
-        const element = document.getElementById(location.state.scrollTo);
+        const element = document.getElementById(scrollTo);
         if (element) {
-          element.scrollIntoView({ behavior: 'smooth' });
+          const top = element.getBoundingClientRect().top + window.scrollY - HEADER_OFFSET;
+          window.scrollTo({ top: Math.max(top, 0), behavior: 'smooth' });
         }
       }, 100);
     }
