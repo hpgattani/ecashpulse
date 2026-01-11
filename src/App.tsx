@@ -8,6 +8,7 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import { LightModeOrbs } from "@/components/LightModeOrbs";
 
 import Index from "./pages/Index";
+import AwaitingResolutionPage from "./pages/AwaitingResolution";
 import Auth from "./pages/Auth";
 import MyBets from "./pages/MyBets";
 import Admin from "./pages/Admin";
@@ -28,13 +29,12 @@ const App = () => (
             <BrowserRouter>
               <Routes>
                 <Route path="/" element={<Index />} />
+                <Route path="/awaiting" element={<AwaitingResolutionPage />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/my-bets" element={<MyBets />} />
                 <Route path="/admin" element={<Admin />} />
                 <Route path="/prediction/:id" element={<Prediction />} />
                 <Route path="/create-prediction" element={<CreatePrediction />} />
-
-                {/* Catch-all 404 */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>

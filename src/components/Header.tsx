@@ -115,7 +115,13 @@ const Header = () => {
               <button onClick={() => scrollToSection('trending')} className="text-muted-foreground hover:text-foreground transition-colors">
                 {t.trending}
               </button>
-              <button onClick={() => scrollToSection('awaiting')} className="text-muted-foreground hover:text-foreground transition-colors">
+              <button
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  navigate('/awaiting');
+                }}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
                 {t.awaitingResolution}
               </button>
               <button onClick={() => scrollToSection('how-it-works')} className="text-muted-foreground hover:text-foreground transition-colors">
@@ -192,7 +198,10 @@ const Header = () => {
                   {t.trending}
                 </button>
                 <button
-                  onClick={() => scrollToSection('awaiting')}
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    navigate('/awaiting');
+                  }}
                   className="text-left text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {t.awaitingResolution}
