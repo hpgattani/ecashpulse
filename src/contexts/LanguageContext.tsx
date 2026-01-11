@@ -191,6 +191,7 @@ interface Translations {
   // Hedge
   hedge: string;
   hedgeYourBet: string;
+  hedgeTooltip: string;
 }
 
 // Common prediction title translations
@@ -465,6 +466,7 @@ const translations: Record<Language, Translations> = {
     // Hedge
     hedge: 'Hedge',
     hedgeYourBet: 'Hedge Your Bet',
+    hedgeTooltip: 'Bet on the opposite outcome to reduce risk and lock in potential profit.',
   },
   'pt-BR': {
     // Navigation
@@ -654,6 +656,7 @@ const translations: Record<Language, Translations> = {
     // Hedge
     hedge: 'Hedge',
     hedgeYourBet: 'Proteger Sua Aposta',
+    hedgeTooltip: 'Aposte no resultado oposto para reduzir riscos e garantir lucro potencial.',
   },
   ko: {
     // Navigation
@@ -843,6 +846,7 @@ const translations: Record<Language, Translations> = {
     // Hedge
     hedge: '헤지',
     hedgeYourBet: '베팅 헤지',
+    hedgeTooltip: '반대 결과에 베팅하여 위험을 줄이고 잠재적 수익을 확보하세요.',
   },
   ja: {
     // Navigation
@@ -1032,6 +1036,7 @@ const translations: Record<Language, Translations> = {
     // Hedge
     hedge: 'ヘッジ',
     hedgeYourBet: 'ベットをヘッジ',
+    hedgeTooltip: '反対の結果に賭けてリスクを軽減し、潜在的な利益を確保しましょう。',
   },
 };
 
