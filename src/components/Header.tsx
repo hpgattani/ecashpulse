@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Activity, Menu, X, Wallet, LogOut, TrendingUp, User } from "lucide-react";
 import { ProfileModal } from "./ProfileModal";
@@ -22,6 +22,32 @@ const Header = () => {
   const { user, profile, logout } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Handle hash navigation
+  const scrollToSection = (sectionId: string) => {
+    if (location.pathname !== '/') {
+      navigate('/', { state: { scrollTo: sectionId } });
+    } else {
+      const element = document.getElementById(sectionId);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+    setIsMenuOpen(false);
+  };
+
+  // Handle scroll after navigation
+  useEffect(() => {
+    if (location.state?.scrollTo) {
+      setTimeout(() => {
+        const element = document.getElementById(location.state.scrollTo);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
+    }
+  }, [location]);
 
   const truncateAddress = (address: string) => {
     if (address.length <= 20) return address;
@@ -58,18 +84,18 @@ const Header = () => {
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-8">
-              <Link to="/#markets" className="text-muted-foreground hover:text-foreground transition-colors">
+              <button onClick={() => scrollToSection('markets')} className="text-muted-foreground hover:text-foreground transition-colors">
                 {t.markets}
-              </Link>
-              <Link to="/#trending" className="text-muted-foreground hover:text-foreground transition-colors">
+              </button>
+              <button onClick={() => scrollToSection('trending')} className="text-muted-foreground hover:text-foreground transition-colors">
                 {t.trending}
-              </Link>
-              <Link to="/#awaiting" className="text-muted-foreground hover:text-foreground transition-colors">
+              </button>
+              <button onClick={() => scrollToSection('awaiting')} className="text-muted-foreground hover:text-foreground transition-colors">
                 {t.awaitingResolution}
-              </Link>
-              <Link to="/#how-it-works" className="text-muted-foreground hover:text-foreground transition-colors">
+              </button>
+              <button onClick={() => scrollToSection('how-it-works')} className="text-muted-foreground hover:text-foreground transition-colors">
                 {t.howItWorks}
-              </Link>
+              </button>
               {user && (
                 <Link to="/my-bets" className="text-muted-foreground hover:text-foreground transition-colors">
                   {t.myBets}
@@ -128,34 +154,30 @@ const Header = () => {
               className="md:hidden py-4 border-t border-border/30"
             >
               <nav className="flex flex-col gap-4">
-                <Link
-                  to="/#markets"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                  onClick={() => setIsMenuOpen(false)}
+                <button
+                  onClick={() => scrollToSection('markets')}
+                  className="text-left text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {t.markets}
-                </Link>
-                <Link
-                  to="/#trending"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                  onClick={() => setIsMenuOpen(false)}
+                </button>
+                <button
+                  onClick={() => scrollToSection('trending')}
+                  className="text-left text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {t.trending}
-                </Link>
-                <Link
-                  to="/#awaiting"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                  onClick={() => setIsMenuOpen(false)}
+                </button>
+                <button
+                  onClick={() => scrollToSection('awaiting')}
+                  className="text-left text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {t.awaitingResolution}
-                </Link>
-                <Link
-                  to="/#how-it-works"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                  onClick={() => setIsMenuOpen(false)}
+                </button>
+                <button
+                  onClick={() => scrollToSection('how-it-works')}
+                  className="text-left text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {t.howItWorks}
-                </Link>
+                </button>
                 {user && (
                   <Link
                     to="/my-bets"
