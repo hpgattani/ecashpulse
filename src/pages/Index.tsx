@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 import Header from '@/components/Header';
 import Hero from '@/components/Hero';
 import PendingBetsSection from '@/components/PendingBetsSection';
+import AwaitingResolutionSection from '@/components/AwaitingResolutionSection';
 import TrendingSection from '@/components/TrendingSection';
 import MarketsSection from '@/components/MarketsSection';
 import ResolvedBets from '@/components/ResolvedBets';
@@ -42,6 +43,7 @@ const Index = () => {
           <PendingBetsSection />
           <TrendingSection />
           <MarketsSection />
+          <AwaitingResolutionSection />
           <ResolvedBets />
           <Leaderboard />
           
