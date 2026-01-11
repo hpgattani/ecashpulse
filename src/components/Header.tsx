@@ -64,6 +64,9 @@ const Header = () => {
               <Link to="/#trending" className="text-muted-foreground hover:text-foreground transition-colors">
                 {t.trending}
               </Link>
+              <Link to="/#awaiting" className="text-muted-foreground hover:text-foreground transition-colors">
+                {t.awaitingResolution}
+              </Link>
               <Link to="/#how-it-works" className="text-muted-foreground hover:text-foreground transition-colors">
                 {t.howItWorks}
               </Link>
@@ -138,6 +141,13 @@ const Header = () => {
                   onClick={() => setIsMenuOpen(false)}
                 >
                   {t.trending}
+                </Link>
+                <Link
+                  to="/#awaiting"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  {t.awaitingResolution}
                 </Link>
                 <Link
                   to="/#how-it-works"
