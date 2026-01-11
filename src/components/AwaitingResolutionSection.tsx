@@ -4,6 +4,7 @@ import { Clock, Loader2, Hourglass } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
 import PredictionCard from './PredictionCard';
+import SportsScoreBadge from './SportsScoreBadge';
 import { Outcome } from '@/hooks/usePredictions';
 
 interface PredictionRow {
@@ -38,6 +39,7 @@ const AwaitingResolutionSection = () => {
   const { t } = useLanguage();
   const [predictions, setPredictions] = useState<PredictionForCard[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasData, setHasData] = useState<boolean | null>(null); // null = unknown, true/false = determined
 
   useEffect(() => {
     fetchAwaitingResolution();
@@ -140,19 +142,21 @@ const AwaitingResolutionSection = () => {
       });
 
       setPredictions(cards);
+      setHasData(cards.length > 0);
     } catch (err) {
       console.error('Error fetching awaiting resolution:', err);
+      setHasData(false);
     }
     setLoading(false);
   };
 
-  // Don't render if no predictions awaiting resolution (only check after loading complete)
-  if (!loading && predictions.length === 0) {
+  // Don't render if we've determined there's no data
+  if (hasData === false) {
     return null;
   }
 
-  // Don't render anything while loading - prevents flash
-  if (loading) {
+  // Don't render anything while initial loading - prevents flash
+  if (hasData === null && loading) {
     return null;
   }
 
@@ -214,6 +218,12 @@ const AwaitingResolutionSection = () => {
                   <Hourglass className="w-3 h-3" />
                   {t.awaitingLabel || "Awaiting"}
                 </div>
+                {/* Sports Score Badge */}
+                {prediction.category === 'sports' && (
+                  <div className="absolute top-3 right-12 z-20">
+                    <SportsScoreBadge title={prediction.question} category={prediction.category} />
+                  </div>
+                )}
                 <PredictionCard
                   prediction={prediction}
                   index={index}
