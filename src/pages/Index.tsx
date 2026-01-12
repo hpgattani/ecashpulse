@@ -1,8 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useLocation } from 'react-router-dom';
 import Header from '@/components/Header';
 import Hero from '@/components/Hero';
+import MarketNav from '@/components/MarketNav';
 import PendingBetsSection from '@/components/PendingBetsSection';
 import TrendingSection from '@/components/TrendingSection';
 import MarketsSection from '@/components/MarketsSection';
@@ -12,10 +13,14 @@ import HowItWorks from '@/components/HowItWorks';
 import Footer from '@/components/Footer';
 import PublicBets from '@/components/PublicBets';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { usePredictions } from '@/hooks/usePredictions';
 
 const Index = () => {
   const location = useLocation();
   const { t } = useLanguage();
+  const { predictions } = usePredictions();
+  const [activeCategory, setActiveCategory] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     if (!location.hash) return;
@@ -39,6 +44,7 @@ const Index = () => {
     // Wait a tick so layout is ready, then retry until the element exists.
     window.setTimeout(attempt, 0);
   }, [location.hash]);
+
   return (
     <>
       <Helmet>
@@ -51,9 +57,19 @@ const Index = () => {
         <Header />
           <main>
             <Hero />
+            <MarketNav 
+              activeCategory={activeCategory}
+              onCategoryChange={setActiveCategory}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              predictions={predictions.map(p => ({ id: p.id, question: p.question, category: p.category }))}
+            />
             <PendingBetsSection />
             <TrendingSection />
-            <MarketsSection />
+            <MarketsSection 
+              activeCategory={activeCategory}
+              searchQuery={searchQuery}
+            />
             <ResolvedBets />
             <Leaderboard />
           
