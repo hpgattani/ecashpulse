@@ -89,6 +89,11 @@ const PredictionCard = ({ prediction, index, livePrice, climateData }: Predictio
 
   // Check if betting is closed (endDate has passed but not yet resolved)
   const isBettingClosed = new Date(prediction.endDate) < new Date();
+  
+  // Check if this is a crypto prediction - these have a 1 hour buffer before resolution
+  const cryptoKeywords = ['bitcoin', 'btc', 'ethereum', 'eth', 'solana', 'sol', 'xec', 'xrp', 'doge', 'ada', 'cardano', 'dogecoin', 'ripple', 'crypto'];
+  const isCryptoPrediction = prediction.category === 'crypto' || 
+    cryptoKeywords.some(kw => prediction.question.toLowerCase().includes(kw));
 
   // Get sports team logos if applicable
   const sportsScore = prediction.category === 'sports' ? getKnownScore(prediction.question) : null;
@@ -472,6 +477,16 @@ const PredictionCard = ({ prediction, index, livePrice, climateData }: Predictio
             )}
           </div>
 
+          {/* Crypto buffer notice */}
+          {isCryptoPrediction && !isBettingClosed && (
+            <div className="flex items-center gap-2 p-2 mb-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+              <Clock className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+              <span className="text-xs text-amber-300">
+                Betting closes 1 hour before resolution
+              </span>
+            </div>
+          )}
+
           {/* Bet Buttons - Only show for non-multi-option */}
           {!isMultiOption && (
             isBettingClosed ? (
@@ -498,7 +513,10 @@ const PredictionCard = ({ prediction, index, livePrice, climateData }: Predictio
       <BetModal
         isOpen={isBetModalOpen}
         onClose={() => setIsBetModalOpen(false)}
-        prediction={prediction}
+        prediction={{
+          ...prediction,
+          category: prediction.category,
+        }}
         position={selectedPosition}
         selectedOutcome={selectedOutcome}
       />

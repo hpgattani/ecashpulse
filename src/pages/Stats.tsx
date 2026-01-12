@@ -158,7 +158,7 @@ export default function Stats() {
                       <stat.icon className={`h-5 w-5 ${stat.iconColor}`} />
                     </CardHeader>
                     <CardContent>
-                      <div className="text-3xl font-bold tracking-tight mb-1 text-foreground">
+                      <div className="text-3xl font-bold tracking-tight mb-1" style={{ color: 'white' }}>
                         {stat.value}
                       </div>
                       <p className="text-sm text-muted-foreground">
