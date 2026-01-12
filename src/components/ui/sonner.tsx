@@ -10,16 +10,18 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
-      position="top-center"
+      position="bottom-center"
       toastOptions={{
         classNames: {
           toast:
-            "group toast group-[.toaster]:bg-gradient-to-r group-[.toaster]:from-[hsl(var(--primary))] group-[.toaster]:to-[hsl(270,60%,50%)] group-[.toaster]:text-white group-[.toaster]:border-none group-[.toaster]:shadow-2xl group-[.toaster]:text-base group-[.toaster]:px-6 group-[.toaster]:py-4 group-[.toaster]:min-h-[56px] group-[.toaster]:backdrop-blur-xl group-[.toaster]:rounded-xl",
-          description: "group-[.toast]:text-white/90 group-[.toast]:text-sm",
-          actionButton: "group-[.toast]:bg-white/20 group-[.toast]:text-white group-[.toast]:hover:bg-white/30",
-          cancelButton: "group-[.toast]:bg-white/10 group-[.toast]:text-white/80",
-          success: "group-[.toaster]:from-emerald-500 group-[.toaster]:to-teal-500",
-          error: "group-[.toaster]:from-red-500 group-[.toaster]:to-rose-600",
+            "group toast w-[min(92vw,440px)] border-none bg-gradient-to-r from-primary to-accent text-primary-foreground shadow-2xl backdrop-blur-xl rounded-lg px-4 py-3",
+          title: "font-display text-sm font-semibold leading-tight",
+          description: "text-primary-foreground/85 text-xs leading-snug",
+          actionButton:
+            "bg-primary-foreground/15 text-primary-foreground hover:bg-primary-foreground/25",
+          cancelButton: "bg-primary-foreground/10 text-primary-foreground/80",
+          success: "from-primary to-accent",
+          error: "from-destructive to-accent",
         },
         duration: 6500,
       }}
