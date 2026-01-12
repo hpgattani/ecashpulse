@@ -13,6 +13,7 @@ import { useUserBetSummaries, type UserBetSummary } from "@/hooks/useUserBetSumm
 import CountdownTimer from "./CountdownTimer";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getKnownScore } from "@/hooks/useSportsScores";
+import { triggerHaptic } from "@/hooks/useHaptic";
 
 interface Prediction {
   id: string;
@@ -172,12 +173,14 @@ const PredictionCard = ({ prediction, index, livePrice, climateData }: Predictio
   };
 
   const handleBet = (position: "yes" | "no") => {
+    triggerHaptic('medium');
     setSelectedPosition(position);
     setSelectedOutcome(null);
     setIsBetModalOpen(true);
   };
 
   const handleOutcomeBet = (outcome: Outcome) => {
+    triggerHaptic('medium');
     setSelectedOutcome(outcome);
     setSelectedPosition("yes"); // always "bet on this outcome"
     setIsBetModalOpen(true);
@@ -214,6 +217,7 @@ const PredictionCard = ({ prediction, index, livePrice, climateData }: Predictio
   };
 
   const handleCardClick = () => {
+    triggerHaptic('light');
     navigate(`/prediction/${prediction.id}`);
   };
 

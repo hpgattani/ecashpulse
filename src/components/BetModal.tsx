@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Outcome } from "@/hooks/usePredictions";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { triggerHaptic } from "@/hooks/useHaptic";
 
 const ESCROW_ADDRESS = "ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp";
 
@@ -129,6 +130,9 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
       // IMMEDIATELY close PayButton modal/QR code
       closePayButtonModal();
       
+      // Haptic feedback for successful bet
+      triggerHaptic('success');
+      
       // Show success state right away for better UX
       setBetSuccess(true);
 
@@ -149,6 +153,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
 
         if (error || data?.error) {
           setBetSuccess(false);
+          triggerHaptic('error');
           toast.error("Bet recording failed", {
             description: data?.error || error?.message || "Please try again",
           });
@@ -174,6 +179,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
         }, 1200);
       } catch (err: any) {
         setBetSuccess(false);
+        triggerHaptic('error');
         toast.error("Failed to place bet", { description: err.message });
       }
     },

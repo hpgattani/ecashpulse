@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { triggerHaptic } from '@/hooks/useHaptic';
 import { 
   Globe, Landmark, Trophy, Bitcoin, DollarSign, Globe2, 
   BarChart3, Cpu, Map, TrendingUp, Leaf, Vote, Film 
@@ -32,21 +33,13 @@ const MarketFilters = ({
     { id: 'elections', name: t.elections, Icon: Vote, gradient: 'from-indigo-400 via-blue-500 to-indigo-600' },
   ];
 
-  // Trigger haptic feedback for water-like vibration effect
-  const triggerHaptic = () => {
-    if ('vibrate' in navigator) {
-      // Short burst pattern mimicking water ripple/droplet vibration
-      navigator.vibrate([8, 30, 5]);
-    }
-  };
-
   return (
     <div className="flex flex-wrap gap-2 justify-center mb-8 mx-auto">
       {categories.map((category) => (
         <motion.button
           key={category.id}
           onClick={() => {
-            triggerHaptic();
+            triggerHaptic('water');
             onCategoryChange(category.id);
           }}
           whileTap={{ scale: 0.97 }}
