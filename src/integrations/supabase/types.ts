@@ -198,6 +198,7 @@ export type Database = {
           id: string
           image_url: string | null
           no_pool: number
+          resolution_date: string | null
           resolved_at: string | null
           status: Database["public"]["Enums"]["prediction_status"]
           title: string
@@ -214,6 +215,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           no_pool?: number
+          resolution_date?: string | null
           resolved_at?: string | null
           status?: Database["public"]["Enums"]["prediction_status"]
           title: string
@@ -230,6 +232,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           no_pool?: number
+          resolution_date?: string | null
           resolved_at?: string | null
           status?: Database["public"]["Enums"]["prediction_status"]
           title?: string
