@@ -37,6 +37,10 @@ const AUTO_BLOCKED_TITLE_KEYWORDS = [
   'pandemic',
   'lockdown',
   'vaccine mandate',
+  // Block retired fighters/athletes
+  'khabib',
+  'nurmagomedov',
+  'ufc 254',
 ];
 
 // Patterns that are obviously trivially-true or nonsense (e.g., "American team win Super Bowl")
