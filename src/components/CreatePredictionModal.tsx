@@ -153,6 +153,7 @@ export const CreatePredictionModal = ({ open, onOpenChange }: CreatePredictionMo
         hoverText: "Confirm",
         successText: "Paid!",
         autoClose: true,
+        hideToasts: true,
         theme: {
           palette: {
             primary: "#10b981",
@@ -161,6 +162,9 @@ export const CreatePredictionModal = ({ open, onOpenChange }: CreatePredictionMo
           },
         },
         onSuccess: async (txResult: any) => {
+          toast.success("Payment Sent!", {
+            description: `Paid ${feeInXEC.toLocaleString()} XEC`,
+          });
           let txHash: string | undefined;
           if (typeof txResult === "string") {
             txHash = txResult;

@@ -188,6 +188,7 @@ const Auth = () => {
       text: 'Verify Wallet',
       hoverText: `Pay ${AUTH_AMOUNT} XEC`,
       autoClose: true,
+      hideToasts: true,
       onSuccess: handleSuccess,
       theme: {
         palette: {

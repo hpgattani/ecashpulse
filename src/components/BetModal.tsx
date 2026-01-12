@@ -237,6 +237,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
           hoverText: "Confirm",
           successText: "Payment Sent!",
           autoClose: true,
+          hideToasts: true,
           theme: {
             palette: {
               primary: "#10b981", // always green for "bet on outcome"
@@ -245,6 +246,9 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
             },
           },
           onSuccess: (txResult: any) => {
+            toast.success("Payment Sent!", {
+              description: `Received ${amount.toLocaleString()} XEC`,
+            });
             let txHash: string | undefined;
 
             if (typeof txResult === "string") {
