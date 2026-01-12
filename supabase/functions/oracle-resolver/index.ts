@@ -1190,6 +1190,24 @@ Deno.serve(async (req) => {
         console.log(`✅ NFL prediction passed 3h buffer (${hoursSinceEnd.toFixed(1)}h since end): ${pred.title.slice(0, 50)}`);
       }
       
+      // Check if this is a crypto prediction - require 1 hour buffer after end_date
+      // This prevents last-moment bets from exploiting price knowledge
+      const isCryptoPrediction = 
+        pred.category === 'crypto' || 
+        ['bitcoin', 'btc', 'ethereum', 'eth', 'solana', 'sol', 'xec', 'xrp', 'doge', 'ada', 'cardano', 'dogecoin', 'ripple']
+          .some(c => titleLower.includes(c));
+      
+      if (isCryptoPrediction) {
+        const endDate = new Date(pred.end_date);
+        const hoursSinceEnd = (now.getTime() - endDate.getTime()) / (1000 * 60 * 60);
+        
+        if (hoursSinceEnd < 1) {
+          console.log(`⏳ Skipping crypto prediction (only ${hoursSinceEnd.toFixed(2)}h since end_date, waiting for 1h buffer): ${pred.title.slice(0, 50)}`);
+          continue;
+        }
+        console.log(`✅ Crypto prediction passed 1h buffer (${hoursSinceEnd.toFixed(2)}h since end): ${pred.title.slice(0, 50)}`);
+      }
+      
       // Check if this is a spread-based prediction - use dedicated spread oracle
       const isSpreadPrediction = 
         titleLower.includes('cover') || 
