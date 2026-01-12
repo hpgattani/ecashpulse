@@ -685,11 +685,11 @@ Today's date is ${new Date().toISOString().split('T')[0]}. Find the most recent 
   }
 }
 
-// Query Lovable AI as a second verification source
-async function queryLovableAI(title: string): Promise<{ resolved: boolean; outcome?: 'yes' | 'no'; reason?: string } | null> {
+// Query Lovable AI (Gemini Flash) as second verification source
+async function queryLovableAI(title: string): Promise<{ resolved: boolean; outcome?: 'yes' | 'no'; reason?: string; source: string } | null> {
   const lovableKey = Deno.env.get('LOVABLE_API_KEY');
   if (!lovableKey) {
-    console.log('LOVABLE_API_KEY not set - skipping AI verification');
+    console.log('LOVABLE_API_KEY not set - skipping Gemini AI verification');
     return null;
   }
 
@@ -729,7 +729,7 @@ Today's date is ${new Date().toISOString().split('T')[0]}.`
     });
 
     if (!response.ok) {
-      console.error('Lovable AI error:', response.status);
+      console.error('Lovable AI (Gemini) error:', response.status);
       return null;
     }
 
@@ -743,61 +743,175 @@ Today's date is ${new Date().toISOString().split('T')[0]}.`
     
     const result = JSON.parse(cleaned);
     if (result.resolved && result.outcome && result.confidence === 'high') {
-      return { resolved: true, outcome: result.outcome, reason: result.reason };
+      return { resolved: true, outcome: result.outcome, reason: result.reason, source: 'Gemini-Flash' };
     }
-    return { resolved: false };
+    return { resolved: false, source: 'Gemini-Flash' };
   } catch (error) {
-    console.error('Lovable AI query error:', error);
+    console.error('Lovable AI (Gemini) query error:', error);
     return null;
   }
 }
 
-// Multi-source verification for news/events - BOTH sources must agree
+// Query Lovable AI (GPT-5-mini) as third verification source
+async function queryGPT5(title: string): Promise<{ resolved: boolean; outcome?: 'yes' | 'no'; reason?: string; source: string } | null> {
+  const lovableKey = Deno.env.get('LOVABLE_API_KEY');
+  if (!lovableKey) {
+    console.log('LOVABLE_API_KEY not set - skipping GPT-5 verification');
+    return null;
+  }
+
+  try {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${lovableKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'openai/gpt-5-mini',
+        messages: [
+          { 
+            role: 'system', 
+            content: `You are a fact-checker verifying prediction market outcomes. Given a prediction question, determine if the event has definitively occurred.
+
+IMPORTANT: Only respond with high confidence if you are CERTAIN about the outcome. If you're unsure or the event hasn't happened yet, say resolved=false.
+
+ONLY respond with JSON in this exact format:
+{"resolved": true, "outcome": "yes", "reason": "Brief explanation", "confidence": "high"}
+OR
+{"resolved": true, "outcome": "no", "reason": "Brief explanation", "confidence": "high"}
+OR
+{"resolved": false, "reason": "Event unclear or not yet occurred"}
+
+Be conservative - only resolve if you're absolutely certain.`
+          },
+          { 
+            role: 'user', 
+            content: `Determine if this prediction has been resolved: "${title}"
+
+Today's date is ${new Date().toISOString().split('T')[0]}.` 
+          }
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('GPT-5-mini error:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || '';
+    
+    let cleaned = content.trim();
+    if (cleaned.startsWith('```')) {
+      cleaned = cleaned.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+    }
+    
+    const result = JSON.parse(cleaned);
+    if (result.resolved && result.outcome && result.confidence === 'high') {
+      return { resolved: true, outcome: result.outcome, reason: result.reason, source: 'GPT-5-mini' };
+    }
+    return { resolved: false, source: 'GPT-5-mini' };
+  } catch (error) {
+    console.error('GPT-5-mini query error:', error);
+    return null;
+  }
+}
+
+// Multi-source verification with 2-out-of-3 MAJORITY VOTING
 async function checkNewsEvent(title: string): Promise<OracleResult> {
-  console.log(`🔍 Multi-source verification for: "${title.slice(0, 60)}..."`);
+  console.log(`🔍 Triple-source verification for: "${title.slice(0, 60)}..."`);
   
-  // Query both sources in parallel
-  const [perplexityResult, lovableResult] = await Promise.all([
+  // Query all 3 sources in parallel
+  const [perplexityResult, geminiResult, gptResult] = await Promise.all([
     queryPerplexity(title),
-    queryLovableAI(title)
+    queryLovableAI(title),
+    queryGPT5(title)
   ]);
   
   console.log('📊 Perplexity result:', perplexityResult ? JSON.stringify(perplexityResult).slice(0, 100) : 'unavailable');
-  console.log('📊 Lovable AI result:', lovableResult ? JSON.stringify(lovableResult).slice(0, 100) : 'unavailable');
+  console.log('📊 Gemini result:', geminiResult ? JSON.stringify(geminiResult).slice(0, 100) : 'unavailable');
+  console.log('📊 GPT-5 result:', gptResult ? JSON.stringify(gptResult).slice(0, 100) : 'unavailable');
   
-  // If either source is unavailable, don't auto-resolve
-  if (!perplexityResult || !lovableResult) {
-    console.log('⚠️ One or more sources unavailable - blocking auto-resolution');
+  // Collect resolved results with outcomes
+  const resolvedResults: { outcome: 'yes' | 'no'; reason: string; source: string }[] = [];
+  
+  if (perplexityResult?.resolved && perplexityResult.outcome) {
+    resolvedResults.push({ 
+      outcome: perplexityResult.outcome, 
+      reason: perplexityResult.reason || '',
+      source: 'Perplexity' 
+    });
+  }
+  if (geminiResult?.resolved && geminiResult.outcome) {
+    resolvedResults.push({ 
+      outcome: geminiResult.outcome, 
+      reason: geminiResult.reason || '',
+      source: geminiResult.source 
+    });
+  }
+  if (gptResult?.resolved && gptResult.outcome) {
+    resolvedResults.push({ 
+      outcome: gptResult.outcome, 
+      reason: gptResult.reason || '',
+      source: gptResult.source 
+    });
+  }
+  
+  console.log(`📊 ${resolvedResults.length}/3 sources provided resolution`);
+  
+  // Need at least 2 sources to provide a resolution
+  if (resolvedResults.length < 2) {
+    console.log('⚠️ Less than 2 sources resolved - blocking auto-resolution');
     return { resolved: false };
   }
   
-  // If either says not resolved, don't resolve
-  if (!perplexityResult.resolved || !lovableResult.resolved) {
-    console.log('⚠️ Sources indicate event not yet resolved');
-    return { resolved: false };
+  // Count votes for each outcome
+  const yesVotes = resolvedResults.filter(r => r.outcome === 'yes');
+  const noVotes = resolvedResults.filter(r => r.outcome === 'no');
+  
+  console.log(`📊 Vote count - YES: ${yesVotes.length}, NO: ${noVotes.length}`);
+  
+  // Need 2+ votes for the same outcome (majority)
+  if (yesVotes.length >= 2) {
+    const sources = yesVotes.map(r => r.source).join(' + ');
+    const reason = yesVotes[0].reason;
+    const citations = perplexityResult?.citations?.length 
+      ? ` (Sources: ${perplexityResult.citations.slice(0, 2).join(', ')})`
+      : '';
+    
+    console.log(`✅ MAJORITY VOTE (2+): YES by ${sources}`);
+    
+    return {
+      resolved: true,
+      outcome: 'yes',
+      reason: `${reason}${citations} [Verified by: ${sources}]`,
+      currentValue: `Majority Verified (${yesVotes.length}/3)`
+    };
   }
   
-  // CRITICAL: Both sources must AGREE on the outcome
-  if (perplexityResult.outcome !== lovableResult.outcome) {
-    console.warn(`🚨 DISAGREEMENT! Perplexity: ${perplexityResult.outcome}, Lovable AI: ${lovableResult.outcome}`);
-    console.warn(`🚨 BLOCKING AUTO-RESOLUTION - requires manual admin review`);
-    return { resolved: false };
+  if (noVotes.length >= 2) {
+    const sources = noVotes.map(r => r.source).join(' + ');
+    const reason = noVotes[0].reason;
+    const citations = perplexityResult?.citations?.length 
+      ? ` (Sources: ${perplexityResult.citations.slice(0, 2).join(', ')})`
+      : '';
+    
+    console.log(`✅ MAJORITY VOTE (2+): NO by ${sources}`);
+    
+    return {
+      resolved: true,
+      outcome: 'no',
+      reason: `${reason}${citations} [Verified by: ${sources}]`,
+      currentValue: `Majority Verified (${noVotes.length}/3)`
+    };
   }
   
-  // Both agree - safe to resolve
-  const outcome = perplexityResult.outcome as 'yes' | 'no';
-  const sourceInfo = perplexityResult.citations?.length 
-    ? ` (Sources: ${perplexityResult.citations.slice(0, 2).join(', ')})`
-    : '';
-  
-  console.log(`✅ VERIFIED by both Perplexity + Lovable AI: ${outcome.toUpperCase()}`);
-  
-  return {
-    resolved: true,
-    outcome,
-    reason: `${perplexityResult.reason}${sourceInfo} [Verified by: Perplexity + Lovable AI]`,
-    currentValue: 'Multi-Source Verified'
-  };
+  // No majority - sources disagree
+  console.warn(`🚨 NO MAJORITY! YES: ${yesVotes.length}, NO: ${noVotes.length}`);
+  console.warn(`🚨 BLOCKING AUTO-RESOLUTION - requires manual admin review`);
+  return { resolved: false };
 }
 
 // ==================== ENTERTAINMENT ORACLES ====================
