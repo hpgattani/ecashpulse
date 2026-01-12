@@ -121,8 +121,8 @@ const Auth = () => {
             }
 
             setAuthSuccess(true);
-            toast.success('Welcome!', {
-              description: 'Wallet verified successfully',
+            toast.success('Payment Sent!', {
+              description: `Paid ${AUTH_AMOUNT} XEC — wallet verified`,
             });
             
             // Check for return URL (e.g., user was trying to bet before login)

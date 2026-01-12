@@ -211,8 +211,8 @@ export const CreatePredictionModal = ({ open, onOpenChange }: CreatePredictionMo
 
       if (error) throw error;
 
-      toast.success("Prediction Submitted!", {
-        description: "Your prediction is now live!",
+      toast.success("Payment Sent!", {
+        description: `Paid ${feeInXEC?.toLocaleString()} XEC — prediction is now live!`,
       });
       
       // Reset form
