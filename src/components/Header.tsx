@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Activity, Menu, X, Wallet, LogOut, TrendingUp, User } from "lucide-react";
+import { Activity, Menu, X, Wallet, LogOut, TrendingUp, User, BarChart3 } from "lucide-react";
 import { ProfileModal } from "./ProfileModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -127,6 +127,10 @@ const Header = () => {
               <button onClick={() => scrollToSection('how-it-works')} className="text-muted-foreground hover:text-foreground transition-colors">
                 {t.howItWorks}
               </button>
+              <Link to="/stats" className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+                <BarChart3 className="w-4 h-4" />
+                Stats
+              </Link>
               {user && (
                 <Link to="/my-bets" className="text-muted-foreground hover:text-foreground transition-colors">
                   {t.myBets}
@@ -212,6 +216,14 @@ const Header = () => {
                 >
                   {t.howItWorks}
                 </button>
+                <Link
+                  to="/stats"
+                  className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <BarChart3 className="w-4 h-4" />
+                  Stats
+                </Link>
                 {user && (
                   <Link
                     to="/my-bets"
