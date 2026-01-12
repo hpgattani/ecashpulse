@@ -768,7 +768,7 @@ async function queryGPT5(title: string): Promise<{ resolved: boolean; outcome?: 
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'openai/gpt-5-mini',
+        model: 'openai/gpt-5',
         messages: [
           { 
             role: 'system', 
@@ -796,7 +796,7 @@ Today's date is ${new Date().toISOString().split('T')[0]}.`
     });
 
     if (!response.ok) {
-      console.error('GPT-5-mini error:', response.status);
+      console.error('GPT-5 error:', response.status);
       return null;
     }
 
@@ -810,11 +810,11 @@ Today's date is ${new Date().toISOString().split('T')[0]}.`
     
     const result = JSON.parse(cleaned);
     if (result.resolved && result.outcome && result.confidence === 'high') {
-      return { resolved: true, outcome: result.outcome, reason: result.reason, source: 'GPT-5-mini' };
+      return { resolved: true, outcome: result.outcome, reason: result.reason, source: 'GPT-5' };
     }
-    return { resolved: false, source: 'GPT-5-mini' };
+    return { resolved: false, source: 'GPT-5' };
   } catch (error) {
-    console.error('GPT-5-mini query error:', error);
+    console.error('GPT-5 query error:', error);
     return null;
   }
 }
