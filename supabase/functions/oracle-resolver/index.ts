@@ -619,18 +619,12 @@ async function checkWeatherPrediction(title: string): Promise<OracleResult> {
 
 // ==================== NEWS/EVENTS ORACLES ====================
 
-// Use Perplexity for REAL-TIME web search to verify events accurately
-async function checkNewsEvent(title: string): Promise<OracleResult> {
+// Query a single AI source for verification
+async function queryPerplexity(title: string): Promise<{ resolved: boolean; outcome?: 'yes' | 'no'; reason?: string; citations?: string[] } | null> {
   const perplexityKey = Deno.env.get('PERPLEXITY_API_KEY');
-  if (!perplexityKey) {
-    console.log('PERPLEXITY_API_KEY not set - skipping real-time search');
-    return { resolved: false };
-  }
+  if (!perplexityKey) return null;
 
   try {
-    console.log(`🔍 Searching real-time data for: "${title.slice(0, 60)}..."`);
-    
-    // Use Perplexity with sonar model for real-time web search
     const response = await fetch('https://api.perplexity.ai/chat/completions', {
       method: 'POST',
       headers: {
@@ -662,54 +656,148 @@ Only set resolved=true if you find clear, recent evidence. Include the date of t
 Today's date is ${new Date().toISOString().split('T')[0]}. Find the most recent information.` 
           }
         ],
-        search_recency_filter: 'week', // Prioritize recent sources
+        search_recency_filter: 'week',
       }),
     });
 
     if (!response.ok) {
-      console.error('Perplexity API error:', response.status, await response.text());
-      return { resolved: false };
+      console.error('Perplexity API error:', response.status);
+      return null;
     }
 
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || '';
     const citations = data.citations || [];
     
-    console.log('Perplexity response:', content);
-    if (citations.length > 0) {
-      console.log('Sources:', citations.slice(0, 3).join(', '));
-    }
-    
-    // Parse JSON response
     let cleaned = content.trim();
     if (cleaned.startsWith('```')) {
       cleaned = cleaned.replace(/```json\n?/g, '').replace(/```\n?/g, '');
     }
     
-    try {
-      const result = JSON.parse(cleaned);
-      
-      // Only accept high-confidence results with citations
-      if (result.resolved && result.outcome && result.confidence === 'high') {
-        const sourceInfo = citations.length > 0 
-          ? ` (Sources: ${citations.slice(0, 2).join(', ')})`
-          : '';
-        
-        return {
-          resolved: true,
-          outcome: result.outcome as 'yes' | 'no',
-          reason: `${result.reason}${sourceInfo}`,
-          currentValue: 'Perplexity Real-Time Search'
-        };
-      }
-    } catch (parseError) {
-      console.log('Perplexity response parse error:', parseError);
+    const result = JSON.parse(cleaned);
+    if (result.resolved && result.outcome && result.confidence === 'high') {
+      return { resolved: true, outcome: result.outcome, reason: result.reason, citations };
     }
+    return { resolved: false };
   } catch (error) {
-    console.error('Perplexity oracle error:', error);
+    console.error('Perplexity query error:', error);
+    return null;
+  }
+}
+
+// Query Lovable AI as a second verification source
+async function queryLovableAI(title: string): Promise<{ resolved: boolean; outcome?: 'yes' | 'no'; reason?: string } | null> {
+  const lovableKey = Deno.env.get('LOVABLE_API_KEY');
+  if (!lovableKey) {
+    console.log('LOVABLE_API_KEY not set - skipping AI verification');
+    return null;
+  }
+
+  try {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${lovableKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          { 
+            role: 'system', 
+            content: `You are a fact-checker verifying prediction market outcomes. Given a prediction question, determine if the event has definitively occurred based on your training data.
+
+IMPORTANT: Only respond with high confidence if you are CERTAIN about the outcome. If you're unsure or the event hasn't happened yet, say resolved=false.
+
+ONLY respond with JSON in this exact format:
+{"resolved": true, "outcome": "yes", "reason": "Brief explanation", "confidence": "high"}
+OR
+{"resolved": true, "outcome": "no", "reason": "Brief explanation", "confidence": "high"}
+OR
+{"resolved": false, "reason": "Event unclear or not yet occurred"}
+
+Be conservative - only resolve if you're absolutely certain.`
+          },
+          { 
+            role: 'user', 
+            content: `Determine if this prediction has been resolved: "${title}"
+
+Today's date is ${new Date().toISOString().split('T')[0]}.` 
+          }
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('Lovable AI error:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || '';
+    
+    let cleaned = content.trim();
+    if (cleaned.startsWith('```')) {
+      cleaned = cleaned.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+    }
+    
+    const result = JSON.parse(cleaned);
+    if (result.resolved && result.outcome && result.confidence === 'high') {
+      return { resolved: true, outcome: result.outcome, reason: result.reason };
+    }
+    return { resolved: false };
+  } catch (error) {
+    console.error('Lovable AI query error:', error);
+    return null;
+  }
+}
+
+// Multi-source verification for news/events - BOTH sources must agree
+async function checkNewsEvent(title: string): Promise<OracleResult> {
+  console.log(`🔍 Multi-source verification for: "${title.slice(0, 60)}..."`);
+  
+  // Query both sources in parallel
+  const [perplexityResult, lovableResult] = await Promise.all([
+    queryPerplexity(title),
+    queryLovableAI(title)
+  ]);
+  
+  console.log('📊 Perplexity result:', perplexityResult ? JSON.stringify(perplexityResult).slice(0, 100) : 'unavailable');
+  console.log('📊 Lovable AI result:', lovableResult ? JSON.stringify(lovableResult).slice(0, 100) : 'unavailable');
+  
+  // If either source is unavailable, don't auto-resolve
+  if (!perplexityResult || !lovableResult) {
+    console.log('⚠️ One or more sources unavailable - blocking auto-resolution');
+    return { resolved: false };
   }
   
-  return { resolved: false };
+  // If either says not resolved, don't resolve
+  if (!perplexityResult.resolved || !lovableResult.resolved) {
+    console.log('⚠️ Sources indicate event not yet resolved');
+    return { resolved: false };
+  }
+  
+  // CRITICAL: Both sources must AGREE on the outcome
+  if (perplexityResult.outcome !== lovableResult.outcome) {
+    console.warn(`🚨 DISAGREEMENT! Perplexity: ${perplexityResult.outcome}, Lovable AI: ${lovableResult.outcome}`);
+    console.warn(`🚨 BLOCKING AUTO-RESOLUTION - requires manual admin review`);
+    return { resolved: false };
+  }
+  
+  // Both agree - safe to resolve
+  const outcome = perplexityResult.outcome as 'yes' | 'no';
+  const sourceInfo = perplexityResult.citations?.length 
+    ? ` (Sources: ${perplexityResult.citations.slice(0, 2).join(', ')})`
+    : '';
+  
+  console.log(`✅ VERIFIED by both Perplexity + Lovable AI: ${outcome.toUpperCase()}`);
+  
+  return {
+    resolved: true,
+    outcome,
+    reason: `${perplexityResult.reason}${sourceInfo} [Verified by: Perplexity + Lovable AI]`,
+    currentValue: 'Multi-Source Verified'
+  };
 }
 
 // ==================== ENTERTAINMENT ORACLES ====================
