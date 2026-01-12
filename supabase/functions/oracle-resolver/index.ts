@@ -1133,18 +1133,31 @@ Deno.serve(async (req) => {
   try {
     console.log('Oracle resolver started...');
     
-    // Get active predictions that have ended
+    const now = new Date();
+    
+    // Get active predictions that have ended (betting closed)
     const { data: predictions, error } = await supabase
       .from('predictions')
       .select('*')
       .eq('status', 'active')
-      .lt('end_date', new Date().toISOString());
+      .lt('end_date', now.toISOString());
     
     if (error) throw error;
     
     const results: Array<{ id: string; title: string; outcome: string; reason: string; source: string }> = [];
     
     for (const pred of (predictions || [])) {
+      // Check if this prediction has a delayed resolution_date
+      // If resolution_date is set and in the future, skip auto-resolution
+      if (pred.resolution_date) {
+        const resolutionDate = new Date(pred.resolution_date);
+        if (resolutionDate > now) {
+          console.log(`⏳ Skipping prediction (resolution scheduled for ${resolutionDate.toISOString()}): ${pred.title.slice(0, 50)}`);
+          continue;
+        }
+        console.log(`✅ Resolution date reached (${resolutionDate.toISOString()}): ${pred.title.slice(0, 50)}`);
+      }
+      
       console.log(`Checking: ${pred.title.slice(0, 60)}...`);
       
       let oracleResult: OracleResult = { resolved: false };

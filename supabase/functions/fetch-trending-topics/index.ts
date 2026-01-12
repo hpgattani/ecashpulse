@@ -30,6 +30,13 @@ const AUTO_BLOCKED_TITLE_KEYWORDS = [
   'claude',
   'gemini',
   'deepmind',
+  // Block COVID/pandemic related predictions - outdated topic
+  'covid',
+  'covid-19',
+  'coronavirus',
+  'pandemic',
+  'lockdown',
+  'vaccine mandate',
 ];
 
 // Patterns that are obviously trivially-true or nonsense (e.g., "American team win Super Bowl")
