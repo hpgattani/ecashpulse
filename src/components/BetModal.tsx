@@ -167,8 +167,8 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
         }
 
         const outcomeLabel = selectedOutcome ? selectedOutcome.label : betPosition.toUpperCase();
-        toast.success(t.betPlaced, {
-          description: `${outcomeLabel} bet of ${betAmount} XEC confirmed.`,
+        toast.success("Payment Sent!", {
+          description: `${outcomeLabel} bet of ${betAmount} XEC placed`,
         });
 
         // Force-refresh odds immediately (and again shortly after) even if realtime drops.
