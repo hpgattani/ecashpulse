@@ -22,6 +22,7 @@ interface PredictionData {
   yes_pool: number;
   no_pool: number;
   end_date: string;
+  resolution_date: string | null;
   status: string;
   escrow_address: string;
   outcomes?: Outcome[];
@@ -621,8 +622,14 @@ const Prediction = () => {
                   </div>
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4" />
-                    <span>{t.ends} {formatDate(prediction.end_date)}</span>
+                    <span>{isBettingClosed ? 'Betting Closed' : t.ends} {formatDate(prediction.end_date)}</span>
                   </div>
+                  {prediction.resolution_date && (
+                    <div className="flex items-center gap-2 text-orange-400">
+                      <Clock className="w-4 h-4" />
+                      <span>Resolution: {formatDate(prediction.resolution_date)}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Bet Buttons */}
@@ -642,6 +649,11 @@ const Prediction = () => {
                   <div className="text-center py-4 px-6 rounded-lg bg-amber-500/10 border border-amber-500/30">
                     <Clock className="w-5 h-5 text-amber-400 mx-auto mb-2" />
                     <p className="text-amber-400 font-medium text-sm">Betting Closed - Awaiting Resolution</p>
+                    {prediction.resolution_date && (
+                      <p className="text-amber-400/80 text-xs mt-1">
+                        Resolution scheduled for {formatDate(prediction.resolution_date)}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
