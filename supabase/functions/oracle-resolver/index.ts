@@ -376,44 +376,39 @@ If the game hasn't finished yet or you can't find verified final scores:
   }
 }
 
-// Multi-source score verification - ESPN primary, Perplexity fallback/verification
+// Multi-source score verification - ESPN ONLY for reliable resolution
+// CRITICAL: Never trust Perplexity-only scores for NFL - too error-prone
 async function getGameScores(team1: string, team2: string): Promise<{ team1Score: number; team2Score: number; finished: boolean; source: string } | null> {
-  // Primary: ESPN API (official live data)
+  // Primary and ONLY trusted source: ESPN API (official live data)
   const espnScores = await getScoresFromEspn(team1, team2);
   
   if (espnScores) {
-    console.log(`✅ Using ESPN scores: ${team1} ${espnScores.team1Score} - ${espnScores.team2Score} ${team2}`);
+    console.log(`✅ Using ESPN scores (official): ${team1} ${espnScores.team1Score} - ${espnScores.team2Score} ${team2}`);
     
-    // Optional: Cross-verify with Perplexity for high-stakes predictions
+    // Optional: Log Perplexity for debugging but NEVER use it for resolution
     const perplexityScores = await getScoresFromPerplexity(team1, team2);
     
     if (perplexityScores) {
-      // Check if scores match
       if (espnScores.team1Score === perplexityScores.team1Score && 
           espnScores.team2Score === perplexityScores.team2Score) {
-        console.log(`✅ Scores VERIFIED by both sources!`);
-        return { ...espnScores, source: 'ESPN + Perplexity (verified)' };
+        console.log(`✅ Perplexity agrees with ESPN (for logging only)`);
       } else {
-        // MISMATCH - log warning and trust ESPN (official source)
-        console.warn(`⚠️ SCORE MISMATCH! ESPN: ${espnScores.team1Score}-${espnScores.team2Score}, Perplexity: ${perplexityScores.team1Score}-${perplexityScores.team2Score}`);
-        console.warn(`⚠️ Trusting ESPN as official source.`);
-        return { ...espnScores, source: 'ESPN (Perplexity mismatch - ignored)' };
+        // Perplexity is WRONG - log this for evidence
+        console.warn(`🚨 PERPLEXITY ERROR DETECTED! ESPN (trusted): ${espnScores.team1Score}-${espnScores.team2Score}, Perplexity (wrong): ${perplexityScores.team1Score}-${perplexityScores.team2Score}`);
+        console.warn(`🚨 This is why we NEVER trust Perplexity for sports scores.`);
       }
     }
     
-    return espnScores;
+    return { ...espnScores, source: 'ESPN (official)' };
   }
   
-  // Fallback: Perplexity only (when ESPN doesn't have the game)
-  console.log(`⚠️ ESPN did not return scores, falling back to Perplexity only...`);
-  const perplexityScores = await getScoresFromPerplexity(team1, team2);
+  // CRITICAL FIX: Do NOT fall back to Perplexity for NFL scores
+  // Perplexity has been proven unreliable (e.g., Patriots vs Chargers error)
+  console.error(`❌ ESPN did not return scores for ${team1} vs ${team2}`);
+  console.error(`❌ BLOCKING RESOLUTION: Perplexity fallback disabled for NFL to prevent wrong payouts`);
+  console.error(`❌ This prediction must wait for ESPN data or be resolved manually by admin`);
   
-  if (perplexityScores) {
-    console.warn(`⚠️ Using Perplexity-only scores (unverified): ${team1} ${perplexityScores.team1Score} - ${perplexityScores.team2Score} ${team2}`);
-    return { ...perplexityScores, source: 'Perplexity (unverified - ESPN unavailable)' };
-  }
-  
-  console.error(`❌ Could not get scores from any source`);
+  // DO NOT USE PERPLEXITY - return null to block auto-resolution
   return null;
 }
 
@@ -466,7 +461,12 @@ async function checkSportsResult(title: string): Promise<OracleResult> {
   const titleLower = title.toLowerCase();
   
   // Check if this is a spread prediction - delegate to spread oracle
-  if (titleLower.includes('cover') || titleLower.match(/[+-]\d+\.?\d*\s*points?/i)) {
+  // Includes: "cover", "-10.5 points", "+3.5", "win by at least X"
+  if (titleLower.includes('cover') || 
+      titleLower.match(/[+-]\d+\.?\d*\s*points?/i) ||
+      titleLower.includes('win by at least') ||
+      titleLower.includes('win by ')) {
+    console.log(`🏈 Routing to spread oracle: "${title.slice(0, 60)}..."`);
     return await checkSpreadPrediction(title);
   }
   
