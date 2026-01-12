@@ -379,7 +379,7 @@ const translations: Record<Language, Translations> = {
     getWallet: 'Get a Wallet',
     payButtonDocs: 'PayButton Docs',
     footerDesc: 'The decentralized prediction market built on eCash. Trade on real-world events with instant settlements and near-zero fees.',
-    copyright: '© 2025 eCash Pulse. Powered by eCash (XEC).',
+    copyright: '© 2026 eCash Pulse. Powered by eCash (XEC).',
     disclaimer: 'Prediction markets are for informational purposes only. Trade responsibly.',
     
     // Auth
@@ -569,7 +569,7 @@ const translations: Record<Language, Translations> = {
     getWallet: 'Obter uma Carteira',
     payButtonDocs: 'Documentação PayButton',
     footerDesc: 'O mercado de previsões descentralizado construído em eCash. Negocie eventos do mundo real com liquidações instantâneas e taxas quase zero.',
-    copyright: '© 2025 eCash Pulse. Desenvolvido por eCash (XEC).',
+    copyright: '© 2026 eCash Pulse. Desenvolvido por eCash (XEC).',
     disclaimer: 'Os mercados de previsão são apenas para fins informativos. Negocie com responsabilidade.',
     
     // Auth
@@ -759,7 +759,7 @@ const translations: Record<Language, Translations> = {
     getWallet: '지갑 받기',
     payButtonDocs: 'PayButton 문서',
     footerDesc: 'eCash 기반 탈중앙화 예측 마켓. 즉시 정산과 거의 제로에 가까운 수수료로 실제 이벤트에 거래하세요.',
-    copyright: '© 2025 eCash Pulse. Powered by eCash (XEC).',
+    copyright: '© 2026 eCash Pulse. Powered by eCash (XEC).',
     disclaimer: '예측 마켓은 정보 제공 목적입니다. 책임감 있게 거래하세요.',
     
     // Auth
@@ -949,7 +949,7 @@ const translations: Record<Language, Translations> = {
     getWallet: 'ウォレットを取得',
     payButtonDocs: 'PayButtonドキュメント',
     footerDesc: 'eCash上に構築された分散型予測マーケット。即時決済とほぼゼロの手数料で実世界のイベントに取引。',
-    copyright: '© 2025 eCash Pulse. Powered by eCash (XEC).',
+    copyright: '© 2026 eCash Pulse. Powered by eCash (XEC).',
     disclaimer: '予測マーケットは情報提供目的のみです。責任を持って取引してください。',
     
     // Auth
