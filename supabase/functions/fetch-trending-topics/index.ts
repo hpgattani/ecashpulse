@@ -224,7 +224,12 @@ function detectCategory(question: string): string {
     q.includes('grammy') || q.includes('emmy') || q.includes('golden globe') ||
     q.includes('movie') || q.includes('film') || q.includes('director') ||
     q.includes('netflix') || q.includes('disney') || q.includes('hbo') ||
-    q.includes('album') || q.includes('spotify') || q.includes('youtube') || q.includes('tiktok')
+    q.includes('album') || q.includes('spotify') || q.includes('youtube') || q.includes('tiktok') ||
+    q.includes('tv show') || q.includes('season') || q.includes('premiere') ||
+    q.includes('house of the dragon') || q.includes('game of thrones') || q.includes('stranger things') ||
+    q.includes('the last of us') || q.includes('mandalorian') || q.includes('rings of power') ||
+    q.includes('marvel') || q.includes('star wars') || q.includes('series finale') ||
+    q.includes('streaming') || q.includes('box office') || q.includes('concert') || q.includes('tour')
   ) {
     return 'entertainment';
   }
