@@ -110,16 +110,16 @@ export default function Stats() {
         <meta name="description" content="View platform-wide statistics for eCash Pulse prediction market." />
       </Helmet>
       
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen relative z-10">
         <Header />
         
         <main className="container mx-auto px-4 py-8 pt-24">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-10">
-              <h1 className="text-4xl font-bold mb-3 text-white">
+              <h1 className="text-4xl font-bold mb-3 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
                 Platform Statistics
               </h1>
-              <p className="text-white/70 text-lg">
+              <p className="text-muted-foreground text-lg">
                 Real-time metrics from eCash Pulse prediction market
               </p>
             </div>
@@ -158,7 +158,7 @@ export default function Stats() {
                       <stat.icon className={`h-5 w-5 ${stat.iconColor}`} />
                     </CardHeader>
                     <CardContent>
-                      <div className="text-3xl font-bold tracking-tight mb-1" style={{ color: 'white' }}>
+                      <div className="text-3xl font-bold tracking-tight mb-1 text-foreground">
                         {stat.value}
                       </div>
                       <p className="text-sm text-muted-foreground">
