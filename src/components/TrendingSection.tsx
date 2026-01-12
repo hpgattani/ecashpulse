@@ -25,10 +25,10 @@ const TrendingSection = () => {
   const leftOrbX = useTransform(scrollYProgress, [0, 1], [-20, 20]);
   const rightOrbX = useTransform(scrollYProgress, [0, 1], [20, -20]);
   
-  // Show top 5 predictions sorted by nearest expiry (soonest first), only active ones
+  // Show top 5 predictions sorted by highest volume (most bets), only active ones
   const trendingPredictions = [...predictions]
     .filter(p => new Date(p.endDate) > new Date()) // Only active predictions
-    .sort((a, b) => new Date(a.endDate).getTime() - new Date(b.endDate).getTime())
+    .sort((a, b) => b.volume - a.volume) // Highest volume first
     .slice(0, 5);
 
   const scrollToIndex = useCallback((index: number) => {
