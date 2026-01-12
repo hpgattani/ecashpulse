@@ -245,11 +245,8 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
               tertiary: "#ffffff",
             },
           },
-          onSuccess: (txResult: any) => {
-            toast.success("Payment Sent!", {
-              description: `Received ${amount.toLocaleString()} XEC`,
-            });
-            let txHash: string | undefined;
+           onSuccess: (txResult: any) => {
+             let txHash: string | undefined;
 
             if (typeof txResult === "string") {
               txHash = txResult;

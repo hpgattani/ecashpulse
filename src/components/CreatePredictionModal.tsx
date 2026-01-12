@@ -161,11 +161,8 @@ export const CreatePredictionModal = ({ open, onOpenChange }: CreatePredictionMo
             tertiary: "#ffffff",
           },
         },
-        onSuccess: async (txResult: any) => {
-          toast.success("Payment Sent!", {
-            description: `Paid ${feeInXEC.toLocaleString()} XEC`,
-          });
-          let txHash: string | undefined;
+         onSuccess: async (txResult: any) => {
+           let txHash: string | undefined;
           if (typeof txResult === "string") {
             txHash = txResult;
           } else if (txResult?.hash) {
