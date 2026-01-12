@@ -32,12 +32,23 @@ const MarketFilters = ({
     { id: 'elections', name: t.elections, Icon: Vote, gradient: 'from-indigo-400 via-blue-500 to-indigo-600' },
   ];
 
+  // Trigger haptic feedback for water-like vibration effect
+  const triggerHaptic = () => {
+    if ('vibrate' in navigator) {
+      // Short burst pattern mimicking water ripple/droplet vibration
+      navigator.vibrate([8, 30, 5]);
+    }
+  };
+
   return (
     <div className="flex flex-wrap gap-2 justify-center mb-8 mx-auto">
       {categories.map((category) => (
         <motion.button
           key={category.id}
-          onClick={() => onCategoryChange(category.id)}
+          onClick={() => {
+            triggerHaptic();
+            onCategoryChange(category.id);
+          }}
           whileTap={{ scale: 0.97 }}
           className={`
             relative px-4 py-2.5 text-sm font-medium flex items-center gap-2 rounded-full
