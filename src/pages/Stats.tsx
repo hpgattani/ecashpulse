@@ -116,10 +116,10 @@ export default function Stats() {
         <main className="container mx-auto px-4 py-8 pt-24">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-10">
-              <h1 className="text-4xl font-bold mb-3 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+              <h1 className="text-4xl font-bold mb-3 text-white">
                 Platform Statistics
               </h1>
-              <p className="text-muted-foreground text-lg">
+              <p className="text-white/70 text-lg">
                 Real-time metrics from eCash Pulse prediction market
               </p>
             </div>
