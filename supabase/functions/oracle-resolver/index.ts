@@ -736,56 +736,149 @@ async function checkEntertainmentEvent(title: string): Promise<OracleResult> {
 // ==================== PAYOUT PROCESSING ====================
 
 async function processPayouts(supabase: any, predictionId: string, winningPosition: 'yes' | 'no'): Promise<void> {
-  console.log(`Processing payouts for prediction ${predictionId}, winning: ${winningPosition}`);
+  console.log(`💰 Processing payouts for prediction ${predictionId}, winning position: ${winningPosition}`);
   
-  const { data: prediction } = await supabase
+  const { data: prediction, error: predError } = await supabase
     .from('predictions')
     .select('yes_pool, no_pool, title')
     .eq('id', predictionId)
     .single();
   
-  if (!prediction) return;
+  if (predError || !prediction) {
+    console.error('Failed to fetch prediction:', predError);
+    return;
+  }
   
   const totalPool = prediction.yes_pool + prediction.no_pool;
   const winningPool = winningPosition === 'yes' ? prediction.yes_pool : prediction.no_pool;
+  
+  console.log(`📊 Pool stats - Total: ${totalPool}, Winning (${winningPosition}): ${winningPool}`);
   
   if (totalPool === 0) {
     console.log('No bets placed, skipping payouts');
     return;
   }
   
-  const { data: winningBets } = await supabase
+  // Get all confirmed bets for this prediction
+  const { data: allBets, error: betsError } = await supabase
     .from('bets')
-    .select('id, user_id, amount')
+    .select('id, user_id, amount, position')
     .eq('prediction_id', predictionId)
-    .eq('position', winningPosition)
     .eq('status', 'confirmed');
   
-  if (!winningBets?.length) {
-    console.log('No winning bets found');
+  if (betsError) {
+    console.error('Failed to fetch bets:', betsError);
     return;
   }
   
+  const winningBets = allBets?.filter((b: any) => b.position === winningPosition) || [];
+  const losingBets = allBets?.filter((b: any) => b.position !== winningPosition) || [];
+  
+  console.log(`Found ${winningBets.length} winning bets, ${losingBets.length} losing bets`);
+  
+  if (!winningBets.length) {
+    console.log('No winning bets found');
+    // Still mark losing bets as lost
+    if (losingBets.length > 0) {
+      await supabase
+        .from('bets')
+        .update({ status: 'lost', payout_amount: 0 })
+        .eq('prediction_id', predictionId)
+        .eq('status', 'confirmed');
+    }
+    return;
+  }
+  
+  // Calculate and update each winning bet with payout_amount
+  const payoutUpdates: { id: string; payout: number }[] = [];
+  
   for (const bet of winningBets) {
+    // Parimutuel calculation: (bet_amount / winning_pool) * total_pool
     const payout = winningPool > 0 ? Math.floor((bet.amount / winningPool) * totalPool) : bet.amount;
+    payoutUpdates.push({ id: bet.id, payout });
     
-    await supabase
+    console.log(`📝 Bet ${bet.id}: amount=${bet.amount}, calculated payout=${payout} sats`);
+    
+    // Update bet with status AND payout_amount in a single call
+    const { error: updateError } = await supabase
       .from('bets')
       .update({ status: 'won', payout_amount: payout })
       .eq('id', bet.id);
     
-    console.log(`Bet ${bet.id}: payout ${payout} sats`);
+    if (updateError) {
+      console.error(`❌ Failed to update bet ${bet.id}:`, updateError);
+    } else {
+      console.log(`✅ Updated bet ${bet.id} with payout_amount=${payout}`);
+    }
   }
   
   // Mark losing bets
-  await supabase
+  const losingPosition = winningPosition === 'yes' ? 'no' : 'yes';
+  const { error: loseError } = await supabase
     .from('bets')
     .update({ status: 'lost', payout_amount: 0 })
     .eq('prediction_id', predictionId)
-    .eq('position', winningPosition === 'yes' ? 'no' : 'yes')
+    .eq('position', losingPosition)
     .eq('status', 'confirmed');
   
-  console.log(`Payouts processed for "${prediction.title}"`);
+  if (loseError) {
+    console.error('Failed to mark losing bets:', loseError);
+  }
+  
+  console.log(`✅ Payouts calculated for "${prediction.title}"`);
+
+  // CRITICAL: Verify payout_amount is set before calling send-payouts
+  // Wait a moment for DB consistency
+  await new Promise(resolve => setTimeout(resolve, 500));
+  
+  // Verify at least one winning bet has payout_amount set
+  const { data: verifyBets, error: verifyError } = await supabase
+    .from('bets')
+    .select('id, payout_amount, status')
+    .eq('prediction_id', predictionId)
+    .eq('status', 'won');
+  
+  if (verifyError) {
+    console.error('Verification query failed:', verifyError);
+    return;
+  }
+  
+  const betsWithPayout = verifyBets?.filter((b: any) => b.payout_amount && b.payout_amount > 0) || [];
+  
+  if (betsWithPayout.length === 0) {
+    console.error('❌ CRITICAL: No bets have payout_amount set! Attempting retry...');
+    
+    // Retry setting payout_amount for each bet
+    for (const update of payoutUpdates) {
+      const { error: retryError } = await supabase
+        .from('bets')
+        .update({ payout_amount: update.payout })
+        .eq('id', update.id);
+      
+      if (retryError) {
+        console.error(`Retry failed for bet ${update.id}:`, retryError);
+      } else {
+        console.log(`✅ Retry successful for bet ${update.id}`);
+      }
+    }
+    
+    // Wait again and re-verify
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    const { data: reVerify } = await supabase
+      .from('bets')
+      .select('id, payout_amount')
+      .eq('prediction_id', predictionId)
+      .eq('status', 'won')
+      .not('payout_amount', 'is', null);
+    
+    if (!reVerify?.length) {
+      console.error('❌ FATAL: Could not set payout_amount after retry. Aborting payout trigger.');
+      return;
+    }
+  }
+  
+  console.log(`✅ Verified ${betsWithPayout.length || 'retry'} bets have payout_amount set`);
 
   // Automatically trigger payout distribution
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -799,19 +892,27 @@ async function processPayouts(supabase: any, predictionId: string, winningPositi
   // Call send-payouts to distribute winnings
   const payoutUrl = `${supabaseUrl}/functions/v1/send-payouts`;
   
-  const payoutResponse = await fetch(payoutUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${serviceKey}`
-    },
-    body: JSON.stringify({ prediction_id: predictionId })
-  });
+  console.log(`🚀 Triggering send-payouts for prediction ${predictionId}...`);
+  
+  try {
+    const payoutResponse = await fetch(payoutUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${serviceKey}`
+      },
+      body: JSON.stringify({ prediction_id: predictionId })
+    });
 
-  if (!payoutResponse.ok) {
-    console.error(`Payout call failed: ${payoutResponse.status}`);
-  } else {
-    console.log(`Payout triggered successfully for ${predictionId}`);
+    if (!payoutResponse.ok) {
+      const errorText = await payoutResponse.text();
+      console.error(`❌ Payout call failed: ${payoutResponse.status} - ${errorText}`);
+    } else {
+      const result = await payoutResponse.json();
+      console.log(`✅ Payout triggered successfully:`, JSON.stringify(result));
+    }
+  } catch (payoutError) {
+    console.error('❌ Payout trigger fetch error:', payoutError);
   }
 }
 
