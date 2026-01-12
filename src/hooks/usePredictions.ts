@@ -450,7 +450,7 @@ export const usePredictions = () => {
             .select('*')
             .eq('status', 'active')
             .gt('end_date', now) // Only show predictions that haven't expired
-            .order('created_at', { ascending: false }),
+            .order('end_date', { ascending: true }), // Near expiry first
           supabase.from('outcomes').select('*'),
         ]);
 
