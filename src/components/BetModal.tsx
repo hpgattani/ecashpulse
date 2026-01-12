@@ -25,6 +25,7 @@ interface Prediction {
   yesPool?: number;
   noPool?: number;
   endDate?: string;
+  category?: string;
 }
 
 interface BetModalProps {
@@ -96,6 +97,11 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
   
   // Check if betting is closed (end_date has passed)
   const isBettingClosed = prediction.endDate ? new Date(prediction.endDate) < new Date() : false;
+  
+  // Check if this is a crypto prediction - these have a 1 hour buffer before resolution
+  const cryptoKeywords = ['bitcoin', 'btc', 'ethereum', 'eth', 'solana', 'sol', 'xec', 'xrp', 'doge', 'ada', 'cardano', 'dogecoin', 'ripple', 'crypto'];
+  const isCryptoPrediction = prediction.category === 'crypto' || 
+    cryptoKeywords.some(kw => prediction.question.toLowerCase().includes(kw));
 
   // Close any PayButton modals/overlays
   const closePayButtonModal = useCallback(() => {
@@ -473,6 +479,16 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
 
                     {/* PayButton Container */}
                     <div ref={payButtonRef} className="min-h-[50px] flex justify-center" />
+
+                    {/* Crypto buffer notice */}
+                    {isCryptoPrediction && (
+                      <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                        <Clock className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                        <p className="text-xs text-amber-300">
+                          <strong>Note:</strong> Crypto predictions close betting 1 hour before resolution to prevent last-minute exploitation.
+                        </p>
+                      </div>
+                    )}
 
                     {/* Info */}
                     <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/30">
