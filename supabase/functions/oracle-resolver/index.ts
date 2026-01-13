@@ -961,12 +961,13 @@ async function processPayouts(supabase: any, predictionId: string, winningPositi
     return;
   }
   
-  // Get all confirmed bets for this prediction
+  // Get all confirmed bets for this prediction, OR bets that were marked won but not paid out yet
+  // This handles recovery from partial runs where bets were marked won but payout_amount was not set
   const { data: allBets, error: betsError } = await supabase
     .from('bets')
-    .select('id, user_id, amount, position')
+    .select('id, user_id, amount, position, status, payout_amount')
     .eq('prediction_id', predictionId)
-    .eq('status', 'confirmed');
+    .or('status.eq.confirmed,and(status.eq.won,payout_amount.is.null)');
   
   if (betsError) {
     console.error('Failed to fetch bets:', betsError);
@@ -974,9 +975,9 @@ async function processPayouts(supabase: any, predictionId: string, winningPositi
   }
   
   const winningBets = allBets?.filter((b: any) => b.position === winningPosition) || [];
-  const losingBets = allBets?.filter((b: any) => b.position !== winningPosition) || [];
+  const losingBets = allBets?.filter((b: any) => b.position !== winningPosition && b.status === 'confirmed') || [];
   
-  console.log(`Found ${winningBets.length} winning bets, ${losingBets.length} losing bets`);
+  console.log(`Found ${winningBets.length} winning bets (including recovery), ${losingBets.length} losing bets`);
   
   if (!winningBets.length) {
     console.log('No winning bets found');
