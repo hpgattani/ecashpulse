@@ -9,21 +9,22 @@ const Toaster = ({ ...props }: ToasterProps) => {
   return (
     <Sonner
       theme={theme as ToasterProps["theme"]}
-      className="toaster group !fixed !top-1/2 !left-1/2 !-translate-x-1/2 !-translate-y-1/2"
-      position="top-center"
+      className="toaster group"
+      position="bottom-center"
+      offset={32}
       toastOptions={{
         classNames: {
           toast:
-            "group toast w-[min(92vw,320px)] border-none bg-gradient-to-r from-primary to-accent text-primary-foreground shadow-2xl backdrop-blur-xl rounded-lg px-5 py-4 text-center",
-          title: "font-display text-base font-bold leading-tight",
-          description: "text-primary-foreground/90 text-sm font-medium mt-1",
+            "group toast w-[min(92vw,340px)] border-none bg-gradient-to-r from-primary to-accent text-white shadow-2xl backdrop-blur-xl rounded-xl px-6 py-5 text-center",
+          title: "font-display text-lg font-bold leading-tight text-white",
+          description: "text-white/95 text-sm font-semibold mt-1.5",
           actionButton:
-            "bg-primary-foreground/15 text-primary-foreground hover:bg-primary-foreground/25",
-          cancelButton: "bg-primary-foreground/10 text-primary-foreground/80",
+            "bg-white/20 text-white hover:bg-white/30",
+          cancelButton: "bg-white/10 text-white/80",
           success: "from-primary to-accent",
           error: "from-destructive to-accent",
         },
-        duration: 4000,
+        duration: 5500,
       }}
       {...props}
     />
