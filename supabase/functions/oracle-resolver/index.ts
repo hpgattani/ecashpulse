@@ -32,7 +32,6 @@ async function getCryptoPrice(coinId: string): Promise<number | null> {
 async function checkCryptoPrediction(title: string): Promise<OracleResult> {
   const titleLower = title.toLowerCase();
   
-  // Map keywords to CoinGecko IDs
   const cryptoMap: Record<string, string> = {
     'bitcoin': 'bitcoin', 'btc': 'bitcoin',
     'ethereum': 'ethereum', 'eth': 'ethereum',
@@ -59,7 +58,7 @@ async function checkCryptoPrediction(title: string): Promise<OracleResult> {
   const price = await getCryptoPrice(coinId);
   if (!price) return { resolved: false };
 
-  // Handle "go up", "go down", "up or down" predictions - use CoinGecko 24h change
+  // Handle direction predictions
   const isUpPrediction = titleLower.includes('go up') || titleLower.includes('goes up') || 
                          titleLower.includes('will rise') || titleLower.includes('will increase');
   const isDownPrediction = titleLower.includes('go down') || titleLower.includes('goes down') || 
@@ -67,9 +66,6 @@ async function checkCryptoPrediction(title: string): Promise<OracleResult> {
   const isUpOrDown = titleLower.includes('up or down') || titleLower.includes('up/down');
   
   if (isUpPrediction || isDownPrediction || isUpOrDown) {
-    console.log(`📊 Checking ${coinName} direction with CoinGecko...`);
-    
-    // Get 24h price change from CoinGecko
     try {
       const response = await fetch(
         `https://api.coingecko.com/api/v3/coins/${coinId}?localization=false&tickers=false&community_data=false&developer_data=false`,
@@ -81,33 +77,25 @@ async function checkCryptoPrediction(title: string): Promise<OracleResult> {
         
         if (priceChange24h !== undefined) {
           const actuallyUp = priceChange24h >= 0;
-          
           let outcome: 'yes' | 'no';
-          if (isUpPrediction) {
-            // "Will ETH go up?" - YES if price went up
-            outcome = actuallyUp ? 'yes' : 'no';
-          } else if (isDownPrediction) {
-            // "Will ETH go down?" - YES if price went down
-            outcome = actuallyUp ? 'no' : 'yes';
-          } else {
-            // "Up or down?" - YES means UP, NO means DOWN
-            outcome = actuallyUp ? 'yes' : 'no';
-          }
+          if (isUpPrediction) outcome = actuallyUp ? 'yes' : 'no';
+          else if (isDownPrediction) outcome = actuallyUp ? 'no' : 'yes';
+          else outcome = actuallyUp ? 'yes' : 'no';
           
           return {
             resolved: true,
             outcome,
-            reason: `${coinName} 24h change: ${priceChange24h >= 0 ? '+' : ''}${priceChange24h.toFixed(2)}% (CoinGecko). Current: $${price.toLocaleString()}`,
-            currentValue: `$${price.toLocaleString()} (${priceChange24h >= 0 ? '↑' : '↓'}${Math.abs(priceChange24h).toFixed(2)}%)`
+            reason: `${coinName} 24h: ${priceChange24h >= 0 ? '+' : ''}${priceChange24h.toFixed(2)}%. Current: $${price.toLocaleString()}`,
+            currentValue: `$${price.toLocaleString()}`
           };
         }
       }
     } catch (error) {
-      console.error('CoinGecko detailed API error:', error);
+      console.error('CoinGecko API error:', error);
     }
   }
   
-  // Extract target price from title
+  // Extract target price
   const priceMatch = title.match(/\$?([\d,]+(?:\.\d+)?)\s*(?:k|K)?/);
   if (!priceMatch) return { resolved: false };
   
@@ -116,15 +104,13 @@ async function checkCryptoPrediction(title: string): Promise<OracleResult> {
     targetPrice *= 1000;
   }
   
-  // Check for price target conditions
   if (titleLower.includes('above') || titleLower.includes('reach') || 
-      titleLower.includes('hit') || titleLower.includes('trade') ||
-      titleLower.includes('exceed') || titleLower.includes('close')) {
+      titleLower.includes('hit') || titleLower.includes('exceed') || titleLower.includes('close')) {
     const reached = price >= targetPrice;
     return {
       resolved: true,
       outcome: reached ? 'yes' : 'no',
-      reason: `${coinName} price: $${price.toLocaleString()} (target: $${targetPrice.toLocaleString()}) via CoinGecko`,
+      reason: `${coinName}: $${price.toLocaleString()} (target: $${targetPrice.toLocaleString()})`,
       currentValue: `$${price.toLocaleString()}`
     };
   }
@@ -147,8 +133,8 @@ async function checkFlippening(): Promise<OracleResult> {
       return {
         resolved: true,
         outcome: flipped ? 'yes' : 'no',
-        reason: `ETH mcap: $${(ethMcap/1e9).toFixed(0)}B, BTC mcap: $${(btcMcap/1e9).toFixed(0)}B`,
-        currentValue: `ETH/BTC ratio: ${(ethMcap/btcMcap*100).toFixed(1)}%`
+        reason: `ETH: $${(ethMcap/1e9).toFixed(0)}B, BTC: $${(btcMcap/1e9).toFixed(0)}B`,
+        currentValue: `${(ethMcap/btcMcap*100).toFixed(1)}%`
       };
     }
   } catch (error) {
@@ -159,7 +145,6 @@ async function checkFlippening(): Promise<OracleResult> {
 
 // ==================== SPORTS ORACLES ====================
 
-// NFL team name mappings for matching
 const NFL_TEAMS: Record<string, string[]> = {
   'rams': ['los angeles rams', 'la rams', 'rams'],
   'panthers': ['carolina panthers', 'panthers'],
@@ -195,37 +180,26 @@ const NFL_TEAMS: Record<string, string[]> = {
   'giants': ['new york giants', 'giants'],
 };
 
-// Parse spread from title like "-10.5", "+3.5", "cover -7", or "win by at least 1.5 points"
 function parseSpread(title: string): { team: string; spread: number; opponent: string } | null {
   const titleLower = title.toLowerCase();
-  
-  // Match "win by at least X points" pattern (the favored team needs to win by that margin)
   const winByMatch = titleLower.match(/win\s+by\s+(?:at\s+least\s+)?(\d+\.?\d*)\s*(?:points?|pts)?/i);
-  // Match patterns like "cover -10.5" or "will the packers cover -7 points"
   const spreadMatch = title.match(/([+-]?\d+\.?\d*)\s*(?:points?|pts)?/i);
   
   let spread: number;
-  
   if (winByMatch) {
-    // "win by at least X" means they need margin > X (like a negative spread)
-    spread = -parseFloat(winByMatch[1]); // Negative because it's a "must win by" condition
-    console.log(`Parsed "win by at least" pattern: spread = ${spread}`);
+    spread = -parseFloat(winByMatch[1]);
   } else if (spreadMatch) {
     spread = parseFloat(spreadMatch[1]);
-    console.log(`Parsed standard spread pattern: spread = ${spread}`);
   } else {
     return null;
   }
   
   if (isNaN(spread)) return null;
   
-  // Find team names in order of appearance
   const teamMatches: string[] = [];
-  
   for (const [key, aliases] of Object.entries(NFL_TEAMS)) {
     for (const alias of aliases) {
-      const idx = titleLower.indexOf(alias);
-      if (idx !== -1 && !teamMatches.includes(key)) {
+      if (titleLower.indexOf(alias) !== -1 && !teamMatches.includes(key)) {
         teamMatches.push(key);
         break;
       }
@@ -233,25 +207,16 @@ function parseSpread(title: string): { team: string; spread: number; opponent: s
   }
   
   if (teamMatches.length < 2) return null;
-  
-  // First team mentioned is the "favored" team (the one the question is about)
   return { team: teamMatches[0], spread, opponent: teamMatches[1] };
 }
 
-// Get actual game scores using ESPN API as primary source
 async function getScoresFromEspn(team1: string, team2: string): Promise<{ team1Score: number; team2Score: number; finished: boolean; source: string } | null> {
   try {
-    console.log(`🏈 [ESPN] Fetching scores for ${team1} vs ${team2}...`);
-    
     const scoreboardRes = await fetch('https://site.api.espn.com/apis/v2/sports/football/nfl/scoreboard');
-    if (!scoreboardRes.ok) {
-      console.error('ESPN scoreboard fetch failed:', scoreboardRes.status);
-      return null;
-    }
+    if (!scoreboardRes.ok) return null;
 
     const scoreboard = await scoreboardRes.json();
     const events = scoreboard?.events || [];
-
     const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
     const t1 = normalize(team1);
     const t2 = normalize(team2);
@@ -262,356 +227,81 @@ async function getScoresFromEspn(team1: string, team2: string): Promise<{ team1S
       if (competitors.length < 2) continue;
 
       const names = competitors.map((c: any) => normalize(c?.team?.displayName || c?.team?.name || ''));
-      const has1 = names.some((n: string) => n.includes(t1) || t1.includes(n));
-      const has2 = names.some((n: string) => n.includes(t2) || t2.includes(n));
-      if (!has1 || !has2) continue;
+      if (!names.some((n: string) => n.includes(t1) || t1.includes(n))) continue;
+      if (!names.some((n: string) => n.includes(t2) || t2.includes(n))) continue;
 
       const statusObj = comp?.status?.type;
-      const state = statusObj?.state as string | undefined;
       const completed = Boolean(statusObj?.completed);
+      if (!completed && statusObj?.state !== 'post') return null;
 
-      if (!completed && state !== 'post') {
-        console.log(`[ESPN] Game found but not finished yet (state: ${state})`);
-        return null;
-      }
-
-      // Find which competitor matches team1 and team2
       let team1Score: number | null = null;
       let team2Score: number | null = null;
       
       for (const c of competitors) {
         const cName = normalize(c?.team?.displayName || c?.team?.name || '');
         const score = c?.score != null ? Number(c.score) : null;
-        
-        if (cName.includes(t1) || t1.includes(cName)) {
-          team1Score = score;
-        } else if (cName.includes(t2) || t2.includes(cName)) {
-          team2Score = score;
-        }
+        if (cName.includes(t1) || t1.includes(cName)) team1Score = score;
+        else if (cName.includes(t2) || t2.includes(cName)) team2Score = score;
       }
 
       if (team1Score !== null && team2Score !== null) {
-        console.log(`✅ [ESPN] Final scores: ${team1} ${team1Score} - ${team2Score} ${team2}`);
         return { team1Score, team2Score, finished: true, source: 'ESPN' };
       }
     }
-
-    console.log('[ESPN] No matching game found');
     return null;
   } catch (error) {
-    console.error('[ESPN] Score lookup error:', error);
+    console.error('[ESPN] error:', error);
     return null;
   }
 }
 
-// Fallback: Get scores using Perplexity (only if ESPN fails)
-async function getScoresFromPerplexity(team1: string, team2: string): Promise<{ team1Score: number; team2Score: number; finished: boolean; source: string } | null> {
-  const perplexityKey = Deno.env.get('PERPLEXITY_API_KEY');
-  if (!perplexityKey) return null;
-
-  try {
-    console.log(`🏈 [Perplexity] Fetching scores for ${team1} vs ${team2}...`);
-    
-    const response = await fetch('https://api.perplexity.ai/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${perplexityKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'sonar',
-        messages: [
-          { 
-            role: 'system', 
-            content: `You are a sports score lookup tool. Return ONLY a JSON object with final game scores.
-
-CRITICAL: Only respond if the game is FINISHED. Do not predict or estimate scores.
-Double-check the score from official NFL sources.
-
-Response format (JSON only, no other text):
-{"team1_score": 30, "team2_score": 24, "finished": true}
-
-If the game hasn't finished yet or you can't find verified final scores:
-{"finished": false}`
-          },
-          { 
-            role: 'user', 
-            content: `What was the OFFICIAL FINAL score of the most recent NFL game between the ${team1} and the ${team2}? Today is ${new Date().toISOString().split('T')[0]}. Verify from NFL.com or ESPN. Only provide final scores if the game has completely ended.` 
-          }
-        ],
-        search_recency_filter: 'day',
-      }),
-    });
-
-    if (!response.ok) {
-      console.error('[Perplexity] API error:', response.status);
-      return null;
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || '';
-    console.log('[Perplexity] Response:', content);
-    
-    let cleaned = content.trim();
-    if (cleaned.startsWith('```')) {
-      cleaned = cleaned.replace(/```json\n?/g, '').replace(/```\n?/g, '');
-    }
-    
-    const result = JSON.parse(cleaned);
-    
-    if (!result.finished) {
-      console.log('[Perplexity] Game not finished yet');
-      return null;
-    }
-    
-    return {
-      team1Score: parseInt(result.team1_score),
-      team2Score: parseInt(result.team2_score),
-      finished: true,
-      source: 'Perplexity'
-    };
-  } catch (error) {
-    console.error('[Perplexity] Score lookup error:', error);
-    return null;
-  }
-}
-
-// Multi-source score verification - ESPN ONLY for reliable resolution
-// CRITICAL: Never trust Perplexity-only scores for NFL - too error-prone
-async function getGameScores(team1: string, team2: string): Promise<{ team1Score: number; team2Score: number; finished: boolean; source: string } | null> {
-  // Primary and ONLY trusted source: ESPN API (official live data)
-  const espnScores = await getScoresFromEspn(team1, team2);
-  
-  if (espnScores) {
-    console.log(`✅ Using ESPN scores (official): ${team1} ${espnScores.team1Score} - ${espnScores.team2Score} ${team2}`);
-    
-    // Optional: Log Perplexity for debugging but NEVER use it for resolution
-    const perplexityScores = await getScoresFromPerplexity(team1, team2);
-    
-    if (perplexityScores) {
-      if (espnScores.team1Score === perplexityScores.team1Score && 
-          espnScores.team2Score === perplexityScores.team2Score) {
-        console.log(`✅ Perplexity agrees with ESPN (for logging only)`);
-      } else {
-        // Perplexity is WRONG - log this for evidence
-        console.warn(`🚨 PERPLEXITY ERROR DETECTED! ESPN (trusted): ${espnScores.team1Score}-${espnScores.team2Score}, Perplexity (wrong): ${perplexityScores.team1Score}-${perplexityScores.team2Score}`);
-        console.warn(`🚨 This is why we NEVER trust Perplexity for sports scores.`);
-      }
-    }
-    
-    return { ...espnScores, source: 'ESPN (official)' };
-  }
-  
-  // CRITICAL FIX: Do NOT fall back to Perplexity for NFL scores
-  // Perplexity has been proven unreliable (e.g., Patriots vs Chargers error)
-  console.error(`❌ ESPN did not return scores for ${team1} vs ${team2}`);
-  console.error(`❌ BLOCKING RESOLUTION: Perplexity fallback disabled for NFL to prevent wrong payouts`);
-  console.error(`❌ This prediction must wait for ESPN data or be resolved manually by admin`);
-  
-  // DO NOT USE PERPLEXITY - return null to block auto-resolution
-  return null;
-}
-
-// Check spread-based predictions with actual score math
 async function checkSpreadPrediction(title: string): Promise<OracleResult> {
   const parsed = parseSpread(title);
-  if (!parsed) {
-    console.log('Could not parse spread from title');
-    return { resolved: false };
-  }
+  if (!parsed) return { resolved: false };
   
-  console.log(`📊 Spread prediction: ${parsed.team} at ${parsed.spread} vs ${parsed.opponent}`);
+  const scores = await getScoresFromEspn(parsed.team, parsed.opponent);
+  if (!scores) return { resolved: false };
   
-  // Get actual scores
-  const scores = await getGameScores(parsed.team, parsed.opponent);
-  if (!scores) {
-    console.log('Could not get game scores');
-    return { resolved: false };
-  }
-  
-  // Calculate if spread was covered
-  // Negative spread means favored team must win by more than that amount
-  // e.g., Rams -10.5 means Rams must win by 11+ points
   const margin = scores.team1Score - scores.team2Score;
-  const spreadCovered = margin > Math.abs(parsed.spread);
-  
-  // If spread is negative (favorite), they need to win by more than spread
-  // If spread is positive (underdog), they can lose by less than spread
   let covered: boolean;
   if (parsed.spread < 0) {
-    // Favorite: must win by more than spread
     covered = margin > Math.abs(parsed.spread);
   } else {
-    // Underdog: can lose by less than spread or win
     covered = margin > -parsed.spread;
   }
   
-  const outcome = covered ? 'yes' : 'no';
-  
   return {
     resolved: true,
-    outcome,
-    reason: `Final Score: ${parsed.team.charAt(0).toUpperCase() + parsed.team.slice(1)} ${scores.team1Score} - ${scores.team2Score} ${parsed.opponent.charAt(0).toUpperCase() + parsed.opponent.slice(1)}. Margin: ${margin > 0 ? '+' : ''}${margin}. Spread: ${parsed.spread}. ${covered ? 'COVERED' : 'DID NOT COVER'}. (Source: ${scores.source})`,
+    outcome: covered ? 'yes' : 'no',
+    reason: `${parsed.team} ${scores.team1Score}-${scores.team2Score} ${parsed.opponent}, margin: ${margin}, spread: ${parsed.spread}`,
     currentValue: `${scores.team1Score}-${scores.team2Score}`
   };
 }
 
-// Simple win/lose sports predictions (no spread)
 async function checkSportsResult(title: string): Promise<OracleResult> {
   const titleLower = title.toLowerCase();
   
-  // Check if this is a spread prediction - delegate to spread oracle
-  // Includes: "cover", "-10.5 points", "+3.5", "win by at least X"
-  if (titleLower.includes('cover') || 
-      titleLower.match(/[+-]\d+\.?\d*\s*points?/i) ||
-      titleLower.includes('win by at least') ||
-      titleLower.includes('win by ')) {
-    console.log(`🏈 Routing to spread oracle: "${title.slice(0, 60)}..."`);
-    return await checkSpreadPrediction(title);
-  }
-  
-  // Check if this is a simple "will team X beat team Y" prediction
-  const beatMatch = titleLower.match(/will\s+(?:the\s+)?(\w+)\s+beat\s+(?:the\s+)?(\w+)/);
-  if (beatMatch) {
-    const team1 = beatMatch[1].toLowerCase();
-    const team2 = beatMatch[2].toLowerCase();
-    
-    // Look up team in NFL teams
-    let team1Key: string | null = null;
-    let team2Key: string | null = null;
-    
-    for (const [key, aliases] of Object.entries(NFL_TEAMS)) {
-      if (aliases.some(a => a.includes(team1) || team1.includes(key))) team1Key = key;
-      if (aliases.some(a => a.includes(team2) || team2.includes(key))) team2Key = key;
-    }
-    
-    if (team1Key && team2Key) {
-      const scores = await getGameScores(team1Key, team2Key);
-      if (scores && scores.finished) {
-        const team1Won = scores.team1Score > scores.team2Score;
-        return {
-          resolved: true,
-          outcome: team1Won ? 'yes' : 'no',
-          reason: `Final Score: ${team1Key} ${scores.team1Score} - ${scores.team2Score} ${team2Key}`,
-          currentValue: `${scores.team1Score}-${scores.team2Score}`
-        };
-      }
-    }
-  }
-  
-  try {
-    // Super Bowl predictions
-    if (titleLower.includes('super bowl')) {
-      const teamMatch = title.match(/(?:chiefs|eagles|49ers|ravens|bills|cowboys|packers|lions)/i);
-      if (teamMatch) {
-        const team = teamMatch[0].toLowerCase();
-        const response = await fetch(
-          `https://www.thesportsdb.com/api/v1/json/3/searchevents.php?e=Super_Bowl`
-        );
-        if (response.ok) {
-          const data = await response.json();
-          const events = data.event || [];
-          for (const event of events) {
-            if (event.strStatus === 'Match Finished' || event.strStatus === 'FT') {
-              const winner = event.strHomeTeam?.toLowerCase().includes(team) && 
-                            parseInt(event.intHomeScore) > parseInt(event.intAwayScore) ? 'yes' :
-                            event.strAwayTeam?.toLowerCase().includes(team) && 
-                            parseInt(event.intAwayScore) > parseInt(event.intHomeScore) ? 'yes' : 'no';
-              return {
-                resolved: true,
-                outcome: winner,
-                reason: `${event.strHomeTeam} ${event.intHomeScore} - ${event.intAwayScore} ${event.strAwayTeam}`,
-                currentValue: event.strStatus
-              };
-            }
-          }
+  // Check for NFL win prediction
+  for (const [teamKey, aliases] of Object.entries(NFL_TEAMS)) {
+    if (aliases.some(a => titleLower.includes(a))) {
+      // Find opponent
+      for (const [oppKey, oppAliases] of Object.entries(NFL_TEAMS)) {
+        if (oppKey === teamKey) continue;
+        if (oppAliases.some(a => titleLower.includes(a))) {
+          const scores = await getScoresFromEspn(teamKey, oppKey);
+          if (!scores) return { resolved: false };
+          
+          // Check if asking about team winning
+          const teamWon = scores.team1Score > scores.team2Score;
+          return {
+            resolved: true,
+            outcome: teamWon ? 'yes' : 'no',
+            reason: `${teamKey} ${scores.team1Score}-${scores.team2Score} ${oppKey}`,
+            currentValue: `${scores.team1Score}-${scores.team2Score}`
+          };
         }
       }
     }
-
-    // Wimbledon predictions
-    if (titleLower.includes('wimbledon')) {
-      const playerMatch = title.match(/(?:djokovic|alcaraz|sinner|medvedev|zverev)/i);
-      if (playerMatch) {
-        const response = await fetch(
-          `https://www.thesportsdb.com/api/v1/json/3/searchevents.php?e=Wimbledon`
-        );
-        if (response.ok) {
-          const data = await response.json();
-          const events = data.event || [];
-          for (const event of events) {
-            if (event.strStatus === 'Match Finished' && event.strEvent?.toLowerCase().includes('final')) {
-              const playerName = playerMatch[0].toLowerCase();
-              const isWinner = event.strResult?.toLowerCase().includes(playerName);
-              return {
-                resolved: true,
-                outcome: isWinner ? 'yes' : 'no',
-                reason: `Wimbledon Final: ${event.strResult || event.strEvent}`,
-                currentValue: event.strStatus
-              };
-            }
-          }
-        }
-      }
-    }
-
-  } catch (error) {
-    console.error('Sports API error:', error);
-  }
-  
-  return { resolved: false };
-}
-
-// ==================== WEATHER/CLIMATE ORACLES ====================
-
-// Open-Meteo API (free, no key required) for weather/climate data
-async function checkWeatherPrediction(title: string): Promise<OracleResult> {
-  const titleLower = title.toLowerCase();
-  
-  try {
-    // Hottest year record - use NASA GISS or NOAA data via Perplexity
-    if (titleLower.includes('hottest year') || titleLower.includes('warmest year') || 
-        titleLower.includes('temperature record')) {
-      console.log('🌡️ Checking global temperature records...');
-      // These need real-time verification, fall through to Perplexity
-      return { resolved: false };
-    }
-    
-    // Hurricane predictions - NOAA data
-    if (titleLower.includes('hurricane') || titleLower.includes('typhoon') || titleLower.includes('cyclone')) {
-      console.log('🌀 Checking hurricane/storm data...');
-      // Falls through to Perplexity for real-time verification
-      return { resolved: false };
-    }
-    
-    // CO2 levels - Mauna Loa data
-    if (titleLower.includes('co2') || titleLower.includes('carbon dioxide') || titleLower.includes('ppm')) {
-      console.log('🌍 Checking atmospheric CO2 levels...');
-      // Falls through to Perplexity for real-time data
-      return { resolved: false };
-    }
-    
-    // Heatwave predictions
-    if (titleLower.includes('heatwave') || titleLower.includes('heat wave') || 
-        titleLower.includes('record high') || titleLower.includes('45°c') || titleLower.includes('celsius')) {
-      console.log('🔥 Checking heatwave data...');
-      return { resolved: false };
-    }
-    
-    // Arctic sea ice
-    if (titleLower.includes('arctic') || titleLower.includes('sea ice') || titleLower.includes('ice cap')) {
-      console.log('🧊 Checking Arctic ice data...');
-      return { resolved: false };
-    }
-    
-    // Drought conditions
-    if (titleLower.includes('drought')) {
-      console.log('🏜️ Checking drought conditions...');
-      return { resolved: false };
-    }
-    
-  } catch (error) {
-    console.error('Weather API error:', error);
   }
   
   return { resolved: false };
@@ -619,8 +309,7 @@ async function checkWeatherPrediction(title: string): Promise<OracleResult> {
 
 // ==================== NEWS/EVENTS ORACLES ====================
 
-// Query a single AI source for verification
-async function queryPerplexity(title: string): Promise<{ resolved: boolean; outcome?: 'yes' | 'no'; reason?: string; citations?: string[] } | null> {
+async function queryPerplexity(title: string): Promise<{ resolved: boolean; outcome?: 'yes' | 'no'; reason?: string } | null> {
   const perplexityKey = Deno.env.get('PERPLEXITY_API_KEY');
   if (!perplexityKey) return null;
 
@@ -636,38 +325,26 @@ async function queryPerplexity(title: string): Promise<{ resolved: boolean; outc
         messages: [
           { 
             role: 'system', 
-            content: `You are a fact-checker that searches the web for CURRENT real-time information. Given a prediction market question, search for the latest news and data to determine if the event has occurred and what the outcome was.
+            content: `You are a fact-checker. Given a prediction, search for CURRENT information and determine if the event occurred.
 
-CRITICAL: Search for the MOST RECENT information. Do not rely on old data.
-
-ONLY respond with JSON in this exact format:
-{"resolved": true, "outcome": "yes", "reason": "Brief explanation with source and date", "confidence": "high"}
-OR
-{"resolved": true, "outcome": "no", "reason": "Brief explanation with source and date", "confidence": "high"}
-OR
-{"resolved": false, "reason": "Event has not occurred yet or insufficient information"}
-
-Only set resolved=true if you find clear, recent evidence. Include the date of the information source in your reason.`
+ONLY respond with JSON:
+{"resolved": true, "outcome": "yes", "reason": "Brief explanation", "confidence": "high"}
+OR {"resolved": true, "outcome": "no", "reason": "Brief explanation", "confidence": "high"}
+OR {"resolved": false, "reason": "Not yet occurred"}`
           },
           { 
             role: 'user', 
-            content: `Search the web and determine if this prediction has been resolved: "${title}"
-
-Today's date is ${new Date().toISOString().split('T')[0]}. Find the most recent information.` 
+            content: `Has this prediction been resolved? "${title}" Today: ${new Date().toISOString().split('T')[0]}` 
           }
         ],
         search_recency_filter: 'week',
       }),
     });
 
-    if (!response.ok) {
-      console.error('Perplexity API error:', response.status);
-      return null;
-    }
+    if (!response.ok) return null;
 
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || '';
-    const citations = data.citations || [];
     
     let cleaned = content.trim();
     if (cleaned.startsWith('```')) {
@@ -676,22 +353,18 @@ Today's date is ${new Date().toISOString().split('T')[0]}. Find the most recent 
     
     const result = JSON.parse(cleaned);
     if (result.resolved && result.outcome && result.confidence === 'high') {
-      return { resolved: true, outcome: result.outcome, reason: result.reason, citations };
+      return { resolved: true, outcome: result.outcome, reason: result.reason };
     }
     return { resolved: false };
   } catch (error) {
-    console.error('Perplexity query error:', error);
+    console.error('Perplexity error:', error);
     return null;
   }
 }
 
-// Query Lovable AI (Gemini Flash) as second verification source
-async function queryLovableAI(title: string): Promise<{ resolved: boolean; outcome?: 'yes' | 'no'; reason?: string; source: string } | null> {
+async function queryLovableAI(title: string, model: string): Promise<{ resolved: boolean; outcome?: 'yes' | 'no'; reason?: string; source: string } | null> {
   const lovableKey = Deno.env.get('LOVABLE_API_KEY');
-  if (!lovableKey) {
-    console.log('LOVABLE_API_KEY not set - skipping Gemini AI verification');
-    return null;
-  }
+  if (!lovableKey) return null;
 
   try {
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -701,37 +374,24 @@ async function queryLovableAI(title: string): Promise<{ resolved: boolean; outco
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model,
         messages: [
           { 
             role: 'system', 
-            content: `You are a fact-checker verifying prediction market outcomes. Given a prediction question, determine if the event has definitively occurred based on your training data.
-
-IMPORTANT: Only respond with high confidence if you are CERTAIN about the outcome. If you're unsure or the event hasn't happened yet, say resolved=false.
-
-ONLY respond with JSON in this exact format:
+            content: `You verify prediction outcomes. ONLY respond with JSON:
 {"resolved": true, "outcome": "yes", "reason": "Brief explanation", "confidence": "high"}
-OR
-{"resolved": true, "outcome": "no", "reason": "Brief explanation", "confidence": "high"}
-OR
-{"resolved": false, "reason": "Event unclear or not yet occurred"}
-
-Be conservative - only resolve if you're absolutely certain.`
+OR {"resolved": true, "outcome": "no", "reason": "Brief explanation", "confidence": "high"}
+OR {"resolved": false, "reason": "Event unclear"}`
           },
           { 
             role: 'user', 
-            content: `Determine if this prediction has been resolved: "${title}"
-
-Today's date is ${new Date().toISOString().split('T')[0]}.` 
+            content: `Is this prediction resolved? "${title}" Today: ${new Date().toISOString().split('T')[0]}` 
           }
         ],
       }),
     });
 
-    if (!response.ok) {
-      console.error('Lovable AI (Gemini) error:', response.status);
-      return null;
-    }
+    if (!response.ok) return null;
 
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || '';
@@ -743,193 +403,55 @@ Today's date is ${new Date().toISOString().split('T')[0]}.`
     
     const result = JSON.parse(cleaned);
     if (result.resolved && result.outcome && result.confidence === 'high') {
-      return { resolved: true, outcome: result.outcome, reason: result.reason, source: 'Gemini-Flash' };
+      return { resolved: true, outcome: result.outcome, reason: result.reason, source: model };
     }
-    return { resolved: false, source: 'Gemini-Flash' };
+    return { resolved: false, source: model };
   } catch (error) {
-    console.error('Lovable AI (Gemini) query error:', error);
+    console.error(`${model} error:`, error);
     return null;
   }
 }
 
-// Query Lovable AI (GPT-5-mini) as third verification source
-async function queryGPT5(title: string): Promise<{ resolved: boolean; outcome?: 'yes' | 'no'; reason?: string; source: string } | null> {
-  const lovableKey = Deno.env.get('LOVABLE_API_KEY');
-  if (!lovableKey) {
-    console.log('LOVABLE_API_KEY not set - skipping GPT-5 verification');
-    return null;
-  }
-
-  try {
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${lovableKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'openai/gpt-5',
-        messages: [
-          { 
-            role: 'system', 
-            content: `You are a fact-checker verifying prediction market outcomes. Given a prediction question, determine if the event has definitively occurred.
-
-IMPORTANT: Only respond with high confidence if you are CERTAIN about the outcome. If you're unsure or the event hasn't happened yet, say resolved=false.
-
-ONLY respond with JSON in this exact format:
-{"resolved": true, "outcome": "yes", "reason": "Brief explanation", "confidence": "high"}
-OR
-{"resolved": true, "outcome": "no", "reason": "Brief explanation", "confidence": "high"}
-OR
-{"resolved": false, "reason": "Event unclear or not yet occurred"}
-
-Be conservative - only resolve if you're absolutely certain.`
-          },
-          { 
-            role: 'user', 
-            content: `Determine if this prediction has been resolved: "${title}"
-
-Today's date is ${new Date().toISOString().split('T')[0]}.` 
-          }
-        ],
-      }),
-    });
-
-    if (!response.ok) {
-      console.error('GPT-5 error:', response.status);
-      return null;
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || '';
-    
-    let cleaned = content.trim();
-    if (cleaned.startsWith('```')) {
-      cleaned = cleaned.replace(/```json\n?/g, '').replace(/```\n?/g, '');
-    }
-    
-    const result = JSON.parse(cleaned);
-    if (result.resolved && result.outcome && result.confidence === 'high') {
-      return { resolved: true, outcome: result.outcome, reason: result.reason, source: 'GPT-5' };
-    }
-    return { resolved: false, source: 'GPT-5' };
-  } catch (error) {
-    console.error('GPT-5 query error:', error);
-    return null;
-  }
-}
-
-// Multi-source verification with 2-out-of-3 MAJORITY VOTING
 async function checkNewsEvent(title: string): Promise<OracleResult> {
-  console.log(`🔍 Triple-source verification for: "${title.slice(0, 60)}..."`);
-  
-  // Query all 3 sources in parallel
   const [perplexityResult, geminiResult, gptResult] = await Promise.all([
     queryPerplexity(title),
-    queryLovableAI(title),
-    queryGPT5(title)
+    queryLovableAI(title, 'google/gemini-2.5-flash'),
+    queryLovableAI(title, 'openai/gpt-5')
   ]);
   
-  console.log('📊 Perplexity result:', perplexityResult ? JSON.stringify(perplexityResult).slice(0, 100) : 'unavailable');
-  console.log('📊 Gemini result:', geminiResult ? JSON.stringify(geminiResult).slice(0, 100) : 'unavailable');
-  console.log('📊 GPT-5 result:', gptResult ? JSON.stringify(gptResult).slice(0, 100) : 'unavailable');
-  
-  // Collect resolved results with outcomes
-  const resolvedResults: { outcome: 'yes' | 'no'; reason: string; source: string }[] = [];
+  const results: { outcome: 'yes' | 'no'; reason: string; source: string }[] = [];
   
   if (perplexityResult?.resolved && perplexityResult.outcome) {
-    resolvedResults.push({ 
-      outcome: perplexityResult.outcome, 
-      reason: perplexityResult.reason || '',
-      source: 'Perplexity' 
-    });
+    results.push({ outcome: perplexityResult.outcome, reason: perplexityResult.reason || '', source: 'Perplexity' });
   }
   if (geminiResult?.resolved && geminiResult.outcome) {
-    resolvedResults.push({ 
-      outcome: geminiResult.outcome, 
-      reason: geminiResult.reason || '',
-      source: geminiResult.source 
-    });
+    results.push({ outcome: geminiResult.outcome, reason: geminiResult.reason || '', source: geminiResult.source });
   }
   if (gptResult?.resolved && gptResult.outcome) {
-    resolvedResults.push({ 
-      outcome: gptResult.outcome, 
-      reason: gptResult.reason || '',
-      source: gptResult.source 
-    });
+    results.push({ outcome: gptResult.outcome, reason: gptResult.reason || '', source: gptResult.source });
   }
   
-  console.log(`📊 ${resolvedResults.length}/3 sources provided resolution`);
+  if (results.length < 2) return { resolved: false };
   
-  // Need at least 2 sources to provide a resolution
-  if (resolvedResults.length < 2) {
-    console.log('⚠️ Less than 2 sources resolved - blocking auto-resolution');
-    return { resolved: false };
-  }
+  const yesVotes = results.filter(r => r.outcome === 'yes');
+  const noVotes = results.filter(r => r.outcome === 'no');
   
-  // Count votes for each outcome
-  const yesVotes = resolvedResults.filter(r => r.outcome === 'yes');
-  const noVotes = resolvedResults.filter(r => r.outcome === 'no');
-  
-  console.log(`📊 Vote count - YES: ${yesVotes.length}, NO: ${noVotes.length}`);
-  
-  // Need 2+ votes for the same outcome (majority)
   if (yesVotes.length >= 2) {
-    const sources = yesVotes.map(r => r.source).join(' + ');
-    const reason = yesVotes[0].reason;
-    const citations = perplexityResult?.citations?.length 
-      ? ` (Sources: ${perplexityResult.citations.slice(0, 2).join(', ')})`
-      : '';
-    
-    console.log(`✅ MAJORITY VOTE (2+): YES by ${sources}`);
-    
     return {
       resolved: true,
       outcome: 'yes',
-      reason: `${reason}${citations} [Verified by: ${sources}]`,
-      currentValue: `Majority Verified (${yesVotes.length}/3)`
+      reason: `${yesVotes[0].reason} [Verified: ${yesVotes.map(r => r.source).join(', ')}]`,
+      currentValue: `${yesVotes.length}/3`
     };
   }
   
   if (noVotes.length >= 2) {
-    const sources = noVotes.map(r => r.source).join(' + ');
-    const reason = noVotes[0].reason;
-    const citations = perplexityResult?.citations?.length 
-      ? ` (Sources: ${perplexityResult.citations.slice(0, 2).join(', ')})`
-      : '';
-    
-    console.log(`✅ MAJORITY VOTE (2+): NO by ${sources}`);
-    
     return {
       resolved: true,
       outcome: 'no',
-      reason: `${reason}${citations} [Verified by: ${sources}]`,
-      currentValue: `Majority Verified (${noVotes.length}/3)`
+      reason: `${noVotes[0].reason} [Verified: ${noVotes.map(r => r.source).join(', ')}]`,
+      currentValue: `${noVotes.length}/3`
     };
-  }
-  
-  // No majority - sources disagree
-  console.warn(`🚨 NO MAJORITY! YES: ${yesVotes.length}, NO: ${noVotes.length}`);
-  console.warn(`🚨 BLOCKING AUTO-RESOLUTION - requires manual admin review`);
-  return { resolved: false };
-}
-
-// ==================== ENTERTAINMENT ORACLES ====================
-
-async function checkEntertainmentEvent(title: string): Promise<OracleResult> {
-  const titleLower = title.toLowerCase();
-  
-  // Oscar/Grammy/Emmy predictions - use AI oracle
-  if (titleLower.includes('oscar') || titleLower.includes('grammy') || 
-      titleLower.includes('emmy') || titleLower.includes('golden globe')) {
-    // These are best verified via AI news check
-    return { resolved: false };
-  }
-  
-  // Movie release predictions
-  if (titleLower.includes('release') && (titleLower.includes('movie') || titleLower.includes('film'))) {
-    // Could integrate with TMDB API for movie releases
-    return { resolved: false };
   }
   
   return { resolved: false };
@@ -938,7 +460,7 @@ async function checkEntertainmentEvent(title: string): Promise<OracleResult> {
 // ==================== PAYOUT PROCESSING ====================
 
 async function processPayouts(supabase: any, predictionId: string, winningPosition: 'yes' | 'no'): Promise<void> {
-  console.log(`💰 Processing payouts for prediction ${predictionId}, winning position: ${winningPosition}`);
+  console.log(`💰 Processing payouts for ${predictionId}, winner: ${winningPosition}`);
   
   const { data: prediction, error: predError } = await supabase
     .from('predictions')
@@ -954,219 +476,59 @@ async function processPayouts(supabase: any, predictionId: string, winningPositi
   const totalPool = prediction.yes_pool + prediction.no_pool;
   const winningPool = winningPosition === 'yes' ? prediction.yes_pool : prediction.no_pool;
   
-  console.log(`📊 Pool stats - Total: ${totalPool}, Winning (${winningPosition}): ${winningPool}`);
-  
-  if (totalPool === 0) {
-    console.log('No bets placed, skipping payouts');
+  if (totalPool === 0 || winningPool === 0) {
+    console.log('No bets or no winning bets, skipping');
     return;
   }
   
-  // Get all confirmed bets for this prediction, OR bets that were marked won but not paid out yet
-  // This handles recovery from partial runs where bets were marked won but payout_amount was not set
-  const { data: allBets, error: betsError } = await supabase
+  // Get winning bets
+  const { data: winningBets, error: betsError } = await supabase
     .from('bets')
-    .select('id, user_id, amount, position, status, payout_amount')
+    .select('id, user_id, amount, status, payout_amount')
     .eq('prediction_id', predictionId)
-    .or('status.eq.confirmed,and(status.eq.won,payout_amount.is.null)');
+    .eq('position', winningPosition)
+    .in('status', ['confirmed', 'won']);
   
-  if (betsError) {
-    console.error('Failed to fetch bets:', betsError);
+  if (betsError || !winningBets?.length) {
+    console.error('No winning bets found');
     return;
   }
   
-  const winningBets = allBets?.filter((b: any) => b.position === winningPosition) || [];
-  const losingBets = allBets?.filter((b: any) => b.position !== winningPosition && b.status === 'confirmed') || [];
-  
-  console.log(`Found ${winningBets.length} winning bets (including recovery), ${losingBets.length} losing bets`);
-  
-  if (!winningBets.length) {
-    console.log('No winning bets found');
-    // Still mark losing bets as lost
-    if (losingBets.length > 0) {
-      await supabase
-        .from('bets')
-        .update({ status: 'lost', payout_amount: 0 })
-        .eq('prediction_id', predictionId)
-        .eq('status', 'confirmed');
-    }
-    return;
-  }
-  
-  // Calculate and update each winning bet with payout_amount
-  const payoutUpdates: { id: string; payout: number }[] = [];
-  
+  // Calculate and update payouts
   for (const bet of winningBets) {
-    // Parimutuel calculation: (bet_amount / winning_pool) * total_pool
-    const payout = winningPool > 0 ? Math.floor((bet.amount / winningPool) * totalPool) : bet.amount;
-    payoutUpdates.push({ id: bet.id, payout });
+    if (bet.payout_amount && bet.payout_amount > 0) continue; // Already calculated
     
-    console.log(`📝 Bet ${bet.id}: amount=${bet.amount}, calculated payout=${payout} sats`);
+    const share = bet.amount / winningPool;
+    const payout = Math.floor(share * totalPool);
     
-    // Update bet with status AND payout_amount in a single call
-    const { error: updateError } = await supabase
+    await supabase
       .from('bets')
       .update({ status: 'won', payout_amount: payout })
       .eq('id', bet.id);
     
-    if (updateError) {
-      console.error(`❌ Failed to update bet ${bet.id}:`, updateError);
-    } else {
-      console.log(`✅ Updated bet ${bet.id} with payout_amount=${payout}`);
-    }
+    console.log(`Bet ${bet.id}: payout=${payout}`);
   }
   
   // Mark losing bets
   const losingPosition = winningPosition === 'yes' ? 'no' : 'yes';
-  const { error: loseError } = await supabase
+  await supabase
     .from('bets')
     .update({ status: 'lost', payout_amount: 0 })
     .eq('prediction_id', predictionId)
     .eq('position', losingPosition)
     .in('status', ['confirmed', 'lost']);
   
-  if (loseError) {
-    console.error('Failed to mark losing bets:', loseError);
-  }
-  
-  console.log(`✅ Payouts calculated for "${prediction.title}"`);
-
-  // CRITICAL: Verify payout_amount is set before calling send-payouts
-  // Wait a moment for DB consistency
+  // Trigger payout
   await new Promise(resolve => setTimeout(resolve, 500));
   
-  // Verify at least one winning bet has payout_amount set
-  const { data: verifyBets, error: verifyError } = await supabase
-    .from('bets')
-    .select('id, payout_amount, status')
-    .eq('prediction_id', predictionId)
-    .eq('status', 'won');
+  const { error: payoutError } = await supabase.functions.invoke('send-payouts', {
+    body: { prediction_id: predictionId }
+  });
   
-  if (verifyError) {
-    console.error('Verification query failed:', verifyError);
-    return;
-  }
-  
-  const betsWithPayout = verifyBets?.filter((b: any) => b.payout_amount && b.payout_amount > 0) || [];
-  
-  if (betsWithPayout.length === 0) {
-    console.error('❌ CRITICAL: No bets have payout_amount set! Attempting retry...');
-    
-    // Retry setting payout_amount for each bet
-    for (const update of payoutUpdates) {
-      const { error: retryError } = await supabase
-        .from('bets')
-        .update({ payout_amount: update.payout })
-        .eq('id', update.id);
-      
-      if (retryError) {
-        console.error(`Retry failed for bet ${update.id}:`, retryError);
-      } else {
-        console.log(`✅ Retry successful for bet ${update.id}`);
-      }
-    }
-    
-    // Wait again and re-verify
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    const { data: reVerify } = await supabase
-      .from('bets')
-      .select('id, payout_amount')
-      .eq('prediction_id', predictionId)
-      .eq('status', 'won')
-      .not('payout_amount', 'is', null);
-    
-    if (!reVerify?.length) {
-      console.error('❌ FATAL: Could not set payout_amount after retry. Aborting payout trigger.');
-      return;
-    }
-  }
-  
-  console.log(`✅ Verified ${betsWithPayout.length || 'retry'} bets have payout_amount set`);
-
-  // Automatically trigger payout distribution
-  console.log(`🚀 Triggering send-payouts for prediction ${predictionId}...`);
-
-  const { data: payoutResult, error: payoutInvokeError } = await supabase.functions.invoke(
-    'send-payouts',
-    { body: { prediction_id: predictionId } }
-  );
-
-  if (payoutInvokeError) {
-    console.error('❌ send-payouts invoke failed:', payoutInvokeError);
+  if (payoutError) {
+    console.error('send-payouts failed:', payoutError);
   } else {
-    console.log(`✅ Payout triggered successfully:`, JSON.stringify(payoutResult));
-  }
-}
-
-async function recoverUnpaidPayouts(supabase: any): Promise<void> {
-  try {
-    console.log('🧯 Payout recovery: scanning for unpaid winning bets...');
-
-    const { data: unpaidWonBets, error: unpaidError } = await supabase
-      .from('bets')
-      .select('prediction_id, payout_amount')
-      .eq('status', 'won')
-      .is('payout_tx_hash', null)
-      .limit(200);
-
-    if (unpaidError) {
-      console.error('Payout recovery query failed:', unpaidError);
-      return;
-    }
-
-    const predictionIds = Array.from(
-      new Set((unpaidWonBets || []).map((b: any) => b.prediction_id).filter(Boolean))
-    );
-
-    if (predictionIds.length === 0) {
-      console.log('🧯 Payout recovery: nothing to recover');
-      return;
-    }
-
-    const { data: preds, error: predsError } = await supabase
-      .from('predictions')
-      .select('id, status, title')
-      .in('id', predictionIds);
-
-    if (predsError) {
-      console.error('Payout recovery prediction fetch failed:', predsError);
-      return;
-    }
-
-    const byPrediction = new Map<string, { needsCalculation: boolean }>();
-    for (const bet of unpaidWonBets || []) {
-      const predId = (bet as any).prediction_id as string | undefined;
-      if (!predId) continue;
-      const existing = byPrediction.get(predId) || { needsCalculation: false };
-      if ((bet as any).payout_amount == null) existing.needsCalculation = true;
-      byPrediction.set(predId, existing);
-    }
-
-    // Keep this lightweight per run
-    const limitedPreds = (preds || []).slice(0, 25);
-
-    for (const pred of limitedPreds) {
-      if (pred.status !== 'resolved_yes' && pred.status !== 'resolved_no') continue;
-
-      const winningPosition = pred.status === 'resolved_yes' ? 'yes' : 'no';
-      const needsCalculation = byPrediction.get(pred.id)?.needsCalculation ?? false;
-
-      console.log(
-        `🧯 Recovering ${pred.id} (${pred.title?.slice(0, 40) || ''}) - ` +
-          (needsCalculation ? 'recalculate payouts' : 'retry send-payouts')
-      );
-
-      if (needsCalculation) {
-        await processPayouts(supabase, pred.id, winningPosition);
-      } else {
-        const { error: invokeError } = await supabase.functions.invoke('send-payouts', {
-          body: { prediction_id: pred.id },
-        });
-        if (invokeError) console.error('🧯 send-payouts retry failed:', invokeError);
-      }
-    }
-  } catch (e) {
-    console.error('Payout recovery unexpected error:', e);
+    console.log(`✅ Payout triggered for ${predictionId}`);
   }
 }
 
@@ -1187,7 +549,6 @@ Deno.serve(async (req) => {
     
     const now = new Date();
     
-    // Get active predictions that have ended (betting closed)
     const { data: predictions, error } = await supabase
       .from('predictions')
       .select('*')
@@ -1199,174 +560,73 @@ Deno.serve(async (req) => {
     const results: Array<{ id: string; title: string; outcome: string; reason: string; source: string }> = [];
     
     for (const pred of (predictions || [])) {
-      // Check if this prediction has a delayed resolution_date
-      // If resolution_date is set and in the future, skip auto-resolution
+      // Check resolution_date
       if (pred.resolution_date) {
-        const resolutionDate = new Date(pred.resolution_date);
-        if (resolutionDate > now) {
-          console.log(`⏳ Skipping prediction (resolution scheduled for ${resolutionDate.toISOString()}): ${pred.title.slice(0, 50)}`);
-          continue;
-        }
-        console.log(`✅ Resolution date reached (${resolutionDate.toISOString()}): ${pred.title.slice(0, 50)}`);
+        const resDate = new Date(pred.resolution_date);
+        if (resDate > now) continue;
       }
       
-      console.log(`Checking: ${pred.title.slice(0, 60)}...`);
+      console.log(`Checking: ${pred.title.slice(0, 50)}...`);
       
       let oracleResult: OracleResult = { resolved: false };
       let source = 'unknown';
-      
-      // Route to appropriate oracle based on category and content
       const titleLower = pred.title.toLowerCase();
       
-      // Check if this is an NFL/sports prediction that needs a time buffer
-      const isNFLPrediction = 
-        pred.category === 'sports' ||
-        ['nfl', 'super bowl', 'playoff', 'patriots', 'eagles', 'chiefs', 'packers', 'bears', 
-         'rams', 'cowboys', 'bills', 'ravens', '49ers', 'lions', 'vikings', 'jaguars',
-         'chargers', 'broncos', 'raiders', 'dolphins', 'jets', 'bengals', 'browns',
-         'texans', 'colts', 'titans', 'falcons', 'saints', 'buccaneers', 'cardinals',
-         'seahawks', 'giants', 'commanders', 'steelers', 'panthers']
-          .some(team => titleLower.includes(team));
+      // NFL buffer check
+      const nflTeams = ['nfl', 'patriots', 'eagles', 'chiefs', 'packers', 'bears', 'rams', 'cowboys', 'bills', 'ravens', '49ers', 'lions', 'vikings', 'chargers', 'broncos', 'raiders', 'dolphins', 'jets', 'bengals', 'browns', 'texans', 'colts', 'jaguars', 'titans', 'falcons', 'saints', 'buccaneers', 'cardinals', 'seahawks', 'giants', 'commanders', 'steelers', 'panthers'];
+      const isNFL = pred.category === 'sports' || nflTeams.some(t => titleLower.includes(t));
       
-      // For NFL/sports predictions, require at least 3 hours after end_date
-      // This ensures the game has actually finished before we try to resolve
-      if (isNFLPrediction) {
-        const endDate = new Date(pred.end_date);
-        const now = new Date();
-        const hoursSinceEnd = (now.getTime() - endDate.getTime()) / (1000 * 60 * 60);
-        
-        if (hoursSinceEnd < 3) {
-          console.log(`⏳ Skipping NFL prediction (only ${hoursSinceEnd.toFixed(1)}h since end_date, waiting for 3h buffer): ${pred.title.slice(0, 50)}`);
-          continue;
-        }
-        console.log(`✅ NFL prediction passed 3h buffer (${hoursSinceEnd.toFixed(1)}h since end): ${pred.title.slice(0, 50)}`);
+      if (isNFL) {
+        const hoursSince = (now.getTime() - new Date(pred.end_date).getTime()) / 3600000;
+        if (hoursSince < 3) continue;
       }
       
-      // Check if this is a crypto prediction - require 1 hour buffer after end_date
-      // This prevents last-moment bets from exploiting price knowledge
-      const isCryptoPrediction = 
-        pred.category === 'crypto' || 
-        ['bitcoin', 'btc', 'ethereum', 'eth', 'solana', 'sol', 'xec', 'xrp', 'doge', 'ada', 'cardano', 'dogecoin', 'ripple']
-          .some(c => titleLower.includes(c));
+      // Crypto buffer
+      const cryptoCoins = ['bitcoin', 'btc', 'ethereum', 'eth', 'solana', 'sol', 'xec', 'xrp', 'doge', 'ada'];
+      const isCrypto = pred.category === 'crypto' || cryptoCoins.some(c => titleLower.includes(c));
       
-      if (isCryptoPrediction) {
-        const endDate = new Date(pred.end_date);
-        const hoursSinceEnd = (now.getTime() - endDate.getTime()) / (1000 * 60 * 60);
-        
-        if (hoursSinceEnd < 1) {
-          console.log(`⏳ Skipping crypto prediction (only ${hoursSinceEnd.toFixed(2)}h since end_date, waiting for 1h buffer): ${pred.title.slice(0, 50)}`);
-          continue;
-        }
-        console.log(`✅ Crypto prediction passed 1h buffer (${hoursSinceEnd.toFixed(2)}h since end): ${pred.title.slice(0, 50)}`);
+      if (isCrypto) {
+        const hoursSince = (now.getTime() - new Date(pred.end_date).getTime()) / 3600000;
+        if (hoursSince < 1) continue;
       }
       
-      // Check if this is a spread-based prediction - use dedicated spread oracle
-      const isSpreadPrediction = 
-        titleLower.includes('cover') || 
-        titleLower.includes('spread') || 
-        titleLower.match(/-\d+\.?\d*\s*points?/) || // -10.5 points, -7 point, etc.
-        titleLower.match(/[+-]\d+\.5/) || // +3.5, -10.5
-        titleLower.includes('against the spread') ||
-        titleLower.includes('ats');
+      // Route to appropriate oracle
+      const isSpread = titleLower.includes('cover') || titleLower.includes('spread') || 
+                       titleLower.match(/-\d+\.?\d*\s*points?/) || titleLower.match(/[+-]\d+\.5/);
       
-      if (isSpreadPrediction) {
-        console.log(`🏈 Processing spread prediction with score-based oracle...`);
+      if (isSpread) {
         oracleResult = await checkSpreadPrediction(pred.title);
         source = 'NFL Score Oracle';
-      }
-      // Check for over/under - use total score calculation
-      else if (titleLower.includes('over/under') || 
-               titleLower.includes('over under') ||
-               (titleLower.includes('total') && titleLower.includes('points'))) {
-        console.log(`🏈 Processing over/under prediction...`);
-        // TODO: Implement over/under oracle when needed
-        // For now, skip these
-        console.log(`⚠️ Over/under predictions not yet supported`);
-        continue;
-      }
-      // 1. Check for flippening predictions first
-      else if (titleLower.includes('flippen') || 
-          (titleLower.includes('ethereum') && titleLower.includes('bitcoin') && titleLower.includes('market cap'))) {
+      } else if (titleLower.includes('flippen')) {
         oracleResult = await checkFlippening();
-        source = 'CoinGecko Market Cap';
-      }
-      // 2. Crypto price predictions
-      else if (pred.category === 'crypto' || 
-               ['bitcoin', 'btc', 'ethereum', 'eth', 'solana', 'sol', 'xec', 'xrp', 'doge', 'ada']
-                 .some(c => titleLower.includes(c))) {
+        source = 'CoinGecko';
+      } else if (isCrypto) {
         oracleResult = await checkCryptoPrediction(pred.title);
-        source = 'CoinGecko Price';
-      }
-      // 3. Sports predictions - handles both spread and simple win/lose
-      else if (pred.category === 'sports' ||
-               ['super bowl', 'world series', 'wimbledon', 'premier league', 'nba', 'nfl', 'champions league', 'college football', 'cfp', 'playoff']
-                 .some(s => titleLower.includes(s))) {
+        source = 'CoinGecko';
+      } else if (isNFL) {
         oracleResult = await checkSportsResult(pred.title);
-        source = 'Sports Score Oracle';
-      }
-      // 4. Entertainment predictions
-      else if (pred.category === 'entertainment' ||
-               ['oscar', 'grammy', 'emmy', 'movie', 'album', 'netflix', 'disney']
-                 .some(e => titleLower.includes(e))) {
-        oracleResult = await checkEntertainmentEvent(pred.title);
-        source = 'Entertainment Oracle';
-      }
-      // 5. Climate/Weather predictions - use weather oracle + Perplexity fallback
-      else if (pred.category === 'climate' ||
-               ['temperature', 'hurricane', 'heatwave', 'drought', 'co2', 'arctic', 'climate']
-                 .some(c => titleLower.includes(c))) {
-        oracleResult = await checkWeatherPrediction(pred.title);
-        source = 'Weather Oracle';
-        // Weather oracle mostly logs and falls through to Perplexity for verification
-        if (!oracleResult.resolved) {
-          oracleResult = await checkNewsEvent(pred.title);
-          source = 'Perplexity Climate Search';
-        }
-      }
-      // 6. All other categories - use Perplexity real-time web search
-      // This includes politics, tech, sports events, IPL auctions, etc.
-      else {
-        console.log(`🔍 Using Perplexity real-time search for: "${pred.title.slice(0, 50)}"`);
+        source = 'ESPN';
+      } else {
         oracleResult = await checkNewsEvent(pred.title);
-        source = 'Perplexity Real-Time Search';
+        source = 'Multi-source AI';
       }
       
-      // Fallback: If no specific oracle resolved it, try Perplexity
+      // Fallback to news oracle
       if (!oracleResult.resolved) {
         oracleResult = await checkNewsEvent(pred.title);
-        source = 'Perplexity Fallback Search';
+        source = 'AI Fallback';
       }
       
       if (oracleResult.resolved && oracleResult.outcome) {
-        const normalizedOutcome = oracleResult.outcome.toLowerCase();
-        if (normalizedOutcome !== 'yes' && normalizedOutcome !== 'no') {
-          console.error(`Invalid oracle outcome for ${pred.id}:`, oracleResult.outcome);
-          continue;
-        }
-
-        // IMPORTANT: ensure winners match the stored prediction status
-        // resolved_yes -> YES bettors win, resolved_no -> NO bettors win
-        const winningPosition = normalizedOutcome as 'yes' | 'no';
+        const winningPosition = oracleResult.outcome;
         const status = winningPosition === 'yes' ? 'resolved_yes' : 'resolved_no';
-
-        const baseDescription = (pred.description || '').trim();
-        const oracleStamp = (
-          [
-            '---',
-            `Oracle resolution: ${winningPosition.toUpperCase()}`,
-            `Source: ${source}`,
-            oracleResult.reason ? `Evidence: ${oracleResult.reason}` : undefined,
-          ] as Array<string | undefined>
-        )
-          .filter((line): line is string => Boolean(line))
-          .join('\n');
 
         await supabase
           .from('predictions')
           .update({
             status,
             resolved_at: new Date().toISOString(),
-            description: `${baseDescription}${baseDescription ? '\n\n' : ''}${oracleStamp}`,
+            description: `${pred.description || ''}\n\n---\nOracle: ${winningPosition.toUpperCase()} via ${source}\n${oracleResult.reason || ''}`.trim(),
           })
           .eq('id', pred.id);
 
@@ -1376,33 +636,24 @@ Deno.serve(async (req) => {
           id: pred.id,
           title: pred.title,
           outcome: winningPosition,
-          reason: oracleResult.reason || 'Oracle verified',
+          reason: oracleResult.reason || 'Verified',
           source
         });
 
-        console.log(`✓ Resolved: ${pred.title.slice(0, 50)} -> ${winningPosition} (${source})`);
-      } else {
-        console.log(`⏳ Could not resolve: ${pred.title.slice(0, 50)}`);
+        console.log(`✓ Resolved: ${pred.title.slice(0, 40)} -> ${winningPosition}`);
       }
       
-      // Rate limit API calls
       await new Promise(resolve => setTimeout(resolve, 1500));
     }
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        checked: predictions?.length || 0,
-        resolved: results.length,
-        results
-      }),
+      JSON.stringify({ success: true, checked: predictions?.length || 0, resolved: results.length, results }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error('Oracle resolver error:', error);
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Oracle error:', error);
     return new Response(
-      JSON.stringify({ error: message }),
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
