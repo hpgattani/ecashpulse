@@ -1022,7 +1022,7 @@ async function processPayouts(supabase: any, predictionId: string, winningPositi
     .update({ status: 'lost', payout_amount: 0 })
     .eq('prediction_id', predictionId)
     .eq('position', losingPosition)
-    .eq('status', 'confirmed');
+    .in('status', ['confirmed', 'lost']);
   
   if (loseError) {
     console.error('Failed to mark losing bets:', loseError);
@@ -1084,38 +1084,89 @@ async function processPayouts(supabase: any, predictionId: string, winningPositi
   console.log(`✅ Verified ${betsWithPayout.length || 'retry'} bets have payout_amount set`);
 
   // Automatically trigger payout distribution
-  const supabaseUrl = Deno.env.get('SUPABASE_URL');
-  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  
-  if (!supabaseUrl || !serviceKey) {
-    console.error('Missing env vars for payout trigger');
-    return;
-  }
-  
-  // Call send-payouts to distribute winnings
-  const payoutUrl = `${supabaseUrl}/functions/v1/send-payouts`;
-  
   console.log(`🚀 Triggering send-payouts for prediction ${predictionId}...`);
-  
-  try {
-    const payoutResponse = await fetch(payoutUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${serviceKey}`
-      },
-      body: JSON.stringify({ prediction_id: predictionId })
-    });
 
-    if (!payoutResponse.ok) {
-      const errorText = await payoutResponse.text();
-      console.error(`❌ Payout call failed: ${payoutResponse.status} - ${errorText}`);
-    } else {
-      const result = await payoutResponse.json();
-      console.log(`✅ Payout triggered successfully:`, JSON.stringify(result));
+  const { data: payoutResult, error: payoutInvokeError } = await supabase.functions.invoke(
+    'send-payouts',
+    { body: { prediction_id: predictionId } }
+  );
+
+  if (payoutInvokeError) {
+    console.error('❌ send-payouts invoke failed:', payoutInvokeError);
+  } else {
+    console.log(`✅ Payout triggered successfully:`, JSON.stringify(payoutResult));
+  }
+}
+
+async function recoverUnpaidPayouts(supabase: any): Promise<void> {
+  try {
+    console.log('🧯 Payout recovery: scanning for unpaid winning bets...');
+
+    const { data: unpaidWonBets, error: unpaidError } = await supabase
+      .from('bets')
+      .select('prediction_id, payout_amount')
+      .eq('status', 'won')
+      .is('payout_tx_hash', null)
+      .limit(200);
+
+    if (unpaidError) {
+      console.error('Payout recovery query failed:', unpaidError);
+      return;
     }
-  } catch (payoutError) {
-    console.error('❌ Payout trigger fetch error:', payoutError);
+
+    const predictionIds = Array.from(
+      new Set((unpaidWonBets || []).map((b: any) => b.prediction_id).filter(Boolean))
+    );
+
+    if (predictionIds.length === 0) {
+      console.log('🧯 Payout recovery: nothing to recover');
+      return;
+    }
+
+    const { data: preds, error: predsError } = await supabase
+      .from('predictions')
+      .select('id, status, title')
+      .in('id', predictionIds);
+
+    if (predsError) {
+      console.error('Payout recovery prediction fetch failed:', predsError);
+      return;
+    }
+
+    const byPrediction = new Map<string, { needsCalculation: boolean }>();
+    for (const bet of unpaidWonBets || []) {
+      const predId = (bet as any).prediction_id as string | undefined;
+      if (!predId) continue;
+      const existing = byPrediction.get(predId) || { needsCalculation: false };
+      if ((bet as any).payout_amount == null) existing.needsCalculation = true;
+      byPrediction.set(predId, existing);
+    }
+
+    // Keep this lightweight per run
+    const limitedPreds = (preds || []).slice(0, 25);
+
+    for (const pred of limitedPreds) {
+      if (pred.status !== 'resolved_yes' && pred.status !== 'resolved_no') continue;
+
+      const winningPosition = pred.status === 'resolved_yes' ? 'yes' : 'no';
+      const needsCalculation = byPrediction.get(pred.id)?.needsCalculation ?? false;
+
+      console.log(
+        `🧯 Recovering ${pred.id} (${pred.title?.slice(0, 40) || ''}) - ` +
+          (needsCalculation ? 'recalculate payouts' : 'retry send-payouts')
+      );
+
+      if (needsCalculation) {
+        await processPayouts(supabase, pred.id, winningPosition);
+      } else {
+        const { error: invokeError } = await supabase.functions.invoke('send-payouts', {
+          body: { prediction_id: pred.id },
+        });
+        if (invokeError) console.error('🧯 send-payouts retry failed:', invokeError);
+      }
+    }
+  } catch (e) {
+    console.error('Payout recovery unexpected error:', e);
   }
 }
 

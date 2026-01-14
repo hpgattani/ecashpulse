@@ -609,40 +609,11 @@ async function syncPredictions(supabase: any): Promise<{ created: number; resolv
   }
 
   // Auto-resolve expired predictions
-  const { data: expiredPredictions } = await supabase
-    .from('predictions')
-    .select('id, title, yes_pool, no_pool')
-    .eq('status', 'active')
-    .lt('end_date', new Date().toISOString());
+  // IMPORTANT: Disabled.
+  // Resolution + payouts must be handled by the dedicated oracle resolver to avoid
+  // incorrect outcomes and missing payout calculations.
+  // (Leaving markets "active" after end_date is OK; the oracle resolver will pick them up.)
 
-  for (const pred of (expiredPredictions || [])) {
-    const winningPosition = pred.yes_pool >= pred.no_pool ? 'yes' : 'no';
-    const status = winningPosition === 'yes' ? 'resolved_yes' : 'resolved_no';
-
-    await supabase
-      .from('predictions')
-      .update({ status, resolved_at: new Date().toISOString() })
-      .eq('id', pred.id);
-
-    // Update winning bets
-    await supabase
-      .from('bets')
-      .update({ status: 'won' })
-      .eq('prediction_id', pred.id)
-      .eq('position', winningPosition)
-      .eq('status', 'confirmed');
-
-    // Update losing bets
-    await supabase
-      .from('bets')
-      .update({ status: 'lost' })
-      .eq('prediction_id', pred.id)
-      .eq('position', winningPosition === 'yes' ? 'no' : 'yes')
-      .eq('status', 'confirmed');
-
-    resolved++;
-    console.log(`Auto-resolved: ${pred.title} -> ${winningPosition}`);
-  }
 
   return { created, resolved, errors };
 }
