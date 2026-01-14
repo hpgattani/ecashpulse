@@ -143,25 +143,39 @@ const PredictionDetailModal = ({ isOpen, onClose, prediction, onSelectOutcome }:
   const resolvedOutcome = predictionStatus === 'resolved_yes' ? 'YES' : predictionStatus === 'resolved_no' ? 'NO' : null;
 
   // Extract resolution reasoning from description (oracle stamps it there)
-  const extractResolutionReason = () => {
+  const extractResolutionReason = (): string => {
     const desc = resolvedDescription || prediction.description;
-    if (!desc || !isResolved) return null;
+    if (!desc || !isResolved) return 'Resolution reasoning not available';
     
-    // Look for oracle stamp pattern: "--- Oracle Resolution ---" or similar
-    const oracleMatch = desc.match(/---\s*Oracle Resolution\s*---[\s\S]*?Evidence:\s*([\s\S]+?)(?:---|$)/i);
-    if (oracleMatch) return oracleMatch[1].trim();
+    // Oracle format: "---\nOracle: YES/NO via SOURCE\nEvidence: ..."
+    // Or: "---\nOracle resolution: YES/NO\nSource: ...\nEvidence: ..."
     
-    // Look for "Resolved:" or "Resolution:" prefix
-    const resolvedMatch = desc.match(/(?:Resolved|Resolution|Outcome)[:\s]+(.+?)(?:\.|$)/i);
-    if (resolvedMatch) return resolvedMatch[1].trim();
-    
-    // If description contains evidence/reason keywords, show last portion
-    if (desc.toLowerCase().includes('evidence') || desc.toLowerCase().includes('confirmed') || desc.toLowerCase().includes('result')) {
-      const sentences = desc.split(/[.!?]+/).filter(s => s.trim());
-      if (sentences.length > 1) return sentences[sentences.length - 1].trim();
+    // Look for Evidence section after oracle stamp
+    const evidenceMatch = desc.match(/---[\s\S]*?Evidence:\s*([\s\S]+?)(?:\[Verified|$)/i);
+    if (evidenceMatch) {
+      return evidenceMatch[1].trim().replace(/\(Sources:[\s\S]*$/, '').trim();
     }
     
-    return null;
+    // Look for oracle reason after "Oracle: YES/NO via SOURCE\n"
+    const oracleReasonMatch = desc.match(/---\s*\nOracle:\s*(?:YES|NO)\s*via\s*[^\n]+\n([\s\S]+?)(?:\[Verified|$)/i);
+    if (oracleReasonMatch) {
+      return oracleReasonMatch[1].trim().replace(/\(Sources:[\s\S]*$/, '').trim();
+    }
+    
+    // Look for content after "---" separator that's not the original description
+    const afterSeparator = desc.split(/---\s*\n/);
+    if (afterSeparator.length > 1) {
+      const oracleSection = afterSeparator[afterSeparator.length - 1];
+      // Extract just the evidence/reason part
+      const lines = oracleSection.split('\n').filter(l => l.trim());
+      if (lines.length > 1) {
+        // Skip "Oracle: X via Y" line, get the reason
+        const reasonLines = lines.slice(1).join(' ').replace(/\[Verified[\s\S]*$/, '').replace(/\(Sources:[\s\S]*$/, '').trim();
+        if (reasonLines) return reasonLines;
+      }
+    }
+    
+    return 'Resolution reasoning not available';
   };
   
   const resolutionReason = extractResolutionReason();
@@ -215,11 +229,9 @@ const PredictionDetailModal = ({ isOpen, onClose, prediction, onSelectOutcome }:
                         )}
                         Resolved: {resolvedOutcome}
                       </div>
-                      {resolutionReason && (
-                        <p className="text-xs text-muted-foreground italic pl-0.5 line-clamp-2">
-                          {resolutionReason}
-                        </p>
-                      )}
+                      <p className="text-xs text-muted-foreground italic pl-0.5 line-clamp-3">
+                        {resolutionReason}
+                      </p>
                     </div>
                   )}
                   
