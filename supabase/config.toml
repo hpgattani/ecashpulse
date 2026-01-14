@@ -95,3 +95,9 @@ verify_jwt = false
 
 [functions.submit-prediction]
 verify_jwt = false
+
+[functions.create-sentiment-topic]
+verify_jwt = false
+
+[functions.submit-sentiment-vote]
+verify_jwt = false

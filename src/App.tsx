@@ -15,6 +15,7 @@ import Admin from "./pages/Admin";
 import Prediction from "./pages/Prediction";
 import CreatePrediction from "./pages/CreatePrediction";
 import Stats from "./pages/Stats";
+import Sentiment from "./pages/Sentiment";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,6 +38,7 @@ const App = () => (
                 <Route path="/prediction/:id" element={<Prediction />} />
                 <Route path="/create-prediction" element={<CreatePrediction />} />
                 <Route path="/stats" element={<Stats />} />
+                <Route path="/sentiment" element={<Sentiment />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>
