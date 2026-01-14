@@ -532,6 +532,54 @@ async function processPayouts(supabase: any, predictionId: string, winningPositi
   }
 }
 
+// ==================== PAYOUT RECOVERY ====================
+
+async function recoverUnpaidPayouts(supabase: any): Promise<number> {
+  console.log('🧯 Scanning for unpaid winning bets...');
+  
+  const { data: unpaidBets, error } = await supabase
+    .from('bets')
+    .select('prediction_id, payout_amount')
+    .eq('status', 'won')
+    .is('payout_tx_hash', null)
+    .limit(100);
+  
+  if (error || !unpaidBets?.length) {
+    console.log('🧯 No unpaid bets found');
+    return 0;
+  }
+  
+  const predictionIds = [...new Set(unpaidBets.map((b: any) => b.prediction_id))];
+  console.log(`🧯 Found ${unpaidBets.length} unpaid bets across ${predictionIds.length} predictions`);
+  
+  let recovered = 0;
+  for (const predId of predictionIds.slice(0, 10) as string[]) {
+    const { data: pred } = await supabase
+      .from('predictions')
+      .select('id, status, title, yes_pool, no_pool')
+      .eq('id', predId)
+      .single();
+    
+    if (!pred || (pred.status !== 'resolved_yes' && pred.status !== 'resolved_no')) continue;
+    
+    const winningPosition: 'yes' | 'no' = pred.status === 'resolved_yes' ? 'yes' : 'no';
+    
+    // Check if payout_amount needs calculation
+    const needsCalc = unpaidBets.some((b: any) => b.prediction_id === predId && !b.payout_amount);
+    
+    if (needsCalc) {
+      console.log(`🧯 Recalculating payouts for: ${pred.title?.slice(0, 40)}`);
+      await processPayouts(supabase, predId, winningPosition);
+    } else {
+      console.log(`🧯 Retrying send-payouts for: ${pred.title?.slice(0, 40)}`);
+      await supabase.functions.invoke('send-payouts', { body: { prediction_id: predId } });
+    }
+    recovered++;
+  }
+  
+  return recovered;
+}
+
 // ==================== MAIN HANDLER ====================
 
 Deno.serve(async (req) => {
@@ -546,6 +594,9 @@ Deno.serve(async (req) => {
 
   try {
     console.log('Oracle resolver started...');
+    
+    // Run payout recovery first
+    const recoveredCount = await recoverUnpaidPayouts(supabase);
     
     const now = new Date();
     
