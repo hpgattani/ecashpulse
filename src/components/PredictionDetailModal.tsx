@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Activity, Users } from 'lucide-react';
+import { X, Activity, Users, CheckCircle, XCircle, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { Outcome } from '@/hooks/usePredictions';
+import { useNavigate } from 'react-router-dom';
 
 interface Prediction {
   id: string;
@@ -16,6 +17,7 @@ interface Prediction {
   endDate: string;
   isMultiOption?: boolean;
   outcomes?: Outcome[];
+  status?: string;
 }
 
 interface BetActivity {
@@ -37,13 +39,40 @@ interface PredictionDetailModalProps {
 const PredictionDetailModal = ({ isOpen, onClose, prediction, onSelectOutcome }: PredictionDetailModalProps) => {
   const [activeTab, setActiveTab] = useState<'outcomes' | 'activity'>('activity');
   const [activities, setActivities] = useState<BetActivity[]>([]);
+  const [predictionStatus, setPredictionStatus] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!isOpen || !prediction) return;
 
     setActiveTab(prediction.isMultiOption && prediction.outcomes && prediction.outcomes.length > 0 ? 'outcomes' : 'activity');
     fetchActivity();
+    fetchPredictionStatus();
   }, [isOpen, prediction?.id, prediction?.isMultiOption, prediction?.outcomes?.length]);
+
+  const fetchPredictionStatus = async () => {
+    if (!prediction?.id) return;
+    
+    // Check if status is already provided
+    if (prediction.status) {
+      setPredictionStatus(prediction.status);
+      return;
+    }
+    
+    try {
+      const { data, error } = await supabase
+        .from('predictions')
+        .select('status')
+        .eq('id', prediction.id)
+        .single();
+      
+      if (!error && data) {
+        setPredictionStatus(data.status);
+      }
+    } catch (err) {
+      console.error('Error fetching prediction status:', err);
+    }
+  };
 
   const fetchActivity = async () => {
     try {
@@ -102,6 +131,14 @@ const PredictionDetailModal = ({ isOpen, onClose, prediction, onSelectOutcome }:
     return xec.toLocaleString() + ' XEC';
   };
 
+  const handleNavigateToPrediction = () => {
+    onClose();
+    navigate(`/prediction/${prediction.id}`);
+  };
+
+  const isResolved = predictionStatus === 'resolved_yes' || predictionStatus === 'resolved_no';
+  const resolvedOutcome = predictionStatus === 'resolved_yes' ? 'YES' : predictionStatus === 'resolved_no' ? 'NO' : null;
+
   if (!prediction) return null;
 
   return (
@@ -125,13 +162,38 @@ const PredictionDetailModal = ({ isOpen, onClose, prediction, onSelectOutcome }:
             <div className="glass-card glow-primary p-6 flex flex-col max-h-[80vh]">
               {/* Header */}
               <div className="flex items-start justify-between mb-4">
-                <div className="flex-1 pr-4">
-                  <h2 className="font-display font-bold text-lg text-foreground">
-                    {prediction.question}
-                  </h2>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {prediction.description}
-                  </p>
+                <div 
+                  className="flex-1 pr-4 cursor-pointer group"
+                  onClick={handleNavigateToPrediction}
+                >
+                  <div className="flex items-start gap-2">
+                    <h2 className="font-display font-bold text-lg text-foreground group-hover:text-primary transition-colors flex-1">
+                      {prediction.question}
+                    </h2>
+                    <ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0 mt-1" />
+                  </div>
+                  
+                  {/* Resolution Status Badge */}
+                  {isResolved && (
+                    <div className={`inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                      resolvedOutcome === 'YES' 
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
+                        : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                    }`}>
+                      {resolvedOutcome === 'YES' ? (
+                        <CheckCircle className="w-3.5 h-3.5" />
+                      ) : (
+                        <XCircle className="w-3.5 h-3.5" />
+                      )}
+                      Resolved: {resolvedOutcome}
+                    </div>
+                  )}
+                  
+                  {prediction.description && (
+                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                      {prediction.description}
+                    </p>
+                  )}
                 </div>
                 <Button variant="ghost" size="icon" onClick={onClose}>
                   <X className="w-5 h-5" />
