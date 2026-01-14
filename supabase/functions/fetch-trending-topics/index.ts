@@ -41,6 +41,13 @@ const AUTO_BLOCKED_TITLE_KEYWORDS = [
   'khabib',
   'nurmagomedov',
   'ufc 254',
+  // Block repetitive/spam predictions
+  'dharma',
+  'retroactive uni distribution',
+  'uni distribution proposal',
+  'price range',
+  // Block vague multi-option price predictions
+  'what price will',
 ];
 
 // Patterns that are obviously trivially-true or nonsense (e.g., "American team win Super Bowl")
