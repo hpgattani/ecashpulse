@@ -296,6 +296,74 @@ export type Database = {
           },
         ]
       }
+      sentiment_topics: {
+        Row: {
+          created_at: string
+          creation_fee_tx: string | null
+          creator_address_hash: string
+          description: string | null
+          expires_at: string
+          id: string
+          status: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          creation_fee_tx?: string | null
+          creator_address_hash: string
+          description?: string | null
+          expires_at?: string
+          id?: string
+          status?: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          creation_fee_tx?: string | null
+          creator_address_hash?: string
+          description?: string | null
+          expires_at?: string
+          id?: string
+          status?: string
+          title?: string
+        }
+        Relationships: []
+      }
+      sentiment_votes: {
+        Row: {
+          created_at: string
+          id: string
+          position: string
+          topic_id: string
+          tx_hash: string | null
+          voter_address_hash: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          position: string
+          topic_id: string
+          tx_hash?: string | null
+          voter_address_hash: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          position?: string
+          topic_id?: string
+          tx_hash?: string | null
+          voter_address_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sentiment_votes_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "sentiment_topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sessions: {
         Row: {
           created_at: string
