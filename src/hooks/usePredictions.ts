@@ -430,6 +430,30 @@ const filterDailyPredictions = (predictions: Prediction[]): Prediction[] => {
   return result;
 };
 
+// Remove duplicate predictions by normalizing titles
+const deduplicatePredictions = (predictions: Prediction[]): Prediction[] => {
+  const seen = new Map<string, Prediction>();
+  
+  for (const p of predictions) {
+    // Normalize: lowercase, remove dates/years, trim whitespace
+    const normalized = p.question
+      .toLowerCase()
+      .replace(/\b(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}(,?\s*\d{4})?/gi, '')
+      .replace(/\bby\s+(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}/gi, '')
+      .replace(/\b20\d{2}\b/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    // If we haven't seen this normalized title, or this one has higher volume, keep it
+    const existing = seen.get(normalized);
+    if (!existing || p.volume > existing.volume) {
+      seen.set(normalized, p);
+    }
+  }
+  
+  return Array.from(seen.values());
+};
+
 export const usePredictions = () => {
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -472,7 +496,10 @@ export const usePredictions = () => {
         // Filter to show only next upcoming daily prediction per series
         const filteredPredictions = filterDailyPredictions(allPredictions);
         
-        setPredictions(filteredPredictions);
+        // Deduplicate similar predictions
+        const dedupedPredictions = deduplicatePredictions(filteredPredictions);
+        
+        setPredictions(dedupedPredictions);
         setError(null);
       } catch (err: any) {
         setError(err?.message || 'Failed to load markets');

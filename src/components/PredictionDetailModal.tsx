@@ -40,6 +40,7 @@ const PredictionDetailModal = ({ isOpen, onClose, prediction, onSelectOutcome }:
   const [activeTab, setActiveTab] = useState<'outcomes' | 'activity'>('activity');
   const [activities, setActivities] = useState<BetActivity[]>([]);
   const [predictionStatus, setPredictionStatus] = useState<string | null>(null);
+  const [resolvedDescription, setResolvedDescription] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -54,20 +55,22 @@ const PredictionDetailModal = ({ isOpen, onClose, prediction, onSelectOutcome }:
     if (!prediction?.id) return;
     
     // Check if status is already provided
-    if (prediction.status) {
+    if (prediction.status && prediction.status !== 'active') {
       setPredictionStatus(prediction.status);
+      setResolvedDescription(prediction.description || null);
       return;
     }
     
     try {
       const { data, error } = await supabase
         .from('predictions')
-        .select('status')
+        .select('status, description')
         .eq('id', prediction.id)
         .single();
       
       if (!error && data) {
         setPredictionStatus(data.status);
+        setResolvedDescription(data.description || null);
       }
     } catch (err) {
       console.error('Error fetching prediction status:', err);
@@ -139,6 +142,30 @@ const PredictionDetailModal = ({ isOpen, onClose, prediction, onSelectOutcome }:
   const isResolved = predictionStatus === 'resolved_yes' || predictionStatus === 'resolved_no';
   const resolvedOutcome = predictionStatus === 'resolved_yes' ? 'YES' : predictionStatus === 'resolved_no' ? 'NO' : null;
 
+  // Extract resolution reasoning from description (oracle stamps it there)
+  const extractResolutionReason = () => {
+    const desc = resolvedDescription || prediction.description;
+    if (!desc || !isResolved) return null;
+    
+    // Look for oracle stamp pattern: "--- Oracle Resolution ---" or similar
+    const oracleMatch = desc.match(/---\s*Oracle Resolution\s*---[\s\S]*?Evidence:\s*([\s\S]+?)(?:---|$)/i);
+    if (oracleMatch) return oracleMatch[1].trim();
+    
+    // Look for "Resolved:" or "Resolution:" prefix
+    const resolvedMatch = desc.match(/(?:Resolved|Resolution|Outcome)[:\s]+(.+?)(?:\.|$)/i);
+    if (resolvedMatch) return resolvedMatch[1].trim();
+    
+    // If description contains evidence/reason keywords, show last portion
+    if (desc.toLowerCase().includes('evidence') || desc.toLowerCase().includes('confirmed') || desc.toLowerCase().includes('result')) {
+      const sentences = desc.split(/[.!?]+/).filter(s => s.trim());
+      if (sentences.length > 1) return sentences[sentences.length - 1].trim();
+    }
+    
+    return null;
+  };
+  
+  const resolutionReason = extractResolutionReason();
+
   if (!prediction) return null;
 
   return (
@@ -175,17 +202,24 @@ const PredictionDetailModal = ({ isOpen, onClose, prediction, onSelectOutcome }:
                   
                   {/* Resolution Status Badge */}
                   {isResolved && (
-                    <div className={`inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                      resolvedOutcome === 'YES' 
-                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
-                        : 'bg-red-500/20 text-red-400 border border-red-500/30'
-                    }`}>
-                      {resolvedOutcome === 'YES' ? (
-                        <CheckCircle className="w-3.5 h-3.5" />
-                      ) : (
-                        <XCircle className="w-3.5 h-3.5" />
+                    <div className="mt-2 space-y-1">
+                      <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                        resolvedOutcome === 'YES' 
+                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
+                          : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                      }`}>
+                        {resolvedOutcome === 'YES' ? (
+                          <CheckCircle className="w-3.5 h-3.5" />
+                        ) : (
+                          <XCircle className="w-3.5 h-3.5" />
+                        )}
+                        Resolved: {resolvedOutcome}
+                      </div>
+                      {resolutionReason && (
+                        <p className="text-xs text-muted-foreground italic pl-0.5 line-clamp-2">
+                          {resolutionReason}
+                        </p>
                       )}
-                      Resolved: {resolvedOutcome}
                     </div>
                   )}
                   
