@@ -26,22 +26,29 @@ const App = () => (
       <LanguageProvider>
         <AuthProvider>
           <TooltipProvider>
-            <LightModeOrbs />
-            <Sonner />
-            <BrowserRouter>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/awaiting" element={<AwaitingResolutionPage />} />
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/my-bets" element={<MyBets />} />
-                <Route path="/admin" element={<Admin />} />
-                <Route path="/prediction/:id" element={<Prediction />} />
-                <Route path="/create-prediction" element={<CreatePrediction />} />
-                <Route path="/stats" element={<Stats />} />
-                <Route path="/sentiment" element={<Sentiment />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </BrowserRouter>
+            <div className="relative min-h-screen">
+              {/* Global background */}
+              <LightModeOrbs />
+
+              {/* All app UI must sit above the background */}
+              <div className="relative z-10">
+                <Sonner />
+                <BrowserRouter>
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/awaiting" element={<AwaitingResolutionPage />} />
+                    <Route path="/auth" element={<Auth />} />
+                    <Route path="/my-bets" element={<MyBets />} />
+                    <Route path="/admin" element={<Admin />} />
+                    <Route path="/prediction/:id" element={<Prediction />} />
+                    <Route path="/create-prediction" element={<CreatePrediction />} />
+                    <Route path="/stats" element={<Stats />} />
+                    <Route path="/sentiment" element={<Sentiment />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </BrowserRouter>
+              </div>
+            </div>
           </TooltipProvider>
         </AuthProvider>
       </LanguageProvider>
