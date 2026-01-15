@@ -32,6 +32,7 @@ interface SentimentTopic {
   created_at: string;
   expires_at: string;
   status: string;
+  vote_cost: number;
   agree_count: number;
   disagree_count: number;
 }
@@ -49,7 +50,7 @@ const Sentiment = () => {
       // Fetch topics with vote counts
       const { data: topicsData, error: topicsError } = await supabase
         .from('sentiment_topics')
-        .select('*')
+        .select('id, title, description, created_at, expires_at, status, vote_cost')
         .eq('status', 'active')
         .order('created_at', { ascending: false });
 
@@ -66,7 +67,7 @@ const Sentiment = () => {
           const agree_count = votes?.filter(v => v.position === 'agree').length || 0;
           const disagree_count = votes?.filter(v => v.position === 'disagree').length || 0;
 
-          return { ...topic, agree_count, disagree_count };
+          return { ...topic, vote_cost: topic.vote_cost || 500, agree_count, disagree_count };
         })
       );
 
@@ -146,8 +147,8 @@ const Sentiment = () => {
                       <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-3">
                         <Lock className="w-6 h-6 text-accent" />
                       </div>
-                      <h3 className="font-semibold text-foreground mb-1">Fixed 500 XEC Vote</h3>
-                      <p className="text-sm text-muted-foreground">Equal voice for everyone</p>
+                      <h3 className="font-semibold text-foreground mb-1">Creator Sets Vote Cost</h3>
+                      <p className="text-sm text-muted-foreground">$0.05 - $5 per vote</p>
                     </CardContent>
                   </Card>
                   
@@ -280,7 +281,7 @@ const Sentiment = () => {
                                 onClick={() => handleVote(topic, 'agree')}
                               >
                                 <ThumbsUp className="w-4 h-4" />
-                                Agree (500 XEC)
+                                Agree ({topic.vote_cost.toLocaleString()} XEC)
                               </Button>
                               <Button 
                                 variant="outline" 
@@ -288,7 +289,7 @@ const Sentiment = () => {
                                 onClick={() => handleVote(topic, 'disagree')}
                               >
                                 <ThumbsDown className="w-4 h-4" />
-                                Disagree (500 XEC)
+                                Disagree ({topic.vote_cost.toLocaleString()} XEC)
                               </Button>
                             </div>
                           </CardContent>

@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    const { title, description, tx_hash, session_token } = await req.json();
+    const { title, description, vote_cost, tx_hash, session_token } = await req.json();
 
     // Validate inputs
     if (!title || title.trim().length < 10) {
@@ -34,6 +34,9 @@ Deno.serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
+
+    // Validate vote_cost (500-50000 XEC, default 500)
+    const validatedVoteCost = Math.min(50000, Math.max(500, vote_cost || 500));
 
     if (!session_token) {
       return new Response(
@@ -88,6 +91,7 @@ Deno.serve(async (req) => {
         description: description?.trim() || null,
         creator_address_hash: addressHash,
         creation_fee_tx: tx_hash || null,
+        vote_cost: validatedVoteCost,
         expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
       })
       .select()
