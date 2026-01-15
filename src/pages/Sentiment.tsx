@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { motion } from 'framer-motion';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
@@ -111,11 +110,7 @@ const Sentiment = () => {
           {/* Hero Section */}
           <section className="px-4 mb-12">
             <div className="max-w-4xl mx-auto text-center">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-              >
+              <div>
                 <Badge variant="outline" className="mb-4 px-4 py-1.5 border-primary/30 bg-primary/5">
                   <EyeOff className="w-3.5 h-3.5 mr-1.5" />
                   100% Anonymous
@@ -177,7 +172,7 @@ const Sentiment = () => {
                   <Plus className="w-5 h-5" />
                   Create Topic (~$1 / 10,000 XEC)
                 </Button>
-              </motion.div>
+              </div>
             </div>
           </section>
 
@@ -225,12 +220,7 @@ const Sentiment = () => {
                     const agreePercent = totalVotes > 0 ? (topic.agree_count / totalVotes) * 100 : 50;
                     
                     return (
-                      <motion.div
-                        key={topic.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                      >
+                      <div key={topic.id}>
                         <Card className="overflow-hidden hover:border-primary/30 transition-colors">
                           <CardHeader className="pb-3">
                             <div className="flex items-start justify-between gap-4">
@@ -294,7 +284,7 @@ const Sentiment = () => {
                             </div>
                           </CardContent>
                         </Card>
-                      </motion.div>
+                      </div>
                     );
                   })}
                 </div>
