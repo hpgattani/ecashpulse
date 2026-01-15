@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Activity, Menu, X, Wallet, LogOut, TrendingUp, User, BarChart3, MessageCircleHeart } from "lucide-react";
+import { Activity, Menu, X, Wallet, LogOut, TrendingUp, User, BarChart3, EyeOff } from "lucide-react";
 import { ProfileModal } from "./ProfileModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -132,7 +132,7 @@ const Header = () => {
                 Stats
               </Link>
               <Link to="/sentiment" className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
-                <MessageCircleHeart className="w-4 h-4" />
+                <EyeOff className="w-4 h-4" />
                 Sentiment
               </Link>
               {user && (
@@ -233,7 +233,7 @@ const Header = () => {
                   className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2"
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <MessageCircleHeart className="w-4 h-4" />
+                  <EyeOff className="w-4 h-4" />
                   Sentiment
                 </Link>
                 {user && (
