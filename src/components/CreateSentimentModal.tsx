@@ -229,23 +229,17 @@ export function CreateSentimentModal({ open, onOpenChange, onSuccess }: CreateSe
                     </motion.span>
                   </div>
                   
-                  {/* Thumb indicator - properly clamped */}
-                  <motion.div
-                    className="absolute top-1/2 w-7 h-7 pointer-events-none z-30"
+                  {/* Thumb indicator - pure CSS, no motion */}
+                  <div
+                    className="absolute top-1/2 -translate-y-1/2 w-7 h-7 pointer-events-none z-30 transition-all duration-200 ease-out"
                     style={{ 
-                      translateY: '-50%',
-                      left: `clamp(4px, calc(${sliderPercent}% - 14px), calc(100% - 32px))`
+                      left: `calc(${sliderPercent}% - ${sliderPercent * 0.28}px + 4px)`
                     }}
-                    initial={false}
-                    animate={{ 
-                      left: `clamp(4px, calc(${sliderPercent}% - 14px), calc(100% - 32px))` 
-                    }}
-                    transition={{ type: 'spring', stiffness: 400, damping: 35 }}
                   >
                     <div className="w-full h-full rounded-full bg-gradient-to-br from-primary via-primary to-primary/80 shadow-lg shadow-primary/40 border-2 border-white/40">
                       <div className="absolute inset-1 rounded-full bg-gradient-to-b from-white/50 to-transparent" />
                     </div>
-                  </motion.div>
+                  </div>
                 </div>
                 
                 {/* Range labels */}
