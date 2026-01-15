@@ -15,12 +15,12 @@ interface SentimentVoteModalProps {
   topic: {
     id: string;
     title: string;
+    vote_cost: number;
   } | null;
   position: 'agree' | 'disagree' | null;
   onSuccess: () => void;
 }
 
-const VOTE_FEE_XEC = 500;
 const TREASURY_ADDRESS = 'ecash:qz2708636snqhsxu8wnlka78h6fdp77ar59jrf5035';
 
 export function SentimentVoteModal({ open, onOpenChange, topic, position, onSuccess }: SentimentVoteModalProps) {
@@ -87,6 +87,8 @@ export function SentimentVoteModal({ open, onOpenChange, topic, position, onSucc
   if (!topic || !position) return null;
 
   const isAgree = position === 'agree';
+  const voteCost = topic.vote_cost || 500;
+  const voteCostUsd = (voteCost / 10000).toFixed(2);
 
   return (
     <Dialog open={open} onOpenChange={(open) => {
@@ -123,7 +125,7 @@ export function SentimentVoteModal({ open, onOpenChange, topic, position, onSucc
                   <p className="font-medium text-foreground">
                     You're voting: <span className={isAgree ? 'text-green-500' : 'text-red-500'}>{isAgree ? 'AGREE' : 'DISAGREE'}</span>
                   </p>
-                  <p className="text-sm text-muted-foreground">Fixed amount: 500 XEC</p>
+                  <p className="text-sm text-muted-foreground">Amount: {voteCost.toLocaleString()} XEC (~${voteCostUsd})</p>
                 </div>
               </div>
             </div>
@@ -161,10 +163,10 @@ export function SentimentVoteModal({ open, onOpenChange, topic, position, onSucc
               <p className="text-sm text-foreground font-medium">Send exactly:</p>
               <div className="flex items-center justify-between bg-background rounded-lg p-3">
                 <span className={`font-mono text-lg font-bold ${isAgree ? 'text-green-500' : 'text-red-500'}`}>
-                  {VOTE_FEE_XEC} XEC
+                  {voteCost.toLocaleString()} XEC
                 </span>
                 <Badge variant="outline" className={isAgree ? 'border-green-500/30' : 'border-red-500/30'}>
-                  {isAgree ? 'AGREE' : 'DISAGREE'}
+                  ~${voteCostUsd}
                 </Badge>
               </div>
               

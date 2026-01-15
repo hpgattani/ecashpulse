@@ -5,10 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { EyeOff, Loader2, AlertTriangle, Copy, Check } from 'lucide-react';
+import { EyeOff, Loader2, AlertTriangle, Copy, Check, Coins } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { motion } from 'framer-motion';
 
 interface CreateSentimentModalProps {
   open: boolean;
@@ -19,10 +20,16 @@ interface CreateSentimentModalProps {
 const CREATION_FEE_XEC = 10000; // ~$1
 const TREASURY_ADDRESS = 'ecash:qz2708636snqhsxu8wnlka78h6fdp77ar59jrf5035';
 
+// Slider range: $0.05 to $5 in $0.10 increments (500 XEC to 50,000 XEC)
+const MIN_VOTE_COST = 500;
+const MAX_VOTE_COST = 50000;
+const VOTE_COST_STEP = 1000; // ~$0.10
+
 export function CreateSentimentModal({ open, onOpenChange, onSuccess }: CreateSentimentModalProps) {
   const { user, sessionToken } = useAuth();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [voteCost, setVoteCost] = useState(5000); // Default ~$0.50
   const [step, setStep] = useState<'form' | 'payment' | 'confirming'>('form');
   const [txHash, setTxHash] = useState('');
   const [copied, setCopied] = useState(false);
@@ -65,6 +72,7 @@ export function CreateSentimentModal({ open, onOpenChange, onSuccess }: CreateSe
         body: {
           title: title.trim(),
           description: description.trim() || null,
+          vote_cost: voteCost,
           tx_hash: txHash.trim(),
           session_token: sessionToken
         }
@@ -92,9 +100,14 @@ export function CreateSentimentModal({ open, onOpenChange, onSuccess }: CreateSe
   const resetForm = () => {
     setTitle('');
     setDescription('');
+    setVoteCost(5000);
     setTxHash('');
     setStep('form');
   };
+
+  // Calculate USD equivalent (~$0.0001 per XEC)
+  const voteCostUsd = (voteCost / 10000).toFixed(2);
+  const sliderPercent = ((voteCost - MIN_VOTE_COST) / (MAX_VOTE_COST - MIN_VOTE_COST)) * 100;
 
   return (
     <Dialog open={open} onOpenChange={(open) => {
@@ -143,6 +156,98 @@ export function CreateSentimentModal({ open, onOpenChange, onSuccess }: CreateSe
               </p>
             </div>
 
+            {/* Liquid Glass Vote Cost Slider */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-foreground flex items-center gap-2">
+                  <Coins className="w-4 h-4 text-primary" />
+                  Vote Cost
+                </Label>
+                <Badge variant="outline" className="font-mono">
+                  ~${voteCostUsd}
+                </Badge>
+              </div>
+              
+              <div className="relative">
+                {/* Liquid Glass Slider Track */}
+                <div className="relative h-12 rounded-2xl overflow-hidden">
+                  {/* Glass background */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-background/80 via-muted/40 to-background/60 backdrop-blur-xl border border-border/50 rounded-2xl" />
+                  
+                  {/* Animated fill */}
+                  <motion.div 
+                    className="absolute inset-y-0 left-0 rounded-2xl overflow-hidden"
+                    initial={false}
+                    animate={{ width: `${sliderPercent}%` }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                  >
+                    {/* Gradient fill with shimmer */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-primary/30 via-primary/50 to-primary/40" />
+                    
+                    {/* Shimmer effect */}
+                    <motion.div 
+                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                      animate={{ x: ['-100%', '200%'] }}
+                      transition={{ repeat: Infinity, duration: 2, ease: 'linear' }}
+                    />
+                    
+                    {/* Top specular highlight */}
+                    <div className="absolute inset-x-0 top-0 h-1/3 bg-gradient-to-b from-white/20 to-transparent" />
+                  </motion.div>
+                  
+                  {/* Inner shadow for depth */}
+                  <div className="absolute inset-0 rounded-2xl shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)]" />
+                  
+                  {/* Slider Input */}
+                  <input
+                    type="range"
+                    min={MIN_VOTE_COST}
+                    max={MAX_VOTE_COST}
+                    step={VOTE_COST_STEP}
+                    value={voteCost}
+                    onChange={(e) => setVoteCost(Number(e.target.value))}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  />
+                  
+                  {/* Value display inside slider */}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+                    <motion.span 
+                      key={voteCost}
+                      initial={{ scale: 1.2, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      className="font-display font-bold text-lg text-foreground drop-shadow-lg"
+                    >
+                      {voteCost.toLocaleString()} XEC
+                    </motion.span>
+                  </div>
+                  
+                  {/* Thumb indicator */}
+                  <motion.div
+                    className="absolute top-1/2 -translate-y-1/2 w-6 h-6 pointer-events-none z-30"
+                    initial={false}
+                    animate={{ left: `calc(${sliderPercent}% - 12px)` }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                    style={{ left: `max(0px, min(calc(100% - 24px), calc(${sliderPercent}% - 12px)))` }}
+                  >
+                    <div className="w-full h-full rounded-full bg-gradient-to-br from-primary via-primary to-primary/80 shadow-lg shadow-primary/30 border-2 border-white/30">
+                      {/* Inner glow */}
+                      <div className="absolute inset-0.5 rounded-full bg-gradient-to-b from-white/40 to-transparent" />
+                    </div>
+                  </motion.div>
+                </div>
+                
+                {/* Range labels */}
+                <div className="flex justify-between mt-2 text-xs text-muted-foreground">
+                  <span>$0.05</span>
+                  <span>$5.00</span>
+                </div>
+              </div>
+              
+              <p className="text-xs text-muted-foreground text-center">
+                Set the cost for each vote on your topic
+              </p>
+            </div>
+
             <div className="bg-muted/50 rounded-lg p-3 space-y-2">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-yellow-500" />
@@ -185,6 +290,12 @@ export function CreateSentimentModal({ open, onOpenChange, onSuccess }: CreateSe
                 >
                   {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
                 </Button>
+              </div>
+              
+              <div className="mt-3 pt-3 border-t border-border/50">
+                <p className="text-xs text-muted-foreground">
+                  Vote cost: <span className="text-foreground font-medium">{voteCost.toLocaleString()} XEC (~${voteCostUsd})</span> per vote
+                </p>
               </div>
             </div>
 

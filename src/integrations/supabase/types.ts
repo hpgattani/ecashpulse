@@ -306,6 +306,7 @@ export type Database = {
           id: string
           status: string
           title: string
+          vote_cost: number
         }
         Insert: {
           created_at?: string
@@ -316,6 +317,7 @@ export type Database = {
           id?: string
           status?: string
           title: string
+          vote_cost?: number
         }
         Update: {
           created_at?: string
@@ -326,6 +328,7 @@ export type Database = {
           id?: string
           status?: string
           title?: string
+          vote_cost?: number
         }
         Relationships: []
       }
