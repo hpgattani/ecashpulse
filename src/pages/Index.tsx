@@ -53,7 +53,7 @@ const Index = () => {
         <meta name="keywords" content="eCash, XEC, prediction market, crypto betting, decentralized, blockchain" />
       </Helmet>
       
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen">
         <Header />
           <main>
             <Hero />

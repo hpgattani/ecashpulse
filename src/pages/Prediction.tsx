@@ -366,7 +366,7 @@ const Prediction = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
@@ -374,7 +374,7 @@ const Prediction = () => {
 
   if (!prediction) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen">
         <Header />
         <div className="container mx-auto px-4 py-20 text-center">
           <h1 className="text-2xl font-bold text-foreground mb-4">Prediction not found</h1>
@@ -452,7 +452,7 @@ const Prediction = () => {
         <meta name="twitter:description" content={prediction.description || "Bet on this prediction with eCash"} />
       </Helmet>
 
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen">
         <Header />
 
         <main className="container mx-auto px-4 py-8 md:py-12">

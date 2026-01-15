@@ -15,7 +15,7 @@ const AwaitingResolutionPage = () => {
         <link rel="canonical" href={`${window.location.origin}/awaiting`} />
       </Helmet>
 
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen">
         <Header />
         <main className="container mx-auto px-4 pt-24 pb-12">
           <div className="glass-card p-4 md:p-6">

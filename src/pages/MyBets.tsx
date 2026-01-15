@@ -313,7 +313,7 @@ const MyBets = () => {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
@@ -326,7 +326,7 @@ const MyBets = () => {
         <meta name="description" content={t.trackYourBets} />
       </Helmet>
 
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen">
         <Header />
         <main className="container mx-auto px-4 py-8 pt-24">
           <div className="mb-8">

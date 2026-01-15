@@ -283,7 +283,7 @@ const Admin = () => {
 
   if (checkingAdmin) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
       </div>
     );
@@ -295,7 +295,7 @@ const Admin = () => {
         <Helmet>
           <title>Access Denied - eCash Pulse</title>
         </Helmet>
-        <div className="min-h-screen bg-background">
+        <div className="min-h-screen">
           <Header />
           <main className="py-20 px-4">
             <div className="max-w-md mx-auto text-center">
@@ -355,7 +355,7 @@ const Admin = () => {
         <meta name="description" content="Admin dashboard for eCash Pulse prediction market" />
       </Helmet>
 
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen">
         <Header />
         <main className="py-8 px-4">
           <div className="max-w-7xl mx-auto">

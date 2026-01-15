@@ -107,7 +107,7 @@ const Sentiment = () => {
         <meta name="description" content="Express your opinion anonymously on trending topics. Create sentiment topics for $1, vote with 500 XEC. All contributions support eCash Pulse treasury." />
       </Helmet>
 
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen">
         <Header />
         
         <main className="pt-24 pb-16">
