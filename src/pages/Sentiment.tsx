@@ -5,7 +5,6 @@ import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { 
   EyeOff, 
   Plus, 
@@ -23,7 +22,7 @@ import { toast } from 'sonner';
 import { CreateSentimentModal } from '@/components/CreateSentimentModal';
 import { SentimentVoteModal } from '@/components/SentimentVoteModal';
 import { formatDistanceToNow } from 'date-fns';
-
+import { useCryptoPrices } from '@/hooks/useCryptoPrices';
 interface SentimentTopic {
   id: string;
   title: string;
@@ -38,11 +37,16 @@ interface SentimentTopic {
 
 const Sentiment = () => {
   const { user } = useAuth();
+  const { prices } = useCryptoPrices();
   const [topics, setTopics] = useState<SentimentTopic[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedTopic, setSelectedTopic] = useState<SentimentTopic | null>(null);
   const [votePosition, setVotePosition] = useState<'agree' | 'disagree' | null>(null);
+
+  // Dynamic XEC amount for $1 based on live price
+  const xecPrice = prices.ecash || 0.0001;
+  const creationFeeXec = Math.ceil(1 / xecPrice);
 
   const fetchTopics = async () => {
     try {
@@ -170,7 +174,7 @@ const Sentiment = () => {
                   }}
                 >
                   <Plus className="w-5 h-5" />
-                  Create Topic (~$1 / 10,000 XEC)
+                  Create Topic (~$1 / {creationFeeXec.toLocaleString()} XEC)
                 </Button>
               </div>
             </div>
