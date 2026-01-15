@@ -170,35 +170,42 @@ export function CreateSentimentModal({ open, onOpenChange, onSuccess }: CreateSe
               
               <div className="relative">
                 {/* Liquid Glass Slider Track */}
-                <div className="relative h-12 rounded-2xl overflow-hidden">
-                  {/* Glass background */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-background/80 via-muted/40 to-background/60 backdrop-blur-xl border border-border/50 rounded-2xl" />
+                <div className="relative h-14 rounded-2xl">
+                  {/* Glass background with proper styling */}
+                  <div 
+                    className="absolute inset-0 rounded-2xl overflow-hidden"
+                    style={{
+                      background: 'var(--glass-bg)',
+                      boxShadow: 'var(--glass-shadow)',
+                      backdropFilter: 'var(--glass-blur)',
+                    }}
+                  >
+                    {/* Specular highlight */}
+                    <div className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-transparent" />
+                  </div>
                   
                   {/* Animated fill */}
                   <motion.div 
-                    className="absolute inset-y-0 left-0 rounded-2xl overflow-hidden"
+                    className="absolute top-1 bottom-1 left-1 rounded-xl overflow-hidden"
                     initial={false}
-                    animate={{ width: `${sliderPercent}%` }}
+                    animate={{ width: `calc(${Math.max(5, sliderPercent)}% - 8px)` }}
                     transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                   >
-                    {/* Gradient fill with shimmer */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-primary/30 via-primary/50 to-primary/40" />
+                    {/* Gradient fill */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-primary/40 via-primary/60 to-primary/50 rounded-xl" />
                     
                     {/* Shimmer effect */}
                     <motion.div 
-                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
-                      animate={{ x: ['-100%', '200%'] }}
-                      transition={{ repeat: Infinity, duration: 2, ease: 'linear' }}
+                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                      animate={{ x: ['-200%', '200%'] }}
+                      transition={{ repeat: Infinity, duration: 2.5, ease: 'linear' }}
                     />
                     
-                    {/* Top specular highlight */}
-                    <div className="absolute inset-x-0 top-0 h-1/3 bg-gradient-to-b from-white/20 to-transparent" />
+                    {/* Top highlight */}
+                    <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/25 to-transparent rounded-t-xl" />
                   </motion.div>
                   
-                  {/* Inner shadow for depth */}
-                  <div className="absolute inset-0 rounded-2xl shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)]" />
-                  
-                  {/* Slider Input */}
+                  {/* Slider Input - on top for interaction */}
                   <input
                     type="range"
                     min={MIN_VOTE_COST}
@@ -206,39 +213,45 @@ export function CreateSentimentModal({ open, onOpenChange, onSuccess }: CreateSe
                     step={VOTE_COST_STEP}
                     value={voteCost}
                     onChange={(e) => setVoteCost(Number(e.target.value))}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-40"
                   />
                   
                   {/* Value display inside slider */}
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
                     <motion.span 
                       key={voteCost}
-                      initial={{ scale: 1.2, opacity: 0 }}
+                      initial={{ scale: 1.1, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
-                      className="font-display font-bold text-lg text-foreground drop-shadow-lg"
+                      transition={{ duration: 0.15 }}
+                      className="font-display font-bold text-lg text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]"
                     >
                       {voteCost.toLocaleString()} XEC
                     </motion.span>
                   </div>
                   
-                  {/* Thumb indicator */}
+                  {/* Thumb indicator - properly clamped */}
                   <motion.div
-                    className="absolute top-1/2 -translate-y-1/2 w-6 h-6 pointer-events-none z-30"
+                    className="absolute top-1/2 w-7 h-7 pointer-events-none z-30"
+                    style={{ 
+                      translateY: '-50%',
+                      left: `clamp(4px, calc(${sliderPercent}% - 14px), calc(100% - 32px))`
+                    }}
                     initial={false}
-                    animate={{ left: `calc(${sliderPercent}% - 12px)` }}
-                    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                    style={{ left: `max(0px, min(calc(100% - 24px), calc(${sliderPercent}% - 12px)))` }}
+                    animate={{ 
+                      left: `clamp(4px, calc(${sliderPercent}% - 14px), calc(100% - 32px))` 
+                    }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 35 }}
                   >
-                    <div className="w-full h-full rounded-full bg-gradient-to-br from-primary via-primary to-primary/80 shadow-lg shadow-primary/30 border-2 border-white/30">
-                      {/* Inner glow */}
-                      <div className="absolute inset-0.5 rounded-full bg-gradient-to-b from-white/40 to-transparent" />
+                    <div className="w-full h-full rounded-full bg-gradient-to-br from-primary via-primary to-primary/80 shadow-lg shadow-primary/40 border-2 border-white/40">
+                      <div className="absolute inset-1 rounded-full bg-gradient-to-b from-white/50 to-transparent" />
                     </div>
                   </motion.div>
                 </div>
                 
                 {/* Range labels */}
-                <div className="flex justify-between mt-2 text-xs text-muted-foreground">
+                <div className="flex justify-between mt-2.5 text-xs text-muted-foreground px-1">
                   <span>$0.05</span>
+                  <span className="text-foreground/50">drag to adjust</span>
                   <span>$5.00</span>
                 </div>
               </div>
