@@ -1,13 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { ThumbsUp, ThumbsDown, Loader2, Copy, Check, EyeOff, Shield } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, Loader2, EyeOff, Shield, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { useCryptoPrices } from '@/hooks/useCryptoPrices';
 
 interface SentimentVoteModalProps {
   open: boolean;
@@ -21,32 +19,44 @@ interface SentimentVoteModalProps {
   onSuccess: () => void;
 }
 
-const TREASURY_ADDRESS = 'ecash:qz2708636snqhsxu8wnlka78h6fdp77ar59jrf5035';
+// Same escrow address used for betting
+const ESCROW_ADDRESS = "ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp";
 
 export function SentimentVoteModal({ open, onOpenChange, topic, position, onSuccess }: SentimentVoteModalProps) {
   const { user, sessionToken } = useAuth();
-  const [step, setStep] = useState<'info' | 'payment' | 'confirming'>('info');
-  const [txHash, setTxHash] = useState('');
-  const [copied, setCopied] = useState(false);
+  const { prices } = useCryptoPrices();
+  const payButtonRef = useRef<HTMLDivElement>(null);
+  
+  const [step, setStep] = useState<'info' | 'payment' | 'confirming' | 'success'>('info');
   const [submitting, setSubmitting] = useState(false);
 
-  const handleCopy = async (text: string) => {
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-    toast.success('Copied to clipboard');
-  };
+  // Close any PayButton modals/overlays
+  const closePayButtonModal = useCallback(() => {
+    const selectors = [
+      '.paybutton-modal',
+      '.paybutton-overlay', 
+      '[class*="paybutton"][class*="modal"]',
+      '[class*="paybutton"][class*="overlay"]',
+      '.ReactModal__Overlay',
+      '[data-paybutton-modal]',
+    ];
+    
+    selectors.forEach(selector => {
+      document.querySelectorAll(selector).forEach(el => {
+        (el as HTMLElement).style.display = 'none';
+        el.remove();
+      });
+    });
 
-  const handleConfirmVote = async () => {
-    if (!txHash.trim()) {
-      toast.error('Please enter the transaction hash');
-      return;
+    if (payButtonRef.current) {
+      payButtonRef.current.innerHTML = '';
     }
-    if (!user || !sessionToken || !topic || !position) {
-      toast.error('Missing required information');
-      return;
-    }
+  }, []);
 
+  const handlePaymentSuccess = useCallback(async (txHash?: string) => {
+    if (!user || !sessionToken || !topic || !position) return;
+
+    closePayButtonModal();
     setSubmitting(true);
     setStep('confirming');
 
@@ -55,7 +65,7 @@ export function SentimentVoteModal({ open, onOpenChange, topic, position, onSucc
         body: {
           topic_id: topic.id,
           position,
-          tx_hash: txHash.trim(),
+          tx_hash: txHash || `pb_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
           session_token: sessionToken
         }
       });
@@ -63,10 +73,16 @@ export function SentimentVoteModal({ open, onOpenChange, topic, position, onSucc
       if (error) throw error;
 
       if (data.success) {
-        toast.success('Vote submitted anonymously!');
-        onSuccess();
-        onOpenChange(false);
-        resetForm();
+        setStep('success');
+        toast.success('Payment Sent!', {
+          description: `Vote submitted anonymously`
+        });
+        
+        setTimeout(() => {
+          onSuccess();
+          onOpenChange(false);
+          resetForm();
+        }, 1500);
       } else {
         throw new Error(data.error || 'Failed to submit vote');
       }
@@ -77,18 +93,105 @@ export function SentimentVoteModal({ open, onOpenChange, topic, position, onSucc
     } finally {
       setSubmitting(false);
     }
-  };
+  }, [user, sessionToken, topic, position, closePayButtonModal, onSuccess, onOpenChange]);
 
   const resetForm = () => {
-    setTxHash('');
     setStep('info');
+    setSubmitting(false);
   };
+
+  // Load PayButton script
+  useEffect(() => {
+    if (!document.querySelector('script[src*="paybutton"]')) {
+      const script = document.createElement("script");
+      script.src = "https://unpkg.com/@paybutton/paybutton/dist/paybutton.js";
+      script.async = true;
+      document.body.appendChild(script);
+    }
+  }, []);
+
+  // Render PayButton
+  useEffect(() => {
+    if (step !== 'payment' || !payButtonRef.current || !user || !sessionToken || !topic) {
+      if (payButtonRef.current) {
+        payButtonRef.current.innerHTML = "";
+      }
+      return;
+    }
+
+    const voteCost = topic.vote_cost || 500;
+
+    payButtonRef.current.innerHTML = "";
+
+    const renderButton = () => {
+      if (!payButtonRef.current) return;
+
+      payButtonRef.current.innerHTML = "";
+
+      const buttonContainer = document.createElement("div");
+      buttonContainer.id = `paybutton-vote-${Date.now()}`;
+      payButtonRef.current.appendChild(buttonContainer);
+
+      const isAgree = position === 'agree';
+
+      if ((window as any).PayButton) {
+        (window as any).PayButton.render(buttonContainer, {
+          to: ESCROW_ADDRESS,
+          amount: voteCost,
+          currency: "XEC",
+          text: `Vote ${isAgree ? 'Agree' : 'Disagree'} - ${voteCost.toLocaleString()} XEC`,
+          hoverText: "Confirm",
+          successText: "Vote Sent!",
+          autoClose: true,
+          hideToasts: true,
+          theme: {
+            palette: {
+              primary: isAgree ? "#22c55e" : "#ef4444",
+              secondary: "#1e293b",
+              tertiary: "#ffffff",
+            },
+          },
+          onSuccess: (txResult: any) => {
+            let txHash: string | undefined;
+            if (typeof txResult === "string") {
+              txHash = txResult;
+            } else if (txResult?.hash) {
+              txHash = txResult.hash;
+            } else if (txResult?.txid) {
+              txHash = txResult.txid;
+            } else if (txResult?.txId) {
+              txHash = txResult.txId;
+            }
+            handlePaymentSuccess(txHash);
+          },
+          onError: (error: any) => {
+            console.error("PayButton error:", error);
+            toast.error("Payment failed", {
+              description: "Please try again.",
+            });
+          },
+        });
+      }
+    };
+
+    const timeoutId = setTimeout(renderButton, 100);
+
+    return () => {
+      clearTimeout(timeoutId);
+      if (payButtonRef.current) {
+        payButtonRef.current.innerHTML = "";
+      }
+    };
+  }, [step, user, sessionToken, topic, position, handlePaymentSuccess]);
 
   if (!topic || !position) return null;
 
   const isAgree = position === 'agree';
   const voteCost = topic.vote_cost || 500;
-  const voteCostUsd = (voteCost / 10000).toFixed(2);
+  
+  // Dynamic USD calculation based on live price
+  const xecPrice = prices.ecash || 0.0001;
+  const voteCostUsd = (voteCost * xecPrice).toFixed(2);
 
   return (
     <Dialog open={open} onOpenChange={(open) => {
@@ -160,54 +263,23 @@ export function SentimentVoteModal({ open, onOpenChange, topic, position, onSucc
         {step === 'payment' && (
           <div className="space-y-4">
             <div className={`border rounded-lg p-4 space-y-3 ${isAgree ? 'bg-green-500/5 border-green-500/20' : 'bg-red-500/5 border-red-500/20'}`}>
-              <p className="text-sm text-foreground font-medium">Send exactly:</p>
+              <p className="text-sm text-foreground font-medium">Vote Cost:</p>
               <div className="flex items-center justify-between bg-background rounded-lg p-3">
                 <span className={`font-mono text-lg font-bold ${isAgree ? 'text-green-500' : 'text-red-500'}`}>
                   {voteCost.toLocaleString()} XEC
                 </span>
-                <Badge variant="outline" className={isAgree ? 'border-green-500/30' : 'border-red-500/30'}>
+                <span className={`text-sm px-2 py-1 rounded ${isAgree ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
                   ~${voteCostUsd}
-                </Badge>
-              </div>
-              
-              <p className="text-sm text-foreground font-medium mt-4">To treasury address:</p>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 text-xs bg-background p-2 rounded break-all font-mono">
-                  {TREASURY_ADDRESS}
-                </code>
-                <Button 
-                  variant="outline" 
-                  size="icon"
-                  onClick={() => handleCopy(TREASURY_ADDRESS)}
-                >
-                  {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-                </Button>
+                </span>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="txHash" className="text-foreground">Transaction Hash</Label>
-              <Input
-                id="txHash"
-                placeholder="Paste your transaction hash here..."
-                value={txHash}
-                onChange={(e) => setTxHash(e.target.value)}
-                className="font-mono text-sm"
-              />
-            </div>
+            {/* PayButton container */}
+            <div ref={payButtonRef} className="min-h-[52px]" />
 
-            <div className="flex gap-3">
-              <Button variant="outline" className="flex-1" onClick={() => setStep('info')}>
-                Back
-              </Button>
-              <Button 
-                className={`flex-1 ${isAgree ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'}`}
-                onClick={handleConfirmVote} 
-                disabled={!txHash.trim()}
-              >
-                Submit Vote
-              </Button>
-            </div>
+            <Button variant="outline" className="w-full" onClick={() => setStep('info')}>
+              Back
+            </Button>
           </div>
         )}
 
@@ -217,6 +289,16 @@ export function SentimentVoteModal({ open, onOpenChange, topic, position, onSucc
             <p className="text-foreground font-medium">Verifying & recording vote...</p>
             <p className="text-sm text-muted-foreground mt-2">
               Your address is being anonymized
+            </p>
+          </div>
+        )}
+
+        {step === 'success' && (
+          <div className="py-8 text-center">
+            <CheckCircle className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
+            <h2 className="font-display font-bold text-xl text-foreground mb-2">Vote Submitted!</h2>
+            <p className="text-muted-foreground">
+              Your anonymous vote has been recorded
             </p>
           </div>
         )}

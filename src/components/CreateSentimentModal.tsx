@@ -1,15 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { EyeOff, Loader2, AlertTriangle, Copy, Check, Coins } from 'lucide-react';
+import { EyeOff, Loader2, AlertTriangle, Coins, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { motion } from 'framer-motion';
+import { useCryptoPrices } from '@/hooks/useCryptoPrices';
 
 interface CreateSentimentModalProps {
   open: boolean;
@@ -17,30 +18,32 @@ interface CreateSentimentModalProps {
   onSuccess: () => void;
 }
 
-const CREATION_FEE_XEC = 10000; // ~$1
-const TREASURY_ADDRESS = 'ecash:qz2708636snqhsxu8wnlka78h6fdp77ar59jrf5035';
+// Same escrow address used for betting
+const ESCROW_ADDRESS = "ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp";
 
-// Slider range: $0.05 to $5 in $0.10 increments (500 XEC to 50,000 XEC)
+// Slider range: $0.05 to $5 in ~$0.10 increments
 const MIN_VOTE_COST = 500;
 const MAX_VOTE_COST = 50000;
-const VOTE_COST_STEP = 1000; // ~$0.10
+const VOTE_COST_STEP = 1000;
 
 export function CreateSentimentModal({ open, onOpenChange, onSuccess }: CreateSentimentModalProps) {
   const { user, sessionToken } = useAuth();
+  const { prices } = useCryptoPrices();
+  const payButtonRef = useRef<HTMLDivElement>(null);
+  
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [voteCost, setVoteCost] = useState(5000); // Default ~$0.50
-  const [step, setStep] = useState<'form' | 'payment' | 'confirming'>('form');
-  const [txHash, setTxHash] = useState('');
-  const [copied, setCopied] = useState(false);
+  const [voteCost, setVoteCost] = useState(5000);
+  const [step, setStep] = useState<'form' | 'payment' | 'confirming' | 'success'>('form');
   const [submitting, setSubmitting] = useState(false);
 
-  const handleCopy = async (text: string) => {
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-    toast.success('Copied to clipboard');
-  };
+  // Dynamic XEC amount for $1 based on live price
+  const xecPrice = prices.ecash || 0.0001; // Fallback to ~$0.0001 per XEC
+  const creationFeeXec = Math.ceil(1 / xecPrice); // $1 worth of XEC
+
+  // Calculate USD equivalent for vote cost
+  const voteCostUsd = (voteCost * xecPrice).toFixed(2);
+  const sliderPercent = ((voteCost - MIN_VOTE_COST) / (MAX_VOTE_COST - MIN_VOTE_COST)) * 100;
 
   const handleSubmitTopic = async () => {
     if (!title.trim()) {
@@ -54,16 +57,33 @@ export function CreateSentimentModal({ open, onOpenChange, onSuccess }: CreateSe
     setStep('payment');
   };
 
-  const handleConfirmPayment = async () => {
-    if (!txHash.trim()) {
-      toast.error('Please enter the transaction hash');
-      return;
-    }
-    if (!user || !sessionToken) {
-      toast.error('Please connect your wallet');
-      return;
-    }
+  // Close any PayButton modals/overlays
+  const closePayButtonModal = useCallback(() => {
+    const selectors = [
+      '.paybutton-modal',
+      '.paybutton-overlay', 
+      '[class*="paybutton"][class*="modal"]',
+      '[class*="paybutton"][class*="overlay"]',
+      '.ReactModal__Overlay',
+      '[data-paybutton-modal]',
+    ];
+    
+    selectors.forEach(selector => {
+      document.querySelectorAll(selector).forEach(el => {
+        (el as HTMLElement).style.display = 'none';
+        el.remove();
+      });
+    });
 
+    if (payButtonRef.current) {
+      payButtonRef.current.innerHTML = '';
+    }
+  }, []);
+
+  const handlePaymentSuccess = useCallback(async (txHash?: string) => {
+    if (!user || !sessionToken) return;
+
+    closePayButtonModal();
     setSubmitting(true);
     setStep('confirming');
 
@@ -73,7 +93,7 @@ export function CreateSentimentModal({ open, onOpenChange, onSuccess }: CreateSe
           title: title.trim(),
           description: description.trim() || null,
           vote_cost: voteCost,
-          tx_hash: txHash.trim(),
+          tx_hash: txHash || `pb_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
           session_token: sessionToken
         }
       });
@@ -81,10 +101,16 @@ export function CreateSentimentModal({ open, onOpenChange, onSuccess }: CreateSe
       if (error) throw error;
 
       if (data.success) {
-        toast.success('Sentiment topic created!');
-        onSuccess();
-        onOpenChange(false);
-        resetForm();
+        setStep('success');
+        toast.success('Payment Sent!', {
+          description: `Topic created with ${creationFeeXec.toLocaleString()} XEC fee`
+        });
+        
+        setTimeout(() => {
+          onSuccess();
+          onOpenChange(false);
+          resetForm();
+        }, 1500);
       } else {
         throw new Error(data.error || 'Failed to create topic');
       }
@@ -95,19 +121,95 @@ export function CreateSentimentModal({ open, onOpenChange, onSuccess }: CreateSe
     } finally {
       setSubmitting(false);
     }
-  };
+  }, [user, sessionToken, title, description, voteCost, creationFeeXec, closePayButtonModal, onSuccess, onOpenChange]);
 
   const resetForm = () => {
     setTitle('');
     setDescription('');
     setVoteCost(5000);
-    setTxHash('');
     setStep('form');
+    setSubmitting(false);
   };
 
-  // Calculate USD equivalent (~$0.0001 per XEC)
-  const voteCostUsd = (voteCost / 10000).toFixed(2);
-  const sliderPercent = ((voteCost - MIN_VOTE_COST) / (MAX_VOTE_COST - MIN_VOTE_COST)) * 100;
+  // Load PayButton script
+  useEffect(() => {
+    if (!document.querySelector('script[src*="paybutton"]')) {
+      const script = document.createElement("script");
+      script.src = "https://unpkg.com/@paybutton/paybutton/dist/paybutton.js";
+      script.async = true;
+      document.body.appendChild(script);
+    }
+  }, []);
+
+  // Render PayButton
+  useEffect(() => {
+    if (step !== 'payment' || !payButtonRef.current || !user || !sessionToken) {
+      if (payButtonRef.current) {
+        payButtonRef.current.innerHTML = "";
+      }
+      return;
+    }
+
+    payButtonRef.current.innerHTML = "";
+
+    const renderButton = () => {
+      if (!payButtonRef.current) return;
+
+      payButtonRef.current.innerHTML = "";
+
+      const buttonContainer = document.createElement("div");
+      buttonContainer.id = `paybutton-sentiment-${Date.now()}`;
+      payButtonRef.current.appendChild(buttonContainer);
+
+      if ((window as any).PayButton) {
+        (window as any).PayButton.render(buttonContainer, {
+          to: ESCROW_ADDRESS,
+          amount: creationFeeXec,
+          currency: "XEC",
+          text: `Pay ${creationFeeXec.toLocaleString()} XEC (~$1)`,
+          hoverText: "Confirm",
+          successText: "Payment Sent!",
+          autoClose: true,
+          hideToasts: true,
+          theme: {
+            palette: {
+              primary: "#10b981",
+              secondary: "#1e293b",
+              tertiary: "#ffffff",
+            },
+          },
+          onSuccess: (txResult: any) => {
+            let txHash: string | undefined;
+            if (typeof txResult === "string") {
+              txHash = txResult;
+            } else if (txResult?.hash) {
+              txHash = txResult.hash;
+            } else if (txResult?.txid) {
+              txHash = txResult.txid;
+            } else if (txResult?.txId) {
+              txHash = txResult.txId;
+            }
+            handlePaymentSuccess(txHash);
+          },
+          onError: (error: any) => {
+            console.error("PayButton error:", error);
+            toast.error("Payment failed", {
+              description: "Please try again.",
+            });
+          },
+        });
+      }
+    };
+
+    const timeoutId = setTimeout(renderButton, 100);
+
+    return () => {
+      clearTimeout(timeoutId);
+      if (payButtonRef.current) {
+        payButtonRef.current.innerHTML = "";
+      }
+    };
+  }, [step, user, sessionToken, creationFeeXec, handlePaymentSuccess]);
 
   return (
     <Dialog open={open} onOpenChange={(open) => {
@@ -121,7 +223,7 @@ export function CreateSentimentModal({ open, onOpenChange, onSuccess }: CreateSe
             Create Sentiment Topic
           </DialogTitle>
           <DialogDescription>
-            Create a topic for anonymous public sentiment. Fee: 10,000 XEC (~$1)
+            Create a topic for anonymous public sentiment. Fee: ~$1 ({creationFeeXec.toLocaleString()} XEC)
           </DialogDescription>
         </DialogHeader>
 
@@ -277,26 +379,12 @@ export function CreateSentimentModal({ open, onOpenChange, onSuccess }: CreateSe
         {step === 'payment' && (
           <div className="space-y-4">
             <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 space-y-3">
-              <p className="text-sm text-foreground font-medium">Send exactly:</p>
+              <p className="text-sm text-foreground font-medium">Creation Fee:</p>
               <div className="flex items-center justify-between bg-background rounded-lg p-3">
                 <span className="font-mono text-lg font-bold text-primary">
-                  {CREATION_FEE_XEC.toLocaleString()} XEC
+                  {creationFeeXec.toLocaleString()} XEC
                 </span>
                 <Badge variant="outline">~$1</Badge>
-              </div>
-              
-              <p className="text-sm text-foreground font-medium mt-4">To this address:</p>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 text-xs bg-background p-2 rounded break-all font-mono">
-                  {TREASURY_ADDRESS}
-                </code>
-                <Button 
-                  variant="outline" 
-                  size="icon"
-                  onClick={() => handleCopy(TREASURY_ADDRESS)}
-                >
-                  {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-                </Button>
               </div>
               
               <div className="mt-3 pt-3 border-t border-border/50">
@@ -306,34 +394,31 @@ export function CreateSentimentModal({ open, onOpenChange, onSuccess }: CreateSe
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="txHash" className="text-foreground">Transaction Hash</Label>
-              <Input
-                id="txHash"
-                placeholder="Paste your transaction hash here..."
-                value={txHash}
-                onChange={(e) => setTxHash(e.target.value)}
-                className="font-mono text-sm"
-              />
-            </div>
+            {/* PayButton container */}
+            <div ref={payButtonRef} className="min-h-[52px]" />
 
-            <div className="flex gap-3">
-              <Button variant="outline" className="flex-1" onClick={() => setStep('form')}>
-                Back
-              </Button>
-              <Button className="flex-1" onClick={handleConfirmPayment} disabled={!txHash.trim()}>
-                Confirm Payment
-              </Button>
-            </div>
+            <Button variant="outline" className="w-full" onClick={() => setStep('form')}>
+              Back
+            </Button>
           </div>
         )}
 
         {step === 'confirming' && (
           <div className="py-8 text-center">
             <Loader2 className="w-12 h-12 text-primary animate-spin mx-auto mb-4" />
-            <p className="text-foreground font-medium">Verifying transaction...</p>
+            <p className="text-foreground font-medium">Creating your topic...</p>
             <p className="text-sm text-muted-foreground mt-2">
               This may take a moment
+            </p>
+          </div>
+        )}
+
+        {step === 'success' && (
+          <div className="py-8 text-center">
+            <CheckCircle className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
+            <h2 className="font-display font-bold text-xl text-foreground mb-2">Topic Created!</h2>
+            <p className="text-muted-foreground">
+              Your sentiment topic is now live
             </p>
           </div>
         )}
