@@ -101,3 +101,27 @@ verify_jwt = false
 
 [functions.submit-sentiment-vote]
 verify_jwt = false
+
+[functions.create-raffle]
+verify_jwt = false
+
+[functions.join-raffle]
+verify_jwt = false
+
+[functions.resolve-raffle]
+verify_jwt = false
+
+[functions.get-raffles]
+verify_jwt = false
+
+[functions.get-my-raffle-entries]
+verify_jwt = false
+
+[functions.get-platform-stats]
+verify_jwt = false
+
+[functions.get-user-bet-history]
+verify_jwt = false
+
+[functions.get-nfl-score]
+verify_jwt = false

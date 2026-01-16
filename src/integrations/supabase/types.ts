@@ -296,6 +296,128 @@ export type Database = {
           },
         ]
       }
+      raffle_entries: {
+        Row: {
+          amount_paid: number
+          assigned_team: string
+          created_at: string
+          id: string
+          participant_address_hash: string
+          raffle_id: string
+          tx_hash: string | null
+          user_id: string | null
+        }
+        Insert: {
+          amount_paid: number
+          assigned_team: string
+          created_at?: string
+          id?: string
+          participant_address_hash: string
+          raffle_id: string
+          tx_hash?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          amount_paid?: number
+          assigned_team?: string
+          created_at?: string
+          id?: string
+          participant_address_hash?: string
+          raffle_id?: string
+          tx_hash?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "raffle_entries_raffle_id_fkey"
+            columns: ["raffle_id"]
+            isOneToOne: false
+            referencedRelation: "raffles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "raffle_entries_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      raffles: {
+        Row: {
+          created_at: string
+          creation_fee_tx: string | null
+          creator_address_hash: string
+          creator_id: string | null
+          description: string | null
+          ends_at: string | null
+          entry_cost: number
+          event_name: string
+          event_type: string
+          id: string
+          payout_tx_hash: string | null
+          resolved_at: string | null
+          starts_at: string | null
+          status: string
+          teams: Json
+          title: string
+          total_pot: number
+          winner_entry_id: string | null
+          winner_team: string | null
+        }
+        Insert: {
+          created_at?: string
+          creation_fee_tx?: string | null
+          creator_address_hash: string
+          creator_id?: string | null
+          description?: string | null
+          ends_at?: string | null
+          entry_cost: number
+          event_name: string
+          event_type?: string
+          id?: string
+          payout_tx_hash?: string | null
+          resolved_at?: string | null
+          starts_at?: string | null
+          status?: string
+          teams?: Json
+          title: string
+          total_pot?: number
+          winner_entry_id?: string | null
+          winner_team?: string | null
+        }
+        Update: {
+          created_at?: string
+          creation_fee_tx?: string | null
+          creator_address_hash?: string
+          creator_id?: string | null
+          description?: string | null
+          ends_at?: string | null
+          entry_cost?: number
+          event_name?: string
+          event_type?: string
+          id?: string
+          payout_tx_hash?: string | null
+          resolved_at?: string | null
+          starts_at?: string | null
+          status?: string
+          teams?: Json
+          title?: string
+          total_pot?: number
+          winner_entry_id?: string | null
+          winner_team?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "raffles_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sentiment_topics: {
         Row: {
           created_at: string
