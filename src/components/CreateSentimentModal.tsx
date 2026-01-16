@@ -394,8 +394,8 @@ export function CreateSentimentModal({ open, onOpenChange, onSuccess }: CreateSe
               </div>
             </div>
 
-            {/* PayButton container */}
-            <div ref={payButtonRef} className="min-h-[52px]" />
+            {/* PayButton container - centered */}
+            <div ref={payButtonRef} className="min-h-[52px] flex justify-center" />
 
             <Button variant="outline" className="w-full" onClick={() => setStep('form')}>
               Back
