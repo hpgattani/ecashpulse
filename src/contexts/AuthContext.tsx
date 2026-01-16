@@ -50,15 +50,25 @@ const isValidEcashAddress = (address: string): boolean => {
 };
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const readLocalJson = <T,>(key: string): T | null => {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return null;
+      return JSON.parse(raw) as T;
+    } catch {
+      return null;
+    }
+  };
+
+  const [user, setUser] = useState<User | null>(() => readLocalJson<User>('ecash_user'));
+  const [profile, setProfile] = useState<Profile | null>(() => readLocalJson<Profile>('ecash_profile'));
+  const [sessionToken, setSessionToken] = useState<string | null>(() => localStorage.getItem('ecash_session_token'));
   const [loading, setLoading] = useState(true);
 
   // Validate session with server
   const validateSession = useCallback(async (): Promise<boolean> => {
     const storedToken = localStorage.getItem('ecash_session_token');
-    
+
     if (!storedToken) {
       setUser(null);
       setProfile(null);
@@ -71,7 +81,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         body: { session_token: storedToken }
       });
 
-      if (error || !data?.valid) {
+      // Important: do NOT log users out on transient network/function errors.
+      if (error) {
+        console.warn('Session validation request failed (keeping local session):', error);
+        setSessionToken(storedToken);
+        return false;
+      }
+
+      if (!data?.valid) {
         // Session invalid - clear local storage
         localStorage.removeItem('ecash_user');
         localStorage.removeItem('ecash_profile');
@@ -86,15 +103,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(data.user);
       setProfile(data.profile);
       setSessionToken(storedToken);
-      
+
       localStorage.setItem('ecash_user', JSON.stringify(data.user));
       if (data.profile) {
         localStorage.setItem('ecash_profile', JSON.stringify(data.profile));
+      } else {
+        localStorage.removeItem('ecash_profile');
       }
-      
+
       return true;
     } catch (error) {
-      console.error('Session validation error:', error);
+      console.error('Session validation error (keeping local session):', error);
+      setSessionToken(storedToken);
       return false;
     }
   }, []);

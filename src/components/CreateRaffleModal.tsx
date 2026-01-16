@@ -25,9 +25,13 @@ const EVENT_OPTIONS = [
   { id: 'nfl_playoffs', name: 'NFL Playoffs 2026', category: 'sports', teams: 14 },
   { id: 'nba_finals', name: 'NBA Finals 2026', category: 'sports', teams: 16 },
   { id: 'champions_league', name: 'UEFA Champions League', category: 'sports', teams: 16 },
+  { id: 'nfl_super_bowl', name: 'NFL Super Bowl (All Teams)', category: 'sports', teams: 32 },
+  { id: 'mlb_world_series', name: 'MLB World Series (All Teams)', category: 'sports', teams: 30 },
+  { id: 'nhl_stanley_cup', name: 'NHL Stanley Cup (All Teams)', category: 'sports', teams: 32 },
   { id: 'oscars', name: 'Oscars Best Picture 2026', category: 'entertainment', teams: 10 },
   { id: 'grammys', name: 'Grammy Album of Year 2026', category: 'entertainment', teams: 8 },
   { id: 'eurovision', name: 'Eurovision 2026', category: 'entertainment', teams: 25 },
+  { id: 'the_voice_finale', name: 'The Voice Finale (Top 10)', category: 'entertainment', teams: 10 },
   { id: 'super_bowl_mvp', name: 'Super Bowl MVP 2026', category: 'sports', teams: 10 },
 ];
 

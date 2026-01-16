@@ -41,10 +41,13 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Update last_used_at
+      // Refresh session (sliding expiration) + keepalive
+      const nowIso = new Date().toISOString();
+      const newExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
       await supabase
         .from('sessions')
-        .update({ last_used_at: new Date().toISOString() })
+        .update({ last_used_at: nowIso, expires_at: newExpiresAt })
         .eq('id', session.id);
 
       // Get profile
@@ -101,6 +104,14 @@ Deno.serve(async (req) => {
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+
+      // Refresh session (sliding expiration)
+      const nowIso = new Date().toISOString();
+      const newExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      await supabase
+        .from('sessions')
+        .update({ last_used_at: nowIso, expires_at: newExpiresAt })
+        .eq('id', session.id);
 
       // Get profile
       const { data: profile } = await supabase
