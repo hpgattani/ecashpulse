@@ -60,7 +60,7 @@ const TRIVIALLY_TRUE_PATTERNS: RegExp[] = [
 const CATEGORY_KEYWORD_MAP: Record<string, string[]> = {
   economics: ['inflation', 'gdp', 'interest rate', 'unemployment', 'recession', 'cpi', 'fed rate'],
   sports: ['nfl', 'nba', 'mlb', 'nhl', 'super bowl', 'playoffs', 'championship', 'ipl', 'cricket', 'world cup'],
-  crypto: ['bitcoin', 'ethereum', 'btc', 'eth', 'token', 'blockchain'],
+  crypto: ['bitcoin', 'ethereum', 'btc', 'eth', 'token', 'blockchain', 'lighter'],
   politics: ['election', 'president', 'congress', 'senate', 'vote'],
 };
 
@@ -208,6 +208,7 @@ function detectCategory(question: string): string {
     q.includes('shiba') || q.includes('pepe') || q.includes('floki') || q.includes('bnb') ||
     q.includes('tron') || q.includes('trx') || q.includes('near') || q.includes('sui') ||
     q.includes('aptos') || q.includes('apt') || q.includes('cosmos') || q.includes('atom') ||
+    q.includes('lighter') || q.includes('layer') ||
     (q.includes('price') && (q.includes('$') || q.includes('usd')))
   ) {
     return 'crypto';
