@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Activity, Menu, X, Wallet, LogOut, TrendingUp, User, BarChart3, MessageCircleHeart } from "lucide-react";
+import { Activity, Menu, X, Wallet, LogOut, TrendingUp, User, BarChart3, MessageCircleHeart, Ticket } from "lucide-react";
 import { ProfileModal } from "./ProfileModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -135,6 +135,10 @@ const Header = () => {
                 <MessageCircleHeart className="w-4 h-4" />
                 Sentiment
               </Link>
+              <Link to="/raffle" className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+                <Ticket className="w-4 h-4" />
+                Raffle
+              </Link>
               {user && (
                 <Link to="/my-bets" className="text-muted-foreground hover:text-foreground transition-colors">
                   {t.myBets}
@@ -235,6 +239,14 @@ const Header = () => {
                 >
                   <MessageCircleHeart className="w-4 h-4" />
                   Sentiment
+                </Link>
+                <Link
+                  to="/raffle"
+                  className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <Ticket className="w-4 h-4" />
+                  Raffle
                 </Link>
                 {user && (
                   <Link
