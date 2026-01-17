@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { motion, useScroll, useTransform } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { usePredictions } from '@/hooks/usePredictions';
 import { TrendingUp, Flame, Loader2, ChevronLeft, ChevronRight, Bitcoin, Landmark, Trophy, Cpu, Film, Vote, DollarSign, Globe2, BarChart3, Map, Leaf, Globe } from 'lucide-react';
@@ -10,20 +10,8 @@ const TrendingSection = () => {
   const { t, translateTitle } = useLanguage();
   const navigate = useNavigate();
   const scrollRef = useRef<HTMLDivElement>(null);
-  const sectionRef = useRef<HTMLElement>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
-
-  // Parallax scroll effect
-  const { scrollYProgress } = useScroll({
-    target: sectionRef,
-    offset: ["start end", "end start"]
-  });
-
-  const leftOrbY = useTransform(scrollYProgress, [0, 1], [60, -60]);
-  const rightOrbY = useTransform(scrollYProgress, [0, 1], [-40, 80]);
-  const leftOrbX = useTransform(scrollYProgress, [0, 1], [-20, 20]);
-  const rightOrbX = useTransform(scrollYProgress, [0, 1], [20, -20]);
   
   // Show top 5 predictions sorted by highest volume (most bets), only active ones
   const trendingPredictions = [...predictions]
@@ -135,16 +123,10 @@ const TrendingSection = () => {
 
     return (
       <>
-        {/* Parallax ambient glow background */}
+        {/* Static ambient glow background - no parallax for stability */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <motion.div 
-            style={{ y: leftOrbY, x: leftOrbX }}
-            className="absolute top-1/2 left-1/4 -translate-y-1/2 w-[400px] h-[400px] bg-primary/10 rounded-full blur-[100px]" 
-          />
-          <motion.div 
-            style={{ y: rightOrbY, x: rightOrbX }}
-            className="absolute top-1/2 right-1/4 -translate-y-1/2 w-[300px] h-[300px] bg-accent/10 rounded-full blur-[80px]"
-          />
+          <div className="absolute top-1/2 left-1/4 -translate-y-1/2 w-[400px] h-[400px] bg-primary/10 rounded-full blur-[100px]" />
+          <div className="absolute top-1/2 right-1/4 -translate-y-1/2 w-[300px] h-[300px] bg-accent/10 rounded-full blur-[80px]" />
         </div>
       
         <div className="container mx-auto px-4 relative z-10">
@@ -288,7 +270,7 @@ const TrendingSection = () => {
   };
 
   return (
-    <section ref={sectionRef} id="trending" className="py-12 sm:py-16 relative overflow-hidden">
+    <section id="trending" className="py-12 sm:py-16 relative overflow-hidden">
       {renderContent()}
     </section>
   );
