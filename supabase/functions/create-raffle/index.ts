@@ -111,6 +111,14 @@ const EVENT_ROSTERS: Record<string, { name: string; category: string; teams: str
 // Official events that don't require creation fee
 const OFFICIAL_EVENTS = ["nfl_super_bowl", "mlb_world_series", "t20_world_cup_2026", "the_voice_finale"];
 
+// Fictional teams for instant raffles
+const FICTIONAL_TEAMS = [
+  'Phoenix Rising', 'Thunder Wolves', 'Crystal Dragons', 'Shadow Hawks',
+  'Golden Lions', 'Arctic Foxes', 'Storm Eagles', 'Crimson Knights',
+  'Emerald Titans', 'Silver Serpents', 'Blazing Comets', 'Lunar Owls',
+  'Iron Bears', 'Mystic Ravens', 'Neon Tigers', 'Cosmic Falcons'
+];
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -121,12 +129,16 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { event_id, title, description, entry_cost_usd, starts_at, ends_at, session_token, tx_hash, is_official, skip_creation_fee } = await req.json();
+    const body = await req.json();
+    const { event_id, title, description, entry_cost_usd, entry_cost_xec, starts_at, ends_at, session_token, tx_hash, creation_fee_tx, is_official, skip_creation_fee, is_instant, teams: customTeams } = body;
 
-    console.log("Creating raffle:", { event_id, title, entry_cost_usd });
+    console.log("Creating raffle:", { event_id, title, entry_cost_usd, is_instant });
 
+    // For instant raffles, we use fictional teams
+    const isInstantRaffle = is_instant === true || event_id === 'instant_raffle';
+    
     // Validate inputs
-    if (!event_id || !EVENT_ROSTERS[event_id]) {
+    if (!isInstantRaffle && (!event_id || !EVENT_ROSTERS[event_id])) {
       return new Response(JSON.stringify({ error: "Invalid event selected" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -182,12 +194,30 @@ Deno.serve(async (req) => {
       });
     }
 
-    const event = EVENT_ROSTERS[event_id];
-    const teamCount = event.teams.length;
+    // Handle instant raffles with fictional teams
+    let eventName: string;
+    let eventCategory: string;
+    let teamsList: string[];
+    let entryXec: number;
     
-    // Calculate entry cost in XEC based on $USD and team count
-    // entry_cost_usd is the total pot value, divided by team count
-    const entryXec = Math.ceil(entry_cost_usd / teamCount);
+    if (isInstantRaffle) {
+      // Use custom teams if provided, otherwise use subset of fictional teams
+      teamsList = Array.isArray(customTeams) && customTeams.length > 0 
+        ? customTeams 
+        : FICTIONAL_TEAMS.slice(0, 8);
+      eventName = "Instant Raffle";
+      eventCategory = "instant";
+      entryXec = entry_cost_xec || Math.ceil(1 / 0.00003); // ~$1 default
+    } else {
+      const event = EVENT_ROSTERS[event_id];
+      teamsList = event.teams;
+      eventName = event.name;
+      eventCategory = event.category;
+      
+      // Calculate entry cost in XEC based on $USD and team count
+      const teamCount = teamsList.length;
+      entryXec = Math.ceil(entry_cost_usd / teamCount);
+    }
 
     const creatorAddressHash = await hashAddress(user.ecash_address);
 
@@ -196,7 +226,6 @@ Deno.serve(async (req) => {
     const shouldSkipFee = isOfficialEvent && skip_creation_fee === true;
 
     // For official events, calculate entry cost in satoshis based on fixed USD price
-    // Official events have predefined entry costs
     const officialEntryCosts: Record<string, number> = {
       "nfl_super_bowl": 2,
       "mlb_world_series": 2,
@@ -205,7 +234,7 @@ Deno.serve(async (req) => {
     };
     
     const finalEntryXec = isOfficialEvent && officialEntryCosts[event_id] 
-      ? Math.ceil(officialEntryCosts[event_id] / 0.00003) // Assume ~$0.00003 per XEC
+      ? Math.ceil(officialEntryCosts[event_id] / 0.00003)
       : entryXec;
 
     // Create raffle
@@ -213,17 +242,17 @@ Deno.serve(async (req) => {
       .from("raffles")
       .insert({
         creator_id: user.id,
-        title: title.trim(),
-        description: description?.trim() || null,
-        event_type: event.category,
-        event_name: event.name,
-        teams: event.teams,
+        title: (title || `Instant Raffle #${Date.now().toString().slice(-6)}`).trim(),
+        description: description?.trim() || (isInstantRaffle ? "Quick raffle - winner auto-picked at deadline!" : null),
+        event_type: eventCategory,
+        event_name: eventName,
+        teams: teamsList,
         entry_cost: finalEntryXec,
         total_pot: 0,
         status: "open",
         starts_at: starts_at || null,
         ends_at: ends_at || null,
-        creation_fee_tx: shouldSkipFee ? `official_${Date.now()}` : (tx_hash || `raffle_${Date.now()}`),
+        creation_fee_tx: shouldSkipFee ? `official_${Date.now()}` : (creation_fee_tx || tx_hash || `raffle_${Date.now()}`),
         creator_address_hash: creatorAddressHash,
       })
       .select()
@@ -237,9 +266,15 @@ Deno.serve(async (req) => {
       });
     }
 
-    console.log("Raffle created successfully:", raffle.id);
+    console.log("Raffle created successfully:", raffle.id, isInstantRaffle ? "(instant)" : "");
 
-    return new Response(JSON.stringify({ success: true, raffle, raffle_id: raffle.id, is_official: isOfficialEvent }), {
+    return new Response(JSON.stringify({ 
+      success: true, 
+      raffle, 
+      raffle_id: raffle.id, 
+      is_official: isOfficialEvent,
+      is_instant: isInstantRaffle 
+    }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
