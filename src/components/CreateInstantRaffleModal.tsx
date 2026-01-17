@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Zap, Loader2, Dices, Clock, Users } from 'lucide-react';
+import { Zap, Loader2, Dices, Clock, Users, Gift } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,8 +16,6 @@ interface CreateInstantRaffleModalProps {
   xecPrice: number;
   onSuccess: () => void;
 }
-
-const ESCROW_ADDRESS = "ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp";
 
 const DURATION_OPTIONS = [
   { value: '1', label: '1 hour' },
@@ -36,15 +34,13 @@ const TEAM_COUNT_OPTIONS = [
 
 export function CreateInstantRaffleModal({ open, onOpenChange, xecPrice, onSuccess }: CreateInstantRaffleModalProps) {
   const { user, sessionToken } = useAuth();
-  const payButtonRef = useRef<HTMLDivElement>(null);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [duration, setDuration] = useState('6');
   const [teamCount, setTeamCount] = useState('8');
-  const [step, setStep] = useState<'form' | 'payment' | 'creating'>('form');
+  const [creating, setCreating] = useState(false);
 
-  const creationFeeXec = Math.ceil(1 / xecPrice);
   const entryCostXec = Math.ceil(1 / xecPrice);
 
   // Get random subset of fictional teams
@@ -53,22 +49,10 @@ export function CreateInstantRaffleModal({ open, onOpenChange, xecPrice, onSucce
     return shuffled.slice(0, count);
   };
 
-  const closePayButtonModal = useCallback(() => {
-    const selectors = ['.paybutton-modal', '.paybutton-overlay', '.ReactModal__Overlay'];
-    selectors.forEach(selector => {
-      document.querySelectorAll(selector).forEach(el => {
-        (el as HTMLElement).style.display = 'none';
-        el.remove();
-      });
-    });
-    if (payButtonRef.current) payButtonRef.current.innerHTML = '';
-  }, []);
-
-  const handlePaymentSuccess = useCallback(async (txHash?: string) => {
+  const handleCreate = useCallback(async () => {
     if (!user || !sessionToken) return;
 
-    closePayButtonModal();
-    setStep('creating');
+    setCreating(true);
 
     try {
       const teams = getRandomTeams(parseInt(teamCount));
@@ -83,7 +67,6 @@ export function CreateInstantRaffleModal({ open, onOpenChange, xecPrice, onSucce
           entry_cost_xec: entryCostXec,
           ends_at: endsAt,
           session_token: sessionToken,
-          creation_fee_tx: txHash,
           is_instant: true,
         },
       });
@@ -92,7 +75,7 @@ export function CreateInstantRaffleModal({ open, onOpenChange, xecPrice, onSucce
 
       if (data.success) {
         toast.success('Instant Raffle Created!', {
-          description: `Winner will be picked in ${duration} hours`,
+          description: `Winner will be auto-picked in ${duration} hours`,
         });
         onSuccess();
         handleClose();
@@ -102,83 +85,19 @@ export function CreateInstantRaffleModal({ open, onOpenChange, xecPrice, onSucce
     } catch (error: any) {
       console.error('Error creating instant raffle:', error);
       toast.error(error.message || 'Failed to create raffle');
-      setStep('form');
+    } finally {
+      setCreating(false);
     }
-  }, [user, sessionToken, title, description, teamCount, duration, entryCostXec, closePayButtonModal, onSuccess]);
-
-  // Load PayButton script
-  useEffect(() => {
-    if (!document.querySelector('script[src*="paybutton"]')) {
-      const script = document.createElement('script');
-      script.src = 'https://unpkg.com/@paybutton/paybutton/dist/paybutton.js';
-      script.async = true;
-      document.body.appendChild(script);
-    }
-  }, []);
-
-  // Render PayButton
-  useEffect(() => {
-    if (step !== 'payment' || !payButtonRef.current || !user) return;
-
-    payButtonRef.current.innerHTML = '';
-
-    const renderButton = () => {
-      if (!payButtonRef.current) return;
-      payButtonRef.current.innerHTML = '';
-
-      const buttonContainer = document.createElement('div');
-      buttonContainer.id = `paybutton-instant-${Date.now()}`;
-      payButtonRef.current.appendChild(buttonContainer);
-
-      if ((window as any).PayButton) {
-        (window as any).PayButton.render(buttonContainer, {
-          to: ESCROW_ADDRESS,
-          amount: creationFeeXec,
-          currency: 'XEC',
-          text: `Pay ${creationFeeXec.toLocaleString()} XEC`,
-          hoverText: 'Confirm',
-          successText: 'Payment Sent!',
-          autoClose: true,
-          hideToasts: true,
-          theme: {
-            palette: {
-              primary: '#a855f7',
-              secondary: '#1e293b',
-              tertiary: '#000000',
-            },
-          },
-          onSuccess: (txResult: any) => {
-            let txHash: string | undefined;
-            if (typeof txResult === 'string') txHash = txResult;
-            else if (txResult?.hash) txHash = txResult.hash;
-            else if (txResult?.txid) txHash = txResult.txid;
-            handlePaymentSuccess(txHash);
-          },
-          onError: (error: any) => {
-            console.error('PayButton error:', error);
-            toast.error('Payment failed');
-          },
-        });
-      }
-    };
-
-    const timeoutId = setTimeout(renderButton, 100);
-    return () => {
-      clearTimeout(timeoutId);
-      if (payButtonRef.current) payButtonRef.current.innerHTML = '';
-    };
-  }, [step, user, creationFeeXec, handlePaymentSuccess]);
+  }, [user, sessionToken, title, description, teamCount, duration, entryCostXec, onSuccess]);
 
   const handleClose = () => {
-    setStep('form');
+    setCreating(false);
     setTitle('');
     setDescription('');
     setDuration('6');
     setTeamCount('8');
     onOpenChange(false);
   };
-
-  const canProceed = title.trim().length > 0 || true; // Title optional for instant raffles
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -193,132 +112,113 @@ export function CreateInstantRaffleModal({ open, onOpenChange, xecPrice, onSucce
           </DialogDescription>
         </DialogHeader>
 
-        {step === 'form' && (
-          <div className="space-y-4">
+        <div className="space-y-4">
+          {/* FREE Badge */}
+          <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/30 rounded-lg p-3 flex items-center gap-2">
+            <Gift className="w-5 h-5 text-green-400" />
+            <div>
+              <p className="text-sm font-semibold text-green-400">FREE to Create!</p>
+              <p className="text-xs text-muted-foreground">No creation fee for instant raffles</p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="title">Title (optional)</Label>
+            <Input
+              id="title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g., Quick Friday Raffle"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="description">Description (optional)</Label>
+            <Input
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="e.g., Winner takes all!"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="title">Title (optional)</Label>
-              <Input
-                id="title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g., Quick Friday Raffle"
-              />
+              <Label className="flex items-center gap-1">
+                <Clock className="w-3.5 h-3.5" />
+                Duration
+              </Label>
+              <Select value={duration} onValueChange={setDuration}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DURATION_OPTIONS.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description (optional)</Label>
-              <Input
-                id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="e.g., Winner takes all!"
-              />
+              <Label className="flex items-center gap-1">
+                <Users className="w-3.5 h-3.5" />
+                Teams
+              </Label>
+              <Select value={teamCount} onValueChange={setTeamCount}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TEAM_COUNT_OPTIONS.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5" />
-                  Duration
-                </Label>
-                <Select value={duration} onValueChange={setDuration}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DURATION_OPTIONS.map(opt => (
-                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="flex items-center gap-1">
-                  <Users className="w-3.5 h-3.5" />
-                  Teams
-                </Label>
-                <Select value={teamCount} onValueChange={setTeamCount}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TEAM_COUNT_OPTIONS.map(opt => (
-                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-lg p-4 space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Creation Fee</span>
-                <span className="font-mono font-semibold text-purple-400">
-                  {creationFeeXec.toLocaleString()} XEC (~$1)
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Entry Cost (per player)</span>
-                <span className="font-mono text-foreground">
-                  {entryCostXec.toLocaleString()} XEC (~$1)
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Max Pot</span>
-                <span className="font-mono text-foreground">
-                  {(entryCostXec * parseInt(teamCount)).toLocaleString()} XEC (~${parseInt(teamCount)})
-                </span>
-              </div>
-            </div>
-
-            <div className="bg-muted/30 rounded-lg p-3 flex items-start gap-2">
-              <Dices className="w-4 h-4 text-purple-400 flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-muted-foreground">
-                Random fictional teams will be assigned. At the deadline, the system automatically 
-                picks a winning team at random. Winner takes the pot minus 1% fee!
-              </p>
-            </div>
-
-            <Button 
-              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold" 
-              onClick={() => setStep('payment')}
-              disabled={!user}
-            >
-              <Zap className="w-4 h-4 mr-2" />
-              Create Instant Raffle
-            </Button>
           </div>
-        )}
 
-        {step === 'payment' && (
-          <div className="space-y-4">
-            <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-foreground">Creation Fee</span>
-                <div className="text-right">
-                  <span className="font-mono text-lg font-bold text-purple-400">
-                    {creationFeeXec.toLocaleString()} XEC
-                  </span>
-                  <div className="text-xs text-muted-foreground">~$1</div>
-                </div>
-              </div>
+          <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-lg p-4 space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Entry Cost (per player)</span>
+              <span className="font-mono font-semibold text-purple-400">
+                {entryCostXec.toLocaleString()} XEC (~$1)
+              </span>
             </div>
-
-            <div ref={payButtonRef} className="min-h-[52px] flex justify-center" />
-
-            <Button variant="outline" className="w-full" onClick={() => setStep('form')}>
-              Back
-            </Button>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Max Pot</span>
+              <span className="font-mono text-foreground">
+                {(entryCostXec * parseInt(teamCount)).toLocaleString()} XEC (~${parseInt(teamCount)})
+              </span>
+            </div>
           </div>
-        )}
 
-        {step === 'creating' && (
-          <div className="py-8 text-center">
-            <Loader2 className="w-12 h-12 text-purple-400 animate-spin mx-auto mb-4" />
-            <p className="text-foreground font-medium">Creating your instant raffle...</p>
+          <div className="bg-muted/30 rounded-lg p-3 flex items-start gap-2">
+            <Dices className="w-4 h-4 text-purple-400 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-muted-foreground">
+              Random fictional teams will be assigned. Others can see which teams are taken.
+              At the deadline, the system automatically picks a winning team at random. Winner takes the pot minus 1% fee!
+            </p>
           </div>
-        )}
+
+          <Button 
+            className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold" 
+            onClick={handleCreate}
+            disabled={!user || creating}
+          >
+            {creating ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              <>
+                <Zap className="w-4 h-4 mr-2" />
+                Create Instant Raffle (FREE)
+              </>
+            )}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

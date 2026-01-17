@@ -223,7 +223,8 @@ Deno.serve(async (req) => {
 
     // Check if this is an official event and if creation fee can be skipped
     const isOfficialEvent = is_official === true && OFFICIAL_EVENTS.includes(event_id);
-    const shouldSkipFee = isOfficialEvent && skip_creation_fee === true;
+    // Instant raffles are FREE to create (no creation fee)
+    const shouldSkipFee = isOfficialEvent && skip_creation_fee === true || isInstantRaffle;
 
     // For official events, calculate entry cost in satoshis based on fixed USD price
     const officialEntryCosts: Record<string, number> = {

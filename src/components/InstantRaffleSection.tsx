@@ -102,26 +102,17 @@ export function InstantRaffleSection({ xecPrice, onRaffleCreated }: InstantRaffl
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30">
             <Zap className="w-4 h-4 text-purple-400" />
-            <span className="text-sm font-semibold text-purple-400">Instant Raffles</span>
+            <span className="text-sm font-semibold text-purple-400">Can't Wait for a Game?</span>
           </div>
-          <span className="text-sm text-muted-foreground hidden sm:inline">$1 entry • Random fictional teams • Auto-picks winner!</span>
+          <span className="text-sm text-muted-foreground hidden sm:inline">FREE to create • $1 entry • Random fictional teams • Auto-picks winner!</span>
         </div>
-        
-        <Button
-          onClick={() => setCreateOpen(true)}
-          className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold"
-          disabled={!user}
-        >
-          <Dices className="w-4 h-4 mr-2" />
-          Create Instant Raffle (~$1)
-        </Button>
       </div>
 
       {/* How it works */}
       <div className="bg-gradient-to-r from-purple-500/5 to-pink-500/5 border border-purple-500/20 rounded-xl p-4">
         <h4 className="font-medium text-foreground text-sm mb-3 flex items-center gap-2">
           <Dices className="w-4 h-4 text-purple-400" />
-          How Instant Raffles Work
+          How It Works - No Real Games Required!
         </h4>
         <div className="grid sm:grid-cols-3 gap-3 text-xs">
           <div className="flex items-start gap-2">
@@ -130,7 +121,7 @@ export function InstantRaffleSection({ xecPrice, onRaffleCreated }: InstantRaffl
             </div>
             <div>
               <p className="font-medium text-foreground">Pay $1 Entry</p>
-              <p className="text-muted-foreground">Get a random fictional team assigned to you</p>
+              <p className="text-muted-foreground">Get a random fictional team (others can see which teams are taken)</p>
             </div>
           </div>
           <div className="flex items-start gap-2">
@@ -139,7 +130,7 @@ export function InstantRaffleSection({ xecPrice, onRaffleCreated }: InstantRaffl
             </div>
             <div>
               <p className="font-medium text-foreground">Wait for Deadline</p>
-              <p className="text-muted-foreground">Others can join until deadline or spots fill</p>
+              <p className="text-muted-foreground">Others can join until deadline or all spots fill</p>
             </div>
           </div>
           <div className="flex items-start gap-2">
@@ -162,16 +153,8 @@ export function InstantRaffleSection({ xecPrice, onRaffleCreated }: InstantRaffl
       ) : openRaffles.length === 0 ? (
         <div className="text-center py-8 border border-dashed border-purple-500/20 rounded-xl">
           <Zap className="w-10 h-10 mx-auto text-purple-400/40 mb-3" />
-          <p className="text-muted-foreground text-sm">No active instant raffles</p>
-          {user && (
-            <Button
-              variant="outline"
-              className="mt-4 border-purple-500/30"
-              onClick={() => setCreateOpen(true)}
-            >
-              Create the first one!
-            </Button>
-          )}
+          <p className="text-muted-foreground text-sm">No active instant raffles yet</p>
+          <p className="text-xs text-muted-foreground mt-1">Create one below - it's FREE!</p>
         </div>
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -207,9 +190,21 @@ export function InstantRaffleSection({ xecPrice, onRaffleCreated }: InstantRaffl
         </div>
       )}
 
+      {/* Create Instant Raffle Button at bottom */}
+      <div className="flex justify-center pt-4">
+        <Button
+          onClick={() => setCreateOpen(true)}
+          className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold"
+          disabled={!user}
+        >
+          <Dices className="w-4 h-4 mr-2" />
+          Create Instant Raffle (FREE)
+        </Button>
+      </div>
+
       {!user && (
         <p className="text-sm text-center text-muted-foreground">
-          Connect your wallet to join instant raffles
+          Connect your wallet to create or join instant raffles
         </p>
       )}
 

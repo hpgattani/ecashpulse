@@ -125,3 +125,6 @@ verify_jwt = false
 
 [functions.get-nfl-score]
 verify_jwt = false
+
+[functions.cron-resolve-instant-raffles]
+verify_jwt = false

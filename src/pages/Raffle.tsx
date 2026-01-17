@@ -143,7 +143,7 @@ export default function Raffle() {
           <OfficialRafflesSection xecPrice={xecPrice} onRaffleCreated={fetchRaffles} />
         </div>
 
-        {/* Instant Raffles Section */}
+        {/* "Can't Wait for a Game" - Instant Raffles Section */}
         <div className="mb-12">
           <InstantRaffleSection xecPrice={xecPrice} onRaffleCreated={fetchRaffles} />
         </div>
@@ -154,7 +154,7 @@ export default function Raffle() {
             <div className="w-full border-t border-border/50"></div>
           </div>
           <div className="relative flex justify-center">
-            <span className="px-4 bg-background text-muted-foreground text-sm">Community Raffles</span>
+            <span className="px-4 bg-background text-muted-foreground text-sm">Community Custom Raffles</span>
           </div>
         </div>
 
