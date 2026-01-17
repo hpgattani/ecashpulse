@@ -127,6 +127,11 @@ const Header = () => {
               <button onClick={() => scrollToSection('how-it-works')} className="text-muted-foreground hover:text-foreground transition-colors">
                 {t.howItWorks}
               </button>
+              {user && (
+                <Link to="/my-bets" className="text-muted-foreground hover:text-foreground transition-colors">
+                  {t.myBets}
+                </Link>
+              )}
               <Link to="/stats" className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
                 <BarChart3 className="w-4 h-4" />
                 Stats
@@ -139,11 +144,6 @@ const Header = () => {
                 <Ticket className="w-4 h-4" />
                 Raffle
               </Link>
-              {user && (
-                <Link to="/my-bets" className="text-muted-foreground hover:text-foreground transition-colors">
-                  {t.myBets}
-                </Link>
-              )}
             </nav>
 
             {/* Desktop Actions */}
@@ -224,6 +224,15 @@ const Header = () => {
                 >
                   {t.howItWorks}
                 </button>
+                {user && (
+                  <Link
+                    to="/my-bets"
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    {t.myBets}
+                  </Link>
+                )}
                 <Link
                   to="/stats"
                   className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2"
@@ -248,15 +257,6 @@ const Header = () => {
                   <Ticket className="w-4 h-4" />
                   Raffle
                 </Link>
-                {user && (
-                  <Link
-                    to="/my-bets"
-                    className="text-muted-foreground hover:text-foreground transition-colors"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    {t.myBets}
-                  </Link>
-                )}
                 <div className="flex items-center justify-between pt-2 border-t border-border/30">
                   <span className="text-sm text-muted-foreground">Theme</span>
                   <ThemeToggle />

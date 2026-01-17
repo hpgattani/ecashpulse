@@ -1,8 +1,9 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Zap, Users, Trophy, Clock, Ticket, CheckCircle } from 'lucide-react';
+import { Zap, Users, Trophy, Clock, Ticket, CheckCircle, Share2 } from 'lucide-react';
 import CountdownTimer from './CountdownTimer';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 interface InstantRaffle {
   id: string;
@@ -33,6 +34,30 @@ export function InstantRaffleCard({ raffle, xecPrice, onJoin, resolved }: Instan
   const potUsd = (raffle.total_pot * xecPrice).toFixed(2);
   const isFull = raffle.spots_remaining === 0;
 
+  const handleShare = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const shareUrl = `${window.location.origin}/raffle?instant=${raffle.id}`;
+    const shareText = `🎲 Join my instant raffle: "${raffle.title}" - Pot: ${raffle.total_pot.toLocaleString()} XEC (~$${potUsd})`;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: raffle.title,
+          text: shareText,
+          url: shareUrl,
+        });
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError') {
+          await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
+          toast.success('Link copied to clipboard!');
+        }
+      }
+    } else {
+      await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
+      toast.success('Link copied to clipboard!');
+    }
+  };
+
   return (
     <div className={`glass-card p-4 space-y-3 border-2 transition-colors relative overflow-hidden ${
       resolved 
@@ -60,13 +85,24 @@ export function InstantRaffleCard({ raffle, xecPrice, onJoin, resolved }: Instan
         </Badge>
       </div>
 
-      {/* Title */}
-      <div className="pt-2">
-        <h3 className="font-display font-semibold text-foreground text-sm pr-16 line-clamp-2">
-          {raffle.title}
-        </h3>
-        {raffle.description && (
-          <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{raffle.description}</p>
+      {/* Title & Share */}
+      <div className="pt-2 flex items-start gap-2">
+        <div className="flex-1 min-w-0">
+          <h3 className="font-display font-semibold text-foreground text-sm pr-8 line-clamp-2">
+            {raffle.title}
+          </h3>
+          {raffle.description && (
+            <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{raffle.description}</p>
+          )}
+        </div>
+        {!resolved && (
+          <button
+            onClick={handleShare}
+            className="p-1.5 rounded-full hover:bg-muted/50 transition-colors shrink-0"
+            aria-label="Share raffle"
+          >
+            <Share2 className="w-4 h-4 text-muted-foreground hover:text-primary transition-colors" />
+          </button>
         )}
       </div>
 
