@@ -12,6 +12,7 @@ import { RaffleCard } from '@/components/RaffleCard';
 import { JoinRaffleModal } from '@/components/JoinRaffleModal';
 import { MyRaffleEntriesModal } from '@/components/MyRaffleEntriesModal';
 import { OfficialRafflesSection } from '@/components/OfficialRafflesSection';
+import { InstantRaffleSection } from '@/components/InstantRaffleSection';
 import { LightModeOrbs } from '@/components/LightModeOrbs';
 
 interface Raffle {
@@ -32,6 +33,7 @@ interface Raffle {
   total_spots: number;
   spots_remaining: number;
   is_official?: boolean;
+  is_instant?: boolean;
 }
 
 export default function Raffle() {
@@ -66,8 +68,25 @@ export default function Raffle() {
     fetchRaffles();
   }, []);
 
-  // Filter out official raffles for the community section
-  const communityRaffles = raffles.filter(r => !r.is_official);
+  // Real-time updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('raffles-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'raffles' }, () => {
+        setTimeout(fetchRaffles, 500);
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'raffle_entries' }, () => {
+        setTimeout(fetchRaffles, 500);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  // Filter out official and instant raffles for the community section
+  const communityRaffles = raffles.filter(r => !r.is_official && !r.is_instant);
   
   const filteredRaffles = communityRaffles.filter(r => {
     if (filter === 'all') return true;
@@ -122,6 +141,11 @@ export default function Raffle() {
         {/* Official Events Section */}
         <div className="mb-12">
           <OfficialRafflesSection xecPrice={xecPrice} onRaffleCreated={fetchRaffles} />
+        </div>
+
+        {/* Instant Raffles Section */}
+        <div className="mb-12">
+          <InstantRaffleSection xecPrice={xecPrice} onRaffleCreated={fetchRaffles} />
         </div>
 
         {/* Divider */}

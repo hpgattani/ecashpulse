@@ -31,12 +31,14 @@ Deno.serve(async (req) => {
     const status = url.searchParams.get("status");
     const raffleId = url.searchParams.get("id");
     
-    // Check for official_only in body or query
+    // Check for official_only or instant_only in body or query
     let officialOnly = url.searchParams.get("official_only") === "true";
+    let instantOnly = url.searchParams.get("instant_only") === "true";
     if (req.method === "POST") {
       try {
         const body = await req.json();
         if (body.official_only) officialOnly = true;
+        if (body.instant_only) instantOnly = true;
       } catch {
         // Body parsing failed, ignore
       }
@@ -46,6 +48,11 @@ Deno.serve(async (req) => {
     const isOfficialRaffle = (eventName: string, creationFeeTx: string | null) => {
       return OFFICIAL_EVENT_NAMES.some(name => eventName.includes(name) || name.includes(eventName)) ||
              (creationFeeTx && creationFeeTx.startsWith("official_"));
+    };
+
+    // Helper to check if raffle is instant
+    const isInstantRaffle = (eventType: string, eventName: string) => {
+      return eventType === "instant" || eventName === "Instant Raffle";
     };
 
     // Get single raffle with entries
@@ -115,6 +122,7 @@ Deno.serve(async (req) => {
 
         const teams = raffle.teams as string[];
         const is_official = isOfficialRaffle(raffle.event_name, raffle.creation_fee_tx);
+        const is_instant = isInstantRaffle(raffle.event_type, raffle.event_name);
         
         return {
           ...raffle,
@@ -122,14 +130,18 @@ Deno.serve(async (req) => {
           total_spots: teams.length,
           spots_remaining: teams.length - (count || 0),
           is_official,
+          is_instant,
         };
       })
     );
 
-    // Filter by official if requested
-    const filteredRaffles = officialOnly 
-      ? rafflesWithCounts.filter(r => r.is_official)
-      : rafflesWithCounts;
+    // Filter by official or instant if requested
+    let filteredRaffles = rafflesWithCounts;
+    if (officialOnly) {
+      filteredRaffles = rafflesWithCounts.filter(r => r.is_official);
+    } else if (instantOnly) {
+      filteredRaffles = rafflesWithCounts.filter(r => r.is_instant);
+    }
 
     return new Response(JSON.stringify({ raffles: filteredRaffles }), {
       status: 200,
