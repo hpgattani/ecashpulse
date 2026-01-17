@@ -5,6 +5,18 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Official event names that are fee-free
+const OFFICIAL_EVENT_NAMES = [
+  "NFL Super Bowl 2026",
+  "MLB World Series 2026", 
+  "T20 World Cup 2026",
+  "The Voice Season Finale",
+  // Also match the exact names from create-raffle
+  "NFL Super Bowl (All Teams)",
+  "MLB World Series (All Teams)",
+  "The Voice Finale (Top 10)",
+];
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -18,6 +30,23 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const status = url.searchParams.get("status");
     const raffleId = url.searchParams.get("id");
+    
+    // Check for official_only in body or query
+    let officialOnly = url.searchParams.get("official_only") === "true";
+    if (req.method === "POST") {
+      try {
+        const body = await req.json();
+        if (body.official_only) officialOnly = true;
+      } catch {
+        // Body parsing failed, ignore
+      }
+    }
+
+    // Helper to check if raffle is official
+    const isOfficialRaffle = (eventName: string, creationFeeTx: string | null) => {
+      return OFFICIAL_EVENT_NAMES.some(name => eventName.includes(name) || name.includes(eventName)) ||
+             (creationFeeTx && creationFeeTx.startsWith("official_"));
+    };
 
     // Get single raffle with entries
     if (raffleId) {
@@ -47,7 +76,8 @@ Deno.serve(async (req) => {
           ...raffle,
           entries_count: entriesCount || 0,
           total_spots: teams.length,
-          spots_remaining: teams.length - (entriesCount || 0)
+          spots_remaining: teams.length - (entriesCount || 0),
+          is_official: isOfficialRaffle(raffle.event_name, raffle.creation_fee_tx),
         }
       }), {
         status: 200,
@@ -84,16 +114,24 @@ Deno.serve(async (req) => {
           .eq("raffle_id", raffle.id);
 
         const teams = raffle.teams as string[];
+        const is_official = isOfficialRaffle(raffle.event_name, raffle.creation_fee_tx);
+        
         return {
           ...raffle,
           entries_count: count || 0,
           total_spots: teams.length,
-          spots_remaining: teams.length - (count || 0)
+          spots_remaining: teams.length - (count || 0),
+          is_official,
         };
       })
     );
 
-    return new Response(JSON.stringify({ raffles: rafflesWithCounts }), {
+    // Filter by official if requested
+    const filteredRaffles = officialOnly 
+      ? rafflesWithCounts.filter(r => r.is_official)
+      : rafflesWithCounts;
+
+    return new Response(JSON.stringify({ raffles: filteredRaffles }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
