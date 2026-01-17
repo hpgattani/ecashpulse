@@ -3,7 +3,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Ticket, Plus, Users, Trophy, Clock, Loader2 } from 'lucide-react';
+import { Ticket, Plus, Users, Trophy, Clock, Loader2, Star } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCryptoPrices } from '@/hooks/useCryptoPrices';
@@ -11,6 +11,7 @@ import { CreateRaffleModal } from '@/components/CreateRaffleModal';
 import { RaffleCard } from '@/components/RaffleCard';
 import { JoinRaffleModal } from '@/components/JoinRaffleModal';
 import { MyRaffleEntriesModal } from '@/components/MyRaffleEntriesModal';
+import { OfficialRafflesSection } from '@/components/OfficialRafflesSection';
 import { LightModeOrbs } from '@/components/LightModeOrbs';
 
 interface Raffle {
@@ -30,6 +31,7 @@ interface Raffle {
   entries_count: number;
   total_spots: number;
   spots_remaining: number;
+  is_official?: boolean;
 }
 
 export default function Raffle() {
@@ -64,14 +66,17 @@ export default function Raffle() {
     fetchRaffles();
   }, []);
 
-  const filteredRaffles = raffles.filter(r => {
+  // Filter out official raffles for the community section
+  const communityRaffles = raffles.filter(r => !r.is_official);
+  
+  const filteredRaffles = communityRaffles.filter(r => {
     if (filter === 'all') return true;
     return r.status === filter;
   });
 
-  const openRaffles = raffles.filter(r => r.status === 'open').length;
-  const fullRaffles = raffles.filter(r => r.status === 'full').length;
-  const resolvedRaffles = raffles.filter(r => r.status === 'resolved').length;
+  const openRaffles = communityRaffles.filter(r => r.status === 'open').length;
+  const fullRaffles = communityRaffles.filter(r => r.status === 'full').length;
+  const resolvedRaffles = communityRaffles.filter(r => r.status === 'resolved').length;
 
   return (
     <div className="min-h-screen">
@@ -95,15 +100,6 @@ export default function Raffle() {
           </p>
 
           <div className="flex flex-wrap justify-center gap-4">
-            <Button
-              onClick={() => setCreateOpen(true)}
-              className="liquid-glass-button"
-              disabled={!user}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Create Raffle (~$1 / {creationFeeXec.toLocaleString()} XEC)
-            </Button>
-            
             {user && (
               <Button
                 variant="outline"
@@ -118,9 +114,36 @@ export default function Raffle() {
           
           {!user && (
             <p className="text-sm text-muted-foreground mt-4">
-              Connect your wallet to create or join raffles
+              Connect your wallet to get tickets or create custom raffles
             </p>
           )}
+        </div>
+
+        {/* Official Events Section */}
+        <div className="mb-12">
+          <OfficialRafflesSection xecPrice={xecPrice} onRaffleCreated={fetchRaffles} />
+        </div>
+
+        {/* Divider */}
+        <div className="relative my-12">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-border/50"></div>
+          </div>
+          <div className="relative flex justify-center">
+            <span className="px-4 bg-background text-muted-foreground text-sm">Community Raffles</span>
+          </div>
+        </div>
+
+        {/* Create Custom Raffle Button */}
+        <div className="flex justify-center mb-8">
+          <Button
+            onClick={() => setCreateOpen(true)}
+            className="liquid-glass-button"
+            disabled={!user}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Create Custom Raffle (~$1 / {creationFeeXec.toLocaleString()} XEC)
+          </Button>
         </div>
 
         {/* Stats */}
@@ -162,14 +185,14 @@ export default function Raffle() {
         ) : filteredRaffles.length === 0 ? (
           <div className="text-center py-12">
             <Ticket className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
-            <p className="text-muted-foreground">No raffles found</p>
+            <p className="text-muted-foreground">No community raffles found</p>
             {user && (
               <Button
                 onClick={() => setCreateOpen(true)}
                 className="mt-4"
                 variant="outline"
               >
-                Create the first raffle
+                Create the first custom raffle
               </Button>
             )}
           </div>

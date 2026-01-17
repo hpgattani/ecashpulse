@@ -100,8 +100,16 @@ const EVENT_ROSTERS: Record<string, { name: string; category: string; teams: str
       "Contestant 1", "Contestant 2", "Contestant 3", "Contestant 4", "Contestant 5",
       "Contestant 6", "Contestant 7", "Contestant 8", "Contestant 9", "Contestant 10"
     ]
+  },
+  "t20_world_cup_2026": {
+    name: "T20 World Cup 2026",
+    category: "sports",
+    teams: ["India", "Australia", "England", "Pakistan", "South Africa", "New Zealand", "West Indies", "Sri Lanka", "Bangladesh", "Afghanistan", "Ireland", "Netherlands", "Zimbabwe", "Scotland", "Nepal", "USA", "Canada", "UAE", "Oman", "Namibia"]
   }
 };
+
+// Official events that don't require creation fee
+const OFFICIAL_EVENTS = ["nfl_super_bowl", "mlb_world_series", "t20_world_cup_2026", "the_voice_finale"];
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -113,7 +121,7 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { event_id, title, description, entry_cost_usd, starts_at, ends_at, session_token, tx_hash } = await req.json();
+    const { event_id, title, description, entry_cost_usd, starts_at, ends_at, session_token, tx_hash, is_official, skip_creation_fee } = await req.json();
 
     console.log("Creating raffle:", { event_id, title, entry_cost_usd });
 
@@ -183,6 +191,23 @@ Deno.serve(async (req) => {
 
     const creatorAddressHash = await hashAddress(user.ecash_address);
 
+    // Check if this is an official event and if creation fee can be skipped
+    const isOfficialEvent = is_official === true && OFFICIAL_EVENTS.includes(event_id);
+    const shouldSkipFee = isOfficialEvent && skip_creation_fee === true;
+
+    // For official events, calculate entry cost in satoshis based on fixed USD price
+    // Official events have predefined entry costs
+    const officialEntryCosts: Record<string, number> = {
+      "nfl_super_bowl": 2,
+      "mlb_world_series": 2,
+      "t20_world_cup_2026": 2.50,
+      "the_voice_finale": 5,
+    };
+    
+    const finalEntryXec = isOfficialEvent && officialEntryCosts[event_id] 
+      ? Math.ceil(officialEntryCosts[event_id] / 0.00003) // Assume ~$0.00003 per XEC
+      : entryXec;
+
     // Create raffle
     const { data: raffle, error: raffleError } = await supabase
       .from("raffles")
@@ -193,12 +218,12 @@ Deno.serve(async (req) => {
         event_type: event.category,
         event_name: event.name,
         teams: event.teams,
-        entry_cost: entryXec,
+        entry_cost: finalEntryXec,
         total_pot: 0,
         status: "open",
         starts_at: starts_at || null,
         ends_at: ends_at || null,
-        creation_fee_tx: tx_hash || `raffle_${Date.now()}`,
+        creation_fee_tx: shouldSkipFee ? `official_${Date.now()}` : (tx_hash || `raffle_${Date.now()}`),
         creator_address_hash: creatorAddressHash,
       })
       .select()
@@ -214,7 +239,7 @@ Deno.serve(async (req) => {
 
     console.log("Raffle created successfully:", raffle.id);
 
-    return new Response(JSON.stringify({ success: true, raffle }), {
+    return new Response(JSON.stringify({ success: true, raffle, raffle_id: raffle.id, is_official: isOfficialEvent }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
