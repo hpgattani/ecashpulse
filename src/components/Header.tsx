@@ -199,13 +199,13 @@ const Header = () => {
               <nav className="flex flex-col gap-4">
                 <button
                   onClick={() => scrollToSection('markets')}
-                  className="text-left text-muted-foreground hover:text-foreground transition-colors"
+                  className="text-left text-foreground/80 hover:text-primary transition-colors font-medium"
                 >
                   {t.markets}
                 </button>
                 <button
                   onClick={() => scrollToSection('trending')}
-                  className="text-left text-muted-foreground hover:text-foreground transition-colors"
+                  className="text-left text-foreground/80 hover:text-primary transition-colors font-medium"
                 >
                   {t.trending}
                 </button>
@@ -214,20 +214,20 @@ const Header = () => {
                     setIsMenuOpen(false);
                     navigate('/awaiting');
                   }}
-                  className="text-left text-muted-foreground hover:text-foreground transition-colors"
+                  className="text-left text-foreground/80 hover:text-primary transition-colors font-medium"
                 >
                   {t.awaitingResolution}
                 </button>
                 <button
                   onClick={() => scrollToSection('how-it-works')}
-                  className="text-left text-muted-foreground hover:text-foreground transition-colors"
+                  className="text-left text-foreground/80 hover:text-primary transition-colors font-medium"
                 >
                   {t.howItWorks}
                 </button>
                 {user && (
                   <Link
                     to="/my-bets"
-                    className="text-muted-foreground hover:text-foreground transition-colors"
+                    className="text-foreground/80 hover:text-primary transition-colors font-medium"
                     onClick={() => setIsMenuOpen(false)}
                   >
                     {t.myBets}
@@ -235,7 +235,7 @@ const Header = () => {
                 )}
                 <Link
                   to="/stats"
-                  className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2"
+                  className="text-foreground/80 hover:text-primary transition-colors flex items-center gap-2 font-medium"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   <BarChart3 className="w-4 h-4" />
@@ -243,7 +243,7 @@ const Header = () => {
                 </Link>
                 <Link
                   to="/sentiment"
-                  className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2"
+                  className="text-foreground/80 hover:text-primary transition-colors flex items-center gap-2 font-medium"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   <MessageCircleHeart className="w-4 h-4" />
@@ -251,7 +251,7 @@ const Header = () => {
                 </Link>
                 <Link
                   to="/raffle"
-                  className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2"
+                  className="text-foreground/80 hover:text-primary transition-colors flex items-center gap-2 font-medium"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   <Ticket className="w-4 h-4" />
