@@ -7,6 +7,16 @@ import { useAuth } from '@/contexts/AuthContext';
 import { OfficialRaffleCard } from './OfficialRaffleCard';
 import { GetTicketModal } from './GetTicketModal';
 
+// Country flag emojis for The Voice editions
+const VOICE_COUNTRIES = {
+  'the_voice_us': { flag: '🇺🇸', name: 'The Voice USA' },
+  'the_voice_uk': { flag: '🇬🇧', name: 'The Voice UK' },
+  'the_voice_australia': { flag: '🇦🇺', name: 'The Voice Australia' },
+  'the_voice_germany': { flag: '🇩🇪', name: 'The Voice Germany' },
+  'the_voice_france': { flag: '🇫🇷', name: 'The Voice France' },
+  'the_voice_india': { flag: '🇮🇳', name: 'The Voice India' },
+};
+
 // Official events that don't require creation fee
 export const OFFICIAL_EVENTS = [
   { 
@@ -15,7 +25,8 @@ export const OFFICIAL_EVENTS = [
     category: 'sports', 
     teams: ['Kansas City Chiefs', 'San Francisco 49ers', 'Philadelphia Eagles', 'Buffalo Bills', 'Dallas Cowboys', 'Detroit Lions', 'Baltimore Ravens', 'Miami Dolphins', 'Cleveland Browns', 'Green Bay Packers', 'New York Jets', 'Los Angeles Rams', 'Cincinnati Bengals', 'Seattle Seahawks', 'Jacksonville Jaguars', 'Minnesota Vikings', 'Tampa Bay Buccaneers', 'Pittsburgh Steelers', 'Atlanta Falcons', 'Los Angeles Chargers', 'New Orleans Saints', 'Denver Broncos', 'Indianapolis Colts', 'Las Vegas Raiders', 'Tennessee Titans', 'Arizona Cardinals', 'Houston Texans', 'New York Giants', 'Washington Commanders', 'Carolina Panthers', 'Chicago Bears', 'New England Patriots'],
     entryCostUsd: 2,
-    description: 'Pick a team to win Super Bowl 2026!'
+    description: 'Pick a team to win Super Bowl 2026!',
+    flag: '🏈'
   },
   { 
     id: 'mlb_world_series', 
@@ -23,7 +34,8 @@ export const OFFICIAL_EVENTS = [
     category: 'sports', 
     teams: ['New York Yankees', 'Los Angeles Dodgers', 'Atlanta Braves', 'Houston Astros', 'Philadelphia Phillies', 'San Diego Padres', 'Seattle Mariners', 'Cleveland Guardians', 'Toronto Blue Jays', 'New York Mets', 'St. Louis Cardinals', 'Tampa Bay Rays', 'Baltimore Orioles', 'Minnesota Twins', 'Milwaukee Brewers', 'Arizona Diamondbacks', 'Chicago Cubs', 'Texas Rangers', 'Boston Red Sox', 'Detroit Tigers', 'Los Angeles Angels', 'San Francisco Giants', 'Chicago White Sox', 'Cincinnati Reds', 'Kansas City Royals', 'Colorado Rockies', 'Pittsburgh Pirates', 'Miami Marlins', 'Washington Nationals', 'Oakland Athletics'],
     entryCostUsd: 2,
-    description: 'Pick a team to win World Series 2026!'
+    description: 'Pick a team to win World Series 2026!',
+    flag: '⚾'
   },
   { 
     id: 't20_world_cup_2026', 
@@ -31,15 +43,35 @@ export const OFFICIAL_EVENTS = [
     category: 'sports', 
     teams: ['India', 'Australia', 'England', 'Pakistan', 'South Africa', 'New Zealand', 'West Indies', 'Sri Lanka', 'Bangladesh', 'Afghanistan', 'Ireland', 'Netherlands', 'Zimbabwe', 'Scotland', 'Nepal', 'USA', 'Canada', 'UAE', 'Oman', 'Namibia'],
     entryCostUsd: 2.50,
-    description: 'Pick a team to win T20 World Cup 2026!'
+    description: 'Pick a team to win T20 World Cup 2026!',
+    flag: '🏏'
   },
   { 
-    id: 'the_voice_finale', 
-    name: 'The Voice Season Finale', 
+    id: 'the_voice_us', 
+    name: 'The Voice USA', 
     category: 'entertainment', 
     teams: ['Contestant 1', 'Contestant 2', 'Contestant 3', 'Contestant 4', 'Contestant 5', 'Contestant 6', 'Contestant 7', 'Contestant 8', 'Contestant 9', 'Contestant 10'],
     entryCostUsd: 5,
-    description: 'Pick who wins The Voice!'
+    description: 'Pick who wins The Voice USA!',
+    flag: '🇺🇸'
+  },
+  { 
+    id: 'the_voice_uk', 
+    name: 'The Voice UK', 
+    category: 'entertainment', 
+    teams: ['Contestant 1', 'Contestant 2', 'Contestant 3', 'Contestant 4', 'Contestant 5', 'Contestant 6', 'Contestant 7', 'Contestant 8', 'Contestant 9', 'Contestant 10'],
+    entryCostUsd: 5,
+    description: 'Pick who wins The Voice UK!',
+    flag: '🇬🇧'
+  },
+  { 
+    id: 'the_voice_australia', 
+    name: 'The Voice Australia', 
+    category: 'entertainment', 
+    teams: ['Contestant 1', 'Contestant 2', 'Contestant 3', 'Contestant 4', 'Contestant 5', 'Contestant 6', 'Contestant 7', 'Contestant 8', 'Contestant 9', 'Contestant 10'],
+    entryCostUsd: 5,
+    description: 'Pick who wins The Voice Australia!',
+    flag: '🇦🇺'
   },
 ];
 
@@ -154,7 +186,7 @@ export function OfficialRafflesSection({ xecPrice, onRaffleCreated }: OfficialRa
               {/* Event Info */}
               <div className="pt-2">
                 <div className="flex items-center gap-2 mb-1">
-                  <span>{event.category === 'sports' ? '🏆' : '🎭'}</span>
+                  <span className="text-lg">{event.flag}</span>
                   <Badge variant="outline" className="text-xs">{event.teams.length} teams</Badge>
                 </div>
                 <h3 className="font-display font-semibold text-foreground text-sm">{event.name}</h3>

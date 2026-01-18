@@ -16,6 +16,10 @@ export const FICTIONAL_TEAMS = [
   'Iron Bears', 'Mystic Ravens', 'Neon Tigers', 'Cosmic Falcons'
 ];
 
+interface RaffleEntry {
+  assigned_team: string;
+}
+
 interface InstantRaffle {
   id: string;
   title: string;
@@ -31,6 +35,7 @@ interface InstantRaffle {
   total_spots: number;
   spots_remaining: number;
   is_instant?: boolean;
+  entries?: RaffleEntry[];
 }
 
 interface InstantRaffleSectionProps {

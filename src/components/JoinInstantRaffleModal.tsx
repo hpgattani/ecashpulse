@@ -7,6 +7,10 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect as useEffectOnce } from 'react';
+interface RaffleEntry {
+  assigned_team: string;
+}
 
 interface InstantRaffle {
   id: string;
@@ -16,6 +20,7 @@ interface InstantRaffle {
   spots_remaining: number;
   teams: string[];
   ends_at: string | null;
+  entries?: RaffleEntry[];
 }
 
 interface JoinInstantRaffleModalProps {
@@ -40,6 +45,10 @@ export function JoinInstantRaffleModal({ open, onOpenChange, raffle, xecPrice, o
   const entryCost = raffle.entry_cost;
   const entryCostUsd = (entryCost * xecPrice).toFixed(2);
   const teams = raffle.teams || [];
+  
+  // Get taken teams from entries
+  const takenTeams = (raffle.entries || []).map(e => e.assigned_team);
+  const availableTeams = teams.filter(t => !takenTeams.includes(t));
 
   const closePayButtonModal = useCallback(() => {
     const selectors = ['.paybutton-modal', '.paybutton-overlay', '.ReactModal__Overlay'];
@@ -214,11 +223,36 @@ export function JoinInstantRaffleModal({ open, onOpenChange, raffle, xecPrice, o
 
             <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-4 flex items-start gap-3">
               <Shuffle className="w-5 h-5 text-purple-400 flex-shrink-0 mt-0.5" />
-              <div>
+              <div className="flex-1">
                 <p className="text-sm font-medium text-foreground">Random Team Assignment</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  You'll get a random fictional team. Only you can see your team!
+                  You'll get one of the available teams randomly assigned.
                 </p>
+              </div>
+            </div>
+
+            {/* Teams Status - Show which are taken */}
+            <div className="bg-muted/30 rounded-lg p-3">
+              <p className="text-xs font-medium text-foreground mb-2 flex items-center gap-2">
+                <Eye className="w-3.5 h-3.5" />
+                Teams Status ({takenTeams.length}/{teams.length} taken)
+              </p>
+              <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                {teams.map((team) => {
+                  const isTaken = takenTeams.includes(team);
+                  return (
+                    <span
+                      key={team}
+                      className={`text-xs px-2 py-1 rounded-full ${
+                        isTaken 
+                          ? 'bg-red-500/20 text-red-400 line-through' 
+                          : 'bg-emerald-500/20 text-emerald-400'
+                      }`}
+                    >
+                      {team}
+                    </span>
+                  );
+                })}
               </div>
             </div>
 

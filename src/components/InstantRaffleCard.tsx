@@ -5,6 +5,10 @@ import CountdownTimer from './CountdownTimer';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
+interface RaffleEntry {
+  assigned_team: string;
+}
+
 interface InstantRaffle {
   id: string;
   title: string;
@@ -19,6 +23,7 @@ interface InstantRaffle {
   entries_count: number;
   total_spots: number;
   spots_remaining: number;
+  entries?: RaffleEntry[];
 }
 
 interface InstantRaffleCardProps {
@@ -105,6 +110,23 @@ export function InstantRaffleCard({ raffle, xecPrice, onJoin, resolved }: Instan
           </button>
         )}
       </div>
+
+      {/* Teams Status - Show which are taken */}
+      {!resolved && raffle.entries && raffle.entries.length > 0 && (
+        <div className="bg-muted/30 rounded-lg p-2">
+          <p className="text-[10px] text-muted-foreground mb-1.5">Teams taken:</p>
+          <div className="flex flex-wrap gap-1">
+            {raffle.entries.map((entry, idx) => (
+              <span
+                key={idx}
+                className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400 line-through"
+              >
+                {entry.assigned_team}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="flex items-center gap-3 text-xs">

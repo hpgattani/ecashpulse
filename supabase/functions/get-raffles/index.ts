@@ -10,6 +10,10 @@ const OFFICIAL_EVENT_NAMES = [
   "NFL Super Bowl 2026",
   "MLB World Series 2026", 
   "T20 World Cup 2026",
+  "The Voice USA",
+  "The Voice UK",
+  "The Voice Australia",
+  // Legacy names
   "The Voice Season Finale",
   // Also match the exact names from create-raffle
   "NFL Super Bowl (All Teams)",
@@ -112,25 +116,42 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get entry counts for each raffle
+    // Get entry counts and team assignments for each raffle
     const rafflesWithCounts = await Promise.all(
       (raffles || []).map(async (raffle) => {
-        const { count } = await supabase
-          .from("raffle_entries")
-          .select("*", { count: "exact", head: true })
-          .eq("raffle_id", raffle.id);
+        const is_instant = isInstantRaffle(raffle.event_type, raffle.event_name);
+        
+        // For instant raffles, get assigned teams to show taken status
+        let entries: { assigned_team: string }[] = [];
+        let count = 0;
+        
+        if (is_instant) {
+          const { data: entryData, count: entryCount } = await supabase
+            .from("raffle_entries")
+            .select("assigned_team", { count: "exact" })
+            .eq("raffle_id", raffle.id);
+          
+          entries = entryData || [];
+          count = entryCount || 0;
+        } else {
+          const { count: entryCount } = await supabase
+            .from("raffle_entries")
+            .select("*", { count: "exact", head: true })
+            .eq("raffle_id", raffle.id);
+          count = entryCount || 0;
+        }
 
         const teams = raffle.teams as string[];
         const is_official = isOfficialRaffle(raffle.event_name, raffle.creation_fee_tx);
-        const is_instant = isInstantRaffle(raffle.event_type, raffle.event_name);
         
         return {
           ...raffle,
-          entries_count: count || 0,
+          entries_count: count,
           total_spots: teams.length,
-          spots_remaining: teams.length - (count || 0),
+          spots_remaining: teams.length - count,
           is_official,
           is_instant,
+          entries: is_instant ? entries : undefined,
         };
       })
     );

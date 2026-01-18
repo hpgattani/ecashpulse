@@ -1,8 +1,9 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Ticket, Users, Trophy, Clock, CheckCircle } from 'lucide-react';
+import { Ticket, Users, Trophy, Clock, CheckCircle, Share2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { toast } from 'sonner';
 
 interface Raffle {
   id: string;
@@ -34,6 +35,30 @@ export function RaffleCard({ raffle, xecPrice, onJoin }: RaffleCardProps) {
   const totalPotUsd = (raffle.total_pot * xecPrice).toFixed(2);
   const progressPercent = (raffle.entries_count / raffle.total_spots) * 100;
 
+  const handleShare = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const shareUrl = `${window.location.origin}/raffle?custom=${raffle.id}`;
+    const shareText = `🎲 Join my raffle: "${raffle.title}" - Prize Pool: ${raffle.total_pot.toLocaleString()} XEC (~$${totalPotUsd})`;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: raffle.title,
+          text: shareText,
+          url: shareUrl,
+        });
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError') {
+          await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
+          toast.success('Link copied to clipboard!');
+        }
+      }
+    } else {
+      await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
+      toast.success('Link copied to clipboard!');
+    }
+  };
+
   const getStatusBadge = () => {
     switch (raffle.status) {
       case 'open':
@@ -62,7 +87,16 @@ export function RaffleCard({ raffle, xecPrice, onJoin }: RaffleCardProps) {
           <h3 className="font-display font-semibold text-foreground truncate">{raffle.title}</h3>
           <p className="text-sm text-muted-foreground truncate">{raffle.event_name}</p>
         </div>
-        {getStatusBadge()}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleShare}
+            className="p-1.5 rounded-full hover:bg-muted/50 transition-colors"
+            aria-label="Share raffle"
+          >
+            <Share2 className="w-4 h-4 text-muted-foreground hover:text-primary transition-colors" />
+          </button>
+          {getStatusBadge()}
+        </div>
       </div>
 
       {/* Category & Time */}
