@@ -185,6 +185,18 @@ export default function Raffle() {
           <OfficialRafflesSection xecPrice={xecPrice} onRaffleCreated={fetchRaffles} />
         </div>
 
+        {/* Create Custom Raffle Button - Before Instant Raffles */}
+        <div className="flex justify-center mb-10">
+          <Button
+            onClick={() => setCreateOpen(true)}
+            className="liquid-glass-button text-base px-6 py-3"
+            disabled={!user}
+          >
+            <Plus className="w-5 h-5 mr-2" />
+            Create Custom Raffle (~$1 / {creationFeeXec.toLocaleString()} XEC)
+          </Button>
+        </div>
+
         {/* "Can't Wait for a Game" - Instant Raffles Section */}
         <div className="mb-12">
           <InstantRaffleSection xecPrice={xecPrice} onRaffleCreated={fetchRaffles} />
@@ -198,18 +210,6 @@ export default function Raffle() {
           <div className="relative flex justify-center">
             <span className="px-4 bg-background text-muted-foreground text-sm">Community Custom Raffles</span>
           </div>
-        </div>
-
-        {/* Create Custom Raffle Button */}
-        <div className="flex justify-center mb-8">
-          <Button
-            onClick={() => setCreateOpen(true)}
-            className="liquid-glass-button"
-            disabled={!user}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Create Custom Raffle (~$1 / {creationFeeXec.toLocaleString()} XEC)
-          </Button>
         </div>
 
         {/* Stats */}
