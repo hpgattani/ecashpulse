@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
@@ -11,9 +12,11 @@ import { CreateRaffleModal } from '@/components/CreateRaffleModal';
 import { RaffleCard } from '@/components/RaffleCard';
 import { JoinRaffleModal } from '@/components/JoinRaffleModal';
 import { MyRaffleEntriesModal } from '@/components/MyRaffleEntriesModal';
-import { OfficialRafflesSection } from '@/components/OfficialRafflesSection';
+import { OfficialRafflesSection, OFFICIAL_EVENTS } from '@/components/OfficialRafflesSection';
 import { InstantRaffleSection } from '@/components/InstantRaffleSection';
 import { LightModeOrbs } from '@/components/LightModeOrbs';
+import { GetTicketModal } from '@/components/GetTicketModal';
+import { JoinInstantRaffleModal } from '@/components/JoinInstantRaffleModal';
 
 interface Raffle {
   id: string;
@@ -37,6 +40,7 @@ interface Raffle {
 }
 
 export default function Raffle() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, sessionToken } = useAuth();
   const { prices } = useCryptoPrices();
   const [raffles, setRaffles] = useState<Raffle[]>([]);
@@ -45,6 +49,10 @@ export default function Raffle() {
   const [selectedRaffle, setSelectedRaffle] = useState<Raffle | null>(null);
   const [myEntriesOpen, setMyEntriesOpen] = useState(false);
   const [filter, setFilter] = useState<'all' | 'open' | 'full' | 'resolved'>('all');
+  
+  // Deep-link state
+  const [deepLinkOfficialEvent, setDeepLinkOfficialEvent] = useState<typeof OFFICIAL_EVENTS[0] | null>(null);
+  const [deepLinkInstantRaffle, setDeepLinkInstantRaffle] = useState<Raffle | null>(null);
 
   const xecPrice = prices.ecash || 0.0001;
   const creationFeeXec = Math.ceil(1 / xecPrice);
@@ -57,8 +65,10 @@ export default function Raffle() {
 
       if (error) throw error;
       setRaffles(data.raffles || []);
+      return data.raffles || [];
     } catch (error) {
       console.error('Error fetching raffles:', error);
+      return [];
     } finally {
       setLoading(false);
     }
@@ -67,6 +77,38 @@ export default function Raffle() {
   useEffect(() => {
     fetchRaffles();
   }, []);
+
+  // Handle deep-link query params
+  useEffect(() => {
+    const officialId = searchParams.get('official');
+    const instantId = searchParams.get('instant');
+    const customId = searchParams.get('custom');
+
+    if (officialId) {
+      const event = OFFICIAL_EVENTS.find(e => e.id === officialId);
+      if (event) {
+        setDeepLinkOfficialEvent(event);
+        // Clear query param
+        setSearchParams({}, { replace: true });
+      }
+    }
+
+    if (instantId && raffles.length > 0) {
+      const instantRaffle = raffles.find(r => r.id === instantId && r.is_instant);
+      if (instantRaffle) {
+        setDeepLinkInstantRaffle(instantRaffle);
+        setSearchParams({}, { replace: true });
+      }
+    }
+
+    if (customId && raffles.length > 0) {
+      const customRaffle = raffles.find(r => r.id === customId && !r.is_official && !r.is_instant);
+      if (customRaffle) {
+        setSelectedRaffle(customRaffle);
+        setSearchParams({}, { replace: true });
+      }
+    }
+  }, [searchParams, raffles]);
 
   // Real-time updates
   useEffect(() => {
@@ -262,6 +304,33 @@ export default function Raffle() {
         open={myEntriesOpen}
         onOpenChange={setMyEntriesOpen}
       />
+
+      {/* Deep-link modals */}
+      {deepLinkOfficialEvent && (
+        <GetTicketModal
+          open={!!deepLinkOfficialEvent}
+          onOpenChange={(open) => !open && setDeepLinkOfficialEvent(null)}
+          officialEvent={deepLinkOfficialEvent}
+          xecPrice={xecPrice}
+          onSuccess={() => {
+            fetchRaffles();
+            setDeepLinkOfficialEvent(null);
+          }}
+        />
+      )}
+
+      {deepLinkInstantRaffle && (
+        <JoinInstantRaffleModal
+          open={!!deepLinkInstantRaffle}
+          onOpenChange={(open) => !open && setDeepLinkInstantRaffle(null)}
+          raffle={deepLinkInstantRaffle}
+          xecPrice={xecPrice}
+          onSuccess={() => {
+            fetchRaffles();
+            setDeepLinkInstantRaffle(null);
+          }}
+        />
+      )}
     </div>
   );
 }
