@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Star, Ticket, Loader2, ChevronRight } from 'lucide-react';
+import { Star, Ticket, Loader2, ChevronRight, Share2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { OfficialRaffleCard } from './OfficialRaffleCard';
 import { GetTicketModal } from './GetTicketModal';
+import { toast } from 'sonner';
 
 // Country flag emojis for The Voice editions
 const VOICE_COUNTRIES = {
@@ -185,9 +186,34 @@ export function OfficialRafflesSection({ xecPrice, onRaffleCreated }: OfficialRa
 
               {/* Event Info */}
               <div className="pt-2">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-lg">{event.flag}</span>
-                  <Badge variant="outline" className="text-xs">{event.teams.length} teams</Badge>
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">{event.flag}</span>
+                    <Badge variant="outline" className="text-xs">{event.teams.length} teams</Badge>
+                  </div>
+                  <button
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      const shareUrl = `${window.location.origin}/raffle?official=${event.id}`;
+                      const shareText = `🎟️ ${event.name} - Pick your team & win the pot! Entry: $${event.entryCostUsd}`;
+                      try {
+                        if (navigator.share) {
+                          await navigator.share({ title: event.name, text: shareText, url: shareUrl });
+                        } else {
+                          await navigator.clipboard.writeText(shareUrl);
+                          toast.success('Link copied to clipboard!');
+                        }
+                      } catch (err) {
+                        if ((err as Error).name !== 'AbortError') {
+                          await navigator.clipboard.writeText(shareUrl);
+                          toast.success('Link copied to clipboard!');
+                        }
+                      }
+                    }}
+                    className="p-1.5 rounded-full hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground"
+                  >
+                    <Share2 className="w-4 h-4" />
+                  </button>
                 </div>
                 <h3 className="font-display font-semibold text-foreground text-sm">{event.name}</h3>
                 <p className="text-xs text-muted-foreground mt-1">{event.description}</p>

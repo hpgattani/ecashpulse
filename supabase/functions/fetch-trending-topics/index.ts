@@ -562,7 +562,10 @@ async function syncPredictions(supabase: any): Promise<{ created: number; resolv
       'which ', 'who will', 'what will', 'how many', 'how much',
       '# tweets', 'number of tweets', 'highest temperature', 'top performing',
       '#1 song', 'vs.', ' vs ', 'announced by', 'price on ',
-      '___', '...'
+      '___', '...',
+      // Block vague/incomplete "Xth largest company" style predictions - they should be multi-option
+      'largest company end of', 'largest company by market', '2nd largest', '3rd largest',
+      'second largest', 'third largest', 'fourth largest'
     ];
     const hasInvalidPattern = invalidPatterns.some(pattern => titleLower.includes(pattern));
     if (hasInvalidPattern) {
