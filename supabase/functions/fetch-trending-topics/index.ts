@@ -59,7 +59,12 @@ const TRIVIALLY_TRUE_PATTERNS: RegExp[] = [
 // Keywords that belong to a specific category - reject if detected category doesn't match
 const CATEGORY_KEYWORD_MAP: Record<string, string[]> = {
   economics: ['inflation', 'gdp', 'interest rate', 'unemployment', 'recession', 'cpi', 'fed rate'],
-  sports: ['nfl', 'nba', 'mlb', 'nhl', 'super bowl', 'playoffs', 'championship', 'ipl', 'cricket', 'world cup'],
+  // Include athlete names + tennis tour terms to prevent "Serena Williams" being misrouted.
+  sports: [
+    'nfl', 'nba', 'mlb', 'nhl', 'super bowl', 'playoffs', 'championship', 'ipl', 'cricket', 'world cup',
+    'tennis', 'wimbledon', 'us open', 'australian open', 'french open', 'roland garros', 'grand slam',
+    'atp', 'wta', 'serena williams'
+  ],
   crypto: ['bitcoin', 'ethereum', 'btc', 'eth', 'token', 'blockchain', 'lighter'],
   politics: ['election', 'president', 'congress', 'senate', 'vote'],
 };
@@ -222,7 +227,11 @@ function detectCategory(question: string): string {
     q.includes('basketball') || q.includes('hockey') || q.includes('baseball') || q.includes('cricket') ||
     q.includes('ipl') || q.includes('olympics') || q.includes('ufc') || q.includes('boxing') ||
     q.includes('f1') || q.includes('formula 1') || q.includes('grand prix') ||
-    q.includes('uefa') || q.includes('euro 20') || (q.includes('euro') && q.includes('final'))
+    q.includes('uefa') || q.includes('euro 20') || (q.includes('euro') && q.includes('final')) ||
+    // Tennis tours + famous players
+    q.includes('atp') || q.includes('wta') || q.includes('grand slam') ||
+    q.includes('us open') || q.includes('australian open') || q.includes('french open') || q.includes('roland garros') ||
+    q.includes('serena williams')
   ) {
     return 'sports';
   }

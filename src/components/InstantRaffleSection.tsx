@@ -126,7 +126,7 @@ export function InstantRaffleSection({ xecPrice, onRaffleCreated }: InstantRaffl
             </div>
             <div>
               <p className="font-medium text-foreground">Pay $1 Entry</p>
-              <p className="text-muted-foreground">Get a random fictional team (others can see which teams are taken)</p>
+              <p className="text-muted-foreground">Get a random fictional team (revealed to everyone once sold out)</p>
             </div>
           </div>
           <div className="flex items-start gap-2">

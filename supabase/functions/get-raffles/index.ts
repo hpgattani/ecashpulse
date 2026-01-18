@@ -116,23 +116,27 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get entry counts and team assignments for each raffle
+    // Get entry counts and (conditionally) team assignments for each raffle
     const rafflesWithCounts = await Promise.all(
       (raffles || []).map(async (raffle) => {
         const is_instant = isInstantRaffle(raffle.event_type, raffle.event_name);
-        
-        // For instant raffles, get assigned teams to show taken status
-        let entries: { assigned_team: string }[] = [];
+
+        // We always compute entry count, but only reveal assigned teams for instant raffles once SOLD OUT.
+        let entries: { assigned_team: string }[] | undefined = undefined;
         let count = 0;
-        
+
         if (is_instant) {
           const { data: entryData, count: entryCount } = await supabase
             .from("raffle_entries")
             .select("assigned_team", { count: "exact" })
             .eq("raffle_id", raffle.id);
-          
-          entries = entryData || [];
+
           count = entryCount || 0;
+          const teams = raffle.teams as string[];
+          const is_sold_out = count >= teams.length;
+
+          // Only expose assignments publicly when all spots are filled.
+          entries = is_sold_out ? (entryData || []) : undefined;
         } else {
           const { count: entryCount } = await supabase
             .from("raffle_entries")
@@ -143,7 +147,7 @@ Deno.serve(async (req) => {
 
         const teams = raffle.teams as string[];
         const is_official = isOfficialRaffle(raffle.event_name, raffle.creation_fee_tx);
-        
+
         return {
           ...raffle,
           entries_count: count,

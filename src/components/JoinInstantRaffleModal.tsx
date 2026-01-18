@@ -7,7 +7,6 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useEffect as useEffectOnce } from 'react';
 interface RaffleEntry {
   assigned_team: string;
 }
@@ -45,10 +44,9 @@ export function JoinInstantRaffleModal({ open, onOpenChange, raffle, xecPrice, o
   const entryCost = raffle.entry_cost;
   const entryCostUsd = (entryCost * xecPrice).toFixed(2);
   const teams = raffle.teams || [];
-  
-  // Get taken teams from entries
-  const takenTeams = (raffle.entries || []).map(e => e.assigned_team);
-  const availableTeams = teams.filter(t => !takenTeams.includes(t));
+
+  const isSoldOut = raffle.spots_remaining === 0;
+  const publicAssignments = isSoldOut ? (raffle.entries || []).map((e) => e.assigned_team) : [];
 
   const closePayButtonModal = useCallback(() => {
     const selectors = ['.paybutton-modal', '.paybutton-overlay', '.ReactModal__Overlay'];
@@ -231,30 +229,33 @@ export function JoinInstantRaffleModal({ open, onOpenChange, raffle, xecPrice, o
               </div>
             </div>
 
-            {/* Teams Status - Show which are taken */}
-            <div className="bg-muted/30 rounded-lg p-3">
-              <p className="text-xs font-medium text-foreground mb-2 flex items-center gap-2">
-                <Eye className="w-3.5 h-3.5" />
-                Teams Status ({takenTeams.length}/{teams.length} taken)
-              </p>
-              <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
-                {teams.map((team) => {
-                  const isTaken = takenTeams.includes(team);
-                  return (
-                    <span
-                      key={team}
-                      className={`text-xs px-2 py-1 rounded-full ${
-                        isTaken 
-                          ? 'bg-red-500/20 text-red-400 line-through' 
-                          : 'bg-emerald-500/20 text-emerald-400'
-                      }`}
-                    >
+            {/* Team visibility */}
+            {!isSoldOut ? (
+              <div className="bg-muted/30 rounded-lg p-3">
+                <p className="text-xs font-medium text-foreground mb-1 flex items-center gap-2">
+                  <Eye className="w-3.5 h-3.5" />
+                  Team assignments are private
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Your assigned team is only visible to you. Once all {raffle.total_spots} spots are filled, the full
+                  team list will be revealed to everyone.
+                </p>
+              </div>
+            ) : (
+              <div className="bg-muted/30 rounded-lg p-3">
+                <p className="text-xs font-medium text-foreground mb-2 flex items-center gap-2">
+                  <Eye className="w-3.5 h-3.5" />
+                  Teams revealed (sold out)
+                </p>
+                <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                  {(publicAssignments.length ? publicAssignments : teams).map((team) => (
+                    <span key={team} className="text-xs px-2 py-1 rounded-full bg-muted/50 text-foreground">
                       {team}
                     </span>
-                  );
-                })}
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="bg-muted/50 rounded-lg p-3 flex items-start gap-2">
               <AlertTriangle className="w-4 h-4 text-yellow-500 flex-shrink-0 mt-0.5" />
@@ -344,7 +345,7 @@ export function JoinInstantRaffleModal({ open, onOpenChange, raffle, xecPrice, o
                   </div>
                   <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
                     <Eye className="w-3.5 h-3.5" />
-                    Only you can see this
+                    Your team is private until the raffle sells out
                   </div>
                   <p className="text-xs text-purple-400">
                     Good luck! Winner picked automatically at deadline.
