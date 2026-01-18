@@ -111,15 +111,15 @@ export function InstantRaffleCard({ raffle, xecPrice, onJoin, resolved }: Instan
         )}
       </div>
 
-      {/* Teams Status - Show which are taken */}
-      {!resolved && raffle.entries && raffle.entries.length > 0 && (
+      {/* Teams Reveal - public only when sold out */}
+      {!resolved && isFull && raffle.entries && raffle.entries.length > 0 && (
         <div className="bg-muted/30 rounded-lg p-2">
-          <p className="text-[10px] text-muted-foreground mb-1.5">Teams taken:</p>
+          <p className="text-[10px] text-muted-foreground mb-1.5">Teams revealed:</p>
           <div className="flex flex-wrap gap-1">
             {raffle.entries.map((entry, idx) => (
               <span
                 key={idx}
-                className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400 line-through"
+                className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted/50 text-foreground"
               >
                 {entry.assigned_team}
               </span>

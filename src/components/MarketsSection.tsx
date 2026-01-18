@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { motion } from 'framer-motion';
 import { usePredictions } from '@/hooks/usePredictions';
 import { useCryptoPrices } from '@/hooks/useCryptoPrices';
 import PredictionCard from './PredictionCard';
@@ -37,12 +36,7 @@ const MarketsSection = ({ activeCategory, searchQuery }: MarketsSectionProps) =>
     <section id="markets" className="py-8 sm:py-12 relative">
       <div className="container mx-auto px-4">
         {/* Section Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="text-center mb-8"
-        >
+        <div className="text-center mb-8">
           <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">
             {t.activeMarkets.split(' ')[0]}{' '}
             <span className="gradient-text">{t.activeMarkets.split(' ').slice(1).join(' ')}</span>
@@ -50,7 +44,7 @@ const MarketsSection = ({ activeCategory, searchQuery }: MarketsSectionProps) =>
           <p className="text-muted-foreground max-w-2xl mx-auto">
             {t.browseMarkets}
           </p>
-        </motion.div>
+        </div>
 
         {/* Loading State - Skeleton Cards */}
         {loading && (
@@ -77,13 +71,9 @@ const MarketsSection = ({ activeCategory, searchQuery }: MarketsSectionProps) =>
 
         {/* Error State */}
         {error && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center py-16"
-          >
+          <div className="text-center py-16">
             <p className="text-destructive">{t.failedToLoad}</p>
-          </motion.div>
+          </div>
         )}
 
         {/* Markets Grid */}
@@ -102,13 +92,9 @@ const MarketsSection = ({ activeCategory, searchQuery }: MarketsSectionProps) =>
         )}
 
         {!loading && !error && filteredPredictions.length === 0 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center py-16"
-          >
+          <div className="text-center py-16">
             <p className="text-muted-foreground">{t.noMarketsFound}</p>
-          </motion.div>
+          </div>
         )}
       </div>
     </section>

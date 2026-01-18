@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { usePredictions } from '@/hooks/usePredictions';
 import { TrendingUp, Flame, Loader2, ChevronLeft, ChevronRight, Bitcoin, Landmark, Trophy, Cpu, Film, Vote, DollarSign, Globe2, BarChart3, Map, Leaf, Globe } from 'lucide-react';
@@ -131,13 +130,7 @@ const TrendingSection = () => {
       
         <div className="container mx-auto px-4 relative z-10">
           {/* Liquid glass container */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            className="glass-card p-4 sm:p-6 relative overflow-hidden"
-          >
+          <div className="glass-card p-4 sm:p-6 relative overflow-hidden">
             {/* Inner glow effects */}
             <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
             <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-accent/20 to-transparent" />
@@ -181,16 +174,11 @@ const TrendingSection = () => {
               className="flex overflow-x-auto gap-3 sm:gap-4 pb-2 snap-x snap-mandatory scrollbar-hide scroll-smooth -mx-1 px-1"
               style={{ scrollBehavior: 'smooth' }}
             >
-              {trendingPredictions.map((prediction, index) => (
-                <motion.div
+              {trendingPredictions.map((prediction) => (
+                <div
                   key={prediction.id}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94], delay: index * 0.08 }}
-                  whileHover={{ scale: 1.02, y: -4 }}
                   onClick={() => navigate(`/prediction/${prediction.id}`)}
-                  className="flex-shrink-0 w-[260px] sm:w-[300px] md:w-[340px] snap-start cursor-pointer group"
+                  className="flex-shrink-0 w-[260px] sm:w-[300px] md:w-[340px] snap-start cursor-pointer group transition-transform will-change-transform hover:scale-[1.02] hover:-translate-y-1"
                 >
                   {/* Inner card with layered glass effect */}
                   <div className="relative h-full p-3 sm:p-4 rounded-xl bg-background/40 dark:bg-background/60 backdrop-blur-md border border-border/40 hover:border-primary/40 transition-all duration-300 overflow-hidden">
@@ -241,7 +229,7 @@ const TrendingSection = () => {
                       </div>
                     </div>
                   </div>
-                </motion.div>
+                </div>
               ))}
             </div>
 
@@ -263,7 +251,7 @@ const TrendingSection = () => {
                 />
               ))}
             </div>
-          </motion.div>
+          </div>
         </div>
       </>
     );
