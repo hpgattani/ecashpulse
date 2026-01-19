@@ -46,8 +46,15 @@ const AUTO_BLOCKED_TITLE_KEYWORDS = [
   'retroactive uni distribution',
   'uni distribution proposal',
   'price range',
-  // Block vague multi-option price predictions
+  // Block vague multi-option price predictions (should be multibets)
   'what price will',
+  'what day will',
+  '2nd largest',
+  'second largest',
+  '3rd largest',
+  'third largest',
+  'largest company by market cap',
+  'market cap ranking',
 ];
 
 // Patterns that are obviously trivially-true or nonsense (e.g., "American team win Super Bowl")
