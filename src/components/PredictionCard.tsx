@@ -49,8 +49,8 @@ interface PredictionCardProps {
   climateData?: ClimateData | null;
 }
 
-// Topic image component that detects relevant icons based on keywords
-const TopicImage = ({ question, category }: { question: string; category: string }) => {
+// Topic image component that detects relevant icons based on keywords OR shows actual image
+const TopicImage = ({ question, category, imageUrl }: { question: string; category: string; imageUrl?: string }) => {
   const q = question.toLowerCase();
   
   // Keyword-based icon detection (like Polymarket)
@@ -167,6 +167,30 @@ const TopicImage = ({ question, category }: { question: string; category: string
   };
 
   const { Icon, bg, emoji } = getTopicIcon();
+
+  // If we have an actual image URL from Polymarket, show that instead
+  if (imageUrl) {
+    return (
+      <div className="relative flex-shrink-0 w-10 h-10 md:w-12 md:h-12 rounded-xl overflow-hidden shadow-lg ring-1 ring-white/10">
+        <img 
+          src={imageUrl} 
+          alt="" 
+          className="w-full h-full object-cover"
+          onError={(e) => {
+            // Fallback to emoji if image fails
+            e.currentTarget.style.display = 'none';
+            e.currentTarget.nextElementSibling?.classList.remove('hidden');
+          }}
+        />
+        <div className={`hidden w-full h-full bg-gradient-to-br ${bg} flex items-center justify-center`}>
+          <span className="text-lg md:text-xl">{emoji}</span>
+        </div>
+        <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-card border border-border/50 flex items-center justify-center shadow-sm">
+          <Icon className="w-3 h-3 text-muted-foreground" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`relative flex-shrink-0 w-10 h-10 md:w-12 md:h-12 rounded-xl bg-gradient-to-br ${bg} flex items-center justify-center shadow-lg ring-1 ring-white/10`}>
@@ -485,7 +509,7 @@ const PredictionCard = ({ prediction, index, livePrice, climateData }: Predictio
 
           {/* Topic Image/Icon - Polymarket style */}
           <div className="flex items-start gap-3 mb-2">
-            <TopicImage question={prediction.question} category={prediction.category} />
+            <TopicImage question={prediction.question} category={prediction.category} imageUrl={prediction.image} />
             <div className="flex-1 min-w-0">
               {/* Sports Team Logos */}
               {sportsScore && (sportsScore.homeLogo || sportsScore.awayLogo) && (
