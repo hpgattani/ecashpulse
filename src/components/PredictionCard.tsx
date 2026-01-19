@@ -4,7 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { 
   TrendingUp, TrendingDown, Clock, Users, Zap, Share2, Check, CheckCircle2, Thermometer,
-  Globe, Landmark, Trophy, Bitcoin, DollarSign, Globe2, BarChart3, Cpu, Theater, Map, Leaf, Vote, Film
+  Globe, Landmark, Trophy, Bitcoin, DollarSign, Globe2, BarChart3, Cpu, Theater, Map, Leaf, Vote, Film,
+  Gavel, Flag, Coins, CircleDollarSign, Scale, Building2, Briefcase, Rocket, Gamepad2, Music2, Tv, Award
 } from "lucide-react";
 import BetModal from "./BetModal";
 import { Outcome } from "@/hooks/usePredictions";
@@ -47,6 +48,135 @@ interface PredictionCardProps {
   livePrice?: { price: number | null; symbol: string } | null;
   climateData?: ClimateData | null;
 }
+
+// Topic image component that detects relevant icons based on keywords
+const TopicImage = ({ question, category }: { question: string; category: string }) => {
+  const q = question.toLowerCase();
+  
+  // Keyword-based icon detection (like Polymarket)
+  const getTopicIcon = () => {
+    // Politics/Elections keywords
+    if (q.includes('trump') || q.includes('biden') || q.includes('president') || q.includes('election')) {
+      return { Icon: Landmark, bg: 'from-blue-500 to-red-500', emoji: '🇺🇸' };
+    }
+    if (q.includes('supreme court') || q.includes('tariff') || q.includes('court')) {
+      return { Icon: Gavel, bg: 'from-slate-600 to-slate-800', emoji: '⚖️' };
+    }
+    if (q.includes('iran') || q.includes('israel') || q.includes('war') || q.includes('military') || q.includes('strike')) {
+      return { Icon: Globe2, bg: 'from-amber-600 to-red-700', emoji: '🌍' };
+    }
+    if (q.includes('greenland') || q.includes('acquire') || q.includes('territory')) {
+      return { Icon: Map, bg: 'from-cyan-400 to-blue-600', emoji: '🗺️' };
+    }
+    if (q.includes('portugal') || q.includes('brazil') || q.includes('uk') || q.includes('germany') || q.includes('france')) {
+      return { Icon: Flag, bg: 'from-green-500 to-red-500', emoji: '🏛️' };
+    }
+    
+    // Crypto keywords
+    if (q.includes('bitcoin') || q.includes('btc')) {
+      return { Icon: Bitcoin, bg: 'from-orange-400 to-amber-600', emoji: '₿' };
+    }
+    if (q.includes('ethereum') || q.includes('eth')) {
+      return { Icon: Coins, bg: 'from-indigo-400 to-purple-600', emoji: '⟠' };
+    }
+    if (q.includes('solana') || q.includes('sol')) {
+      return { Icon: Coins, bg: 'from-purple-400 to-cyan-400', emoji: '◎' };
+    }
+    if (q.includes('xec') || q.includes('ecash')) {
+      return { Icon: CircleDollarSign, bg: 'from-blue-500 to-cyan-500', emoji: '💎' };
+    }
+    if (q.includes('crypto') || q.includes('token') || q.includes('coin')) {
+      return { Icon: Coins, bg: 'from-yellow-500 to-orange-500', emoji: '🪙' };
+    }
+    
+    // Sports keywords
+    if (q.includes('super bowl') || q.includes('nfl') || q.includes('football')) {
+      return { Icon: Trophy, bg: 'from-amber-500 to-yellow-600', emoji: '🏈' };
+    }
+    if (q.includes('nba') || q.includes('basketball') || q.includes('lakers') || q.includes('raptors')) {
+      return { Icon: Trophy, bg: 'from-orange-500 to-red-500', emoji: '🏀' };
+    }
+    if (q.includes('soccer') || q.includes('premier league') || q.includes('champions league')) {
+      return { Icon: Trophy, bg: 'from-green-500 to-emerald-600', emoji: '⚽' };
+    }
+    if (q.includes('tennis') || q.includes('wimbledon') || q.includes('serena')) {
+      return { Icon: Trophy, bg: 'from-lime-400 to-green-500', emoji: '🎾' };
+    }
+    if (q.includes('ufc') || q.includes('mma') || q.includes('fight')) {
+      return { Icon: Award, bg: 'from-red-600 to-black', emoji: '🥊' };
+    }
+    
+    // Entertainment keywords
+    if (q.includes('oscar') || q.includes('academy award') || q.includes('movie')) {
+      return { Icon: Film, bg: 'from-yellow-400 to-amber-500', emoji: '🎬' };
+    }
+    if (q.includes('grammy') || q.includes('music') || q.includes('album')) {
+      return { Icon: Music2, bg: 'from-pink-500 to-purple-600', emoji: '🎵' };
+    }
+    if (q.includes('game') || q.includes('gaming') || q.includes('esport')) {
+      return { Icon: Gamepad2, bg: 'from-purple-500 to-indigo-600', emoji: '🎮' };
+    }
+    if (q.includes('show') || q.includes('series') || q.includes('emmy')) {
+      return { Icon: Tv, bg: 'from-blue-500 to-indigo-600', emoji: '📺' };
+    }
+    
+    // Tech keywords
+    if (q.includes('ai') || q.includes('artificial intelligence') || q.includes('openai') || q.includes('gpt')) {
+      return { Icon: Cpu, bg: 'from-cyan-400 to-blue-600', emoji: '🤖' };
+    }
+    if (q.includes('spacex') || q.includes('rocket') || q.includes('mars') || q.includes('launch')) {
+      return { Icon: Rocket, bg: 'from-gray-600 to-slate-800', emoji: '🚀' };
+    }
+    if (q.includes('apple') || q.includes('google') || q.includes('microsoft') || q.includes('meta')) {
+      return { Icon: Building2, bg: 'from-gray-500 to-gray-700', emoji: '🏢' };
+    }
+    
+    // Economics/Finance keywords
+    if (q.includes('fed') || q.includes('interest rate') || q.includes('federal reserve')) {
+      return { Icon: Landmark, bg: 'from-emerald-500 to-green-700', emoji: '🏦' };
+    }
+    if (q.includes('stock') || q.includes('market') || q.includes('earnings') || q.includes('s&p')) {
+      return { Icon: BarChart3, bg: 'from-green-500 to-emerald-600', emoji: '📈' };
+    }
+    if (q.includes('company') || q.includes('ceo') || q.includes('merger')) {
+      return { Icon: Briefcase, bg: 'from-blue-600 to-indigo-700', emoji: '💼' };
+    }
+    
+    // Climate keywords
+    if (q.includes('climate') || q.includes('temperature') || q.includes('weather')) {
+      return { Icon: Leaf, bg: 'from-green-400 to-emerald-600', emoji: '🌡️' };
+    }
+    
+    // Default by category
+    const categoryDefaults: Record<string, { Icon: React.ComponentType<{ className?: string }>, bg: string, emoji: string }> = {
+      crypto: { Icon: Bitcoin, bg: 'from-orange-400 to-amber-600', emoji: '🪙' },
+      politics: { Icon: Landmark, bg: 'from-slate-500 to-slate-700', emoji: '🏛️' },
+      sports: { Icon: Trophy, bg: 'from-amber-400 to-yellow-600', emoji: '🏆' },
+      tech: { Icon: Cpu, bg: 'from-cyan-400 to-blue-600', emoji: '💻' },
+      entertainment: { Icon: Film, bg: 'from-pink-400 to-rose-600', emoji: '🎭' },
+      economics: { Icon: TrendingUp, bg: 'from-green-400 to-emerald-600', emoji: '📊' },
+      elections: { Icon: Vote, bg: 'from-indigo-400 to-blue-600', emoji: '🗳️' },
+      finance: { Icon: DollarSign, bg: 'from-emerald-400 to-green-600', emoji: '💵' },
+      geopolitics: { Icon: Globe2, bg: 'from-amber-500 to-orange-600', emoji: '🌐' },
+      earnings: { Icon: BarChart3, bg: 'from-violet-400 to-purple-600', emoji: '📈' },
+      world: { Icon: Globe, bg: 'from-teal-400 to-cyan-600', emoji: '🌍' },
+      climate: { Icon: Leaf, bg: 'from-green-400 to-emerald-600', emoji: '🌿' },
+    };
+    
+    return categoryDefaults[category] || { Icon: Globe, bg: 'from-blue-400 to-sky-600', emoji: '📌' };
+  };
+
+  const { Icon, bg, emoji } = getTopicIcon();
+
+  return (
+    <div className={`relative flex-shrink-0 w-10 h-10 md:w-12 md:h-12 rounded-xl bg-gradient-to-br ${bg} flex items-center justify-center shadow-lg ring-1 ring-white/10`}>
+      <span className="text-lg md:text-xl">{emoji}</span>
+      <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-card border border-border/50 flex items-center justify-center shadow-sm">
+        <Icon className="w-3 h-3 text-muted-foreground" />
+      </div>
+    </div>
+  );
+};
 
 const PredictionCard = ({ prediction, index, livePrice, climateData }: PredictionCardProps) => {
   const navigate = useNavigate();
@@ -353,38 +483,44 @@ const PredictionCard = ({ prediction, index, livePrice, climateData }: Predictio
             </div>
           </div>
 
-          {/* Sports Team Logos */}
-          {sportsScore && (sportsScore.homeLogo || sportsScore.awayLogo) && (
-            <div className="flex items-center justify-center gap-4 mb-3 py-2 px-3 rounded-lg bg-muted/30">
-              <div className="flex items-center gap-2">
-                {sportsScore.homeLogo && (
-                  <img 
-                    src={sportsScore.homeLogo} 
-                    alt={sportsScore.homeTeam} 
-                    className="w-8 h-8 object-contain"
-                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                  />
-                )}
-                <span className="text-sm font-medium text-foreground">{sportsScore.homeTeam}</span>
-              </div>
-              <span className="text-xs text-muted-foreground font-medium">vs</span>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-foreground">{sportsScore.awayTeam}</span>
-                {sportsScore.awayLogo && (
-                  <img 
-                    src={sportsScore.awayLogo} 
-                    alt={sportsScore.awayTeam} 
-                    className="w-8 h-8 object-contain"
-                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                  />
-                )}
-              </div>
-            </div>
-          )}
+          {/* Topic Image/Icon - Polymarket style */}
+          <div className="flex items-start gap-3 mb-2">
+            <TopicImage question={prediction.question} category={prediction.category} />
+            <div className="flex-1 min-w-0">
+              {/* Sports Team Logos */}
+              {sportsScore && (sportsScore.homeLogo || sportsScore.awayLogo) && (
+                <div className="flex items-center gap-3 mb-2 py-1.5 px-2 rounded-lg bg-muted/30 w-fit">
+                  <div className="flex items-center gap-1.5">
+                    {sportsScore.homeLogo && (
+                      <img 
+                        src={sportsScore.homeLogo} 
+                        alt={sportsScore.homeTeam} 
+                        className="w-5 h-5 object-contain"
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      />
+                    )}
+                    <span className="text-xs font-medium text-foreground">{sportsScore.homeTeam}</span>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground font-medium">vs</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-medium text-foreground">{sportsScore.awayTeam}</span>
+                    {sportsScore.awayLogo && (
+                      <img 
+                        src={sportsScore.awayLogo} 
+                        alt={sportsScore.awayTeam} 
+                        className="w-5 h-5 object-contain"
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
 
-          <h3 className="font-display font-semibold text-foreground text-base md:text-lg leading-snug group-hover:text-primary transition-colors pr-12">
-            {translateTitle(prediction.question)}
-          </h3>
+              <h3 className="font-display font-semibold text-foreground text-base md:text-lg leading-snug group-hover:text-primary transition-colors pr-12">
+                {translateTitle(prediction.question)}
+              </h3>
+            </div>
+          </div>
         </div>
 
         {/* Odds Display */}
