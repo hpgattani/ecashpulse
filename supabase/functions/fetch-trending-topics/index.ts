@@ -290,7 +290,7 @@ function detectCategory(question: string): string {
 }
 
 // Fetch markets from Polymarket Gamma API
-async function fetchPolymarketData(): Promise<Array<{ title: string; description: string; category: string; endDate?: string; yesOdds?: number; noOdds?: number }>> {
+async function fetchPolymarketData(): Promise<Array<{ title: string; description: string; category: string; endDate?: string; yesOdds?: number; noOdds?: number; imageUrl?: string }>> {
   try {
     const response = await fetch('https://gamma-api.polymarket.com/markets?limit=50&active=true', {
       headers: { 'Accept': 'application/json' }
@@ -302,7 +302,7 @@ async function fetchPolymarketData(): Promise<Array<{ title: string; description
     }
 
     const data = await response.json();
-    const markets: Array<{ title: string; description: string; category: string; endDate?: string; yesOdds?: number; noOdds?: number }> = [];
+    const markets: Array<{ title: string; description: string; category: string; endDate?: string; yesOdds?: number; noOdds?: number; imageUrl?: string }> = [];
 
     const marketList = Array.isArray(data) ? data : (data.markets || data.data || []);
 
@@ -343,13 +343,17 @@ async function fetchPolymarketData(): Promise<Array<{ title: string; description
         }
       }
 
+      // Capture image URL from Polymarket (they use 'image' or 'icon' fields)
+      const imageUrl = market.image || market.icon || market.imageUrl || market.thumbnail || undefined;
+
       markets.push({
         title: question.slice(0, 200),
         description: (market.description || `Polymarket: ${question}`).slice(0, 500),
         category,
         endDate,
         yesOdds,
-        noOdds
+        noOdds,
+        imageUrl: imageUrl ? String(imageUrl).slice(0, 500) : undefined
       });
     }
 
@@ -609,7 +613,7 @@ async function syncPredictions(supabase: any): Promise<{ created: number; resolv
       continue;
     }
 
-    const marketWithOdds = market as { yesOdds?: number; noOdds?: number };
+    const marketWithOdds = market as { yesOdds?: number; noOdds?: number; imageUrl?: string };
     const yesPool = marketWithOdds.yesOdds ? marketWithOdds.yesOdds * 100 : 0;
     const noPool = marketWithOdds.noOdds ? marketWithOdds.noOdds * 100 : 0;
 
@@ -622,6 +626,7 @@ async function syncPredictions(supabase: any): Promise<{ created: number; resolv
       status: 'active',
       yes_pool: yesPool,
       no_pool: noPool,
+      image_url: marketWithOdds.imageUrl || null,
     };
 
     const { error } = await supabase.from('predictions').insert(newPrediction);
