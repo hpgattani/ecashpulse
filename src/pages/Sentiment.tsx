@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
-  EyeOff, 
+  MessageCircleHeart,
   Plus, 
   ThumbsUp, 
   ThumbsDown, 
@@ -115,8 +115,8 @@ const Sentiment = () => {
           <section className="px-4 mb-12">
             <div className="max-w-4xl mx-auto text-center">
               <div>
-                <Badge variant="outline" className="mb-4 px-4 py-1.5 border-primary/30 bg-primary/5">
-                  <EyeOff className="w-3.5 h-3.5 mr-1.5" />
+              <Badge variant="outline" className="mb-4 px-4 py-1.5 border-primary/30 bg-primary/5">
+                  <MessageCircleHeart className="w-3.5 h-3.5 mr-1.5" />
                   100% Anonymous
                 </Badge>
                 
@@ -208,7 +208,7 @@ const Sentiment = () => {
               ) : topics.length === 0 ? (
                 <Card className="border-dashed">
                   <CardContent className="py-12 text-center">
-                    <EyeOff className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <MessageCircleHeart className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                     <h3 className="font-semibold text-foreground mb-2">No Active Topics</h3>
                     <p className="text-muted-foreground mb-4">Be the first to create a sentiment topic!</p>
                     <Button onClick={() => setIsCreateOpen(true)}>
@@ -302,7 +302,7 @@ const Sentiment = () => {
               <Card className="bg-gradient-to-br from-primary/5 to-accent/5 border-primary/20">
                 <CardContent className="py-8">
                   <div className="text-center mb-6">
-                    <EyeOff className="w-10 h-10 text-primary mx-auto mb-3" />
+                    <MessageCircleHeart className="w-10 h-10 text-primary mx-auto mb-3" />
                     <h3 className="font-display font-bold text-xl text-foreground mb-2">
                       How Anonymity Works
                     </h3>
