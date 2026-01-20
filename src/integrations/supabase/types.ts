@@ -123,6 +123,178 @@ export type Database = {
           },
         ]
       }
+      game_leaderboards: {
+        Row: {
+          created_at: string
+          game_id: string
+          id: string
+          resolved_at: string | null
+          status: string
+          total_pot: number
+          week_number: number
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          game_id: string
+          id?: string
+          resolved_at?: string | null
+          status?: string
+          total_pot?: number
+          week_number: number
+          year: number
+        }
+        Update: {
+          created_at?: string
+          game_id?: string
+          id?: string
+          resolved_at?: string | null
+          status?: string
+          total_pot?: number
+          week_number?: number
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_leaderboards_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "mini_games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      game_sessions: {
+        Row: {
+          created_at: string
+          ended_at: string | null
+          entry_fee: number
+          game_id: string
+          id: string
+          is_competitive: boolean
+          player_address_hash: string
+          score: number
+          tx_hash: string | null
+          user_id: string | null
+          week_number: number
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          ended_at?: string | null
+          entry_fee: number
+          game_id: string
+          id?: string
+          is_competitive?: boolean
+          player_address_hash: string
+          score?: number
+          tx_hash?: string | null
+          user_id?: string | null
+          week_number: number
+          year: number
+        }
+        Update: {
+          created_at?: string
+          ended_at?: string | null
+          entry_fee?: number
+          game_id?: string
+          id?: string
+          is_competitive?: boolean
+          player_address_hash?: string
+          score?: number
+          tx_hash?: string | null
+          user_id?: string | null
+          week_number?: number
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_sessions_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "mini_games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "game_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      game_winners: {
+        Row: {
+          created_at: string
+          id: string
+          leaderboard_id: string
+          payout_tx_hash: string | null
+          player_address_hash: string
+          prize_amount: number
+          rank: number
+          score: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          leaderboard_id: string
+          payout_tx_hash?: string | null
+          player_address_hash: string
+          prize_amount: number
+          rank: number
+          score: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          leaderboard_id?: string
+          payout_tx_hash?: string | null
+          player_address_hash?: string
+          prize_amount?: number
+          rank?: number
+          score?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_winners_leaderboard_id_fkey"
+            columns: ["leaderboard_id"]
+            isOneToOne: false
+            referencedRelation: "game_leaderboards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mini_games: {
+        Row: {
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          is_active: boolean
+          name: string
+          slug: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          slug: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          slug?: string
+        }
+        Relationships: []
+      }
       outcomes: {
         Row: {
           created_at: string
