@@ -15,20 +15,6 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { getKnownScore } from "@/hooks/useSportsScores";
 import { triggerHaptic } from "@/hooks/useHaptic";
 
-// Category images
-import cryptoImg from "@/assets/categories/crypto.jpg";
-import politicsImg from "@/assets/categories/politics.jpg";
-import sportsImg from "@/assets/categories/sports.jpg";
-import techImg from "@/assets/categories/tech.jpg";
-import entertainmentImg from "@/assets/categories/entertainment.jpg";
-import economicsImg from "@/assets/categories/economics.jpg";
-import electionsImg from "@/assets/categories/elections.jpg";
-import financeImg from "@/assets/categories/finance.jpg";
-import geopoliticsImg from "@/assets/categories/geopolitics.jpg";
-import earningsImg from "@/assets/categories/earnings.jpg";
-import worldImg from "@/assets/categories/world.jpg";
-import climateImg from "@/assets/categories/climate.jpg";
-
 interface Prediction {
   id: string;
   question: string;
@@ -62,39 +48,22 @@ interface PredictionCardProps {
   climateData?: ClimateData | null;
 }
 
-// Topic image component using real category images
-const TopicImage = ({ question, category, imageUrl }: { question: string; category: string; imageUrl?: string }) => {
-  // Category image mapping
-  const categoryImages: Record<string, string> = {
-    crypto: cryptoImg,
-    politics: politicsImg,
-    sports: sportsImg,
-    tech: techImg,
-    entertainment: entertainmentImg,
-    economics: economicsImg,
-    elections: electionsImg,
-    finance: financeImg,
-    geopolitics: geopoliticsImg,
-    earnings: earningsImg,
-    world: worldImg,
-    climate: climateImg,
-  };
-
-  // Use Polymarket image if available, otherwise use category image
-  const imageSrc = imageUrl || categoryImages[category] || categoryImages.world;
+// Topic image component - only renders if real image URL exists (from Polymarket)
+const TopicImage = ({ imageUrl }: { imageUrl?: string }) => {
+  const [hasError, setHasError] = useState(false);
+  
+  // Only render if we have a real image URL
+  if (!imageUrl || hasError) {
+    return null;
+  }
 
   return (
     <div className="relative flex-shrink-0 w-10 h-10 md:w-12 md:h-12 rounded-xl overflow-hidden shadow-lg ring-1 ring-white/10">
       <img 
-        src={imageSrc} 
+        src={imageUrl} 
         alt="" 
         className="w-full h-full object-cover"
-        onError={(e) => {
-          // Fallback to category image if external URL fails
-          if (imageUrl && categoryImages[category]) {
-            e.currentTarget.src = categoryImages[category];
-          }
-        }}
+        onError={() => setHasError(true)}
       />
     </div>
   );
@@ -405,9 +374,9 @@ const PredictionCard = ({ prediction, index, livePrice, climateData }: Predictio
             </div>
           </div>
 
-          {/* Topic Image/Icon - Polymarket style */}
+          {/* Topic Image - only shows if Polymarket image exists */}
           <div className="flex items-start gap-3 mb-2">
-            <TopicImage question={prediction.question} category={prediction.category} imageUrl={prediction.image} />
+            <TopicImage imageUrl={prediction.image} />
             <div className="flex-1 min-w-0">
               {/* Sports Team Logos */}
               {sportsScore && (sportsScore.homeLogo || sportsScore.awayLogo) && (
