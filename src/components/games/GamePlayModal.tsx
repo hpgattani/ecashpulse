@@ -11,7 +11,7 @@ import LumberjackGame from "./LumberjackGame";
 import SpaceShooterGame from "./SpaceShooterGame";
 
 /* ------------------------------------------------------------------ */
-/* Constants */
+/* CONSTANTS */
 /* ------------------------------------------------------------------ */
 
 const ESCROW_ADDRESS = "ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp";
@@ -36,7 +36,7 @@ interface Props {
 }
 
 /* ------------------------------------------------------------------ */
-/* Component */
+/* COMPONENT */
 /* ------------------------------------------------------------------ */
 
 export default function GamePlayModal({ game, mode, isOpen, onClose }: Props) {
@@ -49,7 +49,29 @@ export default function GamePlayModal({ game, mode, isOpen, onClose }: Props) {
   const payButtonRef = useRef<HTMLDivElement>(null);
 
   /* ------------------------------------------------------------------ */
-  /* Entry Fee Calculation */
+  /* LOCK BODY SCROLL (PREVENT MOBILE JUMP) */
+  /* ------------------------------------------------------------------ */
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+      document.body.style.position = "fixed";
+      document.body.style.width = "100%";
+    } else {
+      document.body.style.overflow = "";
+      document.body.style.position = "";
+      document.body.style.width = "";
+    }
+
+    return () => {
+      document.body.style.overflow = "";
+      document.body.style.position = "";
+      document.body.style.width = "";
+    };
+  }, [isOpen]);
+
+  /* ------------------------------------------------------------------ */
+  /* ENTRY FEE */
   /* ------------------------------------------------------------------ */
 
   useEffect(() => {
@@ -74,7 +96,7 @@ export default function GamePlayModal({ game, mode, isOpen, onClose }: Props) {
   }, [isOpen, mode, prices?.ecash]);
 
   /* ------------------------------------------------------------------ */
-  /* PayButton Rendering */
+  /* PAYBUTTON */
   /* ------------------------------------------------------------------ */
 
   const renderPayButton = useCallback(() => {
@@ -88,7 +110,7 @@ export default function GamePlayModal({ game, mode, isOpen, onClose }: Props) {
 
     (window as any).PayButton.render(container, {
       to: ESCROW_ADDRESS,
-      amount: entryFeeXec, // ✅ EXACT DECIMAL
+      amount: entryFeeXec, // ✅ EXACT 5.46
       currency: "XEC",
       text: `Pay ${entryFeeXec} XEC`,
       hoverText: "Confirm",
@@ -102,7 +124,7 @@ export default function GamePlayModal({ game, mode, isOpen, onClose }: Props) {
           tertiary: "#ffffff",
         },
       },
-      onSuccess: (tx: any) => {
+      onSuccess: () => {
         toast.custom(
           () => (
             <div className="flex items-center gap-3 px-6 py-4 rounded-2xl bg-emerald-500 text-white shadow-xl">
@@ -118,8 +140,7 @@ export default function GamePlayModal({ game, mode, isOpen, onClose }: Props) {
 
         setStep("playing");
       },
-      onError: (err: any) => {
-        console.error("PayButton error:", err);
+      onError: () => {
         toast.error("Payment failed. Please try again.");
       },
     });
@@ -144,7 +165,7 @@ export default function GamePlayModal({ game, mode, isOpen, onClose }: Props) {
   }, [isOpen, step, entryFeeXec, renderPayButton]);
 
   /* ------------------------------------------------------------------ */
-  /* Game Logic */
+  /* GAME */
   /* ------------------------------------------------------------------ */
 
   const handleGameEnd = async (score: number) => {
@@ -192,7 +213,18 @@ export default function GamePlayModal({ game, mode, isOpen, onClose }: Props) {
 
   return (
     <Dialog open={isOpen} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        className="
+          fixed
+          left-1/2
+          top-1/2
+          -translate-x-1/2
+          -translate-y-1/2
+          sm:max-w-lg
+          max-h-[90vh]
+          overflow-y-auto
+        "
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             <span className="text-3xl">{game.icon}</span>
@@ -222,8 +254,9 @@ export default function GamePlayModal({ game, mode, isOpen, onClose }: Props) {
               <div className="text-3xl font-bold mt-4">{entryFeeXec} XEC</div>
             </div>
 
+            {/* RESERVED SPACE — NO SHIFT */}
             <div className="flex justify-center">
-              <div ref={payButtonRef} />
+              <div ref={payButtonRef} className="min-h-[56px] w-full flex justify-center" />
             </div>
           </div>
         )}
