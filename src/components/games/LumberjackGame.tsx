@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useTouchSwipe, SwipeDirection } from "@/hooks/useTouchSwipe";
 
 interface LumberjackGameProps {
   onGameEnd: (score: number) => void;
@@ -101,8 +102,25 @@ const LumberjackGame = ({ onGameEnd, isPlaying }: LumberjackGameProps) => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isPlaying, gameOver, chop]);
 
+  // Touch swipe controls
+  const handleSwipe = useCallback((swipeDir: SwipeDirection) => {
+    if (swipeDir === "left") {
+      chop("left");
+    } else if (swipeDir === "right") {
+      chop("right");
+    }
+  }, [chop]);
+
+  const touchHandlers = useTouchSwipe({
+    onSwipe: handleSwipe,
+    threshold: 20,
+  });
+
   return (
-    <div className="flex flex-col items-center justify-center h-full bg-gradient-to-b from-sky-400 to-sky-600 p-4">
+    <div 
+      className="flex flex-col items-center justify-center h-full bg-gradient-to-b from-sky-400 to-sky-600 p-4 touch-none"
+      {...touchHandlers}
+    >
       {/* Timer bar */}
       <div className="w-48 h-4 bg-gray-800 rounded-full mb-4 overflow-hidden">
         <div
@@ -115,6 +133,9 @@ const LumberjackGame = ({ onGameEnd, isPlaying }: LumberjackGameProps) => {
       </div>
 
       <div className="text-white text-2xl mb-4 font-bold">Score: {score}</div>
+      
+      {/* Swipe hint for mobile */}
+      <p className="text-xs text-white/70 mb-2 md:hidden">Swipe left/right to chop!</p>
 
       {/* Tree */}
       <div className="relative flex flex-col items-center">
@@ -164,14 +185,16 @@ const LumberjackGame = ({ onGameEnd, isPlaying }: LumberjackGameProps) => {
       {/* Controls */}
       <div className="flex gap-8 mt-6">
         <button
+          onTouchStart={() => chop("left")}
           onClick={() => chop("left")}
-          className="w-20 h-20 bg-primary/80 rounded-xl text-3xl active:scale-95 transition-transform"
+          className="w-20 h-20 bg-primary/80 active:bg-primary rounded-xl text-3xl active:scale-95 transition-all"
         >
           ←
         </button>
         <button
+          onTouchStart={() => chop("right")}
           onClick={() => chop("right")}
-          className="w-20 h-20 bg-primary/80 rounded-xl text-3xl active:scale-95 transition-transform"
+          className="w-20 h-20 bg-primary/80 active:bg-primary rounded-xl text-3xl active:scale-95 transition-all"
         >
           →
         </button>

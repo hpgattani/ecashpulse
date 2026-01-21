@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useTouchSwipe, SwipeDirection } from "@/hooks/useTouchSwipe";
 
 interface TetrisGameProps {
   onGameEnd: (score: number) => void;
@@ -199,6 +200,62 @@ const TetrisGame = ({ onGameEnd, isPlaying }: TetrisGameProps) => {
     };
   }, [isPlaying, gameOver, currentPiece, position, board, canMove, placePiece]);
 
+  // Touch swipe controls
+  const handleSwipe = useCallback((swipeDir: SwipeDirection) => {
+    if (!isPlaying || gameOver || !currentPiece) return;
+
+    switch (swipeDir) {
+      case "left":
+        if (canMove(currentPiece.shape, { x: position.x - 1, y: position.y }, board)) {
+          setPosition(p => ({ ...p, x: p.x - 1 }));
+        }
+        break;
+      case "right":
+        if (canMove(currentPiece.shape, { x: position.x + 1, y: position.y }, board)) {
+          setPosition(p => ({ ...p, x: p.x + 1 }));
+        }
+        break;
+      case "down":
+        // Soft drop
+        if (canMove(currentPiece.shape, { x: position.x, y: position.y + 1 }, board)) {
+          setPosition(p => ({ ...p, y: p.y + 1 }));
+        }
+        break;
+      case "up":
+        // Rotate
+        const rotated = rotatePiece(currentPiece.shape);
+        if (canMove(rotated, position, board)) {
+          setCurrentPiece({ ...currentPiece, shape: rotated });
+        }
+        break;
+    }
+  }, [isPlaying, gameOver, currentPiece, position, board, canMove, rotatePiece]);
+
+  const handleTap = useCallback(() => {
+    if (!isPlaying || gameOver || !currentPiece) return;
+    // Tap to rotate
+    const rotated = rotatePiece(currentPiece.shape);
+    if (canMove(rotated, position, board)) {
+      setCurrentPiece({ ...currentPiece, shape: rotated });
+    }
+  }, [isPlaying, gameOver, currentPiece, position, board, canMove, rotatePiece]);
+
+  const touchHandlers = useTouchSwipe({
+    onSwipe: handleSwipe,
+    onTap: handleTap,
+    threshold: 25,
+  });
+
+  // Button controls for mobile
+  const handleHardDrop = () => {
+    if (!currentPiece) return;
+    let newY = position.y;
+    while (canMove(currentPiece.shape, { x: position.x, y: newY + 1 }, board)) {
+      newY++;
+    }
+    setPosition(p => ({ ...p, y: newY }));
+  };
+
   const renderBoard = () => {
     const displayBoard = board.map(row => [...row]) as Board;
     
@@ -223,13 +280,17 @@ const TetrisGame = ({ onGameEnd, isPlaying }: TetrisGameProps) => {
     <div className="flex flex-col items-center justify-center h-full bg-gray-900 p-4">
       <div className="text-white text-xl mb-4 font-bold">Score: {score}</div>
       
+      {/* Swipe hint for mobile */}
+      <p className="text-xs text-primary/70 mb-2 md:hidden">Swipe to move • Tap to rotate</p>
+      
       <div
-        className="border-2 border-primary"
+        className="border-2 border-primary touch-none"
         style={{
           display: "grid",
           gridTemplateColumns: `repeat(${BOARD_WIDTH}, ${CELL_SIZE}px)`,
           backgroundColor: "#1a1a2e",
         }}
+        {...touchHandlers}
       >
         {renderBoard().flatMap((row, y) =>
           row.map((cell, x) => (
@@ -246,7 +307,35 @@ const TetrisGame = ({ onGameEnd, isPlaying }: TetrisGameProps) => {
         )}
       </div>
 
-      <p className="text-xs text-muted-foreground mt-4">
+      {/* Mobile button controls */}
+      <div className="flex gap-3 mt-4 md:hidden">
+        <button
+          onTouchStart={() => currentPiece && canMove(currentPiece.shape, { x: position.x - 1, y: position.y }, board) && setPosition(p => ({ ...p, x: p.x - 1 }))}
+          className="w-14 h-14 bg-primary/30 active:bg-primary/50 rounded-lg flex items-center justify-center text-2xl transition-colors"
+        >
+          ←
+        </button>
+        <button
+          onTouchStart={handleTap}
+          className="w-14 h-14 bg-purple-500/30 active:bg-purple-500/50 rounded-lg flex items-center justify-center text-2xl transition-colors"
+        >
+          ↻
+        </button>
+        <button
+          onTouchStart={handleHardDrop}
+          className="w-14 h-14 bg-yellow-500/30 active:bg-yellow-500/50 rounded-lg flex items-center justify-center text-xl transition-colors"
+        >
+          ⬇
+        </button>
+        <button
+          onTouchStart={() => currentPiece && canMove(currentPiece.shape, { x: position.x + 1, y: position.y }, board) && setPosition(p => ({ ...p, x: p.x + 1 }))}
+          className="w-14 h-14 bg-primary/30 active:bg-primary/50 rounded-lg flex items-center justify-center text-2xl transition-colors"
+        >
+          →
+        </button>
+      </div>
+
+      <p className="text-xs text-muted-foreground mt-4 hidden md:block">
         ←→ Move | ↑ Rotate | ↓ Soft drop | Space: Hard drop
       </p>
     </div>

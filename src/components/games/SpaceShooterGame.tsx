@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useTouchSwipe, SwipeDirection } from "@/hooks/useTouchSwipe";
 
 interface SpaceShooterGameProps {
   onGameEnd: (score: number) => void;
@@ -129,31 +130,45 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
     };
   }, [isPlaying, gameOver, score, onGameEnd]);
 
-  const handleTouch = (e: React.TouchEvent) => {
-    const touch = e.touches[0];
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = touch.clientX - rect.left;
-    
-    if (x < GAME_WIDTH / 2) {
-      setPlayerX((px) => Math.max(PLAYER_SIZE / 2, px - 20));
-    } else {
-      setPlayerX((px) => Math.min(GAME_WIDTH - PLAYER_SIZE / 2, px + 20));
+  // Touch swipe controls
+  const handleSwipe = useCallback((swipeDir: SwipeDirection) => {
+    if (!isPlaying || gameOver) return;
+
+    if (swipeDir === "left") {
+      setPlayerX((x) => Math.max(PLAYER_SIZE / 2, x - 30));
+    } else if (swipeDir === "right") {
+      setPlayerX((x) => Math.min(GAME_WIDTH - PLAYER_SIZE / 2, x + 30));
+    } else if (swipeDir === "up") {
+      shoot();
     }
+  }, [isPlaying, gameOver, shoot]);
+
+  const handleTap = useCallback(() => {
+    if (!isPlaying || gameOver) return;
     shoot();
-  };
+  }, [isPlaying, gameOver, shoot]);
+
+  const touchHandlers = useTouchSwipe({
+    onSwipe: handleSwipe,
+    onTap: handleTap,
+    threshold: 20,
+  });
 
   return (
     <div className="flex flex-col items-center justify-center h-full bg-gray-900 p-4">
       <div className="text-white text-xl mb-4 font-bold">Score: {score}</div>
+      
+      {/* Swipe hint for mobile */}
+      <p className="text-xs text-primary/70 mb-2 md:hidden">Swipe to move • Tap to shoot</p>
 
       <div
-        className="relative border-2 border-primary overflow-hidden"
+        className="relative border-2 border-primary overflow-hidden touch-none"
         style={{
           width: GAME_WIDTH,
           height: GAME_HEIGHT,
           background: "linear-gradient(to bottom, #0f0c29, #302b63, #24243e)",
         }}
-        onTouchStart={handleTouch}
+        {...touchHandlers}
       >
         {/* Stars background */}
         {[...Array(20)].map((_, i) => (
@@ -211,20 +226,20 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
       {/* Mobile controls */}
       <div className="flex gap-4 mt-4 md:hidden">
         <button
-          onTouchStart={() => setPlayerX((x) => Math.max(PLAYER_SIZE / 2, x - 25))}
-          className="w-16 h-16 bg-primary/80 rounded-xl text-2xl"
+          onTouchStart={() => setPlayerX((x) => Math.max(PLAYER_SIZE / 2, x - 30))}
+          className="w-16 h-16 bg-primary/30 active:bg-primary/50 rounded-xl text-2xl transition-colors"
         >
           ←
         </button>
         <button
           onTouchStart={shoot}
-          className="w-16 h-16 bg-red-500/80 rounded-xl text-2xl"
+          className="w-16 h-16 bg-red-500/30 active:bg-red-500/50 rounded-xl text-2xl transition-colors"
         >
           🔥
         </button>
         <button
-          onTouchStart={() => setPlayerX((x) => Math.min(GAME_WIDTH - PLAYER_SIZE / 2, x + 25))}
-          className="w-16 h-16 bg-primary/80 rounded-xl text-2xl"
+          onTouchStart={() => setPlayerX((x) => Math.min(GAME_WIDTH - PLAYER_SIZE / 2, x + 30))}
+          className="w-16 h-16 bg-primary/30 active:bg-primary/50 rounded-xl text-2xl transition-colors"
         >
           →
         </button>
