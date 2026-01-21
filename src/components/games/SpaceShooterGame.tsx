@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useTouchSwipe, SwipeDirection } from "@/hooks/useTouchSwipe";
+import { useHaptic } from "@/hooks/useHaptic";
+import useGameSounds from "@/hooks/useGameSounds";
 
 interface SpaceShooterGameProps {
   onGameEnd: (score: number) => void;
@@ -22,24 +24,40 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
   const [enemies, setEnemies] = useState<Enemy[]>([]);
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
+  const [gameStarted, setGameStarted] = useState(false);
   const gameLoopRef = useRef<number | null>(null);
   const enemyIdRef = useRef(0);
   const lastShotRef = useRef(0);
+  const haptic = useHaptic();
+  const { play } = useGameSounds();
 
   const resetGame = useCallback(() => {
+    if (gameLoopRef.current) {
+      clearInterval(gameLoopRef.current);
+      gameLoopRef.current = null;
+    }
     setPlayerX(GAME_WIDTH / 2);
     setBullets([]);
     setEnemies([]);
     setScore(0);
     setGameOver(false);
+    setGameStarted(true);
     enemyIdRef.current = 0;
   }, []);
 
+  // Reset game when isPlaying changes to true
   useEffect(() => {
-    if (isPlaying && !gameOver) {
+    if (isPlaying && !gameStarted) {
       resetGame();
     }
-  }, [isPlaying]);
+  }, [isPlaying, gameStarted, resetGame]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (gameLoopRef.current) clearInterval(gameLoopRef.current);
+    };
+  }, []);
 
   const shoot = useCallback(() => {
     const now = Date.now();
@@ -47,16 +65,20 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
     lastShotRef.current = now;
     
     setBullets((prev) => [...prev, { x: playerX, y: GAME_HEIGHT - 60 }]);
-  }, [playerX]);
+    haptic.light();
+    play("shoot");
+  }, [playerX, haptic, play]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isPlaying || gameOver) return;
+      if (!isPlaying || gameOver || !gameStarted) return;
 
       if (e.key === "ArrowLeft" || e.key === "a") {
         setPlayerX((x) => Math.max(PLAYER_SIZE / 2, x - 20));
+        haptic.light();
       } else if (e.key === "ArrowRight" || e.key === "d") {
         setPlayerX((x) => Math.min(GAME_WIDTH - PLAYER_SIZE / 2, x + 20));
+        haptic.light();
       } else if (e.key === " " || e.key === "ArrowUp") {
         shoot();
       }
@@ -64,10 +86,10 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isPlaying, gameOver, shoot]);
+  }, [isPlaying, gameOver, gameStarted, shoot, haptic]);
 
   useEffect(() => {
-    if (!isPlaying || gameOver) return;
+    if (!isPlaying || gameOver || !gameStarted) return;
 
     gameLoopRef.current = window.setInterval(() => {
       // Move bullets up
@@ -81,6 +103,8 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
         const reachedBottom = moved.some((e) => e.y > GAME_HEIGHT - 50);
         if (reachedBottom) {
           setGameOver(true);
+          haptic.error();
+          play("gameOver");
           onGameEnd(score);
           return prev;
         }
@@ -101,7 +125,6 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
       // Check collisions
       setBullets((prevBullets) => {
         const remainingBullets: Bullet[] = [];
-        const hitEnemyIds = new Set<number>();
 
         prevBullets.forEach((bullet) => {
           let hit = false;
@@ -111,8 +134,9 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
               const dy = Math.abs(bullet.y - enemy.y);
               if (dx < (BULLET_SIZE + ENEMY_SIZE) / 2 && dy < (BULLET_SIZE + ENEMY_SIZE) / 2) {
                 hit = true;
-                hitEnemyIds.add(enemy.id);
                 setScore((s) => s + 10);
+                haptic.medium();
+                play("hit");
                 return false;
               }
               return true;
@@ -128,31 +152,45 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
     return () => {
       if (gameLoopRef.current) clearInterval(gameLoopRef.current);
     };
-  }, [isPlaying, gameOver, score, onGameEnd]);
+  }, [isPlaying, gameOver, gameStarted, score, onGameEnd, haptic, play]);
 
   // Touch swipe controls
   const handleSwipe = useCallback((swipeDir: SwipeDirection) => {
-    if (!isPlaying || gameOver) return;
+    if (!isPlaying || gameOver || !gameStarted) return;
 
     if (swipeDir === "left") {
       setPlayerX((x) => Math.max(PLAYER_SIZE / 2, x - 30));
+      haptic.light();
     } else if (swipeDir === "right") {
       setPlayerX((x) => Math.min(GAME_WIDTH - PLAYER_SIZE / 2, x + 30));
+      haptic.light();
     } else if (swipeDir === "up") {
       shoot();
     }
-  }, [isPlaying, gameOver, shoot]);
+  }, [isPlaying, gameOver, gameStarted, shoot, haptic]);
 
   const handleTap = useCallback(() => {
-    if (!isPlaying || gameOver) return;
+    if (!isPlaying || gameOver || !gameStarted) return;
     shoot();
-  }, [isPlaying, gameOver, shoot]);
+  }, [isPlaying, gameOver, gameStarted, shoot]);
 
   const touchHandlers = useTouchSwipe({
     onSwipe: handleSwipe,
     onTap: handleTap,
     threshold: 20,
   });
+
+  const handleMoveLeft = () => {
+    if (!gameStarted) return;
+    setPlayerX((x) => Math.max(PLAYER_SIZE / 2, x - 30));
+    haptic.light();
+  };
+
+  const handleMoveRight = () => {
+    if (!gameStarted) return;
+    setPlayerX((x) => Math.min(GAME_WIDTH - PLAYER_SIZE / 2, x + 30));
+    haptic.light();
+  };
 
   return (
     <div className="flex flex-col items-center justify-center h-full bg-gray-900 p-4">
@@ -200,13 +238,13 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
         {bullets.map((bullet, i) => (
           <div
             key={i}
-            className="absolute bg-yellow-400 rounded-full"
+            className="absolute bg-amber-400 rounded-full"
             style={{
               left: bullet.x - BULLET_SIZE / 2,
               top: bullet.y,
               width: BULLET_SIZE,
               height: BULLET_SIZE * 2,
-              boxShadow: "0 0 10px #fbbf24",
+              boxShadow: "0 0 10px hsl(var(--primary))",
             }}
           />
         ))}
@@ -226,19 +264,19 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
       {/* Mobile controls */}
       <div className="flex gap-4 mt-4 md:hidden">
         <button
-          onTouchStart={() => setPlayerX((x) => Math.max(PLAYER_SIZE / 2, x - 30))}
+          onTouchStart={handleMoveLeft}
           className="w-16 h-16 bg-primary/30 active:bg-primary/50 rounded-xl text-2xl transition-colors"
         >
           ←
         </button>
         <button
           onTouchStart={shoot}
-          className="w-16 h-16 bg-red-500/30 active:bg-red-500/50 rounded-xl text-2xl transition-colors"
+          className="w-16 h-16 bg-destructive/30 active:bg-destructive/50 rounded-xl text-2xl transition-colors"
         >
           🔥
         </button>
         <button
-          onTouchStart={() => setPlayerX((x) => Math.min(GAME_WIDTH - PLAYER_SIZE / 2, x + 30))}
+          onTouchStart={handleMoveRight}
           className="w-16 h-16 bg-primary/30 active:bg-primary/50 rounded-xl text-2xl transition-colors"
         >
           →

@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useTouchSwipe, SwipeDirection } from "@/hooks/useTouchSwipe";
+import { useHaptic } from "@/hooks/useHaptic";
+import useGameSounds from "@/hooks/useGameSounds";
 
 interface SnakeGameProps {
   onGameEnd: (score: number) => void;
@@ -20,8 +22,11 @@ const SnakeGame = ({ onGameEnd, isPlaying }: SnakeGameProps) => {
   const [direction, setDirection] = useState<Direction>("RIGHT");
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
+  const [gameStarted, setGameStarted] = useState(false);
   const gameLoopRef = useRef<number | null>(null);
   const directionRef = useRef<Direction>("RIGHT");
+  const haptic = useHaptic();
+  const { play } = useGameSounds();
 
   const generateFood = useCallback((): Position => {
     return {
@@ -31,62 +36,73 @@ const SnakeGame = ({ onGameEnd, isPlaying }: SnakeGameProps) => {
   }, []);
 
   const resetGame = useCallback(() => {
+    if (gameLoopRef.current) {
+      clearInterval(gameLoopRef.current);
+      gameLoopRef.current = null;
+    }
     setSnake([{ x: 10, y: 10 }]);
     setFood(generateFood());
     setDirection("RIGHT");
     directionRef.current = "RIGHT";
     setScore(0);
     setGameOver(false);
+    setGameStarted(true);
   }, [generateFood]);
 
+  // Reset game when isPlaying changes to true
   useEffect(() => {
-    if (isPlaying) {
+    if (isPlaying && !gameStarted) {
       resetGame();
     }
-  }, [isPlaying, resetGame]);
+  }, [isPlaying, gameStarted, resetGame]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (gameLoopRef.current) {
+        clearInterval(gameLoopRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isPlaying || gameOver) return;
 
+      let newDir: Direction | null = null;
       switch (e.key) {
         case "ArrowUp":
         case "w":
-          if (directionRef.current !== "DOWN") {
-            directionRef.current = "UP";
-            setDirection("UP");
-          }
+          if (directionRef.current !== "DOWN") newDir = "UP";
           break;
         case "ArrowDown":
         case "s":
-          if (directionRef.current !== "UP") {
-            directionRef.current = "DOWN";
-            setDirection("DOWN");
-          }
+          if (directionRef.current !== "UP") newDir = "DOWN";
           break;
         case "ArrowLeft":
         case "a":
-          if (directionRef.current !== "RIGHT") {
-            directionRef.current = "LEFT";
-            setDirection("LEFT");
-          }
+          if (directionRef.current !== "RIGHT") newDir = "LEFT";
           break;
         case "ArrowRight":
         case "d":
-          if (directionRef.current !== "LEFT") {
-            directionRef.current = "RIGHT";
-            setDirection("RIGHT");
-          }
+          if (directionRef.current !== "LEFT") newDir = "RIGHT";
           break;
+      }
+      
+      if (newDir) {
+        directionRef.current = newDir;
+        setDirection(newDir);
+        haptic.light();
+        play("move");
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isPlaying, gameOver]);
+  }, [isPlaying, gameOver, haptic, play]);
 
   useEffect(() => {
-    if (!isPlaying || gameOver) return;
+    if (!isPlaying || gameOver || !gameStarted) return;
 
     const moveSnake = () => {
       setSnake((prevSnake) => {
@@ -110,6 +126,8 @@ const SnakeGame = ({ onGameEnd, isPlaying }: SnakeGameProps) => {
         // Check wall collision
         if (head.x < 0 || head.x >= GRID_SIZE || head.y < 0 || head.y >= GRID_SIZE) {
           setGameOver(true);
+          haptic.error();
+          play("gameOver");
           onGameEnd(score);
           return prevSnake;
         }
@@ -117,6 +135,8 @@ const SnakeGame = ({ onGameEnd, isPlaying }: SnakeGameProps) => {
         // Check self collision
         if (prevSnake.some((segment) => segment.x === head.x && segment.y === head.y)) {
           setGameOver(true);
+          haptic.error();
+          play("gameOver");
           onGameEnd(score);
           return prevSnake;
         }
@@ -127,6 +147,8 @@ const SnakeGame = ({ onGameEnd, isPlaying }: SnakeGameProps) => {
         if (head.x === food.x && head.y === food.y) {
           setScore((s) => s + 10);
           setFood(generateFood());
+          haptic.success();
+          play("eat");
         } else {
           newSnake.pop();
         }
@@ -140,7 +162,7 @@ const SnakeGame = ({ onGameEnd, isPlaying }: SnakeGameProps) => {
     return () => {
       if (gameLoopRef.current) clearInterval(gameLoopRef.current);
     };
-  }, [isPlaying, gameOver, food, score, onGameEnd, generateFood]);
+  }, [isPlaying, gameOver, gameStarted, food, score, onGameEnd, generateFood, haptic, play]);
 
   // Touch controls for mobile - swipe handling
   const handleSwipe = useCallback((swipeDir: SwipeDirection) => {
@@ -163,8 +185,10 @@ const SnakeGame = ({ onGameEnd, isPlaying }: SnakeGameProps) => {
     ) {
       directionRef.current = newDirection;
       setDirection(newDirection);
+      haptic.light();
+      play("move");
     }
-  }, [isPlaying, gameOver]);
+  }, [isPlaying, gameOver, haptic, play]);
 
   const touchHandlers = useTouchSwipe({
     onSwipe: handleSwipe,
@@ -183,6 +207,8 @@ const SnakeGame = ({ onGameEnd, isPlaying }: SnakeGameProps) => {
     ) {
       directionRef.current = newDirection;
       setDirection(newDirection);
+      haptic.light();
+      play("move");
     }
   };
 
