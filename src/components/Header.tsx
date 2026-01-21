@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Activity, Menu, X, Wallet, LogOut, TrendingUp, User, BarChart3, MessageCircleHeart, Ticket } from "lucide-react";
+import { Activity, Menu, X, Wallet, LogOut, TrendingUp, User, BarChart3, MessageCircleHeart, Ticket, Gamepad2 } from "lucide-react";
 import { ProfileModal } from "./ProfileModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -144,6 +144,10 @@ const Header = () => {
                 <Ticket className="w-4 h-4" />
                 Raffle
               </Link>
+              <Link to="/games" className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+                <Gamepad2 className="w-4 h-4" />
+                Games
+              </Link>
             </nav>
 
             {/* Desktop Actions */}
@@ -256,6 +260,14 @@ const Header = () => {
                 >
                   <Ticket className="w-4 h-4" />
                   Raffle
+                </Link>
+                <Link
+                  to="/games"
+                  className="text-foreground/80 hover:text-primary transition-colors flex items-center gap-2 font-medium"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <Gamepad2 className="w-4 h-4" />
+                  Games
                 </Link>
                 <div className="flex items-center justify-between pt-2 border-t border-border/30">
                   <span className="text-sm text-muted-foreground">Theme</span>
