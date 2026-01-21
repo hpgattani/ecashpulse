@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Zap, Gamepad2, CheckCircle } from "lucide-react";
+import { Trophy, Zap, Gamepad2 } from "lucide-react";
+import { useCryptoPrices } from "@/hooks/useCryptoPrices";
 
 import SnakeGame from "./SnakeGame";
 import TetrisGame from "./TetrisGame";
@@ -23,12 +24,13 @@ interface MiniGame {
   id: string;
   slug: string;
   name: string;
+  description: string;
   icon: string;
 }
 
 interface Props {
   game: MiniGame;
-  mode: "demo";
+  mode: "competitive" | "demo"; // ✅ ALWAYS
   isOpen: boolean;
   onClose: () => void;
 }
@@ -37,75 +39,128 @@ interface Props {
 /* COMPONENT */
 /* ------------------------------------------------------------------ */
 
-export default function GamePlayModal({ game, isOpen, onClose }: Props) {
+export default function GamePlayModal({ game, mode, isOpen, onClose }: Props) {
+  const { prices } = useCryptoPrices();
+
   const [step, setStep] = useState<Step>("payment");
   const [finalScore, setFinalScore] = useState(0);
+  const [entryFeeXec, setEntryFeeXec] = useState<number>(0);
+
   const payButtonRef = useRef<HTMLDivElement>(null);
 
   /* ------------------------------------------------------------------ */
-  /* LOAD PAYBUTTON SCRIPT (STANDARD WAY) */
+  /* ENTRY FEE (SAFE FOR BOTH MODES) */
   /* ------------------------------------------------------------------ */
 
   useEffect(() => {
-    if ((window as any).PayButton) return;
+    if (!isOpen) return;
 
-    const script = document.createElement("script");
-    script.src = "https://paybutton.org/paybutton.js";
-    script.async = true;
-    document.body.appendChild(script);
+    setStep("payment");
+    setFinalScore(0);
+
+    if (mode === "demo") {
+      setEntryFeeXec(DEMO_FEE_XEC);
+      return;
+    }
+
+    // competitive: approx $1
+    const price = prices?.ecash;
+    if (!price || price <= 0) {
+      setEntryFeeXec(0);
+      return;
+    }
+
+    const oneUsdInXec = 1 / price;
+    setEntryFeeXec(Number(oneUsdInXec.toFixed(2)));
+  }, [isOpen, mode, prices?.ecash]);
+
+  /* ------------------------------------------------------------------ */
+  /* PAYBUTTON (DYNAMIC LOAD + RETRY) */
+  /* ------------------------------------------------------------------ */
+
+  useEffect(() => {
+    if (!isOpen || step !== "payment" || entryFeeXec <= 0) return;
+
+    let cancelled = false;
+
+    function loadAndRender() {
+      if (cancelled) return;
+
+      // Inject script if needed
+      if (!(window as any).PayButton) {
+        if (!document.getElementById("paybutton-js")) {
+          const script = document.createElement("script");
+          script.id = "paybutton-js";
+          script.src = "https://paybutton.org/paybutton.js";
+          script.async = true;
+          document.body.appendChild(script);
+        }
+        setTimeout(loadAndRender, 200);
+        return;
+      }
+
+      if (!payButtonRef.current) {
+        setTimeout(loadAndRender, 100);
+        return;
+      }
+
+      payButtonRef.current.innerHTML = "";
+
+      const container = document.createElement("div");
+      payButtonRef.current.appendChild(container);
+
+      (window as any).PayButton.render(container, {
+        to: ESCROW_ADDRESS,
+        amount: entryFeeXec,
+        currency: "XEC",
+        text: `Send ${entryFeeXec} XEC`,
+        hoverText: "Send with XEC wallet",
+        autoClose: true,
+        hideToasts: true,
+        onSuccess: () => {
+          toast.success("Payment sent");
+          setStep("playing");
+        },
+        onError: () => {
+          toast.error("Payment failed");
+        },
+      });
+    }
+
+    loadAndRender();
 
     return () => {
-      script.remove();
+      cancelled = true;
+      if (payButtonRef.current) {
+        payButtonRef.current.innerHTML = "";
+      }
     };
-  }, []);
-
-  /* ------------------------------------------------------------------ */
-  /* RENDER PAYBUTTON (NO FIXED / NO TRANSFORM) */
-  /* ------------------------------------------------------------------ */
-
-  useEffect(() => {
-    if (!isOpen || step !== "payment") return;
-    if (!(window as any).PayButton) return;
-    if (!payButtonRef.current) return;
-
-    payButtonRef.current.innerHTML = "";
-
-    const container = document.createElement("div");
-    payButtonRef.current.appendChild(container);
-
-    (window as any).PayButton.render(container, {
-      to: ESCROW_ADDRESS,
-      amount: DEMO_FEE_XEC,
-      currency: "XEC",
-      text: `Send ${DEMO_FEE_XEC} XEC`,
-      hoverText: "Open Wallet",
-      autoClose: true,
-      hideToasts: true,
-      onSuccess: () => {
-        toast.custom(
-          () => (
-            <div className="flex items-center gap-3 px-6 py-4 rounded-xl bg-emerald-500 text-white">
-              <CheckCircle className="w-5 h-5" />
-              <span>Payment sent</span>
-            </div>
-          ),
-          { duration: 3000 },
-        );
-        setStep("playing");
-      },
-      onError: () => {
-        toast.error("Payment failed");
-      },
-    });
-  }, [isOpen, step]);
+  }, [isOpen, step, entryFeeXec]);
 
   /* ------------------------------------------------------------------ */
   /* GAME */
   /* ------------------------------------------------------------------ */
 
-  const handleGameEnd = (score: number) => {
+  const handleGameEnd = async (score: number) => {
     setFinalScore(score);
     setStep("finished");
+
+    if (mode === "competitive") {
+      try {
+        await fetch("/api/submit-game-score", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            gameId: game.id,
+            score,
+            isCompetitive: true,
+          }),
+        });
+        toast.success(`Score submitted: ${score.toLocaleString()}`);
+      } catch {
+        toast.error("Failed to submit score");
+      }
+    }
   };
 
   const renderGame = () => {
@@ -131,7 +186,6 @@ export default function GamePlayModal({ game, isOpen, onClose }: Props) {
 
   return (
     <Dialog open={isOpen} onOpenChange={(o) => !o && onClose()}>
-      {/* ❗ IMPORTANT: NO fixed / NO transform */}
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
@@ -143,24 +197,42 @@ export default function GamePlayModal({ game, isOpen, onClose }: Props) {
         {step === "payment" && (
           <div className="space-y-6 text-center">
             <div className="p-6 rounded-xl bg-muted/20 border">
-              <Zap className="mx-auto w-12 h-12 text-blue-400 mb-3" />
-              <p className="font-bold">Demo Mode</p>
-              <p className="text-sm text-muted-foreground">
-                Entry fee: <strong>5.46 XEC</strong>
-              </p>
+              {mode === "competitive" ? (
+                <>
+                  <Trophy className="mx-auto w-12 h-12 text-amber-400 mb-3" />
+                  <p className="font-bold">Competitive Mode</p>
+                  <p className="text-sm text-muted-foreground">Approx $1 entry</p>
+                </>
+              ) : (
+                <>
+                  <Zap className="mx-auto w-12 h-12 text-blue-400 mb-3" />
+                  <p className="font-bold">Demo Mode</p>
+                  <p className="text-sm text-muted-foreground">
+                    Entry fee: <strong>5.46 XEC</strong>
+                  </p>
+                </>
+              )}
+
+              <div className="text-3xl font-bold mt-4">{entryFeeXec} XEC</div>
             </div>
 
-            {/* PAYBUTTON LIVES HERE */}
-            <div ref={payButtonRef} className="flex justify-center" />
+            <div
+              ref={payButtonRef}
+              className="min-h-[180px] flex items-center justify-center text-sm text-muted-foreground"
+            >
+              Loading payment…
+            </div>
           </div>
         )}
 
-        {step === "playing" && <div className="aspect-square bg-black rounded-lg overflow-hidden">{renderGame()}</div>}
+        {step === "playing" && (
+          <div className="aspect-square max-h-[400px] bg-black rounded-lg overflow-hidden">{renderGame()}</div>
+        )}
 
         {step === "finished" && (
           <div className="space-y-6 text-center">
             <Gamepad2 className="mx-auto w-16 h-16 text-primary" />
-            <p className="text-4xl font-bold">{finalScore}</p>
+            <p className="text-4xl font-bold">{finalScore.toLocaleString()}</p>
             <p className="text-muted-foreground">points</p>
 
             <div className="flex gap-3">
