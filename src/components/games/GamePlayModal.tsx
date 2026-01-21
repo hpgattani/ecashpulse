@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Trophy, Zap, Gamepad2, CheckCircle } from "lucide-react";
+import { Zap, Gamepad2, CheckCircle } from "lucide-react";
 
 import SnakeGame from "./SnakeGame";
 import TetrisGame from "./TetrisGame";
@@ -28,7 +28,7 @@ interface MiniGame {
 
 interface Props {
   game: MiniGame;
-  mode: "competitive" | "demo";
+  mode: "demo";
   isOpen: boolean;
   onClose: () => void;
 }
@@ -37,69 +37,56 @@ interface Props {
 /* COMPONENT */
 /* ------------------------------------------------------------------ */
 
-export default function GamePlayModal({ game, mode, isOpen, onClose }: Props) {
+export default function GamePlayModal({ game, isOpen, onClose }: Props) {
   const [step, setStep] = useState<Step>("payment");
   const [finalScore, setFinalScore] = useState(0);
+  const payButtonRef = useRef<HTMLDivElement>(null);
 
   /* ------------------------------------------------------------------ */
-  /* BODY SCROLL LOCK (MOBILE STABLE) */
+  /* LOAD PAYBUTTON SCRIPT (STANDARD WAY) */
   /* ------------------------------------------------------------------ */
 
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-      document.body.style.position = "fixed";
-      document.body.style.width = "100%";
-    } else {
-      document.body.style.overflow = "";
-      document.body.style.position = "";
-      document.body.style.width = "";
-    }
+    if ((window as any).PayButton) return;
+
+    const script = document.createElement("script");
+    script.src = "https://paybutton.org/paybutton.js";
+    script.async = true;
+    document.body.appendChild(script);
 
     return () => {
-      document.body.style.overflow = "";
-      document.body.style.position = "";
-      document.body.style.width = "";
+      script.remove();
     };
-  }, [isOpen]);
+  }, []);
 
   /* ------------------------------------------------------------------ */
-  /* PAYBUTTON (PORTAL – DEEPLINK SAFE) */
+  /* RENDER PAYBUTTON (NO FIXED / NO TRANSFORM) */
   /* ------------------------------------------------------------------ */
 
-  const renderPayButton = useCallback(() => {
-    const portal = document.getElementById("paybutton-portal");
-    if (!portal) return;
+  useEffect(() => {
+    if (!isOpen || step !== "payment") return;
     if (!(window as any).PayButton) return;
+    if (!payButtonRef.current) return;
 
-    portal.innerHTML = "";
+    payButtonRef.current.innerHTML = "";
 
     const container = document.createElement("div");
-    container.style.position = "fixed";
-    container.style.left = "50%";
-    container.style.bottom = "24px";
-    container.style.transform = "translateX(-50%)";
-    container.style.zIndex = "9999";
-    container.style.width = "90%";
-    container.style.maxWidth = "420px";
-
-    portal.appendChild(container);
+    payButtonRef.current.appendChild(container);
 
     (window as any).PayButton.render(container, {
       to: ESCROW_ADDRESS,
-      amount: DEMO_FEE_XEC, // ✅ EXACT 5.46
+      amount: DEMO_FEE_XEC,
       currency: "XEC",
       text: `Send ${DEMO_FEE_XEC} XEC`,
       hoverText: "Open Wallet",
-      autoClose: false,
+      autoClose: true,
       hideToasts: true,
       onSuccess: () => {
-        portal.innerHTML = "";
         toast.custom(
           () => (
-            <div className="flex items-center gap-3 px-6 py-4 rounded-2xl bg-emerald-500 text-white shadow-xl">
+            <div className="flex items-center gap-3 px-6 py-4 rounded-xl bg-emerald-500 text-white">
               <CheckCircle className="w-5 h-5" />
-              <span>Payment Sent</span>
+              <span>Payment sent</span>
             </div>
           ),
           { duration: 3000 },
@@ -107,27 +94,10 @@ export default function GamePlayModal({ game, mode, isOpen, onClose }: Props) {
         setStep("playing");
       },
       onError: () => {
-        toast.error("Payment failed. Please try again.");
+        toast.error("Payment failed");
       },
     });
-  }, []);
-
-  useEffect(() => {
-    if (!isOpen || step !== "payment") return;
-
-    const interval = setInterval(() => {
-      if ((window as any).PayButton) {
-        clearInterval(interval);
-        renderPayButton();
-      }
-    }, 100);
-
-    return () => {
-      clearInterval(interval);
-      const portal = document.getElementById("paybutton-portal");
-      if (portal) portal.innerHTML = "";
-    };
-  }, [isOpen, step, renderPayButton]);
+  }, [isOpen, step]);
 
   /* ------------------------------------------------------------------ */
   /* GAME */
@@ -161,18 +131,8 @@ export default function GamePlayModal({ game, mode, isOpen, onClose }: Props) {
 
   return (
     <Dialog open={isOpen} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent
-        className="
-          fixed
-          left-1/2
-          top-1/2
-          -translate-x-1/2
-          -translate-y-1/2
-          sm:max-w-lg
-          max-h-[90vh]
-          overflow-y-auto
-        "
-      >
+      {/* ❗ IMPORTANT: NO fixed / NO transform */}
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             <span className="text-3xl">{game.icon}</span>
@@ -183,23 +143,22 @@ export default function GamePlayModal({ game, mode, isOpen, onClose }: Props) {
         {step === "payment" && (
           <div className="space-y-6 text-center">
             <div className="p-6 rounded-xl bg-muted/20 border">
-              <Zap className="mx-auto text-blue-400 w-12 h-12 mb-3" />
+              <Zap className="mx-auto w-12 h-12 text-blue-400 mb-3" />
               <p className="font-bold">Demo Mode</p>
               <p className="text-sm text-muted-foreground">
                 Entry fee: <strong>5.46 XEC</strong>
               </p>
             </div>
 
-            <p className="text-xs text-muted-foreground">Wallet will open at the bottom of the screen</p>
+            {/* PAYBUTTON LIVES HERE */}
+            <div ref={payButtonRef} className="flex justify-center" />
           </div>
         )}
 
-        {step === "playing" && (
-          <div className="aspect-square max-h-[400px] bg-black rounded-lg overflow-hidden">{renderGame()}</div>
-        )}
+        {step === "playing" && <div className="aspect-square bg-black rounded-lg overflow-hidden">{renderGame()}</div>}
 
         {step === "finished" && (
-          <div className="text-center space-y-6">
+          <div className="space-y-6 text-center">
             <Gamepad2 className="mx-auto w-16 h-16 text-primary" />
             <p className="text-4xl font-bold">{finalScore}</p>
             <p className="text-muted-foreground">points</p>
