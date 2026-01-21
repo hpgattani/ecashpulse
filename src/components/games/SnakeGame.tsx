@@ -38,10 +38,10 @@ const SnakeGame = ({ onGameEnd, isPlaying }: SnakeGameProps) => {
   }, [generateFood]);
 
   useEffect(() => {
-    if (isPlaying && !gameOver) {
+    if (isPlaying) {
       resetGame();
     }
-  }, [isPlaying]);
+  }, [isPlaying, resetGame]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

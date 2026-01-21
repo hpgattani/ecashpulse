@@ -90,6 +90,7 @@ const Footer = () => {
               <li><Link to="/#markets" className="text-muted-foreground hover:text-primary transition-colors">{t.markets}</Link></li>
               <li><Link to="/#trending" className="text-muted-foreground hover:text-primary transition-colors">{t.trending}</Link></li>
               <li><Link to="/#how-it-works" className="text-muted-foreground hover:text-primary transition-colors">{t.howItWorks}</Link></li>
+              <li><Link to="/games" className="text-muted-foreground hover:text-primary transition-colors">Games</Link></li>
             </ul>
           </motion.div>
 

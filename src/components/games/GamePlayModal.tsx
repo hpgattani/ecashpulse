@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCryptoPrices } from "@/hooks/useCryptoPrices";
 import { toast } from "sonner";
-import { Gamepad2, Trophy, Zap, Wallet } from "lucide-react";
+import { Gamepad2, Trophy, Zap, CheckCircle } from "lucide-react";
 import SnakeGame from "./SnakeGame";
 import TetrisGame from "./TetrisGame";
 import LumberjackGame from "./LumberjackGame";
@@ -34,6 +34,7 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
   const [step, setStep] = useState<"payment" | "playing" | "finished">("payment");
   const [finalScore, setFinalScore] = useState(0);
   const [entryFeeXec, setEntryFeeXec] = useState(0);
+  const payButtonRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -54,8 +55,86 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
     }
   };
 
-  const handlePaymentSuccess = async () => {
-    toast.success("Payment received! Starting game...");
+  // Render PayButton
+  useEffect(() => {
+    if (!isOpen || !payButtonRef.current || step !== "payment" || entryFeeXec <= 0) {
+      if (payButtonRef.current) {
+        payButtonRef.current.innerHTML = "";
+      }
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      if (!payButtonRef.current) return;
+
+      payButtonRef.current.innerHTML = "";
+
+      const buttonContainer = document.createElement("div");
+      payButtonRef.current.appendChild(buttonContainer);
+
+      if (typeof (window as any).PayButton !== "undefined") {
+        (window as any).PayButton.render(buttonContainer, {
+          to: ESCROW_ADDRESS,
+          amount: entryFeeXec,
+          currency: "XEC",
+          text: `Pay ${entryFeeXec.toLocaleString()} XEC`,
+          hoverText: "Confirm",
+          successText: "Payment Sent!",
+          autoClose: true,
+          hideToasts: true,
+          theme: {
+            palette: {
+              primary: mode === "competitive" ? "#f59e0b" : "#3b82f6",
+              secondary: "#1e293b",
+              tertiary: "#ffffff",
+            },
+          },
+          onSuccess: (txResult: any) => {
+            let txHash: string | undefined;
+
+            if (typeof txResult === "string") {
+              txHash = txResult;
+            } else if (txResult?.hash) {
+              txHash = txResult.hash;
+            } else if (txResult?.txid) {
+              txHash = txResult.txid;
+            } else if (txResult?.txId) {
+              txHash = txResult.txId;
+            }
+
+            // Show branded toast
+            toast.custom(
+              () => (
+                <div className="flex items-center gap-3 px-6 py-4 rounded-2xl bg-gradient-to-r from-emerald-500/90 to-teal-500/90 text-white shadow-xl backdrop-blur-sm border border-white/20">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20">
+                    <CheckCircle className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="font-semibold">Payment Sent!</p>
+                    <p className="text-sm text-white/80">{entryFeeXec.toLocaleString()} XEC</p>
+                  </div>
+                </div>
+              ),
+              { duration: 4000, position: "bottom-center" }
+            );
+
+            handlePaymentSuccess(txHash);
+          },
+          onError: (error: any) => {
+            console.error("PayButton error:", error);
+            toast.error("Payment failed", {
+              description: "Please try again.",
+            });
+          },
+        });
+      }
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [isOpen, step, entryFeeXec, mode]);
+
+  const handlePaymentSuccess = async (txHash?: string) => {
+    console.log("Game payment received:", txHash);
     setStep("playing");
   };
 
@@ -154,25 +233,9 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
                 </p>
               </div>
 
-              <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  Send payment to start playing:
-                </p>
-                
-                {/* PayButton placeholder - will integrate with actual PayButton */}
-                <div className="p-4 rounded-lg bg-card border border-border/30">
-                  <Wallet className="w-8 h-8 mx-auto mb-2 text-primary" />
-                  <p className="text-xs text-muted-foreground mb-2">Send to:</p>
-                  <p className="font-mono text-xs break-all text-foreground">
-                    {ESCROW_ADDRESS}
-                  </p>
-                  <Button 
-                    onClick={handlePaymentSuccess}
-                    className="mt-4 w-full"
-                  >
-                    I've Paid - Start Game
-                  </Button>
-                </div>
+              {/* PayButton container - centered */}
+              <div className="flex justify-center">
+                <div ref={payButtonRef} className="min-h-[50px]" />
               </div>
             </div>
           )}
