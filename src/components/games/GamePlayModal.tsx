@@ -3,7 +3,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Trophy, Zap, Gamepad2, CheckCircle } from "lucide-react";
-import { useCryptoPrices } from "@/hooks/useCryptoPrices";
 
 import SnakeGame from "./SnakeGame";
 import TetrisGame from "./TetrisGame";
@@ -24,7 +23,6 @@ interface MiniGame {
   id: string;
   slug: string;
   name: string;
-  description: string;
   icon: string;
 }
 
@@ -40,16 +38,11 @@ interface Props {
 /* ------------------------------------------------------------------ */
 
 export default function GamePlayModal({ game, mode, isOpen, onClose }: Props) {
-  const { prices } = useCryptoPrices();
-
   const [step, setStep] = useState<Step>("payment");
-  const [entryFeeXec, setEntryFeeXec] = useState<number>(0);
-  const [finalScore, setFinalScore] = useState<number>(0);
-
-  const payButtonRef = useRef<HTMLDivElement>(null);
+  const [finalScore, setFinalScore] = useState(0);
 
   /* ------------------------------------------------------------------ */
-  /* LOCK BODY SCROLL (PREVENT MOBILE JUMP) */
+  /* BODY SCROLL LOCK (MOBILE STABLE) */
   /* ------------------------------------------------------------------ */
 
   useEffect(() => {
@@ -71,83 +64,56 @@ export default function GamePlayModal({ game, mode, isOpen, onClose }: Props) {
   }, [isOpen]);
 
   /* ------------------------------------------------------------------ */
-  /* ENTRY FEE */
-  /* ------------------------------------------------------------------ */
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    setStep("payment");
-    setFinalScore(0);
-
-    if (mode === "demo") {
-      setEntryFeeXec(DEMO_FEE_XEC);
-      return;
-    }
-
-    const price = prices?.ecash;
-    if (!price || price <= 0) {
-      setEntryFeeXec(0);
-      return;
-    }
-
-    const oneUsdInXec = 1 / price;
-    setEntryFeeXec(Number(oneUsdInXec.toFixed(2)));
-  }, [isOpen, mode, prices?.ecash]);
-
-  /* ------------------------------------------------------------------ */
-  /* PAYBUTTON */
+  /* PAYBUTTON (PORTAL – DEEPLINK SAFE) */
   /* ------------------------------------------------------------------ */
 
   const renderPayButton = useCallback(() => {
-    if (!payButtonRef.current) return;
+    const portal = document.getElementById("paybutton-portal");
+    if (!portal) return;
     if (!(window as any).PayButton) return;
 
-    payButtonRef.current.innerHTML = "";
+    portal.innerHTML = "";
 
     const container = document.createElement("div");
-    payButtonRef.current.appendChild(container);
+    container.style.position = "fixed";
+    container.style.left = "50%";
+    container.style.bottom = "24px";
+    container.style.transform = "translateX(-50%)";
+    container.style.zIndex = "9999";
+    container.style.width = "90%";
+    container.style.maxWidth = "420px";
+
+    portal.appendChild(container);
 
     (window as any).PayButton.render(container, {
       to: ESCROW_ADDRESS,
-      amount: entryFeeXec, // ✅ EXACT 5.46
+      amount: DEMO_FEE_XEC, // ✅ EXACT 5.46
       currency: "XEC",
-      text: `Pay ${entryFeeXec} XEC`,
-      hoverText: "Confirm",
-      successText: "Payment Sent!",
-      autoClose: true,
+      text: `Send ${DEMO_FEE_XEC} XEC`,
+      hoverText: "Open Wallet",
+      autoClose: false,
       hideToasts: true,
-      theme: {
-        palette: {
-          primary: mode === "competitive" ? "#f59e0b" : "#3b82f6",
-          secondary: "#1e293b",
-          tertiary: "#ffffff",
-        },
-      },
       onSuccess: () => {
+        portal.innerHTML = "";
         toast.custom(
           () => (
             <div className="flex items-center gap-3 px-6 py-4 rounded-2xl bg-emerald-500 text-white shadow-xl">
               <CheckCircle className="w-5 h-5" />
-              <div>
-                <p className="font-semibold">Payment Sent</p>
-                <p className="text-sm opacity-90">{entryFeeXec} XEC</p>
-              </div>
+              <span>Payment Sent</span>
             </div>
           ),
-          { duration: 4000 },
+          { duration: 3000 },
         );
-
         setStep("playing");
       },
       onError: () => {
         toast.error("Payment failed. Please try again.");
       },
     });
-  }, [entryFeeXec, mode]);
+  }, []);
 
   useEffect(() => {
-    if (!isOpen || step !== "payment" || entryFeeXec <= 0) return;
+    if (!isOpen || step !== "payment") return;
 
     const interval = setInterval(() => {
       if ((window as any).PayButton) {
@@ -158,36 +124,18 @@ export default function GamePlayModal({ game, mode, isOpen, onClose }: Props) {
 
     return () => {
       clearInterval(interval);
-      if (payButtonRef.current) {
-        payButtonRef.current.innerHTML = "";
-      }
+      const portal = document.getElementById("paybutton-portal");
+      if (portal) portal.innerHTML = "";
     };
-  }, [isOpen, step, entryFeeXec, renderPayButton]);
+  }, [isOpen, step, renderPayButton]);
 
   /* ------------------------------------------------------------------ */
   /* GAME */
   /* ------------------------------------------------------------------ */
 
-  const handleGameEnd = async (score: number) => {
+  const handleGameEnd = (score: number) => {
     setFinalScore(score);
     setStep("finished");
-
-    if (mode === "competitive") {
-      try {
-        await fetch("/api/submit-game-score", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            gameId: game.id,
-            score,
-            isCompetitive: true,
-          }),
-        });
-        toast.success(`Score submitted: ${score.toLocaleString()}`);
-      } catch {
-        toast.error("Failed to submit score");
-      }
-    }
   };
 
   const renderGame = () => {
@@ -235,29 +183,14 @@ export default function GamePlayModal({ game, mode, isOpen, onClose }: Props) {
         {step === "payment" && (
           <div className="space-y-6 text-center">
             <div className="p-6 rounded-xl bg-muted/20 border">
-              {mode === "competitive" ? (
-                <>
-                  <Trophy className="mx-auto text-amber-400 w-12 h-12 mb-3" />
-                  <p className="font-bold">Competitive Entry</p>
-                  <p className="text-sm text-muted-foreground">Leaderboard enabled</p>
-                </>
-              ) : (
-                <>
-                  <Zap className="mx-auto text-blue-400 w-12 h-12 mb-3" />
-                  <p className="font-bold">Demo Mode</p>
-                  <p className="text-sm text-muted-foreground">
-                    Entry fee: <strong>5.46 XEC</strong>
-                  </p>
-                </>
-              )}
-
-              <div className="text-3xl font-bold mt-4">{entryFeeXec} XEC</div>
+              <Zap className="mx-auto text-blue-400 w-12 h-12 mb-3" />
+              <p className="font-bold">Demo Mode</p>
+              <p className="text-sm text-muted-foreground">
+                Entry fee: <strong>5.46 XEC</strong>
+              </p>
             </div>
 
-            {/* RESERVED SPACE — NO SHIFT */}
-            <div className="flex justify-center">
-              <div ref={payButtonRef} className="min-h-[56px] w-full flex justify-center" />
-            </div>
+            <p className="text-xs text-muted-foreground">Wallet will open at the bottom of the screen</p>
           </div>
         )}
 
@@ -268,7 +201,7 @@ export default function GamePlayModal({ game, mode, isOpen, onClose }: Props) {
         {step === "finished" && (
           <div className="text-center space-y-6">
             <Gamepad2 className="mx-auto w-16 h-16 text-primary" />
-            <p className="text-4xl font-bold">{finalScore.toLocaleString()}</p>
+            <p className="text-4xl font-bold">{finalScore}</p>
             <p className="text-muted-foreground">points</p>
 
             <div className="flex gap-3">
