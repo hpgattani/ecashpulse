@@ -37,6 +37,7 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
   const [finalScore, setFinalScore] = useState(0);
   const [entryFeeXec, setEntryFeeXec] = useState(0);
   const payButtonRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -128,14 +129,16 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
                   </div>
                   <div>
                     <p className="font-semibold">Payment Sent!</p>
-                    <p className="text-sm text-white/80">{mode === "demo" ? `${DEMO_MIN_XEC.toFixed(2)} XEC` : `${entryFeeXec.toLocaleString()} XEC`}</p>
+                    <p className="text-sm text-white/80">
+                      {mode === "demo" ? `${DEMO_MIN_XEC.toFixed(2)} XEC` : `${entryFeeXec.toLocaleString()} XEC`}
+                    </p>
                   </div>
                 </div>
               ),
               { duration: 4000, position: "bottom-center" },
             );
 
-            console.log('PayButton onSuccess result:', txResult);
+            console.log("PayButton onSuccess result:", txResult);
             handlePaymentSuccess(txHash);
           },
           onError: (error: any) => {
@@ -244,13 +247,7 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
                   </>
                 )}
 
-                <div className="text-3xl font-bold text-primary mb-2">
-                  {mode === "competitive" ? (
-                    entryFeeXec > 0 ? `${entryFeeXec.toLocaleString()} XEC` : "Loading price..."
-                  ) : (
-                    `${DEMO_MIN_XEC.toFixed(2)} XEC`
-                  )}
-                </div>
+                <div className="text-3xl font-bold text-primary mb-2">{entryFeeXec.toLocaleString()} XEC</div>
                 <p className="text-xs text-muted-foreground">
                   {mode === "competitive" ? "≈ $1 USD" : "Minimum demo fee"}
                 </p>
@@ -260,23 +257,7 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
               <div className="flex justify-center">
                 <div ref={payButtonRef} className="min-h-[50px]" />
               </div>
-
-              {mode === "competitive" && entryFeeXec === 0 && (
-                <p className="text-xs text-muted-foreground mt-2">Fetching XEC price...</p>
-              )}
-
-              {/* Dev-only: allow skipping payment for quick testing */}
-              {mode === "demo" && process.env.NODE_ENV === "development" && (
-                <div className="mt-4 text-center">
-                  <Button
-                    variant="ghost"
-                    onClick={() => setStep("playing")}
-                    className="mx-auto"
-                  >
-                    Start Demo (skip payment)
-                  </Button>
-                </div>
-              )}
+            </div>
           )}
 
           {step === "playing" && (
@@ -315,3 +296,17 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
 };
 
 export default GamePlayModal;
+function centerNow(): void {
+  // Attempt to re-center or reflow the dialog safely after the PayButton renders.
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("resize"));
+  }
+  try {
+    const dialog = document.querySelector('[role="dialog"]') as HTMLElement | null;
+    if (dialog && typeof dialog.scrollIntoView === "function") {
+      dialog.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  } catch (e) {
+    // ignore errors during reflow
+  }
+}
