@@ -115,7 +115,7 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
                   </div>
                 </div>
               ),
-              { duration: 4000, position: "bottom-center" }
+              { duration: 4000, position: "bottom-center" },
             );
 
             handlePaymentSuccess(txHash);
@@ -154,7 +154,7 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
             isCompetitive: true,
           }),
         });
-        
+
         if (response.ok) {
           toast.success(`Score submitted: ${score.toLocaleString()} points!`);
         }
@@ -186,17 +186,17 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-lg glass-card border-primary/20 fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg glass-card border-primary/20 fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             <span className="text-3xl">{game.icon}</span>
             <div>
               <span className="text-xl">{game.name}</span>
-              <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${
-                mode === "competitive" 
-                  ? "bg-amber-500/20 text-amber-400" 
-                  : "bg-blue-500/20 text-blue-400"
-              }`}>
+              <span
+                className={`ml-2 text-xs px-2 py-0.5 rounded-full ${
+                  mode === "competitive" ? "bg-amber-500/20 text-amber-400" : "bg-blue-500/20 text-blue-400"
+                }`}
+              >
                 {mode === "competitive" ? "Competitive" : "Demo"}
               </span>
             </div>
@@ -219,15 +219,11 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
                   <>
                     <Zap className="w-12 h-12 text-blue-400 mx-auto mb-3" />
                     <h3 className="text-lg font-bold mb-2">Demo Mode</h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Practice without affecting the leaderboard.
-                    </p>
+                    <p className="text-sm text-muted-foreground mb-4">Practice without affecting the leaderboard.</p>
                   </>
                 )}
 
-                <div className="text-3xl font-bold text-primary mb-2">
-                  {entryFeeXec.toLocaleString()} XEC
-                </div>
+                <div className="text-3xl font-bold text-primary mb-2">{entryFeeXec.toLocaleString()} XEC</div>
                 <p className="text-xs text-muted-foreground">
                   {mode === "competitive" ? "≈ $1 USD" : "Minimum demo fee"}
                 </p>
@@ -237,6 +233,14 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
               <div className="flex justify-center">
                 <div ref={payButtonRef} className="min-h-[50px]" />
               </div>
+              {/* Fallback to start demo without external PayButton (useful in dev) */}
+              {mode === "demo" && (
+                <div className="mt-4 text-center">
+                  <Button variant="ghost" onClick={() => setStep("playing")} className="mx-auto">
+                    Start Demo (skip payment)
+                  </Button>
+                </div>
+              )}
             </div>
           )}
 
@@ -251,30 +255,19 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
               <div className="p-8 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 border border-primary/30">
                 <Gamepad2 className="w-16 h-16 text-primary mx-auto mb-4" />
                 <h3 className="text-2xl font-bold mb-2">Game Over!</h3>
-                <p className="text-4xl font-bold text-primary mb-2">
-                  {finalScore.toLocaleString()}
-                </p>
+                <p className="text-4xl font-bold text-primary mb-2">{finalScore.toLocaleString()}</p>
                 <p className="text-muted-foreground">points</p>
-                
+
                 {mode === "competitive" && (
-                  <p className="text-sm text-emerald-400 mt-4">
-                    ✓ Score submitted to leaderboard
-                  </p>
+                  <p className="text-sm text-emerald-400 mt-4">✓ Score submitted to leaderboard</p>
                 )}
               </div>
 
               <div className="flex gap-3">
-                <Button 
-                  onClick={() => setStep("payment")}
-                  className="flex-1"
-                >
+                <Button onClick={() => setStep("payment")} className="flex-1">
                   Play Again
                 </Button>
-                <Button 
-                  onClick={onClose}
-                  variant="outline"
-                  className="flex-1"
-                >
+                <Button onClick={onClose} variant="outline" className="flex-1">
                   Close
                 </Button>
               </div>
