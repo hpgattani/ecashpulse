@@ -1,7 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useTouchSwipe, SwipeDirection } from "@/hooks/useTouchSwipe";
-import { useHaptic } from "@/hooks/useHaptic";
-import useGameSounds from "@/hooks/useGameSounds";
 
 interface LumberjackGameProps {
   onGameEnd: (score: number) => void;
@@ -16,11 +13,8 @@ const LumberjackGame = ({ onGameEnd, isPlaying }: LumberjackGameProps) => {
   const [tree, setTree] = useState<TreeSegment[]>([]);
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
-  const [gameStarted, setGameStarted] = useState(false);
   const [timeLeft, setTimeLeft] = useState(100);
   const timerRef = useRef<number | null>(null);
-  const haptic = useHaptic();
-  const { play } = useGameSounds();
 
   const generateSegment = (): TreeSegment => {
     const rand = Math.random();
@@ -30,11 +24,6 @@ const LumberjackGame = ({ onGameEnd, isPlaying }: LumberjackGameProps) => {
   };
 
   const resetGame = useCallback(() => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    
     const initialTree: TreeSegment[] = [];
     for (let i = 0; i < 8; i++) {
       initialTree.push(generateSegment());
@@ -47,32 +36,21 @@ const LumberjackGame = ({ onGameEnd, isPlaying }: LumberjackGameProps) => {
     setScore(0);
     setTimeLeft(100);
     setGameOver(false);
-    setGameStarted(true);
   }, []);
 
-  // Reset game when isPlaying changes to true
   useEffect(() => {
-    if (isPlaying && !gameStarted) {
+    if (isPlaying && !gameOver) {
       resetGame();
     }
-  }, [isPlaying, gameStarted, resetGame]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, []);
+  }, [isPlaying]);
 
   useEffect(() => {
-    if (!isPlaying || gameOver || !gameStarted) return;
+    if (!isPlaying || gameOver) return;
 
     timerRef.current = window.setInterval(() => {
       setTimeLeft((t) => {
         if (t <= 0) {
           setGameOver(true);
-          haptic.error();
-          play("gameOver");
           onGameEnd(score);
           return 0;
         }
@@ -83,26 +61,20 @@ const LumberjackGame = ({ onGameEnd, isPlaying }: LumberjackGameProps) => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isPlaying, gameOver, gameStarted, score, onGameEnd, haptic, play]);
+  }, [isPlaying, gameOver, score, onGameEnd]);
 
   const chop = useCallback((side: Side) => {
-    if (gameOver || !isPlaying || !gameStarted) return;
+    if (gameOver || !isPlaying) return;
 
     setPlayerSide(side);
 
     // Check if hit by branch
     const bottomSegment = tree[0];
-    if (bottomSegment?.hasBranch === side) {
+    if (bottomSegment.hasBranch === side) {
       setGameOver(true);
-      haptic.error();
-      play("gameOver");
       onGameEnd(score);
       return;
     }
-
-    // Play chop sound and haptic
-    haptic.medium();
-    play("chop");
 
     // Remove bottom segment and add new one at top
     setTree((prevTree) => {
@@ -112,11 +84,11 @@ const LumberjackGame = ({ onGameEnd, isPlaying }: LumberjackGameProps) => {
 
     setScore((s) => s + 1);
     setTimeLeft((t) => Math.min(t + 5, 100)); // Add time bonus
-  }, [tree, gameOver, isPlaying, gameStarted, score, onGameEnd, haptic, play]);
+  }, [tree, gameOver, isPlaying, score, onGameEnd]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isPlaying || gameOver || !gameStarted) return;
+      if (!isPlaying || gameOver) return;
 
       if (e.key === "ArrowLeft" || e.key === "a") {
         chop("left");
@@ -127,27 +99,10 @@ const LumberjackGame = ({ onGameEnd, isPlaying }: LumberjackGameProps) => {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isPlaying, gameOver, gameStarted, chop]);
-
-  // Touch swipe controls
-  const handleSwipe = useCallback((swipeDir: SwipeDirection) => {
-    if (swipeDir === "left") {
-      chop("left");
-    } else if (swipeDir === "right") {
-      chop("right");
-    }
-  }, [chop]);
-
-  const touchHandlers = useTouchSwipe({
-    onSwipe: handleSwipe,
-    threshold: 20,
-  });
+  }, [isPlaying, gameOver, chop]);
 
   return (
-    <div 
-      className="flex flex-col items-center justify-center h-full bg-gradient-to-b from-sky-400 to-sky-600 p-4 touch-none"
-      {...touchHandlers}
-    >
+    <div className="flex flex-col items-center justify-center h-full bg-gradient-to-b from-sky-400 to-sky-600 p-4">
       {/* Timer bar */}
       <div className="w-48 h-4 bg-gray-800 rounded-full mb-4 overflow-hidden">
         <div
@@ -160,9 +115,6 @@ const LumberjackGame = ({ onGameEnd, isPlaying }: LumberjackGameProps) => {
       </div>
 
       <div className="text-white text-2xl mb-4 font-bold">Score: {score}</div>
-      
-      {/* Swipe hint for mobile */}
-      <p className="text-xs text-white/70 mb-2 md:hidden">Swipe left/right to chop!</p>
 
       {/* Tree */}
       <div className="relative flex flex-col items-center">
@@ -212,16 +164,14 @@ const LumberjackGame = ({ onGameEnd, isPlaying }: LumberjackGameProps) => {
       {/* Controls */}
       <div className="flex gap-8 mt-6">
         <button
-          onTouchStart={() => chop("left")}
           onClick={() => chop("left")}
-          className="w-20 h-20 bg-primary/80 active:bg-primary rounded-xl text-3xl active:scale-95 transition-all"
+          className="w-20 h-20 bg-primary/80 rounded-xl text-3xl active:scale-95 transition-transform"
         >
           ←
         </button>
         <button
-          onTouchStart={() => chop("right")}
           onClick={() => chop("right")}
-          className="w-20 h-20 bg-primary/80 active:bg-primary rounded-xl text-3xl active:scale-95 transition-all"
+          className="w-20 h-20 bg-primary/80 rounded-xl text-3xl active:scale-95 transition-transform"
         >
           →
         </button>

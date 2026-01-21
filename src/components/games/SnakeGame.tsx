@@ -1,7 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useTouchSwipe, SwipeDirection } from "@/hooks/useTouchSwipe";
-import { useHaptic } from "@/hooks/useHaptic";
-import useGameSounds from "@/hooks/useGameSounds";
 
 interface SnakeGameProps {
   onGameEnd: (score: number) => void;
@@ -17,16 +14,12 @@ type Position = { x: number; y: number };
 
 const SnakeGame = ({ onGameEnd, isPlaying }: SnakeGameProps) => {
   const [snake, setSnake] = useState<Position[]>([{ x: 10, y: 10 }]);
-  const gameAreaRef = useRef<HTMLDivElement>(null);
   const [food, setFood] = useState<Position>({ x: 15, y: 15 });
   const [direction, setDirection] = useState<Direction>("RIGHT");
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
-  const [gameStarted, setGameStarted] = useState(false);
   const gameLoopRef = useRef<number | null>(null);
   const directionRef = useRef<Direction>("RIGHT");
-  const haptic = useHaptic();
-  const { play } = useGameSounds();
 
   const generateFood = useCallback((): Position => {
     return {
@@ -36,73 +29,62 @@ const SnakeGame = ({ onGameEnd, isPlaying }: SnakeGameProps) => {
   }, []);
 
   const resetGame = useCallback(() => {
-    if (gameLoopRef.current) {
-      clearInterval(gameLoopRef.current);
-      gameLoopRef.current = null;
-    }
     setSnake([{ x: 10, y: 10 }]);
     setFood(generateFood());
     setDirection("RIGHT");
     directionRef.current = "RIGHT";
     setScore(0);
     setGameOver(false);
-    setGameStarted(true);
   }, [generateFood]);
 
-  // Reset game when isPlaying changes to true
   useEffect(() => {
-    if (isPlaying && !gameStarted) {
+    if (isPlaying) {
       resetGame();
     }
-  }, [isPlaying, gameStarted, resetGame]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (gameLoopRef.current) {
-        clearInterval(gameLoopRef.current);
-      }
-    };
-  }, []);
+  }, [isPlaying, resetGame]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isPlaying || gameOver) return;
 
-      let newDir: Direction | null = null;
       switch (e.key) {
         case "ArrowUp":
         case "w":
-          if (directionRef.current !== "DOWN") newDir = "UP";
+          if (directionRef.current !== "DOWN") {
+            directionRef.current = "UP";
+            setDirection("UP");
+          }
           break;
         case "ArrowDown":
         case "s":
-          if (directionRef.current !== "UP") newDir = "DOWN";
+          if (directionRef.current !== "UP") {
+            directionRef.current = "DOWN";
+            setDirection("DOWN");
+          }
           break;
         case "ArrowLeft":
         case "a":
-          if (directionRef.current !== "RIGHT") newDir = "LEFT";
+          if (directionRef.current !== "RIGHT") {
+            directionRef.current = "LEFT";
+            setDirection("LEFT");
+          }
           break;
         case "ArrowRight":
         case "d":
-          if (directionRef.current !== "LEFT") newDir = "RIGHT";
+          if (directionRef.current !== "LEFT") {
+            directionRef.current = "RIGHT";
+            setDirection("RIGHT");
+          }
           break;
-      }
-      
-      if (newDir) {
-        directionRef.current = newDir;
-        setDirection(newDir);
-        haptic.light();
-        play("move");
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isPlaying, gameOver, haptic, play]);
+  }, [isPlaying, gameOver]);
 
   useEffect(() => {
-    if (!isPlaying || gameOver || !gameStarted) return;
+    if (!isPlaying || gameOver) return;
 
     const moveSnake = () => {
       setSnake((prevSnake) => {
@@ -126,8 +108,6 @@ const SnakeGame = ({ onGameEnd, isPlaying }: SnakeGameProps) => {
         // Check wall collision
         if (head.x < 0 || head.x >= GRID_SIZE || head.y < 0 || head.y >= GRID_SIZE) {
           setGameOver(true);
-          haptic.error();
-          play("gameOver");
           onGameEnd(score);
           return prevSnake;
         }
@@ -135,8 +115,6 @@ const SnakeGame = ({ onGameEnd, isPlaying }: SnakeGameProps) => {
         // Check self collision
         if (prevSnake.some((segment) => segment.x === head.x && segment.y === head.y)) {
           setGameOver(true);
-          haptic.error();
-          play("gameOver");
           onGameEnd(score);
           return prevSnake;
         }
@@ -147,8 +125,6 @@ const SnakeGame = ({ onGameEnd, isPlaying }: SnakeGameProps) => {
         if (head.x === food.x && head.y === food.y) {
           setScore((s) => s + 10);
           setFood(generateFood());
-          haptic.success();
-          play("eat");
         } else {
           newSnake.pop();
         }
@@ -162,41 +138,10 @@ const SnakeGame = ({ onGameEnd, isPlaying }: SnakeGameProps) => {
     return () => {
       if (gameLoopRef.current) clearInterval(gameLoopRef.current);
     };
-  }, [isPlaying, gameOver, gameStarted, food, score, onGameEnd, generateFood, haptic, play]);
+  }, [isPlaying, gameOver, food, score, onGameEnd, generateFood]);
 
-  // Touch controls for mobile - swipe handling
-  const handleSwipe = useCallback((swipeDir: SwipeDirection) => {
-    if (!isPlaying || gameOver) return;
-    
-    const directionMap: Record<SwipeDirection, Direction> = {
-      up: "UP",
-      down: "DOWN",
-      left: "LEFT",
-      right: "RIGHT",
-    };
-    
-    const newDirection = directionMap[swipeDir];
-    
-    if (
-      (newDirection === "UP" && directionRef.current !== "DOWN") ||
-      (newDirection === "DOWN" && directionRef.current !== "UP") ||
-      (newDirection === "LEFT" && directionRef.current !== "RIGHT") ||
-      (newDirection === "RIGHT" && directionRef.current !== "LEFT")
-    ) {
-      directionRef.current = newDirection;
-      setDirection(newDirection);
-      haptic.light();
-      play("move");
-    }
-  }, [isPlaying, gameOver, haptic, play]);
-
-  const touchHandlers = useTouchSwipe({
-    onSwipe: handleSwipe,
-    threshold: 20,
-  });
-
-  // Button touch controls
-  const handleButtonTouch = (newDirection: Direction) => {
+  // Touch controls for mobile
+  const handleTouch = (newDirection: Direction) => {
     if (!isPlaying || gameOver) return;
     
     if (
@@ -207,8 +152,6 @@ const SnakeGame = ({ onGameEnd, isPlaying }: SnakeGameProps) => {
     ) {
       directionRef.current = newDirection;
       setDirection(newDirection);
-      haptic.light();
-      play("move");
     }
   };
 
@@ -216,18 +159,13 @@ const SnakeGame = ({ onGameEnd, isPlaying }: SnakeGameProps) => {
     <div className="flex flex-col items-center justify-center h-full bg-gray-900 p-4">
       <div className="text-white text-xl mb-4 font-bold">Score: {score}</div>
       
-      {/* Swipe hint for mobile */}
-      <p className="text-xs text-primary/70 mb-2 md:hidden">Swipe on game area to move</p>
-      
       <div
-        ref={gameAreaRef}
-        className="relative border-2 border-primary touch-none"
+        className="relative border-2 border-primary"
         style={{
           width: GRID_SIZE * CELL_SIZE,
           height: GRID_SIZE * CELL_SIZE,
           backgroundColor: "#1a1a2e",
         }}
-        {...touchHandlers}
       >
         {/* Snake */}
         {snake.map((segment, index) => (
@@ -255,31 +193,31 @@ const SnakeGame = ({ onGameEnd, isPlaying }: SnakeGameProps) => {
         />
       </div>
 
-      {/* Mobile button controls (backup) */}
+      {/* Mobile controls */}
       <div className="mt-4 grid grid-cols-3 gap-2 md:hidden">
         <div />
         <button
-          onTouchStart={() => handleButtonTouch("UP")}
-          className="w-14 h-14 bg-primary/30 active:bg-primary/50 rounded-lg flex items-center justify-center text-2xl transition-colors"
+          onClick={() => handleTouch("UP")}
+          className="w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center text-2xl"
         >
           ↑
         </button>
         <div />
         <button
-          onTouchStart={() => handleButtonTouch("LEFT")}
-          className="w-14 h-14 bg-primary/30 active:bg-primary/50 rounded-lg flex items-center justify-center text-2xl transition-colors"
+          onClick={() => handleTouch("LEFT")}
+          className="w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center text-2xl"
         >
           ←
         </button>
         <button
-          onTouchStart={() => handleButtonTouch("DOWN")}
-          className="w-14 h-14 bg-primary/30 active:bg-primary/50 rounded-lg flex items-center justify-center text-2xl transition-colors"
+          onClick={() => handleTouch("DOWN")}
+          className="w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center text-2xl"
         >
           ↓
         </button>
         <button
-          onTouchStart={() => handleButtonTouch("RIGHT")}
-          className="w-14 h-14 bg-primary/30 active:bg-primary/50 rounded-lg flex items-center justify-center text-2xl transition-colors"
+          onClick={() => handleTouch("RIGHT")}
+          className="w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center text-2xl"
         >
           →
         </button>

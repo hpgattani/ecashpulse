@@ -1,7 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useTouchSwipe, SwipeDirection } from "@/hooks/useTouchSwipe";
-import { useHaptic } from "@/hooks/useHaptic";
-import useGameSounds from "@/hooks/useGameSounds";
 
 interface TetrisGameProps {
   onGameEnd: (score: number) => void;
@@ -45,10 +42,7 @@ const TetrisGame = ({ onGameEnd, isPlaying }: TetrisGameProps) => {
   const [position, setPosition] = useState<Position>({ x: 4, y: 0 });
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
-  const [gameStarted, setGameStarted] = useState(false);
   const gameLoopRef = useRef<number | null>(null);
-  const haptic = useHaptic();
-  const { play } = useGameSounds();
 
   const createEmptyBoard = (): Board => 
     Array(BOARD_HEIGHT).fill(null).map(() => Array(BOARD_WIDTH).fill(0) as CellValue[]);
@@ -59,31 +53,18 @@ const TetrisGame = ({ onGameEnd, isPlaying }: TetrisGameProps) => {
   };
 
   const resetGame = useCallback(() => {
-    if (gameLoopRef.current) {
-      clearInterval(gameLoopRef.current);
-      gameLoopRef.current = null;
-    }
     setBoard(createEmptyBoard());
     setCurrentPiece(getRandomPiece());
     setPosition({ x: 4, y: 0 });
     setScore(0);
     setGameOver(false);
-    setGameStarted(true);
   }, []);
 
-  // Reset game when isPlaying changes to true
   useEffect(() => {
-    if (isPlaying && !gameStarted) {
+    if (isPlaying && !gameOver) {
       resetGame();
     }
-  }, [isPlaying, gameStarted, resetGame]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (gameLoopRef.current) clearInterval(gameLoopRef.current);
-    };
-  }, []);
+  }, [isPlaying]);
 
   const canMove = useCallback((piece: number[][], pos: Position, boardState: Board): boolean => {
     for (let y = 0; y < piece.length; y++) {
@@ -129,10 +110,6 @@ const TetrisGame = ({ onGameEnd, isPlaying }: TetrisGameProps) => {
       }
     }
 
-    // Play drop sound
-    haptic.medium();
-    play("drop");
-
     // Clear lines
     let linesCleared = 0;
     for (let y = BOARD_HEIGHT - 1; y >= 0; y--) {
@@ -142,11 +119,6 @@ const TetrisGame = ({ onGameEnd, isPlaying }: TetrisGameProps) => {
         linesCleared++;
         y++;
       }
-    }
-
-    if (linesCleared > 0) {
-      haptic.success();
-      play("lineClear");
     }
 
     const points = [0, 100, 300, 500, 800][linesCleared] || 0;
@@ -159,34 +131,28 @@ const TetrisGame = ({ onGameEnd, isPlaying }: TetrisGameProps) => {
     
     if (!canMove(newPiece.shape, newPos, newBoard)) {
       setGameOver(true);
-      haptic.error();
-      play("gameOver");
       onGameEnd(score + points);
     } else {
       setCurrentPiece(newPiece);
       setPosition(newPos);
     }
-  }, [board, currentPiece, position, score, canMove, onGameEnd, haptic, play]);
+  }, [board, currentPiece, position, score, canMove, onGameEnd]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isPlaying || gameOver || !currentPiece || !gameStarted) return;
+      if (!isPlaying || gameOver || !currentPiece) return;
 
       switch (e.key) {
         case "ArrowLeft":
         case "a":
           if (canMove(currentPiece.shape, { x: position.x - 1, y: position.y }, board)) {
             setPosition(p => ({ ...p, x: p.x - 1 }));
-            haptic.light();
-            play("move");
           }
           break;
         case "ArrowRight":
         case "d":
           if (canMove(currentPiece.shape, { x: position.x + 1, y: position.y }, board)) {
             setPosition(p => ({ ...p, x: p.x + 1 }));
-            haptic.light();
-            play("move");
           }
           break;
         case "ArrowDown":
@@ -200,8 +166,6 @@ const TetrisGame = ({ onGameEnd, isPlaying }: TetrisGameProps) => {
           const rotated = rotatePiece(currentPiece.shape);
           if (canMove(rotated, position, board)) {
             setCurrentPiece({ ...currentPiece, shape: rotated });
-            haptic.light();
-            play("rotate");
           }
           break;
         case " ":
@@ -217,10 +181,10 @@ const TetrisGame = ({ onGameEnd, isPlaying }: TetrisGameProps) => {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isPlaying, gameOver, gameStarted, currentPiece, position, board, canMove, rotatePiece, haptic, play]);
+  }, [isPlaying, gameOver, currentPiece, position, board, canMove, rotatePiece]);
 
   useEffect(() => {
-    if (!isPlaying || gameOver || !currentPiece || !gameStarted) return;
+    if (!isPlaying || gameOver || !currentPiece) return;
 
     gameLoopRef.current = window.setInterval(() => {
       if (canMove(currentPiece.shape, { x: position.x, y: position.y + 1 }, board)) {
@@ -233,90 +197,7 @@ const TetrisGame = ({ onGameEnd, isPlaying }: TetrisGameProps) => {
     return () => {
       if (gameLoopRef.current) clearInterval(gameLoopRef.current);
     };
-  }, [isPlaying, gameOver, gameStarted, currentPiece, position, board, canMove, placePiece]);
-
-  // Touch swipe controls
-  const handleSwipe = useCallback((swipeDir: SwipeDirection) => {
-    if (!isPlaying || gameOver || !currentPiece || !gameStarted) return;
-
-    switch (swipeDir) {
-      case "left":
-        if (canMove(currentPiece.shape, { x: position.x - 1, y: position.y }, board)) {
-          setPosition(p => ({ ...p, x: p.x - 1 }));
-          haptic.light();
-          play("move");
-        }
-        break;
-      case "right":
-        if (canMove(currentPiece.shape, { x: position.x + 1, y: position.y }, board)) {
-          setPosition(p => ({ ...p, x: p.x + 1 }));
-          haptic.light();
-          play("move");
-        }
-        break;
-      case "down":
-        // Soft drop
-        if (canMove(currentPiece.shape, { x: position.x, y: position.y + 1 }, board)) {
-          setPosition(p => ({ ...p, y: p.y + 1 }));
-        }
-        break;
-      case "up":
-        // Rotate
-        const rotated = rotatePiece(currentPiece.shape);
-        if (canMove(rotated, position, board)) {
-          setCurrentPiece({ ...currentPiece, shape: rotated });
-          haptic.light();
-          play("rotate");
-        }
-        break;
-    }
-  }, [isPlaying, gameOver, gameStarted, currentPiece, position, board, canMove, rotatePiece, haptic, play]);
-
-  const handleTap = useCallback(() => {
-    if (!isPlaying || gameOver || !currentPiece || !gameStarted) return;
-    // Tap to rotate
-    const rotated = rotatePiece(currentPiece.shape);
-    if (canMove(rotated, position, board)) {
-      setCurrentPiece({ ...currentPiece, shape: rotated });
-      haptic.light();
-      play("rotate");
-    }
-  }, [isPlaying, gameOver, gameStarted, currentPiece, position, board, canMove, rotatePiece, haptic, play]);
-
-  const touchHandlers = useTouchSwipe({
-    onSwipe: handleSwipe,
-    onTap: handleTap,
-    threshold: 25,
-  });
-
-  // Button controls for mobile
-  const handleHardDrop = () => {
-    if (!currentPiece || !gameStarted) return;
-    let newY = position.y;
-    while (canMove(currentPiece.shape, { x: position.x, y: newY + 1 }, board)) {
-      newY++;
-    }
-    setPosition(p => ({ ...p, y: newY }));
-    haptic.heavy();
-  };
-
-  const handleMoveLeft = () => {
-    if (!currentPiece || !gameStarted) return;
-    if (canMove(currentPiece.shape, { x: position.x - 1, y: position.y }, board)) {
-      setPosition(p => ({ ...p, x: p.x - 1 }));
-      haptic.light();
-      play("move");
-    }
-  };
-
-  const handleMoveRight = () => {
-    if (!currentPiece || !gameStarted) return;
-    if (canMove(currentPiece.shape, { x: position.x + 1, y: position.y }, board)) {
-      setPosition(p => ({ ...p, x: p.x + 1 }));
-      haptic.light();
-      play("move");
-    }
-  };
+  }, [isPlaying, gameOver, currentPiece, position, board, canMove, placePiece]);
 
   const renderBoard = () => {
     const displayBoard = board.map(row => [...row]) as Board;
@@ -342,17 +223,13 @@ const TetrisGame = ({ onGameEnd, isPlaying }: TetrisGameProps) => {
     <div className="flex flex-col items-center justify-center h-full bg-gray-900 p-4">
       <div className="text-white text-xl mb-4 font-bold">Score: {score}</div>
       
-      {/* Swipe hint for mobile */}
-      <p className="text-xs text-primary/70 mb-2 md:hidden">Swipe to move • Tap to rotate</p>
-      
       <div
-        className="border-2 border-primary touch-none"
+        className="border-2 border-primary"
         style={{
           display: "grid",
           gridTemplateColumns: `repeat(${BOARD_WIDTH}, ${CELL_SIZE}px)`,
           backgroundColor: "#1a1a2e",
         }}
-        {...touchHandlers}
       >
         {renderBoard().flatMap((row, y) =>
           row.map((cell, x) => (
@@ -369,35 +246,7 @@ const TetrisGame = ({ onGameEnd, isPlaying }: TetrisGameProps) => {
         )}
       </div>
 
-      {/* Mobile button controls */}
-      <div className="flex gap-3 mt-4 md:hidden">
-        <button
-          onTouchStart={handleMoveLeft}
-          className="w-14 h-14 bg-primary/30 active:bg-primary/50 rounded-lg flex items-center justify-center text-2xl transition-colors"
-        >
-          ←
-        </button>
-        <button
-          onTouchStart={handleTap}
-          className="w-14 h-14 bg-purple-500/30 active:bg-purple-500/50 rounded-lg flex items-center justify-center text-2xl transition-colors"
-        >
-          ↻
-        </button>
-        <button
-          onTouchStart={handleHardDrop}
-          className="w-14 h-14 bg-amber-500/30 active:bg-amber-500/50 rounded-lg flex items-center justify-center text-xl transition-colors"
-        >
-          ⬇
-        </button>
-        <button
-          onTouchStart={handleMoveRight}
-          className="w-14 h-14 bg-primary/30 active:bg-primary/50 rounded-lg flex items-center justify-center text-2xl transition-colors"
-        >
-          →
-        </button>
-      </div>
-
-      <p className="text-xs text-muted-foreground mt-4 hidden md:block">
+      <p className="text-xs text-muted-foreground mt-4">
         ←→ Move | ↑ Rotate | ↓ Soft drop | Space: Hard drop
       </p>
     </div>

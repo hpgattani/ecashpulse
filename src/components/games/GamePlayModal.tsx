@@ -186,7 +186,7 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-lg glass-card border-primary/20 fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg glass-card border-primary/20">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             <span className="text-3xl">{game.icon}</span>
