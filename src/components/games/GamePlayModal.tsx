@@ -26,7 +26,9 @@ interface GamePlayModalProps {
 }
 
 const ESCROW_ADDRESS = "ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp";
-const DEMO_MIN_XEC = 5.46;
+const DEMO_MIN_XEC = 5.46; // displayed minimum demo fee (shown to user)
+// For payment amounts we must send an integer XEC amount to the PayButton
+const DEMO_MIN_XEC_INT = Math.ceil(DEMO_MIN_XEC);
 
 const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
   const { user } = useAuth();
@@ -35,6 +37,7 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
   const [finalScore, setFinalScore] = useState(0);
   const [entryFeeXec, setEntryFeeXec] = useState(0);
   const payButtonRef = useRef<HTMLDivElement>(null);
+  a;
   const contentRef = useRef<HTMLDivElement>(null);
 
   const centerNow = () => {
@@ -94,14 +97,29 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
     }
   }, [isOpen, mode]);
 
+  // Recalculate entry fee when the XEC price becomes available or changes
+  useEffect(() => {
+    if (!isOpen) return;
+    if (mode === "competitive") {
+      calculateEntryFee();
+    }
+  }, [prices?.ecash, isOpen, mode]);
+
   const calculateEntryFee = () => {
     if (mode === "demo") {
-      setEntryFeeXec(DEMO_MIN_XEC);
+      // Use integer amount for PayButton, but show precise DEMO_MIN_XEC to the user
+      setEntryFeeXec(DEMO_MIN_XEC_INT);
     } else {
-      // $1 USD in XEC
-      const xecPrice = prices?.ecash || 0.00003;
-      const oneUsdInXec = 1 / xecPrice;
-      setEntryFeeXec(Math.ceil(oneUsdInXec));
+      // Use CoinGecko price from `useCryptoPrices`. If the price isn't available yet,
+      // set 0 so the PayButton won't render the wrong value and we can show a loader.
+      const xecPrice = prices?.ecash;
+      if (xecPrice && xecPrice > 0) {
+        const oneUsdInXec = 1 / xecPrice;
+        // Use Math.ceil to ensure at least $1 worth is covered
+        setEntryFeeXec(Math.ceil(oneUsdInXec));
+      } else {
+        setEntryFeeXec(0);
+      }
     }
   };
 
@@ -276,7 +294,13 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
                   </>
                 )}
 
-                <div className="text-3xl font-bold text-primary mb-2">{entryFeeXec.toLocaleString()} XEC</div>
+                <div className="text-3xl font-bold text-primary mb-2">
+                  {mode === "competitive"
+                    ? entryFeeXec > 0
+                      ? `${entryFeeXec.toLocaleString()} XEC`
+                      : "Loading price..."
+                    : `${entryFeeXec.toLocaleString()} XEC`}
+                </div>
                 <p className="text-xs text-muted-foreground">
                   {mode === "competitive" ? "≈ $1 USD" : "Minimum demo fee"}
                 </p>
@@ -286,6 +310,10 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
               <div className="flex justify-center">
                 <div ref={payButtonRef} className="min-h-[50px]" />
               </div>
+              {mode === "competitive" && entryFeeXec === 0 && (
+                <p className="text-xs text-muted-foreground mt-2">Fetching XEC price...</p>
+              )}
+
               {/* Fallback to start demo without external PayButton (useful in dev) */}
               {mode === "demo" && (
                 <div className="mt-4 text-center">
