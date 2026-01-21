@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useTouchSwipe, SwipeDirection } from "@/hooks/useTouchSwipe";
 
 interface SnakeGameProps {
   onGameEnd: (score: number) => void;
@@ -14,6 +15,7 @@ type Position = { x: number; y: number };
 
 const SnakeGame = ({ onGameEnd, isPlaying }: SnakeGameProps) => {
   const [snake, setSnake] = useState<Position[]>([{ x: 10, y: 10 }]);
+  const gameAreaRef = useRef<HTMLDivElement>(null);
   const [food, setFood] = useState<Position>({ x: 15, y: 15 });
   const [direction, setDirection] = useState<Direction>("RIGHT");
   const [score, setScore] = useState(0);
@@ -140,8 +142,37 @@ const SnakeGame = ({ onGameEnd, isPlaying }: SnakeGameProps) => {
     };
   }, [isPlaying, gameOver, food, score, onGameEnd, generateFood]);
 
-  // Touch controls for mobile
-  const handleTouch = (newDirection: Direction) => {
+  // Touch controls for mobile - swipe handling
+  const handleSwipe = useCallback((swipeDir: SwipeDirection) => {
+    if (!isPlaying || gameOver) return;
+    
+    const directionMap: Record<SwipeDirection, Direction> = {
+      up: "UP",
+      down: "DOWN",
+      left: "LEFT",
+      right: "RIGHT",
+    };
+    
+    const newDirection = directionMap[swipeDir];
+    
+    if (
+      (newDirection === "UP" && directionRef.current !== "DOWN") ||
+      (newDirection === "DOWN" && directionRef.current !== "UP") ||
+      (newDirection === "LEFT" && directionRef.current !== "RIGHT") ||
+      (newDirection === "RIGHT" && directionRef.current !== "LEFT")
+    ) {
+      directionRef.current = newDirection;
+      setDirection(newDirection);
+    }
+  }, [isPlaying, gameOver]);
+
+  const touchHandlers = useTouchSwipe({
+    onSwipe: handleSwipe,
+    threshold: 20,
+  });
+
+  // Button touch controls
+  const handleButtonTouch = (newDirection: Direction) => {
     if (!isPlaying || gameOver) return;
     
     if (
@@ -159,13 +190,18 @@ const SnakeGame = ({ onGameEnd, isPlaying }: SnakeGameProps) => {
     <div className="flex flex-col items-center justify-center h-full bg-gray-900 p-4">
       <div className="text-white text-xl mb-4 font-bold">Score: {score}</div>
       
+      {/* Swipe hint for mobile */}
+      <p className="text-xs text-primary/70 mb-2 md:hidden">Swipe on game area to move</p>
+      
       <div
-        className="relative border-2 border-primary"
+        ref={gameAreaRef}
+        className="relative border-2 border-primary touch-none"
         style={{
           width: GRID_SIZE * CELL_SIZE,
           height: GRID_SIZE * CELL_SIZE,
           backgroundColor: "#1a1a2e",
         }}
+        {...touchHandlers}
       >
         {/* Snake */}
         {snake.map((segment, index) => (
@@ -193,31 +229,31 @@ const SnakeGame = ({ onGameEnd, isPlaying }: SnakeGameProps) => {
         />
       </div>
 
-      {/* Mobile controls */}
+      {/* Mobile button controls (backup) */}
       <div className="mt-4 grid grid-cols-3 gap-2 md:hidden">
         <div />
         <button
-          onClick={() => handleTouch("UP")}
-          className="w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center text-2xl"
+          onTouchStart={() => handleButtonTouch("UP")}
+          className="w-14 h-14 bg-primary/30 active:bg-primary/50 rounded-lg flex items-center justify-center text-2xl transition-colors"
         >
           ↑
         </button>
         <div />
         <button
-          onClick={() => handleTouch("LEFT")}
-          className="w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center text-2xl"
+          onTouchStart={() => handleButtonTouch("LEFT")}
+          className="w-14 h-14 bg-primary/30 active:bg-primary/50 rounded-lg flex items-center justify-center text-2xl transition-colors"
         >
           ←
         </button>
         <button
-          onClick={() => handleTouch("DOWN")}
-          className="w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center text-2xl"
+          onTouchStart={() => handleButtonTouch("DOWN")}
+          className="w-14 h-14 bg-primary/30 active:bg-primary/50 rounded-lg flex items-center justify-center text-2xl transition-colors"
         >
           ↓
         </button>
         <button
-          onClick={() => handleTouch("RIGHT")}
-          className="w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center text-2xl"
+          onTouchStart={() => handleButtonTouch("RIGHT")}
+          className="w-14 h-14 bg-primary/30 active:bg-primary/50 rounded-lg flex items-center justify-center text-2xl transition-colors"
         >
           →
         </button>
