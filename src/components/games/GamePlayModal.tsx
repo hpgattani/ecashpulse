@@ -40,9 +40,12 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
     if (isOpen) {
       setStep("payment");
       setFinalScore(0);
-      calculateEntryFee();
     }
-  }, [isOpen, mode]);
+  }, [isOpen]);
+
+  useEffect(() => {
+    calculateEntryFee();
+  }, [isOpen, mode, prices]);
 
   const calculateEntryFee = () => {
     if (mode === "demo") {
@@ -185,8 +188,12 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-lg glass-card border-primary/20 fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] max-h-[90vh] overflow-y-auto">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()} modal={true}>
+      <DialogContent 
+        className="sm:max-w-lg glass-card border-primary/20 max-h-[90vh] overflow-y-auto z-[100]"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             <span className="text-3xl">{game.icon}</span>
