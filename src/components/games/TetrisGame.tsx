@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useTouchSwipe, SwipeDirection } from "@/hooks/useTouchSwipe";
 import { useHaptic } from "@/hooks/useHaptic";
 import useGameSounds from "@/hooks/useGameSounds";
 
@@ -9,7 +8,7 @@ interface TetrisGameProps {
 }
 
 const BOARD_WIDTH = 10;
-const BOARD_HEIGHT = 20;
+const BOARD_HEIGHT = 18;
 const CELL_SIZE = 18;
 
 type CellValue = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
@@ -50,6 +49,8 @@ const TetrisGame = ({ onGameEnd, isPlaying }: TetrisGameProps) => {
   const [linesClearing, setLinesClearing] = useState<number[]>([]);
   const gameLoopRef = useRef<number | null>(null);
   const animationRef = useRef<number | null>(null);
+  const scoreRef = useRef(0);
+  const gameOverRef = useRef(false);
   const haptic = useHaptic();
   const { play } = useGameSounds();
 
@@ -70,16 +71,24 @@ const TetrisGame = ({ onGameEnd, isPlaying }: TetrisGameProps) => {
     setCurrentPiece(getRandomPiece());
     setPosition({ x: 4, y: 0 });
     setScore(0);
+    scoreRef.current = 0;
     setGameOver(false);
+    gameOverRef.current = false;
     setGameStarted(true);
     setLinesClearing([]);
   }, []);
 
   useEffect(() => {
-    if (isPlaying && !gameStarted) {
+    if (isPlaying) {
       resetGame();
+    } else {
+      setGameStarted(false);
+      if (gameLoopRef.current) {
+        clearInterval(gameLoopRef.current);
+        gameLoopRef.current = null;
+      }
     }
-  }, [isPlaying, gameStarted, resetGame]);
+  }, [isPlaying, resetGame]);
 
   useEffect(() => {
     return () => {
@@ -87,132 +96,6 @@ const TetrisGame = ({ onGameEnd, isPlaying }: TetrisGameProps) => {
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
   }, []);
-
-  // Canvas rendering
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const render = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // Background with gradient
-      const bgGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-      bgGradient.addColorStop(0, "#0f0f23");
-      bgGradient.addColorStop(1, "#1a1a2e");
-      ctx.fillStyle = bgGradient;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // Grid
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
-      ctx.lineWidth = 0.5;
-      for (let i = 0; i <= BOARD_WIDTH; i++) {
-        ctx.beginPath();
-        ctx.moveTo(i * CELL_SIZE, 0);
-        ctx.lineTo(i * CELL_SIZE, canvas.height);
-        ctx.stroke();
-      }
-      for (let i = 0; i <= BOARD_HEIGHT; i++) {
-        ctx.beginPath();
-        ctx.moveTo(0, i * CELL_SIZE);
-        ctx.lineTo(canvas.width, i * CELL_SIZE);
-        ctx.stroke();
-      }
-
-      // Draw placed pieces
-      for (let y = 0; y < BOARD_HEIGHT; y++) {
-        for (let x = 0; x < BOARD_WIDTH; x++) {
-          const cell = board[y][x];
-          if (cell !== 0) {
-            drawBlock(ctx, x, y, cell, linesClearing.includes(y));
-          }
-        }
-      }
-
-      // Draw current piece with ghost
-      if (currentPiece) {
-        // Ghost piece
-        let ghostY = position.y;
-        while (canMove(currentPiece.shape, { x: position.x, y: ghostY + 1 }, board)) {
-          ghostY++;
-        }
-        
-        for (let py = 0; py < currentPiece.shape.length; py++) {
-          for (let px = 0; px < currentPiece.shape[py].length; px++) {
-            if (currentPiece.shape[py][px]) {
-              const gx = (position.x + px) * CELL_SIZE;
-              const gy = (ghostY + py) * CELL_SIZE;
-              ctx.strokeStyle = COLORS[currentPiece.color].glow;
-              ctx.lineWidth = 2;
-              ctx.setLineDash([4, 4]);
-              ctx.strokeRect(gx + 2, gy + 2, CELL_SIZE - 4, CELL_SIZE - 4);
-              ctx.setLineDash([]);
-            }
-          }
-        }
-
-        // Current piece
-        for (let py = 0; py < currentPiece.shape.length; py++) {
-          for (let px = 0; px < currentPiece.shape[py].length; px++) {
-            if (currentPiece.shape[py][px]) {
-              drawBlock(ctx, position.x + px, position.y + py, currentPiece.color, false);
-            }
-          }
-        }
-      }
-
-      animationRef.current = requestAnimationFrame(render);
-    };
-
-    const drawBlock = (ctx: CanvasRenderingContext2D, x: number, y: number, color: number, flashing: boolean) => {
-      const px = x * CELL_SIZE;
-      const py = y * CELL_SIZE;
-      const size = CELL_SIZE - 2;
-      const colors = COLORS[color];
-
-      if (flashing) {
-        ctx.fillStyle = `rgba(255, 255, 255, ${0.5 + Math.sin(Date.now() / 50) * 0.5})`;
-        ctx.fillRect(px + 1, py + 1, size, size);
-        return;
-      }
-
-      // Glow
-      ctx.shadowColor = colors.glow;
-      ctx.shadowBlur = 8;
-
-      // Main block
-      const gradient = ctx.createLinearGradient(px, py, px, py + size);
-      gradient.addColorStop(0, colors.light);
-      gradient.addColorStop(0.5, colors.main);
-      gradient.addColorStop(1, colors.dark);
-      ctx.fillStyle = gradient;
-      ctx.beginPath();
-      ctx.roundRect(px + 1, py + 1, size, size, 3);
-      ctx.fill();
-
-      // Highlight
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
-      ctx.beginPath();
-      ctx.roundRect(px + 2, py + 2, size - 4, 4, 2);
-      ctx.fill();
-
-      // Inner shadow
-      ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
-      ctx.beginPath();
-      ctx.roundRect(px + 2, py + size - 4, size - 4, 3, 2);
-      ctx.fill();
-    };
-
-    render();
-
-    return () => {
-      if (animationRef.current) cancelAnimationFrame(animationRef.current);
-    };
-  }, [board, currentPiece, position, linesClearing]);
 
   const canMove = useCallback((piece: number[][], pos: Position, boardState: Board): boolean => {
     for (let y = 0; y < piece.length; y++) {
@@ -241,8 +124,136 @@ const TetrisGame = ({ onGameEnd, isPlaying }: TetrisGameProps) => {
     return rotated;
   }, []);
 
+  // Canvas rendering
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const drawBlock = (x: number, y: number, color: number, flashing: boolean) => {
+      const px = x * CELL_SIZE;
+      const py = y * CELL_SIZE;
+      const size = CELL_SIZE - 2;
+      const colors = COLORS[color];
+
+      if (flashing) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${0.5 + Math.sin(Date.now() / 50) * 0.5})`;
+        ctx.fillRect(px + 1, py + 1, size, size);
+        return;
+      }
+
+      ctx.shadowColor = colors.glow;
+      ctx.shadowBlur = 8;
+
+      const gradient = ctx.createLinearGradient(px, py, px, py + size);
+      gradient.addColorStop(0, colors.light);
+      gradient.addColorStop(0.5, colors.main);
+      gradient.addColorStop(1, colors.dark);
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.roundRect(px + 1, py + 1, size, size, 3);
+      ctx.fill();
+
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+      ctx.beginPath();
+      ctx.roundRect(px + 2, py + 2, size - 4, 4, 2);
+      ctx.fill();
+    };
+
+    const render = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Background
+      const bgGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      bgGradient.addColorStop(0, "#0f0f23");
+      bgGradient.addColorStop(1, "#1a1a2e");
+      ctx.fillStyle = bgGradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Grid
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
+      ctx.lineWidth = 0.5;
+      for (let i = 0; i <= BOARD_WIDTH; i++) {
+        ctx.beginPath();
+        ctx.moveTo(i * CELL_SIZE, 0);
+        ctx.lineTo(i * CELL_SIZE, canvas.height);
+        ctx.stroke();
+      }
+      for (let i = 0; i <= BOARD_HEIGHT; i++) {
+        ctx.beginPath();
+        ctx.moveTo(0, i * CELL_SIZE);
+        ctx.lineTo(canvas.width, i * CELL_SIZE);
+        ctx.stroke();
+      }
+
+      // Placed pieces
+      for (let y = 0; y < BOARD_HEIGHT; y++) {
+        for (let x = 0; x < BOARD_WIDTH; x++) {
+          const cell = board[y][x];
+          if (cell !== 0) {
+            drawBlock(x, y, cell, linesClearing.includes(y));
+          }
+        }
+      }
+
+      // Ghost and current piece
+      if (currentPiece) {
+        // Ghost
+        let ghostY = position.y;
+        while (canMove(currentPiece.shape, { x: position.x, y: ghostY + 1 }, board)) {
+          ghostY++;
+        }
+        
+        for (let py = 0; py < currentPiece.shape.length; py++) {
+          for (let px = 0; px < currentPiece.shape[py].length; px++) {
+            if (currentPiece.shape[py][px]) {
+              const gx = (position.x + px) * CELL_SIZE;
+              const gy = (ghostY + py) * CELL_SIZE;
+              ctx.strokeStyle = COLORS[currentPiece.color].glow;
+              ctx.lineWidth = 2;
+              ctx.setLineDash([4, 4]);
+              ctx.strokeRect(gx + 2, gy + 2, CELL_SIZE - 4, CELL_SIZE - 4);
+              ctx.setLineDash([]);
+            }
+          }
+        }
+
+        // Current piece
+        for (let py = 0; py < currentPiece.shape.length; py++) {
+          for (let px = 0; px < currentPiece.shape[py].length; px++) {
+            if (currentPiece.shape[py][px]) {
+              drawBlock(position.x + px, position.y + py, currentPiece.color, false);
+            }
+          }
+        }
+      }
+
+      // Game over
+      if (gameOver) {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.font = "bold 18px sans-serif";
+        ctx.fillStyle = "#ef4444";
+        ctx.textAlign = "center";
+        ctx.fillText("GAME OVER", canvas.width / 2, canvas.height / 2);
+      }
+
+      animationRef.current = requestAnimationFrame(render);
+    };
+
+    render();
+
+    return () => {
+      if (animationRef.current) cancelAnimationFrame(animationRef.current);
+    };
+  }, [board, currentPiece, position, linesClearing, gameOver, canMove]);
+
   const placePiece = useCallback(() => {
-    if (!currentPiece) return;
+    if (!currentPiece || gameOverRef.current) return;
 
     const newBoard = board.map(row => [...row]) as Board;
     
@@ -281,36 +292,59 @@ const TetrisGame = ({ onGameEnd, isPlaying }: TetrisGameProps) => {
         }
         
         const points = [0, 100, 300, 500, 800][linesToClear.length] || 0;
-        setScore(s => s + points);
+        const newScore = scoreRef.current + points;
+        scoreRef.current = newScore;
+        setScore(newScore);
         setBoard(clearedBoard);
         setLinesClearing([]);
 
-        spawnNewPiece(clearedBoard, points);
+        spawnNewPiece(clearedBoard);
       }, 300);
     } else {
       setBoard(newBoard);
-      spawnNewPiece(newBoard, 0);
+      spawnNewPiece(newBoard);
     }
   }, [board, currentPiece, position, haptic, play]);
 
-  const spawnNewPiece = (boardState: Board, points: number) => {
+  const spawnNewPiece = (boardState: Board) => {
     const newPiece = getRandomPiece();
     const newPos = { x: 4, y: 0 };
     
     if (!canMove(newPiece.shape, newPos, boardState)) {
+      gameOverRef.current = true;
       setGameOver(true);
       haptic.error();
       play("gameOver");
-      onGameEnd(score + points);
+      onGameEnd(scoreRef.current);
     } else {
       setCurrentPiece(newPiece);
       setPosition(newPos);
     }
   };
 
+  // Game loop
+  useEffect(() => {
+    if (!isPlaying || gameOverRef.current || !currentPiece || !gameStarted || linesClearing.length > 0) return;
+
+    gameLoopRef.current = window.setInterval(() => {
+      if (gameOverRef.current) return;
+      
+      if (canMove(currentPiece.shape, { x: position.x, y: position.y + 1 }, board)) {
+        setPosition(p => ({ ...p, y: p.y + 1 }));
+      } else {
+        placePiece();
+      }
+    }, 500);
+
+    return () => {
+      if (gameLoopRef.current) clearInterval(gameLoopRef.current);
+    };
+  }, [isPlaying, gameStarted, currentPiece, position, board, canMove, placePiece, linesClearing]);
+
+  // Keyboard controls
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isPlaying || gameOver || !currentPiece || !gameStarted) return;
+      if (!isPlaying || gameOverRef.current || !currentPiece || !gameStarted) return;
 
       switch (e.key) {
         case "ArrowLeft":
@@ -356,151 +390,103 @@ const TetrisGame = ({ onGameEnd, isPlaying }: TetrisGameProps) => {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isPlaying, gameOver, gameStarted, currentPiece, position, board, canMove, rotatePiece, haptic, play]);
+  }, [isPlaying, gameStarted, currentPiece, position, board, canMove, rotatePiece, haptic, play]);
 
-  useEffect(() => {
-    if (!isPlaying || gameOver || !currentPiece || !gameStarted || linesClearing.length > 0) return;
-
-    gameLoopRef.current = window.setInterval(() => {
-      if (canMove(currentPiece.shape, { x: position.x, y: position.y + 1 }, board)) {
-        setPosition(p => ({ ...p, y: p.y + 1 }));
-      } else {
-        placePiece();
-      }
-    }, 500);
-
-    return () => {
-      if (gameLoopRef.current) clearInterval(gameLoopRef.current);
-    };
-  }, [isPlaying, gameOver, gameStarted, currentPiece, position, board, canMove, placePiece, linesClearing]);
-
-  const handleSwipe = useCallback((swipeDir: SwipeDirection) => {
-    if (!isPlaying || gameOver || !currentPiece || !gameStarted) return;
-
-    switch (swipeDir) {
-      case "left":
-        if (canMove(currentPiece.shape, { x: position.x - 1, y: position.y }, board)) {
-          setPosition(p => ({ ...p, x: p.x - 1 }));
-          haptic.light();
-          play("move");
-        }
-        break;
-      case "right":
-        if (canMove(currentPiece.shape, { x: position.x + 1, y: position.y }, board)) {
-          setPosition(p => ({ ...p, x: p.x + 1 }));
-          haptic.light();
-          play("move");
-        }
-        break;
-      case "down":
-        if (canMove(currentPiece.shape, { x: position.x, y: position.y + 1 }, board)) {
-          setPosition(p => ({ ...p, y: p.y + 1 }));
-        }
-        break;
-      case "up":
-        const rotated = rotatePiece(currentPiece.shape);
-        if (canMove(rotated, position, board)) {
-          setCurrentPiece({ ...currentPiece, shape: rotated });
-          haptic.light();
-          play("rotate");
-        }
-        break;
-    }
-  }, [isPlaying, gameOver, gameStarted, currentPiece, position, board, canMove, rotatePiece, haptic, play]);
-
-  const handleTap = useCallback(() => {
-    if (!isPlaying || gameOver || !currentPiece || !gameStarted) return;
+  const handleRotate = useCallback(() => {
+    if (!currentPiece || !gameStarted || gameOverRef.current) return;
     const rotated = rotatePiece(currentPiece.shape);
     if (canMove(rotated, position, board)) {
       setCurrentPiece({ ...currentPiece, shape: rotated });
       haptic.light();
       play("rotate");
     }
-  }, [isPlaying, gameOver, gameStarted, currentPiece, position, board, canMove, rotatePiece, haptic, play]);
+  }, [currentPiece, position, board, canMove, rotatePiece, haptic, play, gameStarted]);
 
-  const touchHandlers = useTouchSwipe({ onSwipe: handleSwipe, onTap: handleTap, threshold: 25 });
+  const handleMoveLeft = useCallback(() => {
+    if (!currentPiece || !gameStarted || gameOverRef.current) return;
+    if (canMove(currentPiece.shape, { x: position.x - 1, y: position.y }, board)) {
+      setPosition(p => ({ ...p, x: p.x - 1 }));
+      haptic.light();
+      play("move");
+    }
+  }, [currentPiece, position, board, canMove, haptic, play, gameStarted]);
 
-  const handleHardDrop = () => {
-    if (!currentPiece || !gameStarted) return;
+  const handleMoveRight = useCallback(() => {
+    if (!currentPiece || !gameStarted || gameOverRef.current) return;
+    if (canMove(currentPiece.shape, { x: position.x + 1, y: position.y }, board)) {
+      setPosition(p => ({ ...p, x: p.x + 1 }));
+      haptic.light();
+      play("move");
+    }
+  }, [currentPiece, position, board, canMove, haptic, play, gameStarted]);
+
+  const handleHardDrop = useCallback(() => {
+    if (!currentPiece || !gameStarted || gameOverRef.current) return;
     let newY = position.y;
     while (canMove(currentPiece.shape, { x: position.x, y: newY + 1 }, board)) {
       newY++;
     }
     setPosition(p => ({ ...p, y: newY }));
     haptic.heavy();
-  };
-
-  const handleMoveLeft = () => {
-    if (!currentPiece || !gameStarted) return;
-    if (canMove(currentPiece.shape, { x: position.x - 1, y: position.y }, board)) {
-      setPosition(p => ({ ...p, x: p.x - 1 }));
-      haptic.light();
-      play("move");
-    }
-  };
-
-  const handleMoveRight = () => {
-    if (!currentPiece || !gameStarted) return;
-    if (canMove(currentPiece.shape, { x: position.x + 1, y: position.y }, board)) {
-      setPosition(p => ({ ...p, x: p.x + 1 }));
-      haptic.light();
-      play("move");
-    }
-  };
+  }, [currentPiece, position, board, canMove, haptic, gameStarted]);
 
   return (
-    <div className="flex flex-col items-center justify-center h-full p-4" style={{ background: "linear-gradient(180deg, #1e1b4b 0%, #0f0f23 100%)" }}>
-      {/* Score with neon effect */}
-      <div className="text-2xl mb-3 font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 drop-shadow-lg">
+    <div className="flex flex-col items-center justify-center h-full p-3" style={{ background: "linear-gradient(180deg, #1e1b4b 0%, #0f0f23 100%)" }}>
+      {/* Score */}
+      <div className="text-xl mb-2 font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400">
         Score: {score}
       </div>
       
-      <p className="text-xs text-primary/70 mb-2 md:hidden">Swipe to move • Tap to rotate</p>
-      
-      <div
-        className="border-2 border-purple-500/50 rounded-lg touch-none overflow-hidden"
+      {/* Game canvas */}
+      <canvas
+        ref={canvasRef}
+        width={BOARD_WIDTH * CELL_SIZE}
+        height={BOARD_HEIGHT * CELL_SIZE}
+        className="rounded-lg border-2 border-purple-500/50"
         style={{
           boxShadow: "0 0 30px rgba(168, 85, 247, 0.3), inset 0 0 20px rgba(168, 85, 247, 0.1)",
+          touchAction: 'none',
         }}
-        {...touchHandlers}
-      >
-        <canvas
-          ref={canvasRef}
-          width={BOARD_WIDTH * CELL_SIZE}
-          height={BOARD_HEIGHT * CELL_SIZE}
-        />
-      </div>
+      />
 
       {/* Mobile controls */}
-      <div className="flex gap-3 mt-4 md:hidden">
+      <div className="flex gap-3 mt-3">
         <button
-          onTouchStart={handleMoveLeft}
-          className="w-14 h-14 bg-gradient-to-b from-purple-500/40 to-purple-600/30 active:from-purple-400/60 active:to-purple-500/50 rounded-xl flex items-center justify-center text-2xl text-white/90 transition-all shadow-lg shadow-purple-500/20 border border-purple-500/30"
+          onTouchStart={(e) => { e.preventDefault(); handleMoveLeft(); }}
+          onMouseDown={handleMoveLeft}
+          className="w-14 h-14 bg-gradient-to-b from-purple-500/40 to-purple-600/30 active:from-purple-400/60 active:to-purple-500/50 rounded-xl flex items-center justify-center text-2xl text-white/90 border border-purple-500/30 select-none"
+          style={{ touchAction: 'manipulation' }}
         >
           ←
         </button>
         <button
-          onTouchStart={handleTap}
-          className="w-14 h-14 bg-gradient-to-b from-pink-500/40 to-pink-600/30 active:from-pink-400/60 active:to-pink-500/50 rounded-xl flex items-center justify-center text-2xl text-white/90 transition-all shadow-lg shadow-pink-500/20 border border-pink-500/30"
+          onTouchStart={(e) => { e.preventDefault(); handleRotate(); }}
+          onMouseDown={handleRotate}
+          className="w-14 h-14 bg-gradient-to-b from-pink-500/40 to-pink-600/30 active:from-pink-400/60 active:to-pink-500/50 rounded-xl flex items-center justify-center text-2xl text-white/90 border border-pink-500/30 select-none"
+          style={{ touchAction: 'manipulation' }}
         >
           ↻
         </button>
         <button
-          onTouchStart={handleHardDrop}
-          className="w-14 h-14 bg-gradient-to-b from-amber-500/40 to-amber-600/30 active:from-amber-400/60 active:to-amber-500/50 rounded-xl flex items-center justify-center text-xl text-white/90 transition-all shadow-lg shadow-amber-500/20 border border-amber-500/30"
+          onTouchStart={(e) => { e.preventDefault(); handleHardDrop(); }}
+          onMouseDown={handleHardDrop}
+          className="w-14 h-14 bg-gradient-to-b from-amber-500/40 to-amber-600/30 active:from-amber-400/60 active:to-amber-500/50 rounded-xl flex items-center justify-center text-xl text-white/90 border border-amber-500/30 select-none"
+          style={{ touchAction: 'manipulation' }}
         >
           ⬇
         </button>
         <button
-          onTouchStart={handleMoveRight}
-          className="w-14 h-14 bg-gradient-to-b from-purple-500/40 to-purple-600/30 active:from-purple-400/60 active:to-purple-500/50 rounded-xl flex items-center justify-center text-2xl text-white/90 transition-all shadow-lg shadow-purple-500/20 border border-purple-500/30"
+          onTouchStart={(e) => { e.preventDefault(); handleMoveRight(); }}
+          onMouseDown={handleMoveRight}
+          className="w-14 h-14 bg-gradient-to-b from-purple-500/40 to-purple-600/30 active:from-purple-400/60 active:to-purple-500/50 rounded-xl flex items-center justify-center text-2xl text-white/90 border border-purple-500/30 select-none"
+          style={{ touchAction: 'manipulation' }}
         >
           →
         </button>
       </div>
 
-      <p className="text-xs text-muted-foreground mt-4 hidden md:block">
-        ←→ Move | ↑ Rotate | ↓ Soft drop | Space: Hard drop
+      <p className="text-xs text-muted-foreground mt-2 hidden md:block">
+        Use arrow keys | Space to drop
       </p>
     </div>
   );

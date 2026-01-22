@@ -34,6 +34,7 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
   const { prices } = useCryptoPrices();
   const [step, setStep] = useState<"payment" | "playing" | "finished">("payment");
   const [finalScore, setFinalScore] = useState(0);
+  const [isGameActive, setIsGameActive] = useState(false);
   const payButtonRef = useRef<HTMLDivElement>(null);
   
   // Lock entry fee at modal open to prevent PayButton re-renders
@@ -48,6 +49,7 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
       setLockedEntryFee(fee);
       setStep("payment");
       setFinalScore(0);
+      setIsGameActive(false);
     }
   }, [isOpen, mode, prices?.ecash]);
 
@@ -96,6 +98,8 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
 
     console.log("Game payment received:", txHash);
     setStep("playing");
+    // Delay game activation slightly to allow step transition
+    setTimeout(() => setIsGameActive(true), 100);
   }, [closePayButtonModal, lockedEntryFee]);
 
   // Load PayButton script
@@ -171,7 +175,7 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
       }
     };
 
-    const timeoutId = setTimeout(renderButton, 100);
+    const timeoutId = setTimeout(renderButton, 150);
 
     return () => {
       clearTimeout(timeoutId);
@@ -184,6 +188,7 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
   const handleGameEnd = async (score: number) => {
     setFinalScore(score);
     setStep("finished");
+    setIsGameActive(false);
     triggerHaptic('medium');
 
     if (mode === "competitive" && user) {
@@ -210,7 +215,7 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
   const renderGame = () => {
     const gameProps = {
       onGameEnd: handleGameEnd,
-      isPlaying: step === "playing",
+      isPlaying: isGameActive,
     };
 
     switch (game.slug) {
@@ -234,35 +239,45 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
       : Math.ceil(1 / (prices?.ecash || 0.00003));
     setLockedEntryFee(fee);
     setStep("payment");
+    setIsGameActive(false);
   };
+
+  const handleClose = () => {
+    setIsGameActive(false);
+    closePayButtonModal();
+    onClose();
+  };
+
+  if (!isOpen) return null;
 
   return (
     <AnimatePresence>
       {isOpen && (
-        <>
-          {/* Backdrop */}
+        <div className="fixed inset-0 z-50">
+          {/* Backdrop - prevent closing during game */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50"
+            onClick={step === "playing" ? undefined : handleClose}
+            className="absolute inset-0 bg-background/90 backdrop-blur-md"
           />
 
-          {/* Modal */}
+          {/* Modal - fullscreen on mobile for better game experience */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="fixed inset-x-4 top-4 bottom-4 mx-auto max-w-lg z-50 flex items-center pointer-events-none"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ type: "spring", duration: 0.3 }}
+            className="absolute inset-2 sm:inset-4 md:inset-auto md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:max-w-lg md:w-full"
           >
-            <div className="glass-card glow-primary p-4 sm:p-6 w-full max-h-full overflow-y-auto pointer-events-auto">
+            <div className="glass-card glow-primary p-3 sm:p-4 h-full flex flex-col overflow-hidden">
               {/* Header */}
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <span className="text-3xl">{game.icon}</span>
+              <div className="flex items-start justify-between mb-3 flex-shrink-0">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <span className="text-2xl sm:text-3xl">{game.icon}</span>
                   <div>
-                    <h2 className="font-display font-bold text-lg sm:text-xl text-foreground">{game.name}</h2>
+                    <h2 className="font-display font-bold text-base sm:text-lg text-foreground">{game.name}</h2>
                     <span className={`text-xs px-2 py-0.5 rounded-full ${
                       mode === "competitive" 
                         ? "bg-amber-500/20 text-amber-400" 
@@ -272,91 +287,102 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
                     </span>
                   </div>
                 </div>
-                <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={handleClose} 
+                  className="h-8 w-8"
+                  disabled={step === "playing"}
+                >
                   <X className="w-4 h-4" />
                 </Button>
               </div>
 
               {/* Content */}
-              {step === "payment" && (
-                <div className="text-center space-y-6">
-                  <div className="p-6 rounded-xl bg-muted/20 border border-border/30">
-                    {mode === "competitive" ? (
-                      <>
-                        <Trophy className="w-12 h-12 text-amber-400 mx-auto mb-3" />
-                        <h3 className="text-lg font-bold mb-2">Competitive Entry</h3>
-                        <p className="text-sm text-muted-foreground mb-4">
-                          Your score will be added to the weekly leaderboard. Top 3 win prizes!
-                        </p>
-                      </>
-                    ) : (
-                      <>
-                        <Zap className="w-12 h-12 text-blue-400 mx-auto mb-3" />
-                        <h3 className="text-lg font-bold mb-2">Demo Mode</h3>
-                        <p className="text-sm text-muted-foreground mb-4">
-                          Practice without affecting the leaderboard.
-                        </p>
-                      </>
-                    )}
+              <div className="flex-1 overflow-y-auto min-h-0">
+                {step === "payment" && (
+                  <div className="text-center space-y-4 sm:space-y-6 py-4">
+                    <div className="p-4 sm:p-6 rounded-xl bg-muted/20 border border-border/30">
+                      {mode === "competitive" ? (
+                        <>
+                          <Trophy className="w-10 h-10 sm:w-12 sm:h-12 text-amber-400 mx-auto mb-3" />
+                          <h3 className="text-base sm:text-lg font-bold mb-2">Competitive Entry</h3>
+                          <p className="text-xs sm:text-sm text-muted-foreground mb-4">
+                            Your score will be added to the weekly leaderboard. Top 3 win prizes!
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="w-10 h-10 sm:w-12 sm:h-12 text-blue-400 mx-auto mb-3" />
+                          <h3 className="text-base sm:text-lg font-bold mb-2">Demo Mode</h3>
+                          <p className="text-xs sm:text-sm text-muted-foreground mb-4">
+                            Practice without affecting the leaderboard.
+                          </p>
+                        </>
+                      )}
 
-                    <div className="text-3xl font-bold text-primary mb-2">
-                      {lockedEntryFee.toLocaleString()} XEC
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {mode === "competitive" ? "≈ $1 USD" : "Minimum demo fee"}
-                    </p>
-                  </div>
-
-                  {/* PayButton container - centered */}
-                  <div className="flex justify-center">
-                    <div ref={payButtonRef} className="min-h-[50px]" />
-                  </div>
-                </div>
-              )}
-
-              {step === "playing" && (
-                <div className="aspect-square max-h-[400px] w-full bg-black/50 rounded-lg overflow-hidden">
-                  {renderGame()}
-                </div>
-              )}
-
-              {step === "finished" && (
-                <div className="text-center space-y-6">
-                  <div className="p-8 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 border border-primary/30">
-                    <Gamepad2 className="w-16 h-16 text-primary mx-auto mb-4" />
-                    <h3 className="text-2xl font-bold mb-2">Game Over!</h3>
-                    <p className="text-4xl font-bold text-primary mb-2">
-                      {finalScore.toLocaleString()}
-                    </p>
-                    <p className="text-muted-foreground">points</p>
-                    
-                    {mode === "competitive" && (
-                      <p className="text-sm text-emerald-400 mt-4">
-                        ✓ Score submitted to leaderboard
+                      <div className="text-2xl sm:text-3xl font-bold text-primary mb-2">
+                        {lockedEntryFee.toLocaleString()} XEC
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {mode === "competitive" ? "≈ $1 USD" : "Minimum demo fee"}
                       </p>
-                    )}
-                  </div>
+                    </div>
 
-                  <div className="flex gap-3">
-                    <Button 
-                      onClick={handlePlayAgain}
-                      className="flex-1"
-                    >
-                      Play Again
-                    </Button>
-                    <Button 
-                      onClick={onClose}
-                      variant="outline"
-                      className="flex-1"
-                    >
-                      Close
-                    </Button>
+                    {/* PayButton container */}
+                    <div className="flex justify-center min-h-[50px]">
+                      <div ref={payButtonRef} className="min-h-[50px]" />
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+
+                {step === "playing" && (
+                  <div 
+                    className="w-full h-full min-h-[400px] sm:min-h-[450px] rounded-lg overflow-hidden bg-black/50"
+                    style={{ touchAction: 'none' }}
+                  >
+                    {renderGame()}
+                  </div>
+                )}
+
+                {step === "finished" && (
+                  <div className="text-center space-y-4 sm:space-y-6 py-4">
+                    <div className="p-6 sm:p-8 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 border border-primary/30">
+                      <Gamepad2 className="w-12 h-12 sm:w-16 sm:h-16 text-primary mx-auto mb-4" />
+                      <h3 className="text-xl sm:text-2xl font-bold mb-2">Game Over!</h3>
+                      <p className="text-3xl sm:text-4xl font-bold text-primary mb-2">
+                        {finalScore.toLocaleString()}
+                      </p>
+                      <p className="text-muted-foreground">points</p>
+                      
+                      {mode === "competitive" && (
+                        <p className="text-sm text-emerald-400 mt-4">
+                          ✓ Score submitted to leaderboard
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex gap-3">
+                      <Button 
+                        onClick={handlePlayAgain}
+                        className="flex-1"
+                      >
+                        Play Again
+                      </Button>
+                      <Button 
+                        onClick={handleClose}
+                        variant="outline"
+                        className="flex-1"
+                      >
+                        Close
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </motion.div>
-        </>
+        </div>
       )}
     </AnimatePresence>
   );
