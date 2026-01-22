@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useTouchSwipe, SwipeDirection } from "@/hooks/useTouchSwipe";
 import { useHaptic } from "@/hooks/useHaptic";
 import useGameSounds from "@/hooks/useGameSounds";
 
@@ -10,8 +9,9 @@ interface SpaceShooterGameProps {
 
 type Position = { x: number; y: number };
 type Bullet = Position & { id: number };
-type Enemy = Position & { id: number; type: number };
-type Particle = Position & { id: number; vx: number; vy: number; life: number; color: string };
+type Enemy = Position & { id: number; type: number; hp: number };
+type Particle = Position & { id: number; vx: number; vy: number; life: number; color: string; size: number };
+type Star = { x: number; y: number; size: number; speed: number; brightness: number };
 
 const GAME_WIDTH = 300;
 const GAME_HEIGHT = 400;
@@ -20,34 +20,55 @@ const BULLET_SIZE = 4;
 const ENEMY_SIZE = 28;
 
 const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [playerX, setPlayerX] = useState(GAME_WIDTH / 2);
   const [bullets, setBullets] = useState<Bullet[]>([]);
   const [enemies, setEnemies] = useState<Enemy[]>([]);
   const [particles, setParticles] = useState<Particle[]>([]);
+  const [stars, setStars] = useState<Star[]>([]);
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
   const gameLoopRef = useRef<number | null>(null);
+  const animationRef = useRef<number | null>(null);
   const enemyIdRef = useRef(0);
   const bulletIdRef = useRef(0);
   const particleIdRef = useRef(0);
   const lastShotRef = useRef(0);
+  const scoreRef = useRef(0);
+  const gameOverRef = useRef(false);
   const haptic = useHaptic();
   const { play } = useGameSounds();
+
+  // Initialize stars
+  useEffect(() => {
+    const newStars: Star[] = [];
+    for (let i = 0; i < 50; i++) {
+      newStars.push({
+        x: Math.random() * GAME_WIDTH,
+        y: Math.random() * GAME_HEIGHT,
+        size: Math.random() * 2 + 0.5,
+        speed: Math.random() * 2 + 0.5,
+        brightness: Math.random() * 0.5 + 0.5,
+      });
+    }
+    setStars(newStars);
+  }, []);
 
   const spawnParticles = useCallback((x: number, y: number, count: number, color: string) => {
     const newParticles: Particle[] = [];
     for (let i = 0; i < count; i++) {
       const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
-      const speed = 2 + Math.random() * 3;
+      const speed = 2 + Math.random() * 4;
       newParticles.push({
         id: particleIdRef.current++,
         x,
         y,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
-        life: 20 + Math.random() * 10,
+        life: 25 + Math.random() * 15,
         color,
+        size: 2 + Math.random() * 3,
       });
     }
     setParticles((prev) => [...prev, ...newParticles]);
@@ -63,7 +84,9 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
     setEnemies([]);
     setParticles([]);
     setScore(0);
+    scoreRef.current = 0;
     setGameOver(false);
+    gameOverRef.current = false;
     setGameStarted(true);
     enemyIdRef.current = 0;
     bulletIdRef.current = 0;
@@ -76,6 +99,10 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
       resetGame();
     } else {
       setGameStarted(false);
+      if (gameLoopRef.current) {
+        clearInterval(gameLoopRef.current);
+        gameLoopRef.current = null;
+      }
     }
   }, [isPlaying, resetGame]);
 
@@ -83,48 +110,187 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
   useEffect(() => {
     return () => {
       if (gameLoopRef.current) clearInterval(gameLoopRef.current);
+      if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
   }, []);
 
   const shoot = useCallback(() => {
-    if (!gameStarted || gameOver) return;
+    if (!gameStarted || gameOverRef.current) return;
     const now = Date.now();
-    if (now - lastShotRef.current < 150) return;
+    if (now - lastShotRef.current < 120) return;
     lastShotRef.current = now;
 
-    // Double shot
-    setBullets((prev) => [
-      ...prev,
-      { id: bulletIdRef.current++, x: playerX - 8, y: GAME_HEIGHT - 60 },
-      { id: bulletIdRef.current++, x: playerX + 8, y: GAME_HEIGHT - 60 },
-    ]);
+    setPlayerX(currentX => {
+      setBullets((prev) => [
+        ...prev,
+        { id: bulletIdRef.current++, x: currentX - 10, y: GAME_HEIGHT - 60 },
+        { id: bulletIdRef.current++, x: currentX + 10, y: GAME_HEIGHT - 60 },
+      ]);
+      return currentX;
+    });
+    
     haptic.light();
     play("shoot");
-  }, [playerX, haptic, play, gameStarted, gameOver]);
+  }, [haptic, play, gameStarted]);
 
+  // Canvas rendering
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isPlaying || gameOver || !gameStarted) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-      if (e.key === "ArrowLeft" || e.key === "a") {
-        setPlayerX((x) => Math.max(PLAYER_SIZE / 2, x - 20));
-        haptic.light();
-      } else if (e.key === "ArrowRight" || e.key === "d") {
-        setPlayerX((x) => Math.min(GAME_WIDTH - PLAYER_SIZE / 2, x + 20));
-        haptic.light();
-      } else if (e.key === " " || e.key === "ArrowUp") {
-        shoot();
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const render = () => {
+      // Background
+      const bgGradient = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
+      bgGradient.addColorStop(0, "#0a0a1a");
+      bgGradient.addColorStop(0.5, "#1a0a2e");
+      bgGradient.addColorStop(1, "#0f172a");
+      ctx.fillStyle = bgGradient;
+      ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+      // Stars parallax
+      stars.forEach((star, i) => {
+        const newY = (star.y + star.speed) % GAME_HEIGHT;
+        stars[i].y = newY;
+        
+        ctx.globalAlpha = star.brightness;
+        ctx.fillStyle = "#fff";
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+
+      // Nebula effects
+      ctx.fillStyle = "rgba(139, 92, 246, 0.15)";
+      ctx.beginPath();
+      ctx.arc(60, 100, 80, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.fillStyle = "rgba(6, 182, 212, 0.1)";
+      ctx.beginPath();
+      ctx.arc(250, 280, 60, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Particles
+      particles.forEach((p) => {
+        ctx.globalAlpha = p.life / 40;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 8;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+      ctx.shadowBlur = 0;
+
+      // Enemies with glow
+      enemies.forEach((enemy) => {
+        const colors = ["#8b5cf6", "#22c55e", "#ef4444"];
+        const color = colors[enemy.type] || colors[0];
+        const emojis = ["👾", "🛸", "☄️"];
+        
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 15;
+        ctx.font = "28px serif";
+        ctx.textAlign = "center";
+        ctx.fillText(emojis[enemy.type] || emojis[0], enemy.x, enemy.y + 10);
+        ctx.shadowBlur = 0;
+      });
+
+      // Bullets with trail
+      bullets.forEach((bullet) => {
+        // Trail
+        const trailGradient = ctx.createLinearGradient(
+          bullet.x, bullet.y + 20,
+          bullet.x, bullet.y
+        );
+        trailGradient.addColorStop(0, "transparent");
+        trailGradient.addColorStop(1, "#f59e0b");
+        ctx.fillStyle = trailGradient;
+        ctx.fillRect(bullet.x - 2, bullet.y, 4, 20);
+        
+        // Bullet
+        ctx.shadowColor = "#fbbf24";
+        ctx.shadowBlur = 15;
+        ctx.fillStyle = "#fcd34d";
+        ctx.beginPath();
+        ctx.ellipse(bullet.x, bullet.y, BULLET_SIZE, BULLET_SIZE * 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      });
+
+      // Player ship
+      const shipX = playerX;
+      const shipY = GAME_HEIGHT - 50;
+
+      // Engine glow
+      ctx.shadowColor = "#06b6d4";
+      ctx.shadowBlur = 20;
+      const engineGradient = ctx.createLinearGradient(
+        shipX, shipY + 15,
+        shipX, shipY + 40
+      );
+      engineGradient.addColorStop(0, "#3b82f6");
+      engineGradient.addColorStop(0.5, "#06b6d4");
+      engineGradient.addColorStop(1, "transparent");
+      ctx.fillStyle = engineGradient;
+      ctx.beginPath();
+      ctx.moveTo(shipX - 8, shipY + 15);
+      ctx.lineTo(shipX + 8, shipY + 15);
+      ctx.lineTo(shipX + 3, shipY + 35 + Math.random() * 5);
+      ctx.lineTo(shipX - 3, shipY + 35 + Math.random() * 5);
+      ctx.fill();
+
+      // Ship body
+      ctx.shadowColor = "#06b6d4";
+      ctx.shadowBlur = 15;
+      ctx.font = "32px serif";
+      ctx.textAlign = "center";
+      ctx.fillText("🚀", shipX, shipY + 10);
+      
+      // Shield ring
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = "rgba(6, 182, 212, 0.3)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(shipX, shipY, 22, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Game over overlay
+      if (gameOver) {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+        ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+        
+        ctx.font = "48px serif";
+        ctx.textAlign = "center";
+        ctx.fillText("💥", GAME_WIDTH / 2, GAME_HEIGHT / 2 - 30);
+        
+        ctx.font = "bold 24px sans-serif";
+        ctx.fillStyle = "#ef4444";
+        ctx.fillText("GAME OVER", GAME_WIDTH / 2, GAME_HEIGHT / 2 + 20);
       }
+
+      animationRef.current = requestAnimationFrame(render);
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isPlaying, gameOver, gameStarted, shoot, haptic]);
+    render();
 
+    return () => {
+      if (animationRef.current) cancelAnimationFrame(animationRef.current);
+    };
+  }, [playerX, bullets, enemies, particles, stars, gameOver]);
+
+  // Game loop
   useEffect(() => {
-    if (!isPlaying || gameOver || !gameStarted) return;
+    if (!isPlaying || gameOverRef.current || !gameStarted) return;
 
     gameLoopRef.current = window.setInterval(() => {
+      if (gameOverRef.current) return;
+
       // Update particles
       setParticles((prev) =>
         prev
@@ -133,32 +299,36 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
       );
 
       // Move bullets up
-      setBullets((prev) => prev.filter((b) => b.y > 0).map((b) => ({ ...b, y: b.y - 12 })));
+      setBullets((prev) => prev.filter((b) => b.y > 0).map((b) => ({ ...b, y: b.y - 14 })));
 
       // Move enemies down
       setEnemies((prev) => {
+        if (gameOverRef.current) return prev;
+        
         const moved = prev.map((e) => ({ ...e, y: e.y + 2.5 + e.type * 0.5 }));
 
         // Check if any enemy reached bottom
         const reachedBottom = moved.some((e) => e.y > GAME_HEIGHT - 50);
-        if (reachedBottom) {
+        if (reachedBottom && !gameOverRef.current) {
+          gameOverRef.current = true;
           setGameOver(true);
           haptic.error();
           play("gameOver");
-          onGameEnd(score);
+          onGameEnd(scoreRef.current);
           return prev;
         }
 
         return moved.filter((e) => e.y < GAME_HEIGHT);
       });
 
-      // Spawn new enemies with variety
-      if (Math.random() < 0.04) {
+      // Spawn new enemies
+      if (Math.random() < 0.045) {
         const newEnemy: Enemy = {
           id: enemyIdRef.current++,
-          x: Math.random() * (GAME_WIDTH - ENEMY_SIZE) + ENEMY_SIZE / 2,
+          x: Math.random() * (GAME_WIDTH - ENEMY_SIZE * 2) + ENEMY_SIZE,
           y: -20,
           type: Math.floor(Math.random() * 3),
+          hp: 1,
         };
         setEnemies((prev) => [...prev, newEnemy]);
       }
@@ -173,15 +343,19 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
             return prevEnemies.filter((enemy) => {
               const dx = Math.abs(bullet.x - enemy.x);
               const dy = Math.abs(bullet.y - enemy.y);
-              if (dx < (BULLET_SIZE + ENEMY_SIZE) / 2 && dy < (BULLET_SIZE + ENEMY_SIZE) / 2) {
+              if (dx < (BULLET_SIZE + ENEMY_SIZE) / 2 + 5 && dy < (BULLET_SIZE + ENEMY_SIZE) / 2 + 5) {
                 hit = true;
                 const pointValue = 10 + enemy.type * 5;
-                setScore((s) => s + pointValue);
+                setScore((s) => {
+                  const newScore = s + pointValue;
+                  scoreRef.current = newScore;
+                  return newScore;
+                });
                 haptic.medium();
                 play("hit");
                 // Spawn explosion particles
-                const colors = ["#f59e0b", "#ef4444", "#f97316", "#fbbf24"];
-                spawnParticles(enemy.x, enemy.y, 8, colors[Math.floor(Math.random() * colors.length)]);
+                const colors = ["#f59e0b", "#ef4444", "#f97316", "#fbbf24", "#ec4899"];
+                spawnParticles(enemy.x, enemy.y, 12, colors[Math.floor(Math.random() * colors.length)]);
                 return false;
               }
               return true;
@@ -192,62 +366,48 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
 
         return remainingBullets;
       });
-    }, 50);
+    }, 45);
 
     return () => {
       if (gameLoopRef.current) clearInterval(gameLoopRef.current);
     };
-  }, [isPlaying, gameOver, gameStarted, score, onGameEnd, haptic, play, spawnParticles]);
+  }, [isPlaying, gameStarted, onGameEnd, haptic, play, spawnParticles]);
 
-  // Touch swipe controls
-  const handleSwipe = useCallback(
-    (swipeDir: SwipeDirection) => {
-      if (!isPlaying || gameOver || !gameStarted) return;
+  // Keyboard controls
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isPlaying || gameOverRef.current || !gameStarted) return;
 
-      if (swipeDir === "left") {
-        setPlayerX((x) => Math.max(PLAYER_SIZE / 2, x - 35));
+      if (e.key === "ArrowLeft" || e.key === "a") {
+        setPlayerX((x) => Math.max(PLAYER_SIZE / 2, x - 25));
         haptic.light();
-      } else if (swipeDir === "right") {
-        setPlayerX((x) => Math.min(GAME_WIDTH - PLAYER_SIZE / 2, x + 35));
+      } else if (e.key === "ArrowRight" || e.key === "d") {
+        setPlayerX((x) => Math.min(GAME_WIDTH - PLAYER_SIZE / 2, x + 25));
         haptic.light();
-      } else if (swipeDir === "up") {
+      } else if (e.key === " " || e.key === "ArrowUp") {
         shoot();
       }
-    },
-    [isPlaying, gameOver, gameStarted, shoot, haptic]
-  );
+    };
 
-  const handleTap = useCallback(() => {
-    if (!isPlaying || gameOver || !gameStarted) return;
-    shoot();
-  }, [isPlaying, gameOver, gameStarted, shoot]);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isPlaying, gameStarted, shoot, haptic]);
 
-  const touchHandlers = useTouchSwipe({
-    onSwipe: handleSwipe,
-    onTap: handleTap,
-    threshold: 20,
-  });
-
-  const handleMoveLeft = () => {
-    if (!gameStarted || gameOver) return;
+  const handleMoveLeft = useCallback(() => {
+    if (!gameStarted || gameOverRef.current) return;
     setPlayerX((x) => Math.max(PLAYER_SIZE / 2, x - 35));
     haptic.light();
-  };
+  }, [gameStarted, haptic]);
 
-  const handleMoveRight = () => {
-    if (!gameStarted || gameOver) return;
+  const handleMoveRight = useCallback(() => {
+    if (!gameStarted || gameOverRef.current) return;
     setPlayerX((x) => Math.min(GAME_WIDTH - PLAYER_SIZE / 2, x + 35));
     haptic.light();
-  };
+  }, [gameStarted, haptic]);
 
-  const getEnemyStyle = (type: number) => {
-    const styles = [
-      { emoji: "👾", shadow: "0 0 15px rgba(139, 92, 246, 0.8)" },
-      { emoji: "🛸", shadow: "0 0 15px rgba(34, 197, 94, 0.8)" },
-      { emoji: "☄️", shadow: "0 0 15px rgba(239, 68, 68, 0.8)" },
-    ];
-    return styles[type] || styles[0];
-  };
+  const handleShoot = useCallback(() => {
+    shoot();
+  }, [shoot]);
 
   return (
     <div className="flex flex-col items-center justify-center h-full bg-gradient-to-b from-slate-900 via-purple-950 to-slate-900 p-2">
@@ -260,187 +420,41 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
         <div className="text-xs text-primary/60 uppercase tracking-wider">Space Defense</div>
       </div>
 
-      {/* Swipe hint for mobile */}
-      <p className="text-xs text-cyan-400/70 mb-1 md:hidden">Swipe to move • Tap to shoot</p>
-
-      {/* Game area */}
-      <div
-        className="relative border-2 border-cyan-500/50 rounded-lg overflow-hidden touch-none"
+      {/* Game canvas */}
+      <canvas
+        ref={canvasRef}
+        width={GAME_WIDTH}
+        height={GAME_HEIGHT}
+        className="rounded-lg border-2 border-cyan-500/50"
         style={{
-          width: GAME_WIDTH,
-          height: GAME_HEIGHT,
-          background: "linear-gradient(180deg, #0a0a1a 0%, #1a0a2e 50%, #0f172a 100%)",
           boxShadow: "inset 0 0 60px rgba(6, 182, 212, 0.1), 0 0 30px rgba(6, 182, 212, 0.2)",
+          touchAction: 'none',
         }}
-        {...touchHandlers}
-      >
-        {/* Animated stars background */}
-        {[...Array(30)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute rounded-full animate-pulse"
-            style={{
-              left: `${(i * 37) % 100}%`,
-              top: `${(i * 23 + i * 7) % 100}%`,
-              width: i % 3 === 0 ? 2 : 1,
-              height: i % 3 === 0 ? 2 : 1,
-              backgroundColor: i % 5 === 0 ? "#67e8f9" : "#ffffff",
-              opacity: 0.3 + (i % 4) * 0.2,
-              animationDelay: `${i * 0.1}s`,
-            }}
-          />
-        ))}
+      />
 
-        {/* Nebula effects */}
-        <div
-          className="absolute opacity-20 pointer-events-none"
-          style={{
-            width: 150,
-            height: 150,
-            left: 20,
-            top: 50,
-            background: "radial-gradient(circle, rgba(139, 92, 246, 0.4) 0%, transparent 70%)",
-            filter: "blur(20px)",
-          }}
-        />
-        <div
-          className="absolute opacity-20 pointer-events-none"
-          style={{
-            width: 100,
-            height: 100,
-            right: 10,
-            top: 200,
-            background: "radial-gradient(circle, rgba(6, 182, 212, 0.4) 0%, transparent 70%)",
-            filter: "blur(15px)",
-          }}
-        />
-
-        {/* Particles */}
-        {particles.map((p) => (
-          <div
-            key={p.id}
-            className="absolute rounded-full"
-            style={{
-              left: p.x,
-              top: p.y,
-              width: 4,
-              height: 4,
-              backgroundColor: p.color,
-              opacity: p.life / 30,
-              boxShadow: `0 0 6px ${p.color}`,
-            }}
-          />
-        ))}
-
-        {/* Enemies */}
-        {enemies.map((enemy) => {
-          const style = getEnemyStyle(enemy.type);
-          return (
-            <div
-              key={enemy.id}
-              className="absolute text-2xl transition-transform"
-              style={{
-                left: enemy.x - ENEMY_SIZE / 2,
-                top: enemy.y,
-                filter: `drop-shadow(${style.shadow})`,
-                transform: `rotate(${Math.sin(Date.now() / 200 + enemy.id) * 10}deg)`,
-              }}
-            >
-              {style.emoji}
-            </div>
-          );
-        })}
-
-        {/* Bullets */}
-        {bullets.map((bullet) => (
-          <div
-            key={bullet.id}
-            className="absolute"
-            style={{
-              left: bullet.x - BULLET_SIZE / 2,
-              top: bullet.y,
-              width: BULLET_SIZE,
-              height: 14,
-              background: "linear-gradient(to top, #f59e0b, #fcd34d)",
-              borderRadius: "2px",
-              boxShadow: "0 0 10px #f59e0b, 0 0 20px #fbbf24",
-            }}
-          />
-        ))}
-
-        {/* Player spaceship */}
-        <div
-          className="absolute transition-all duration-75"
-          style={{
-            left: playerX - PLAYER_SIZE / 2,
-            bottom: 15,
-          }}
-        >
-          {/* Engine glow */}
-          <div
-            className="absolute animate-pulse"
-            style={{
-              width: 16,
-              height: 20,
-              left: 7,
-              bottom: -12,
-              background: "linear-gradient(to bottom, #3b82f6, #06b6d4, transparent)",
-              borderRadius: "0 0 50% 50%",
-              filter: "blur(3px)",
-              opacity: 0.9,
-            }}
-          />
-          {/* Ship body */}
-          <div
-            style={{
-              fontSize: 32,
-              filter: "drop-shadow(0 0 10px rgba(6, 182, 212, 0.8))",
-            }}
-          >
-            🚀
-          </div>
-          {/* Shield effect */}
-          <div
-            className="absolute rounded-full pointer-events-none"
-            style={{
-              width: 45,
-              height: 45,
-              left: -6,
-              top: -5,
-              border: "1px solid rgba(6, 182, 212, 0.3)",
-              boxShadow: "inset 0 0 15px rgba(6, 182, 212, 0.2)",
-            }}
-          />
-        </div>
-
-        {/* Game over overlay */}
-        {gameOver && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-            <div className="text-center">
-              <div className="text-4xl mb-2">💥</div>
-              <div className="text-2xl font-bold text-red-400">GAME OVER</div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Mobile controls */}
-      <div className="flex gap-3 mt-3 md:hidden">
+      {/* Mobile controls - always visible */}
+      <div className="flex gap-4 mt-3">
         <button
-          onTouchStart={handleMoveLeft}
-          className="w-14 h-14 bg-cyan-500/20 active:bg-cyan-500/40 rounded-xl text-xl transition-colors border border-cyan-500/30 flex items-center justify-center"
+          onTouchStart={(e) => { e.preventDefault(); handleMoveLeft(); }}
+          onMouseDown={handleMoveLeft}
+          className="w-16 h-16 bg-cyan-500/20 active:bg-cyan-500/50 rounded-xl text-2xl transition-colors border-2 border-cyan-500/40 flex items-center justify-center select-none"
+          style={{ touchAction: 'manipulation' }}
         >
           ◀
         </button>
         <button
-          onTouchStart={shoot}
-          className="w-14 h-14 bg-amber-500/20 active:bg-amber-500/40 rounded-xl text-xl transition-colors border border-amber-500/30 flex items-center justify-center"
+          onTouchStart={(e) => { e.preventDefault(); handleShoot(); }}
+          onMouseDown={handleShoot}
+          className="w-16 h-16 bg-amber-500/20 active:bg-amber-500/50 rounded-xl text-2xl transition-colors border-2 border-amber-500/40 flex items-center justify-center select-none"
+          style={{ touchAction: 'manipulation' }}
         >
           🔥
         </button>
         <button
-          onTouchStart={handleMoveRight}
-          className="w-14 h-14 bg-cyan-500/20 active:bg-cyan-500/40 rounded-xl text-xl transition-colors border border-cyan-500/30 flex items-center justify-center"
+          onTouchStart={(e) => { e.preventDefault(); handleMoveRight(); }}
+          onMouseDown={handleMoveRight}
+          className="w-16 h-16 bg-cyan-500/20 active:bg-cyan-500/50 rounded-xl text-2xl transition-colors border-2 border-cyan-500/40 flex items-center justify-center select-none"
+          style={{ touchAction: 'manipulation' }}
         >
           ▶
         </button>
