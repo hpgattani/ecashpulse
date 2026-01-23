@@ -1,4 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Stars, Trail, Float } from "@react-three/drei";
+import * as THREE from "three";
 import { useHaptic } from "@/hooks/useHaptic";
 import useGameSounds from "@/hooks/useGameSounds";
 
@@ -7,72 +10,263 @@ interface SpaceShooterGameProps {
   isPlaying: boolean;
 }
 
-type Position = { x: number; y: number };
-type Bullet = Position & { id: number };
-type Enemy = Position & { id: number; type: number; hp: number };
-type Particle = Position & { id: number; vx: number; vy: number; life: number; color: string; size: number };
-type Star = { x: number; y: number; size: number; speed: number; brightness: number };
+type Bullet = { id: number; x: number; y: number };
+type Enemy = { id: number; x: number; y: number; type: number };
+type Explosion = { id: number; x: number; y: number; progress: number };
 
 const GAME_WIDTH = 300;
 const GAME_HEIGHT = 400;
-const PLAYER_SIZE = 30;
-const BULLET_SIZE = 4;
-const ENEMY_SIZE = 28;
+
+// Player Ship Component
+const PlayerShip = ({ position }: { position: [number, number, number] }) => {
+  const meshRef = useRef<THREE.Group>(null);
+  const engineRef = useRef<THREE.Mesh>(null);
+  
+  useFrame((state) => {
+    if (engineRef.current) {
+      const scale = 0.8 + Math.sin(state.clock.elapsedTime * 20) * 0.2;
+      engineRef.current.scale.y = scale;
+    }
+  });
+  
+  return (
+    <group ref={meshRef} position={position}>
+      {/* Main body */}
+      <mesh position={[0, 0.2, 0]}>
+        <coneGeometry args={[0.3, 1, 8]} />
+        <meshStandardMaterial color="#94a3b8" metalness={0.8} roughness={0.2} />
+      </mesh>
+      
+      {/* Cockpit */}
+      <mesh position={[0, 0.4, 0.15]}>
+        <sphereGeometry args={[0.15, 16, 16]} />
+        <meshStandardMaterial color="#22d3ee" emissive="#06b6d4" emissiveIntensity={0.5} />
+      </mesh>
+      
+      {/* Left wing */}
+      <mesh position={[-0.4, -0.1, 0]} rotation={[0, 0, -0.3]}>
+        <boxGeometry args={[0.5, 0.05, 0.3]} />
+        <meshStandardMaterial color="#dc2626" metalness={0.6} roughness={0.3} />
+      </mesh>
+      
+      {/* Right wing */}
+      <mesh position={[0.4, -0.1, 0]} rotation={[0, 0, 0.3]}>
+        <boxGeometry args={[0.5, 0.05, 0.3]} />
+        <meshStandardMaterial color="#dc2626" metalness={0.6} roughness={0.3} />
+      </mesh>
+      
+      {/* Engine flame */}
+      <mesh ref={engineRef} position={[0, -0.5, 0]}>
+        <coneGeometry args={[0.12, 0.4, 8]} />
+        <meshBasicMaterial color="#fbbf24" transparent opacity={0.9} />
+      </mesh>
+      <mesh position={[0, -0.4, 0]}>
+        <coneGeometry args={[0.08, 0.3, 8]} />
+        <meshBasicMaterial color="#ffffff" transparent opacity={0.8} />
+      </mesh>
+      
+      {/* Engine glow */}
+      <pointLight position={[0, -0.5, 0]} color="#f59e0b" intensity={2} distance={2} />
+    </group>
+  );
+};
+
+// Bullet Component
+const Bullet3D = ({ position }: { position: [number, number, number] }) => {
+  return (
+    <Trail
+      width={0.5}
+      length={3}
+      color="#fbbf24"
+      attenuation={(t) => t * t}
+    >
+      <mesh position={position}>
+        <sphereGeometry args={[0.08, 8, 8]} />
+        <meshBasicMaterial color="#fcd34d" />
+      </mesh>
+    </Trail>
+  );
+};
+
+// Enemy Component
+const Enemy3D = ({ position, type }: { position: [number, number, number]; type: number }) => {
+  const meshRef = useRef<THREE.Group>(null);
+  
+  useFrame((state) => {
+    if (meshRef.current) {
+      meshRef.current.rotation.y = state.clock.elapsedTime * 2;
+      meshRef.current.position.x = position[0] + Math.sin(state.clock.elapsedTime * 3 + position[1]) * 0.1;
+    }
+  });
+  
+  const colors = [0x8b5cf6, 0x22c55e, 0xef4444];
+  const color = colors[type] || colors[0];
+  
+  return (
+    <group ref={meshRef} position={position}>
+      {type === 0 && (
+        <>
+          {/* UFO type */}
+          <mesh>
+            <cylinderGeometry args={[0.4, 0.4, 0.1, 16]} />
+            <meshStandardMaterial color={color} metalness={0.7} roughness={0.3} />
+          </mesh>
+          <mesh position={[0, 0.1, 0]}>
+            <sphereGeometry args={[0.2, 16, 16]} />
+            <meshStandardMaterial color="#22d3ee" emissive="#06b6d4" emissiveIntensity={0.3} transparent opacity={0.7} />
+          </mesh>
+          <pointLight position={[0, -0.2, 0]} color={color} intensity={1} distance={1.5} />
+        </>
+      )}
+      {type === 1 && (
+        <>
+          {/* Alien fighter type */}
+          <mesh rotation={[Math.PI, 0, 0]}>
+            <coneGeometry args={[0.3, 0.6, 6]} />
+            <meshStandardMaterial color={color} metalness={0.6} roughness={0.4} />
+          </mesh>
+          <mesh position={[-0.25, 0, 0]} rotation={[0, 0, 0.5]}>
+            <boxGeometry args={[0.3, 0.05, 0.15]} />
+            <meshStandardMaterial color="#1e3a5f" metalness={0.5} />
+          </mesh>
+          <mesh position={[0.25, 0, 0]} rotation={[0, 0, -0.5]}>
+            <boxGeometry args={[0.3, 0.05, 0.15]} />
+            <meshStandardMaterial color="#1e3a5f" metalness={0.5} />
+          </mesh>
+        </>
+      )}
+      {type === 2 && (
+        <>
+          {/* Asteroid type */}
+          <mesh>
+            <icosahedronGeometry args={[0.35, 0]} />
+            <meshStandardMaterial color={color} metalness={0.2} roughness={0.8} />
+          </mesh>
+          <pointLight position={[0, 0, 0.3]} color="#ff6b6b" intensity={0.5} distance={1} />
+        </>
+      )}
+    </group>
+  );
+};
+
+// Explosion Component
+const Explosion3D = ({ position, progress }: { position: [number, number, number]; progress: number }) => {
+  const meshRef = useRef<THREE.Mesh>(null);
+  
+  const scale = progress * 2;
+  const opacity = 1 - progress;
+  
+  return (
+    <group position={position}>
+      <mesh ref={meshRef} scale={[scale, scale, scale]}>
+        <sphereGeometry args={[0.3, 16, 16]} />
+        <meshBasicMaterial color="#f59e0b" transparent opacity={opacity * 0.8} />
+      </mesh>
+      <mesh scale={[scale * 0.7, scale * 0.7, scale * 0.7]}>
+        <sphereGeometry args={[0.3, 16, 16]} />
+        <meshBasicMaterial color="#ffffff" transparent opacity={opacity * 0.6} />
+      </mesh>
+      <pointLight color="#f59e0b" intensity={10 * opacity} distance={3} />
+    </group>
+  );
+};
+
+// Game Scene
+const GameScene = ({
+  playerX,
+  bullets,
+  enemies,
+  explosions,
+  gameOver,
+}: {
+  playerX: number;
+  bullets: Bullet[];
+  enemies: Enemy[];
+  explosions: Explosion[];
+  gameOver: boolean;
+}) => {
+  const { camera } = useThree();
+  
+  useEffect(() => {
+    camera.position.set(0, -3, 8);
+    camera.lookAt(0, 2, 0);
+  }, [camera]);
+  
+  // Convert screen coords to 3D world coords
+  const screenToWorld = (x: number, y: number): [number, number, number] => {
+    const worldX = ((x / GAME_WIDTH) - 0.5) * 6;
+    const worldY = ((1 - y / GAME_HEIGHT) - 0.5) * 8;
+    return [worldX, worldY, 0];
+  };
+  
+  const playerPos = screenToWorld(playerX, GAME_HEIGHT - 50);
+  
+  return (
+    <>
+      {/* Lighting */}
+      <ambientLight intensity={0.3} />
+      <directionalLight position={[5, 5, 5]} intensity={1} />
+      <pointLight position={[0, 5, 3]} intensity={0.5} color="#8b5cf6" />
+      
+      {/* Starfield background */}
+      <Stars radius={50} depth={50} count={2000} factor={4} fade speed={1} />
+      
+      {/* Nebula effects - simple colored spheres */}
+      <mesh position={[-3, 3, -10]}>
+        <sphereGeometry args={[3, 32, 32]} />
+        <meshBasicMaterial color="#8b5cf6" transparent opacity={0.1} />
+      </mesh>
+      <mesh position={[3, -2, -12]}>
+        <sphereGeometry args={[2.5, 32, 32]} />
+        <meshBasicMaterial color="#06b6d4" transparent opacity={0.08} />
+      </mesh>
+      
+      {/* Player */}
+      {!gameOver && (
+        <Float speed={2} rotationIntensity={0.1} floatIntensity={0.2}>
+          <PlayerShip position={playerPos} />
+        </Float>
+      )}
+      
+      {/* Bullets */}
+      {bullets.map((bullet) => {
+        const pos = screenToWorld(bullet.x, bullet.y);
+        return <Bullet3D key={bullet.id} position={pos} />;
+      })}
+      
+      {/* Enemies */}
+      {enemies.map((enemy) => {
+        const pos = screenToWorld(enemy.x, enemy.y);
+        return <Enemy3D key={enemy.id} position={pos} type={enemy.type} />;
+      })}
+      
+      {/* Explosions */}
+      {explosions.map((exp) => {
+        const pos = screenToWorld(exp.x, exp.y);
+        return <Explosion3D key={exp.id} position={pos} progress={exp.progress} />;
+      })}
+    </>
+  );
+};
 
 const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [playerX, setPlayerX] = useState(GAME_WIDTH / 2);
   const [bullets, setBullets] = useState<Bullet[]>([]);
   const [enemies, setEnemies] = useState<Enemy[]>([]);
-  const [particles, setParticles] = useState<Particle[]>([]);
-  const [stars, setStars] = useState<Star[]>([]);
+  const [explosions, setExplosions] = useState<Explosion[]>([]);
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
+  
   const gameLoopRef = useRef<number | null>(null);
-  const animationRef = useRef<number | null>(null);
   const enemyIdRef = useRef(0);
   const bulletIdRef = useRef(0);
-  const particleIdRef = useRef(0);
+  const explosionIdRef = useRef(0);
   const lastShotRef = useRef(0);
   const scoreRef = useRef(0);
   const gameOverRef = useRef(false);
   const haptic = useHaptic();
   const { play } = useGameSounds();
-
-  // Initialize stars
-  useEffect(() => {
-    const newStars: Star[] = [];
-    for (let i = 0; i < 50; i++) {
-      newStars.push({
-        x: Math.random() * GAME_WIDTH,
-        y: Math.random() * GAME_HEIGHT,
-        size: Math.random() * 2 + 0.5,
-        speed: Math.random() * 2 + 0.5,
-        brightness: Math.random() * 0.5 + 0.5,
-      });
-    }
-    setStars(newStars);
-  }, []);
-
-  const spawnParticles = useCallback((x: number, y: number, count: number, color: string) => {
-    const newParticles: Particle[] = [];
-    for (let i = 0; i < count; i++) {
-      const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
-      const speed = 2 + Math.random() * 4;
-      newParticles.push({
-        id: particleIdRef.current++,
-        x,
-        y,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        life: 25 + Math.random() * 15,
-        color,
-        size: 2 + Math.random() * 3,
-      });
-    }
-    setParticles((prev) => [...prev, ...newParticles]);
-  }, []);
 
   const resetGame = useCallback(() => {
     if (gameLoopRef.current) {
@@ -82,7 +276,7 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
     setPlayerX(GAME_WIDTH / 2);
     setBullets([]);
     setEnemies([]);
-    setParticles([]);
+    setExplosions([]);
     setScore(0);
     scoreRef.current = 0;
     setGameOver(false);
@@ -90,10 +284,9 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
     setGameStarted(true);
     enemyIdRef.current = 0;
     bulletIdRef.current = 0;
-    particleIdRef.current = 0;
+    explosionIdRef.current = 0;
   }, []);
 
-  // Reset game when isPlaying changes to true
   useEffect(() => {
     if (isPlaying) {
       resetGame();
@@ -106,11 +299,9 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
     }
   }, [isPlaying, resetGame]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (gameLoopRef.current) clearInterval(gameLoopRef.current);
-      if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
   }, []);
 
@@ -133,249 +324,6 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
     play("shoot");
   }, [haptic, play, gameStarted]);
 
-  // Canvas rendering
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const render = () => {
-      // Background
-      const bgGradient = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
-      bgGradient.addColorStop(0, "#0a0a1a");
-      bgGradient.addColorStop(0.5, "#1a0a2e");
-      bgGradient.addColorStop(1, "#0f172a");
-      ctx.fillStyle = bgGradient;
-      ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-
-      // Stars parallax
-      stars.forEach((star, i) => {
-        const newY = (star.y + star.speed) % GAME_HEIGHT;
-        stars[i].y = newY;
-        
-        ctx.globalAlpha = star.brightness;
-        ctx.fillStyle = "#fff";
-        ctx.beginPath();
-        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
-        ctx.fill();
-      });
-      ctx.globalAlpha = 1;
-
-      // Nebula effects
-      ctx.fillStyle = "rgba(139, 92, 246, 0.15)";
-      ctx.beginPath();
-      ctx.arc(60, 100, 80, 0, Math.PI * 2);
-      ctx.fill();
-      
-      ctx.fillStyle = "rgba(6, 182, 212, 0.1)";
-      ctx.beginPath();
-      ctx.arc(250, 280, 60, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Particles
-      particles.forEach((p) => {
-        ctx.globalAlpha = p.life / 40;
-        ctx.shadowColor = p.color;
-        ctx.shadowBlur = 8;
-        ctx.fillStyle = p.color;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fill();
-      });
-      ctx.globalAlpha = 1;
-      ctx.shadowBlur = 0;
-
-      // Enemies with glow
-      enemies.forEach((enemy) => {
-        const colors = ["#8b5cf6", "#22c55e", "#ef4444"];
-        const color = colors[enemy.type] || colors[0];
-        const emojis = ["👾", "🛸", "☄️"];
-        
-        ctx.shadowColor = color;
-        ctx.shadowBlur = 15;
-        ctx.font = "28px serif";
-        ctx.textAlign = "center";
-        ctx.fillText(emojis[enemy.type] || emojis[0], enemy.x, enemy.y + 10);
-        ctx.shadowBlur = 0;
-      });
-
-      // Bullets with trail
-      bullets.forEach((bullet) => {
-        // Trail
-        const trailGradient = ctx.createLinearGradient(
-          bullet.x, bullet.y + 20,
-          bullet.x, bullet.y
-        );
-        trailGradient.addColorStop(0, "transparent");
-        trailGradient.addColorStop(1, "#f59e0b");
-        ctx.fillStyle = trailGradient;
-        ctx.fillRect(bullet.x - 2, bullet.y, 4, 20);
-        
-        // Bullet
-        ctx.shadowColor = "#fbbf24";
-        ctx.shadowBlur = 15;
-        ctx.fillStyle = "#fcd34d";
-        ctx.beginPath();
-        ctx.ellipse(bullet.x, bullet.y, BULLET_SIZE, BULLET_SIZE * 2, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.shadowBlur = 0;
-      });
-
-      // Player ship (real rendered rocket)
-      const shipX = playerX;
-      const shipY = GAME_HEIGHT - 50;
-
-      // Engine flames (animated)
-      ctx.shadowColor = "#f59e0b";
-      ctx.shadowBlur = 25;
-      const flameHeight = 18 + Math.random() * 8;
-      
-      // Outer flame
-      const flameGradient = ctx.createLinearGradient(shipX, shipY + 12, shipX, shipY + 12 + flameHeight);
-      flameGradient.addColorStop(0, "#fbbf24");
-      flameGradient.addColorStop(0.3, "#f97316");
-      flameGradient.addColorStop(0.7, "#ef4444");
-      flameGradient.addColorStop(1, "transparent");
-      ctx.fillStyle = flameGradient;
-      ctx.beginPath();
-      ctx.moveTo(shipX - 6, shipY + 12);
-      ctx.quadraticCurveTo(shipX, shipY + 12 + flameHeight, shipX + 6, shipY + 12);
-      ctx.fill();
-      
-      // Inner flame (blue/white core)
-      const innerFlameGradient = ctx.createLinearGradient(shipX, shipY + 12, shipX, shipY + 12 + flameHeight * 0.6);
-      innerFlameGradient.addColorStop(0, "#fff");
-      innerFlameGradient.addColorStop(0.5, "#38bdf8");
-      innerFlameGradient.addColorStop(1, "transparent");
-      ctx.fillStyle = innerFlameGradient;
-      ctx.beginPath();
-      ctx.moveTo(shipX - 3, shipY + 12);
-      ctx.quadraticCurveTo(shipX, shipY + 12 + flameHeight * 0.6, shipX + 3, shipY + 12);
-      ctx.fill();
-      ctx.shadowBlur = 0;
-      
-      // Ship body (sleek rocket)
-      ctx.shadowColor = "#06b6d4";
-      ctx.shadowBlur = 15;
-      
-      // Main hull
-      const hullGradient = ctx.createLinearGradient(shipX - 12, shipY, shipX + 12, shipY);
-      hullGradient.addColorStop(0, "#475569");
-      hullGradient.addColorStop(0.3, "#94a3b8");
-      hullGradient.addColorStop(0.5, "#e2e8f0");
-      hullGradient.addColorStop(0.7, "#94a3b8");
-      hullGradient.addColorStop(1, "#475569");
-      ctx.fillStyle = hullGradient;
-      ctx.beginPath();
-      ctx.moveTo(shipX, shipY - 18); // Nose
-      ctx.lineTo(shipX + 10, shipY + 5);
-      ctx.lineTo(shipX + 8, shipY + 14);
-      ctx.lineTo(shipX - 8, shipY + 14);
-      ctx.lineTo(shipX - 10, shipY + 5);
-      ctx.closePath();
-      ctx.fill();
-      
-      // Cockpit window
-      const cockpitGradient = ctx.createRadialGradient(shipX, shipY - 5, 0, shipX, shipY - 5, 6);
-      cockpitGradient.addColorStop(0, "#67e8f9");
-      cockpitGradient.addColorStop(0.5, "#06b6d4");
-      cockpitGradient.addColorStop(1, "#0891b2");
-      ctx.fillStyle = cockpitGradient;
-      ctx.beginPath();
-      ctx.ellipse(shipX, shipY - 4, 5, 6, 0, 0, Math.PI * 2);
-      ctx.fill();
-      
-      // Cockpit shine
-      ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
-      ctx.beginPath();
-      ctx.ellipse(shipX - 1, shipY - 6, 2, 3, -0.3, 0, Math.PI * 2);
-      ctx.fill();
-      
-      // Wings
-      ctx.fillStyle = "#dc2626";
-      // Left wing
-      ctx.beginPath();
-      ctx.moveTo(shipX - 8, shipY + 8);
-      ctx.lineTo(shipX - 18, shipY + 16);
-      ctx.lineTo(shipX - 16, shipY + 10);
-      ctx.lineTo(shipX - 8, shipY + 2);
-      ctx.closePath();
-      ctx.fill();
-      // Right wing
-      ctx.beginPath();
-      ctx.moveTo(shipX + 8, shipY + 8);
-      ctx.lineTo(shipX + 18, shipY + 16);
-      ctx.lineTo(shipX + 16, shipY + 10);
-      ctx.lineTo(shipX + 8, shipY + 2);
-      ctx.closePath();
-      ctx.fill();
-      
-      // Wing accents
-      ctx.fillStyle = "#fbbf24";
-      ctx.beginPath();
-      ctx.moveTo(shipX - 14, shipY + 12);
-      ctx.lineTo(shipX - 16, shipY + 14);
-      ctx.lineTo(shipX - 12, shipY + 11);
-      ctx.closePath();
-      ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(shipX + 14, shipY + 12);
-      ctx.lineTo(shipX + 16, shipY + 14);
-      ctx.lineTo(shipX + 12, shipY + 11);
-      ctx.closePath();
-      ctx.fill();
-      
-      // Nose tip (chrome)
-      ctx.fillStyle = "#f1f5f9";
-      ctx.beginPath();
-      ctx.moveTo(shipX, shipY - 18);
-      ctx.lineTo(shipX + 4, shipY - 12);
-      ctx.lineTo(shipX - 4, shipY - 12);
-      ctx.closePath();
-      ctx.fill();
-      
-      // Shield ring (energy field)
-      ctx.shadowBlur = 0;
-      ctx.strokeStyle = "rgba(6, 182, 212, 0.25)";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(shipX, shipY, 24, 0, Math.PI * 2);
-      ctx.stroke();
-      
-      // Shield pulse effect
-      const pulseAlpha = (Math.sin(Date.now() / 200) + 1) * 0.15;
-      ctx.strokeStyle = `rgba(6, 182, 212, ${pulseAlpha})`;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.arc(shipX, shipY, 28, 0, Math.PI * 2);
-      ctx.stroke();
-
-      // Game over overlay
-      if (gameOver) {
-        ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
-        ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-        
-        ctx.font = "48px serif";
-        ctx.textAlign = "center";
-        ctx.fillText("💥", GAME_WIDTH / 2, GAME_HEIGHT / 2 - 30);
-        
-        ctx.font = "bold 24px sans-serif";
-        ctx.fillStyle = "#ef4444";
-        ctx.fillText("GAME OVER", GAME_WIDTH / 2, GAME_HEIGHT / 2 + 20);
-      }
-
-      animationRef.current = requestAnimationFrame(render);
-    };
-
-    render();
-
-    return () => {
-      if (animationRef.current) cancelAnimationFrame(animationRef.current);
-    };
-  }, [playerX, bullets, enemies, particles, stars, gameOver]);
-
   // Game loop
   useEffect(() => {
     if (!isPlaying || gameOverRef.current || !gameStarted) return;
@@ -383,11 +331,11 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
     gameLoopRef.current = window.setInterval(() => {
       if (gameOverRef.current) return;
 
-      // Update particles
-      setParticles((prev) =>
+      // Update explosions
+      setExplosions((prev) =>
         prev
-          .map((p) => ({ ...p, x: p.x + p.vx, y: p.y + p.vy, life: p.life - 1 }))
-          .filter((p) => p.life > 0)
+          .map((e) => ({ ...e, progress: e.progress + 0.08 }))
+          .filter((e) => e.progress < 1)
       );
 
       // Move bullets up
@@ -399,7 +347,6 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
         
         const moved = prev.map((e) => ({ ...e, y: e.y + 2.5 + e.type * 0.5 }));
 
-        // Check if any enemy reached bottom
         const reachedBottom = moved.some((e) => e.y > GAME_HEIGHT - 50);
         if (reachedBottom && !gameOverRef.current) {
           gameOverRef.current = true;
@@ -417,10 +364,9 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
       if (Math.random() < 0.045) {
         const newEnemy: Enemy = {
           id: enemyIdRef.current++,
-          x: Math.random() * (GAME_WIDTH - ENEMY_SIZE * 2) + ENEMY_SIZE,
+          x: Math.random() * (GAME_WIDTH - 60) + 30,
           y: -20,
           type: Math.floor(Math.random() * 3),
-          hp: 1,
         };
         setEnemies((prev) => [...prev, newEnemy]);
       }
@@ -435,7 +381,7 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
             return prevEnemies.filter((enemy) => {
               const dx = Math.abs(bullet.x - enemy.x);
               const dy = Math.abs(bullet.y - enemy.y);
-              if (dx < (BULLET_SIZE + ENEMY_SIZE) / 2 + 5 && dy < (BULLET_SIZE + ENEMY_SIZE) / 2 + 5) {
+              if (dx < 25 && dy < 25) {
                 hit = true;
                 const pointValue = 10 + enemy.type * 5;
                 setScore((s) => {
@@ -445,9 +391,11 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
                 });
                 haptic.medium();
                 play("hit");
-                // Spawn explosion particles
-                const colors = ["#f59e0b", "#ef4444", "#f97316", "#fbbf24", "#ec4899"];
-                spawnParticles(enemy.x, enemy.y, 12, colors[Math.floor(Math.random() * colors.length)]);
+                // Add explosion
+                setExplosions((prev) => [
+                  ...prev,
+                  { id: explosionIdRef.current++, x: enemy.x, y: enemy.y, progress: 0 },
+                ]);
                 return false;
               }
               return true;
@@ -463,7 +411,7 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
     return () => {
       if (gameLoopRef.current) clearInterval(gameLoopRef.current);
     };
-  }, [isPlaying, gameStarted, onGameEnd, haptic, play, spawnParticles]);
+  }, [isPlaying, gameStarted, onGameEnd, haptic, play]);
 
   // Keyboard controls
   useEffect(() => {
@@ -471,10 +419,10 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
       if (!isPlaying || gameOverRef.current || !gameStarted) return;
 
       if (e.key === "ArrowLeft" || e.key === "a") {
-        setPlayerX((x) => Math.max(PLAYER_SIZE / 2, x - 25));
+        setPlayerX((x) => Math.max(30, x - 25));
         haptic.light();
       } else if (e.key === "ArrowRight" || e.key === "d") {
-        setPlayerX((x) => Math.min(GAME_WIDTH - PLAYER_SIZE / 2, x + 25));
+        setPlayerX((x) => Math.min(GAME_WIDTH - 30, x + 25));
         haptic.light();
       } else if (e.key === " " || e.key === "ArrowUp") {
         shoot();
@@ -487,13 +435,13 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
 
   const handleMoveLeft = useCallback(() => {
     if (!gameStarted || gameOverRef.current) return;
-    setPlayerX((x) => Math.max(PLAYER_SIZE / 2, x - 35));
+    setPlayerX((x) => Math.max(30, x - 35));
     haptic.light();
   }, [gameStarted, haptic]);
 
   const handleMoveRight = useCallback(() => {
     if (!gameStarted || gameOverRef.current) return;
-    setPlayerX((x) => Math.min(GAME_WIDTH - PLAYER_SIZE / 2, x + 35));
+    setPlayerX((x) => Math.min(GAME_WIDTH - 30, x + 35));
     haptic.light();
   }, [gameStarted, haptic]);
 
@@ -502,42 +450,60 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
   }, [shoot]);
 
   return (
-    <div className="flex flex-col items-center justify-center h-full bg-gradient-to-b from-slate-900 via-purple-950 to-slate-900 p-2">
-      {/* HUD */}
-      <div className="flex items-center justify-between w-full max-w-[300px] mb-2">
-        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-black/40 border border-primary/30">
-          <span className="text-amber-400 text-sm">⭐</span>
-          <span className="text-white font-bold text-lg">{score}</span>
-        </div>
-        <div className="text-xs text-primary/60 uppercase tracking-wider">Space Defense</div>
+    <div className="flex flex-col items-center justify-center h-full p-3" style={{ background: "linear-gradient(180deg, #0a0a1a 0%, #1a0a2e 50%, #0f172a 100%)" }}>
+      {/* Score */}
+      <div className="text-xl mb-2 font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-orange-400 to-red-400">
+        Score: {score}
       </div>
-
-      {/* Game canvas */}
-      <canvas
-        ref={canvasRef}
-        width={GAME_WIDTH}
-        height={GAME_HEIGHT}
-        className="rounded-lg border-2 border-cyan-500/50"
+      
+      {/* 3D Game Canvas */}
+      <div 
+        className="rounded-lg border-2 border-purple-500/50 overflow-hidden"
         style={{
-          boxShadow: "inset 0 0 60px rgba(6, 182, 212, 0.1), 0 0 30px rgba(6, 182, 212, 0.2)",
+          width: GAME_WIDTH,
+          height: GAME_HEIGHT,
+          boxShadow: "0 0 30px rgba(139, 92, 246, 0.3), inset 0 0 20px rgba(139, 92, 246, 0.1)",
           touchAction: 'none',
         }}
-      />
+      >
+        <Canvas
+          camera={{ position: [0, -3, 8], fov: 60 }}
+          style={{ background: 'transparent' }}
+        >
+          <Suspense fallback={null}>
+            <GameScene
+              playerX={playerX}
+              bullets={bullets}
+              enemies={enemies}
+              explosions={explosions}
+              gameOver={gameOver}
+            />
+          </Suspense>
+        </Canvas>
+        
+        {/* Game Over Overlay */}
+        {gameOver && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70">
+            <div className="text-5xl mb-4">💥</div>
+            <div className="text-2xl font-bold text-red-500">GAME OVER</div>
+          </div>
+        )}
+      </div>
 
-      {/* Mobile controls - always visible */}
+      {/* Mobile controls */}
       <div className="flex gap-4 mt-3">
         <button
           onTouchStart={(e) => { e.preventDefault(); handleMoveLeft(); }}
           onMouseDown={handleMoveLeft}
-          className="w-16 h-16 bg-cyan-500/20 active:bg-cyan-500/50 rounded-xl text-2xl transition-colors border-2 border-cyan-500/40 flex items-center justify-center select-none"
+          className="w-16 h-16 bg-gradient-to-b from-purple-500/40 to-purple-600/30 active:from-purple-400/60 active:to-purple-500/50 rounded-xl flex items-center justify-center text-3xl text-white/90 border border-purple-500/30 select-none"
           style={{ touchAction: 'manipulation' }}
         >
-          ◀
+          ←
         </button>
         <button
           onTouchStart={(e) => { e.preventDefault(); handleShoot(); }}
           onMouseDown={handleShoot}
-          className="w-16 h-16 bg-amber-500/20 active:bg-amber-500/50 rounded-xl text-2xl transition-colors border-2 border-amber-500/40 flex items-center justify-center select-none"
+          className="w-16 h-16 bg-gradient-to-b from-amber-500/40 to-orange-600/30 active:from-amber-400/60 active:to-orange-500/50 rounded-xl flex items-center justify-center text-2xl text-white/90 border border-amber-500/30 select-none"
           style={{ touchAction: 'manipulation' }}
         >
           🔥
@@ -545,14 +511,16 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
         <button
           onTouchStart={(e) => { e.preventDefault(); handleMoveRight(); }}
           onMouseDown={handleMoveRight}
-          className="w-16 h-16 bg-cyan-500/20 active:bg-cyan-500/50 rounded-xl text-2xl transition-colors border-2 border-cyan-500/40 flex items-center justify-center select-none"
+          className="w-16 h-16 bg-gradient-to-b from-purple-500/40 to-purple-600/30 active:from-purple-400/60 active:to-purple-500/50 rounded-xl flex items-center justify-center text-3xl text-white/90 border border-purple-500/30 select-none"
           style={{ touchAction: 'manipulation' }}
         >
-          ▶
+          →
         </button>
       </div>
 
-      <p className="text-xs text-cyan-400/50 mt-2 hidden md:block">← → to move | Space to shoot</p>
+      <p className="text-xs text-muted-foreground mt-2 hidden md:block">
+        Use ← → to move | Space to shoot
+      </p>
     </div>
   );
 };

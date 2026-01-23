@@ -36,17 +36,10 @@ const LumberjackGame = ({ onGameEnd, isPlaying }: LumberjackGameProps) => {
   };
 
   const resetGame = useCallback(() => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    
+    if (timerRef.current) clearInterval(timerRef.current);
     const initialTree: TreeSegment[] = [];
-    for (let i = 0; i < 8; i++) {
-      initialTree.push(generateSegment());
-    }
+    for (let i = 0; i < 8; i++) initialTree.push(generateSegment());
     initialTree[0] = { hasBranch: null };
-    
     setTree(initialTree);
     setPlayerSide("left");
     setScore(0);
@@ -59,14 +52,10 @@ const LumberjackGame = ({ onGameEnd, isPlaying }: LumberjackGameProps) => {
   }, []);
 
   useEffect(() => {
-    if (isPlaying) {
-      resetGame();
-    } else {
+    if (isPlaying) resetGame();
+    else {
       setGameStarted(false);
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
+      if (timerRef.current) clearInterval(timerRef.current);
     }
   }, [isPlaying, resetGame]);
 
@@ -77,10 +66,8 @@ const LumberjackGame = ({ onGameEnd, isPlaying }: LumberjackGameProps) => {
     };
   }, []);
 
-  // Timer
   useEffect(() => {
     if (!isPlaying || gameOverRef.current || !gameStarted) return;
-
     timerRef.current = window.setInterval(() => {
       setTimeLeft((t) => {
         if (t <= 0) {
@@ -96,17 +83,13 @@ const LumberjackGame = ({ onGameEnd, isPlaying }: LumberjackGameProps) => {
         return t - 1;
       });
     }, 100);
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [isPlaying, gameStarted, onGameEnd, haptic, play]);
 
-  // Canvas rendering
+  // Canvas rendering - keeping the enhanced 2D canvas for this game as it works well
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
@@ -115,297 +98,102 @@ const LumberjackGame = ({ onGameEnd, isPlaying }: LumberjackGameProps) => {
     const trunkWidth = 50;
     const segmentHeight = 36;
 
-    const drawCloud = (x: number, y: number, size: number) => {
-      ctx.beginPath();
-      ctx.arc(x, y, size * 0.5, 0, Math.PI * 2);
-      ctx.arc(x + size * 0.4, y - size * 0.1, size * 0.4, 0, Math.PI * 2);
-      ctx.arc(x + size * 0.8, y, size * 0.35, 0, Math.PI * 2);
-      ctx.fill();
-    };
-
     const render = () => {
-      // Sky
+      // Sky gradient
       const skyGradient = ctx.createLinearGradient(0, 0, 0, height);
-      skyGradient.addColorStop(0, "#87ceeb");
-      skyGradient.addColorStop(0.6, "#e0f4ff");
-      skyGradient.addColorStop(1, "#87ceeb");
+      skyGradient.addColorStop(0, "#1e3a5f");
+      skyGradient.addColorStop(0.5, "#2d4a6f");
+      skyGradient.addColorStop(1, "#3d5a7f");
       ctx.fillStyle = skyGradient;
       ctx.fillRect(0, 0, width, height);
 
-      // Sun
-      ctx.fillStyle = "#fcd34d";
-      ctx.shadowColor = "#fcd34d";
-      ctx.shadowBlur = 30;
+      // Stars
+      ctx.fillStyle = "#fff";
+      for (let i = 0; i < 30; i++) {
+        const sx = (i * 37) % width;
+        const sy = (i * 23) % (height * 0.4);
+        ctx.globalAlpha = 0.3 + Math.sin(Date.now() / 500 + i) * 0.2;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 1, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+
+      // Moon
+      ctx.fillStyle = "#fef3c7";
+      ctx.shadowColor = "#fef3c7";
+      ctx.shadowBlur = 20;
       ctx.beginPath();
-      ctx.arc(width - 35, 35, 22, 0, Math.PI * 2);
+      ctx.arc(width - 40, 40, 20, 0, Math.PI * 2);
       ctx.fill();
       ctx.shadowBlur = 0;
 
-      // Clouds
-      ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-      drawCloud(30, 30, 35);
-      drawCloud(100, 45, 28);
-      drawCloud(180, 25, 32);
-
       // Ground
       const groundY = height - 35;
-      const groundGradient = ctx.createLinearGradient(0, groundY, 0, height);
-      groundGradient.addColorStop(0, "#22c55e");
-      groundGradient.addColorStop(1, "#16a34a");
-      ctx.fillStyle = groundGradient;
+      ctx.fillStyle = "#1a472a";
       ctx.fillRect(0, groundY, width, 35);
-
-      // Grass
-      ctx.strokeStyle = "#15803d";
-      ctx.lineWidth = 2;
-      for (let i = 0; i < width; i += 10) {
-        const grassHeight = 4 + Math.random() * 6;
-        ctx.beginPath();
-        ctx.moveTo(i, groundY);
-        ctx.lineTo(i + Math.sin(Date.now() / 500 + i) * 2, groundY - grassHeight);
-        ctx.stroke();
-      }
 
       // Tree
       const trunkX = (width - trunkWidth) / 2;
       const trunkBaseY = groundY - 25;
 
-      // Shadow
-      ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
-      ctx.beginPath();
-      ctx.ellipse(width / 2 + 15, groundY + 5, 50, 12, 0, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Tree segments
       tree.forEach((segment, index) => {
         const segY = trunkBaseY - (index + 1) * segmentHeight;
-        
         const trunkGradient = ctx.createLinearGradient(trunkX, segY, trunkX + trunkWidth, segY);
-        trunkGradient.addColorStop(0, "#92400e");
-        trunkGradient.addColorStop(0.3, "#b45309");
-        trunkGradient.addColorStop(0.7, "#b45309");
-        trunkGradient.addColorStop(1, "#78350f");
+        trunkGradient.addColorStop(0, "#5d4037");
+        trunkGradient.addColorStop(0.5, "#795548");
+        trunkGradient.addColorStop(1, "#4e342e");
         ctx.fillStyle = trunkGradient;
         ctx.fillRect(trunkX, segY, trunkWidth, segmentHeight);
 
-        // Wood rings
-        ctx.strokeStyle = "rgba(120, 53, 15, 0.3)";
-        ctx.lineWidth = 1;
-        for (let r = 0; r < 2; r++) {
-          ctx.beginPath();
-          ctx.moveTo(trunkX + 5, segY + 10 + r * 14);
-          ctx.lineTo(trunkX + trunkWidth - 5, segY + 10 + r * 14);
-          ctx.stroke();
-        }
-
-        // Branches
         if (segment.hasBranch) {
           const branchY = segY + segmentHeight / 2;
-          const branchLength = 55;
-          
-          ctx.fillStyle = "#92400e";
-          ctx.shadowColor = "rgba(0, 0, 0, 0.3)";
-          ctx.shadowBlur = 4;
-          ctx.shadowOffsetY = 2;
-          
+          ctx.fillStyle = "#5d4037";
           if (segment.hasBranch === "left") {
             ctx.beginPath();
-            ctx.moveTo(trunkX, branchY - 7);
-            ctx.lineTo(trunkX - branchLength, branchY - 3);
-            ctx.lineTo(trunkX - branchLength, branchY + 3);
-            ctx.lineTo(trunkX, branchY + 7);
+            ctx.moveTo(trunkX, branchY - 8);
+            ctx.lineTo(trunkX - 50, branchY);
+            ctx.lineTo(trunkX, branchY + 8);
             ctx.fill();
-            
-            // Leaves
-            ctx.fillStyle = "#22c55e";
-            ctx.shadowColor = "rgba(34, 197, 94, 0.4)";
-            for (let i = 0; i < 4; i++) {
-              const angle = (i / 4) * Math.PI * 2;
-              ctx.beginPath();
-              ctx.arc(
-                trunkX - branchLength - 8 + Math.cos(angle) * 12,
-                branchY + Math.sin(angle) * 10,
-                6, 0, Math.PI * 2
-              );
-              ctx.fill();
-            }
           } else {
             ctx.beginPath();
-            ctx.moveTo(trunkX + trunkWidth, branchY - 7);
-            ctx.lineTo(trunkX + trunkWidth + branchLength, branchY - 3);
-            ctx.lineTo(trunkX + trunkWidth + branchLength, branchY + 3);
-            ctx.lineTo(trunkX + trunkWidth, branchY + 7);
+            ctx.moveTo(trunkX + trunkWidth, branchY - 8);
+            ctx.lineTo(trunkX + trunkWidth + 50, branchY);
+            ctx.lineTo(trunkX + trunkWidth, branchY + 8);
             ctx.fill();
-            
-            ctx.fillStyle = "#22c55e";
-            ctx.shadowColor = "rgba(34, 197, 94, 0.4)";
-            for (let i = 0; i < 4; i++) {
-              const angle = (i / 4) * Math.PI * 2;
-              ctx.beginPath();
-              ctx.arc(
-                trunkX + trunkWidth + branchLength + 8 + Math.cos(angle) * 12,
-                branchY + Math.sin(angle) * 10,
-                6, 0, Math.PI * 2
-              );
-              ctx.fill();
-            }
           }
-          ctx.shadowBlur = 0;
-          ctx.shadowOffsetY = 0;
         }
       });
 
-      // Tree top
-      const topY = trunkBaseY - tree.length * segmentHeight - 25;
-      ctx.fillStyle = "#22c55e";
-      ctx.shadowColor = "rgba(34, 197, 94, 0.4)";
-      ctx.shadowBlur = 12;
+      // Player
+      const playerX = playerSide === "left" ? trunkX - 50 : trunkX + trunkWidth + 10;
+      const playerY = trunkBaseY - 20;
+      
+      ctx.fillStyle = "#fcd9b6";
       ctx.beginPath();
-      ctx.moveTo(width / 2, topY - 35);
-      ctx.lineTo(width / 2 - 45, topY + 25);
-      ctx.lineTo(width / 2 + 45, topY + 25);
+      ctx.arc(playerX + 20, playerY - 5, 15, 0, Math.PI * 2);
       ctx.fill();
-      ctx.shadowBlur = 0;
-
-      // Stump
-      ctx.fillStyle = "#78350f";
-      ctx.fillRect(trunkX - 4, trunkBaseY, trunkWidth + 8, 25);
-
-      // Player (Lumberjack with face like reference image)
-      const playerX = playerSide === "left" ? trunkX - 55 : trunkX + trunkWidth + 5;
-      const playerY = trunkBaseY - 25;
-      const flipX = playerSide === "right";
       
-      ctx.save();
-      if (flipX) {
-        ctx.translate(playerX + 50, 0);
-        ctx.scale(-1, 1);
-        ctx.translate(-playerX, 0);
-      }
+      ctx.fillStyle = "#dc2626";
+      ctx.fillRect(playerX + 5, playerY + 10, 30, 30);
       
-      // Legs (blue jeans)
       ctx.fillStyle = "#3b82f6";
-      ctx.fillRect(playerX + 8, playerY + 40, 14, 25);
-      ctx.fillRect(playerX + 28, playerY + 40, 14, 25);
-      
-      // Body (red plaid shirt)
-      ctx.fillStyle = "#dc2626";
-      ctx.beginPath();
-      ctx.roundRect(playerX + 5, playerY + 8, 40, 35, 6);
-      ctx.fill();
-      
-      // Plaid pattern on shirt
-      ctx.strokeStyle = "#991b1b";
-      ctx.lineWidth = 2;
-      for (let i = 0; i < 4; i++) {
-        ctx.beginPath();
-        ctx.moveTo(playerX + 5, playerY + 14 + i * 8);
-        ctx.lineTo(playerX + 45, playerY + 14 + i * 8);
-        ctx.stroke();
-      }
-      for (let i = 0; i < 5; i++) {
-        ctx.beginPath();
-        ctx.moveTo(playerX + 10 + i * 8, playerY + 8);
-        ctx.lineTo(playerX + 10 + i * 8, playerY + 43);
-        ctx.stroke();
-      }
-      
-      // Head (skin tone)
-      ctx.fillStyle = "#fcd9b6";
-      ctx.beginPath();
-      ctx.arc(playerX + 25, playerY - 5, 18, 0, Math.PI * 2);
-      ctx.fill();
-      
-      // Hat (dark cap/beanie)
-      ctx.fillStyle = "#1e3a5f";
-      ctx.beginPath();
-      ctx.ellipse(playerX + 25, playerY - 18, 20, 8, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(playerX + 25, playerY - 12, 16, Math.PI, 0);
-      ctx.fill();
-      
-      // Face features
-      // Eyes
-      ctx.fillStyle = "#000";
-      ctx.beginPath();
-      ctx.arc(playerX + 19, playerY - 6, 2.5, 0, Math.PI * 2);
-      ctx.arc(playerX + 31, playerY - 6, 2.5, 0, Math.PI * 2);
-      ctx.fill();
-      
-      // Eye whites
-      ctx.fillStyle = "#fff";
-      ctx.beginPath();
-      ctx.arc(playerX + 18, playerY - 7, 1, 0, Math.PI * 2);
-      ctx.arc(playerX + 30, playerY - 7, 1, 0, Math.PI * 2);
-      ctx.fill();
-      
-      // Nose
-      ctx.fillStyle = "#e5b99a";
-      ctx.beginPath();
-      ctx.ellipse(playerX + 25, playerY, 3, 4, 0, 0, Math.PI * 2);
-      ctx.fill();
-      
-      // Big bushy beard (black/dark brown)
-      ctx.fillStyle = "#2d1810";
-      ctx.beginPath();
-      ctx.moveTo(playerX + 10, playerY);
-      ctx.quadraticCurveTo(playerX + 5, playerY + 5, playerX + 8, playerY + 18);
-      ctx.quadraticCurveTo(playerX + 25, playerY + 25, playerX + 42, playerY + 18);
-      ctx.quadraticCurveTo(playerX + 45, playerY + 5, playerX + 40, playerY);
-      ctx.quadraticCurveTo(playerX + 25, playerY + 5, playerX + 10, playerY);
-      ctx.fill();
-      
-      // Mustache
-      ctx.beginPath();
-      ctx.moveTo(playerX + 15, playerY + 2);
-      ctx.quadraticCurveTo(playerX + 25, playerY + 6, playerX + 35, playerY + 2);
-      ctx.quadraticCurveTo(playerX + 25, playerY + 10, playerX + 15, playerY + 2);
-      ctx.fill();
-      
-      ctx.restore();
-      
-      // Arms and Axe
-      const axeRotation = chopAnimation ? (playerSide === "left" ? -0.8 : 0.8) : 0;
+      ctx.fillRect(playerX + 8, playerY + 40, 24, 20);
+
+      // Axe
+      const axeRot = chopAnimation ? (playerSide === "left" ? -0.6 : 0.6) : 0;
       ctx.save();
-      
-      const armX = playerSide === "left" ? playerX + 42 : playerX + 8;
-      ctx.translate(armX, playerY + 20);
-      ctx.rotate(axeRotation + (playerSide === "left" ? -0.4 : 0.4));
-      
-      // Arm (shirt sleeve)
-      ctx.fillStyle = "#dc2626";
-      ctx.fillRect(-5, -5, 12, 20);
-      
-      // Hand
-      ctx.fillStyle = "#fcd9b6";
-      ctx.beginPath();
-      ctx.arc(1, 18, 6, 0, Math.PI * 2);
-      ctx.fill();
-      
-      // Axe handle (wood)
+      ctx.translate(playerX + 20, playerY + 25);
+      ctx.rotate(axeRot);
       ctx.fillStyle = "#8b4513";
-      ctx.fillRect(-3, 12, 8, 45);
-      
-      // Axe head (metal)
-      const axeHeadDir = playerSide === "left" ? -1 : 1;
+      ctx.fillRect(-3, 0, 6, 40);
       ctx.fillStyle = "#6b7280";
       ctx.beginPath();
-      ctx.moveTo(0, 50);
-      ctx.lineTo(axeHeadDir * 25, 45);
-      ctx.lineTo(axeHeadDir * 25, 60);
-      ctx.lineTo(0, 58);
+      ctx.moveTo(0, 35);
+      ctx.lineTo(playerSide === "left" ? -20 : 20, 40);
+      ctx.lineTo(playerSide === "left" ? -20 : 20, 50);
+      ctx.lineTo(0, 48);
       ctx.fill();
-      
-      // Axe blade shine
-      ctx.fillStyle = "#9ca3af";
-      ctx.beginPath();
-      ctx.moveTo(axeHeadDir * 5, 52);
-      ctx.lineTo(axeHeadDir * 20, 48);
-      ctx.lineTo(axeHeadDir * 20, 52);
-      ctx.lineTo(axeHeadDir * 5, 55);
-      ctx.fill();
-      
       ctx.restore();
 
       // Wood chips
@@ -413,27 +201,20 @@ const LumberjackGame = ({ onGameEnd, isPlaying }: LumberjackGameProps) => {
         chip.x += chip.vx;
         chip.y += chip.vy;
         chip.vy += 0.3;
-        chip.rot += chip.vx * 0.1;
         chip.life -= 0.02;
-
         if (chip.life > 0) {
-          ctx.save();
-          ctx.translate(chip.x, chip.y);
-          ctx.rotate(chip.rot);
           ctx.globalAlpha = chip.life;
           ctx.fillStyle = "#b45309";
-          ctx.fillRect(-4, -2, 8, 4);
-          ctx.restore();
+          ctx.fillRect(chip.x - 3, chip.y - 2, 6, 4);
+          ctx.globalAlpha = 1;
           return true;
         }
         return false;
       }));
 
-      // Game over
       if (gameOver) {
         ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
         ctx.fillRect(0, 0, width, height);
-        
         ctx.font = "bold 20px sans-serif";
         ctx.fillStyle = "#ef4444";
         ctx.textAlign = "center";
@@ -444,19 +225,14 @@ const LumberjackGame = ({ onGameEnd, isPlaying }: LumberjackGameProps) => {
     };
 
     render();
-
-    return () => {
-      if (animationRef.current) cancelAnimationFrame(animationRef.current);
-    };
+    return () => { if (animationRef.current) cancelAnimationFrame(animationRef.current); };
   }, [tree, playerSide, chopAnimation, gameOver]);
 
   const spawnWoodChips = useCallback((side: Side) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    
     const centerX = canvas.width / 2;
     const chips: WoodChip[] = [];
-    
     for (let i = 0; i < 8; i++) {
       chips.push({
         x: centerX + (side === "left" ? -25 : 25),
@@ -467,19 +243,16 @@ const LumberjackGame = ({ onGameEnd, isPlaying }: LumberjackGameProps) => {
         life: 1,
       });
     }
-    
     setWoodChips(prev => [...prev, ...chips]);
   }, []);
 
   const chop = useCallback((side: Side) => {
     if (gameOverRef.current || !isPlaying || !gameStarted) return;
-
     setPlayerSide(side);
     setChopAnimation(true);
     setTimeout(() => setChopAnimation(false), 100);
 
-    const bottomSegment = tree[0];
-    if (bottomSegment?.hasBranch === side) {
+    if (tree[0]?.hasBranch === side) {
       gameOverRef.current = true;
       setGameOver(true);
       haptic.error();
@@ -492,103 +265,49 @@ const LumberjackGame = ({ onGameEnd, isPlaying }: LumberjackGameProps) => {
     play("chop");
     spawnWoodChips(side);
 
-    setTree((prevTree) => {
-      const newTree = [...prevTree.slice(1), generateSegment()];
-      return newTree;
-    });
-
+    setTree((prevTree) => [...prevTree.slice(1), generateSegment()]);
     const newScore = scoreRef.current + 1;
     scoreRef.current = newScore;
     setScore(newScore);
-    setTimeLeft((t) => Math.min(t + 5, 100));
-  }, [tree, isPlaying, gameStarted, onGameEnd, haptic, play, spawnWoodChips]);
-
-  // Keyboard controls
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isPlaying || gameOverRef.current || !gameStarted) return;
-
-      if (e.key === "ArrowLeft" || e.key === "a") {
-        chop("left");
-      } else if (e.key === "ArrowRight" || e.key === "d") {
-        chop("right");
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isPlaying, gameStarted, chop]);
-
-  const handleChopLeft = useCallback(() => {
-    chop("left");
-  }, [chop]);
-
-  const handleChopRight = useCallback(() => {
-    chop("right");
-  }, [chop]);
+    setTimeLeft((t) => Math.min(100, t + 3));
+  }, [tree, isPlaying, gameStarted, haptic, play, onGameEnd, spawnWoodChips]);
 
   return (
-    <div 
-      className="flex flex-col items-center justify-center h-full p-3"
-      style={{ background: "linear-gradient(180deg, #87ceeb 0%, #bae6fd 100%)" }}
-    >
-      {/* Timer bar */}
-      <div className="w-44 h-4 bg-gray-800/50 rounded-full mb-2 overflow-hidden border-2 border-white/20" style={{ boxShadow: "0 0 15px rgba(0,0,0,0.3)" }}>
-        <div
-          className="h-full transition-all duration-100 rounded-full"
-          style={{
-            width: `${timeLeft}%`,
-            background: timeLeft > 30 
-              ? "linear-gradient(90deg, #22c55e, #4ade80)" 
-              : timeLeft > 15 
-                ? "linear-gradient(90deg, #eab308, #facc15)" 
-                : "linear-gradient(90deg, #ef4444, #f87171)",
-            boxShadow: timeLeft > 30 
-              ? "0 0 12px rgba(34, 197, 94, 0.7)" 
-              : timeLeft > 15 
-                ? "0 0 12px rgba(234, 179, 8, 0.7)" 
-                : "0 0 12px rgba(239, 68, 68, 0.7)",
-          }}
-        />
+    <div className="flex flex-col items-center justify-center h-full p-3" style={{ background: "linear-gradient(180deg, #1e3a5f 0%, #0f172a 100%)" }}>
+      <div className="flex items-center gap-4 mb-2">
+        <div className="text-lg font-bold text-amber-400">Score: {score}</div>
+        <div className="w-24 h-3 bg-muted rounded-full overflow-hidden">
+          <div className="h-full bg-gradient-to-r from-green-500 to-emerald-400 transition-all" style={{ width: `${timeLeft}%` }} />
+        </div>
       </div>
-
-      {/* Score */}
-      <div className="text-xl mb-2 font-bold text-amber-900" style={{ textShadow: "2px 2px 0 rgba(255,255,255,0.5)" }}>
-        Score: {score}
-      </div>
-
-      {/* Game canvas */}
+      
       <canvas
         ref={canvasRef}
-        width={260}
-        height={320}
-        className="rounded-xl border-4 border-amber-900/30"
-        style={{ boxShadow: "0 8px 30px rgba(0, 0, 0, 0.3)", touchAction: 'none' }}
+        width={220}
+        height={350}
+        className="rounded-lg border-2 border-amber-500/50"
+        style={{ boxShadow: "0 0 30px rgba(245, 158, 11, 0.3)", touchAction: 'none' }}
       />
 
-      {/* Controls */}
-      <div className="flex gap-6 mt-3">
+      <div className="flex gap-6 mt-4">
         <button
-          onTouchStart={(e) => { e.preventDefault(); handleChopLeft(); }}
-          onMouseDown={handleChopLeft}
-          className="w-20 h-20 bg-gradient-to-b from-amber-500 to-amber-600 active:from-amber-400 active:to-amber-500 rounded-2xl text-3xl text-white font-bold active:scale-95 transition-all border-4 border-amber-700/50 select-none"
-          style={{ boxShadow: "0 5px 0 #b45309, 0 6px 15px rgba(180, 83, 9, 0.4)", touchAction: 'manipulation' }}
+          onTouchStart={(e) => { e.preventDefault(); chop("left"); }}
+          onMouseDown={() => chop("left")}
+          className="w-20 h-20 bg-gradient-to-b from-amber-500/50 to-amber-600/40 active:from-amber-400/70 rounded-2xl flex items-center justify-center text-4xl border border-amber-500/40 select-none"
+          style={{ touchAction: 'manipulation' }}
         >
-          ←
+          🪓
         </button>
         <button
-          onTouchStart={(e) => { e.preventDefault(); handleChopRight(); }}
-          onMouseDown={handleChopRight}
-          className="w-20 h-20 bg-gradient-to-b from-amber-500 to-amber-600 active:from-amber-400 active:to-amber-500 rounded-2xl text-3xl text-white font-bold active:scale-95 transition-all border-4 border-amber-700/50 select-none"
-          style={{ boxShadow: "0 5px 0 #b45309, 0 6px 15px rgba(180, 83, 9, 0.4)", touchAction: 'manipulation' }}
+          onTouchStart={(e) => { e.preventDefault(); chop("right"); }}
+          onMouseDown={() => chop("right")}
+          className="w-20 h-20 bg-gradient-to-b from-amber-500/50 to-amber-600/40 active:from-amber-400/70 rounded-2xl flex items-center justify-center text-4xl border border-amber-500/40 select-none transform scale-x-[-1]"
+          style={{ touchAction: 'manipulation' }}
         >
-          →
+          🪓
         </button>
       </div>
-
-      <p className="text-xs text-amber-800/80 mt-2">
-        Tap buttons or use ← → keys. Avoid branches!
-      </p>
+      <p className="text-xs text-muted-foreground mt-2 hidden md:block">Tap left or right to chop!</p>
     </div>
   );
 };
