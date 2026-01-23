@@ -233,13 +233,18 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
   };
 
   const handlePlayAgain = () => {
-    // Recalculate fee for new game
-    const fee = mode === "demo" 
-      ? DEMO_MIN_XEC 
-      : Math.ceil(1 / (prices?.ecash || 0.00003));
-    setLockedEntryFee(fee);
-    setStep("payment");
-    setIsGameActive(false);
+    if (mode === "demo") {
+      // In demo mode, allow instant replay without repaying
+      setFinalScore(0);
+      setStep("playing");
+      setTimeout(() => setIsGameActive(true), 100);
+    } else {
+      // Competitive mode requires new payment
+      const fee = Math.ceil(1 / (prices?.ecash || 0.00003));
+      setLockedEntryFee(fee);
+      setStep("payment");
+      setIsGameActive(false);
+    }
   };
 
   const handleClose = () => {
