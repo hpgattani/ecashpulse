@@ -223,41 +223,133 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
         ctx.shadowBlur = 0;
       });
 
-      // Player ship
+      // Player ship (real rendered rocket)
       const shipX = playerX;
       const shipY = GAME_HEIGHT - 50;
 
-      // Engine glow
-      ctx.shadowColor = "#06b6d4";
-      ctx.shadowBlur = 20;
-      const engineGradient = ctx.createLinearGradient(
-        shipX, shipY + 15,
-        shipX, shipY + 40
-      );
-      engineGradient.addColorStop(0, "#3b82f6");
-      engineGradient.addColorStop(0.5, "#06b6d4");
-      engineGradient.addColorStop(1, "transparent");
-      ctx.fillStyle = engineGradient;
+      // Engine flames (animated)
+      ctx.shadowColor = "#f59e0b";
+      ctx.shadowBlur = 25;
+      const flameHeight = 18 + Math.random() * 8;
+      
+      // Outer flame
+      const flameGradient = ctx.createLinearGradient(shipX, shipY + 12, shipX, shipY + 12 + flameHeight);
+      flameGradient.addColorStop(0, "#fbbf24");
+      flameGradient.addColorStop(0.3, "#f97316");
+      flameGradient.addColorStop(0.7, "#ef4444");
+      flameGradient.addColorStop(1, "transparent");
+      ctx.fillStyle = flameGradient;
       ctx.beginPath();
-      ctx.moveTo(shipX - 8, shipY + 15);
-      ctx.lineTo(shipX + 8, shipY + 15);
-      ctx.lineTo(shipX + 3, shipY + 35 + Math.random() * 5);
-      ctx.lineTo(shipX - 3, shipY + 35 + Math.random() * 5);
+      ctx.moveTo(shipX - 6, shipY + 12);
+      ctx.quadraticCurveTo(shipX, shipY + 12 + flameHeight, shipX + 6, shipY + 12);
       ctx.fill();
-
-      // Ship body
+      
+      // Inner flame (blue/white core)
+      const innerFlameGradient = ctx.createLinearGradient(shipX, shipY + 12, shipX, shipY + 12 + flameHeight * 0.6);
+      innerFlameGradient.addColorStop(0, "#fff");
+      innerFlameGradient.addColorStop(0.5, "#38bdf8");
+      innerFlameGradient.addColorStop(1, "transparent");
+      ctx.fillStyle = innerFlameGradient;
+      ctx.beginPath();
+      ctx.moveTo(shipX - 3, shipY + 12);
+      ctx.quadraticCurveTo(shipX, shipY + 12 + flameHeight * 0.6, shipX + 3, shipY + 12);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      
+      // Ship body (sleek rocket)
       ctx.shadowColor = "#06b6d4";
       ctx.shadowBlur = 15;
-      ctx.font = "32px serif";
-      ctx.textAlign = "center";
-      ctx.fillText("🚀", shipX, shipY + 10);
       
-      // Shield ring
+      // Main hull
+      const hullGradient = ctx.createLinearGradient(shipX - 12, shipY, shipX + 12, shipY);
+      hullGradient.addColorStop(0, "#475569");
+      hullGradient.addColorStop(0.3, "#94a3b8");
+      hullGradient.addColorStop(0.5, "#e2e8f0");
+      hullGradient.addColorStop(0.7, "#94a3b8");
+      hullGradient.addColorStop(1, "#475569");
+      ctx.fillStyle = hullGradient;
+      ctx.beginPath();
+      ctx.moveTo(shipX, shipY - 18); // Nose
+      ctx.lineTo(shipX + 10, shipY + 5);
+      ctx.lineTo(shipX + 8, shipY + 14);
+      ctx.lineTo(shipX - 8, shipY + 14);
+      ctx.lineTo(shipX - 10, shipY + 5);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Cockpit window
+      const cockpitGradient = ctx.createRadialGradient(shipX, shipY - 5, 0, shipX, shipY - 5, 6);
+      cockpitGradient.addColorStop(0, "#67e8f9");
+      cockpitGradient.addColorStop(0.5, "#06b6d4");
+      cockpitGradient.addColorStop(1, "#0891b2");
+      ctx.fillStyle = cockpitGradient;
+      ctx.beginPath();
+      ctx.ellipse(shipX, shipY - 4, 5, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Cockpit shine
+      ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
+      ctx.beginPath();
+      ctx.ellipse(shipX - 1, shipY - 6, 2, 3, -0.3, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Wings
+      ctx.fillStyle = "#dc2626";
+      // Left wing
+      ctx.beginPath();
+      ctx.moveTo(shipX - 8, shipY + 8);
+      ctx.lineTo(shipX - 18, shipY + 16);
+      ctx.lineTo(shipX - 16, shipY + 10);
+      ctx.lineTo(shipX - 8, shipY + 2);
+      ctx.closePath();
+      ctx.fill();
+      // Right wing
+      ctx.beginPath();
+      ctx.moveTo(shipX + 8, shipY + 8);
+      ctx.lineTo(shipX + 18, shipY + 16);
+      ctx.lineTo(shipX + 16, shipY + 10);
+      ctx.lineTo(shipX + 8, shipY + 2);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Wing accents
+      ctx.fillStyle = "#fbbf24";
+      ctx.beginPath();
+      ctx.moveTo(shipX - 14, shipY + 12);
+      ctx.lineTo(shipX - 16, shipY + 14);
+      ctx.lineTo(shipX - 12, shipY + 11);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(shipX + 14, shipY + 12);
+      ctx.lineTo(shipX + 16, shipY + 14);
+      ctx.lineTo(shipX + 12, shipY + 11);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Nose tip (chrome)
+      ctx.fillStyle = "#f1f5f9";
+      ctx.beginPath();
+      ctx.moveTo(shipX, shipY - 18);
+      ctx.lineTo(shipX + 4, shipY - 12);
+      ctx.lineTo(shipX - 4, shipY - 12);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Shield ring (energy field)
       ctx.shadowBlur = 0;
-      ctx.strokeStyle = "rgba(6, 182, 212, 0.3)";
+      ctx.strokeStyle = "rgba(6, 182, 212, 0.25)";
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(shipX, shipY, 22, 0, Math.PI * 2);
+      ctx.arc(shipX, shipY, 24, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // Shield pulse effect
+      const pulseAlpha = (Math.sin(Date.now() / 200) + 1) * 0.15;
+      ctx.strokeStyle = `rgba(6, 182, 212, ${pulseAlpha})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(shipX, shipY, 28, 0, Math.PI * 2);
       ctx.stroke();
 
       // Game over overlay

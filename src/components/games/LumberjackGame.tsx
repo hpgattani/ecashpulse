@@ -271,56 +271,139 @@ const LumberjackGame = ({ onGameEnd, isPlaying }: LumberjackGameProps) => {
       ctx.fillStyle = "#78350f";
       ctx.fillRect(trunkX - 4, trunkBaseY, trunkWidth + 8, 25);
 
-      // Player
-      const playerX = playerSide === "left" ? trunkX - 45 : trunkX + trunkWidth + 8;
-      const playerY = trunkBaseY - 18;
+      // Player (Lumberjack with face like reference image)
+      const playerX = playerSide === "left" ? trunkX - 55 : trunkX + trunkWidth + 5;
+      const playerY = trunkBaseY - 25;
+      const flipX = playerSide === "right";
       
-      // Body
-      ctx.fillStyle = "#ef4444";
-      ctx.beginPath();
-      ctx.roundRect(playerX, playerY, 38, 45, 4);
-      ctx.fill();
-
-      // Head
-      ctx.fillStyle = "#fcd9b6";
-      ctx.beginPath();
-      ctx.arc(playerX + 19, playerY - 9, 14, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Beard
-      ctx.fillStyle = "#92400e";
-      ctx.beginPath();
-      ctx.arc(playerX + 19, playerY - 2, 9, 0, Math.PI);
-      ctx.fill();
-
-      // Hat
+      ctx.save();
+      if (flipX) {
+        ctx.translate(playerX + 50, 0);
+        ctx.scale(-1, 1);
+        ctx.translate(-playerX, 0);
+      }
+      
+      // Legs (blue jeans)
+      ctx.fillStyle = "#3b82f6";
+      ctx.fillRect(playerX + 8, playerY + 40, 14, 25);
+      ctx.fillRect(playerX + 28, playerY + 40, 14, 25);
+      
+      // Body (red plaid shirt)
       ctx.fillStyle = "#dc2626";
       ctx.beginPath();
-      ctx.arc(playerX + 19, playerY - 16, 11, Math.PI, 0);
+      ctx.roundRect(playerX + 5, playerY + 8, 40, 35, 6);
       ctx.fill();
-
-      // Axe
-      const axeRotation = chopAnimation ? (playerSide === "left" ? -0.6 : 0.6) : 0;
-      ctx.save();
-      ctx.translate(playerX + 19, playerY + 22);
-      ctx.rotate(axeRotation + (playerSide === "left" ? -0.3 : 0.3));
       
-      ctx.fillStyle = "#78350f";
-      ctx.fillRect(-3, -28, 6, 36);
-      
-      ctx.fillStyle = "#94a3b8";
-      ctx.beginPath();
-      if (playerSide === "left") {
-        ctx.moveTo(-3, -28);
-        ctx.lineTo(-18, -23);
-        ctx.lineTo(-18, -14);
-        ctx.lineTo(-3, -9);
-      } else {
-        ctx.moveTo(3, -28);
-        ctx.lineTo(18, -23);
-        ctx.lineTo(18, -14);
-        ctx.lineTo(3, -9);
+      // Plaid pattern on shirt
+      ctx.strokeStyle = "#991b1b";
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 4; i++) {
+        ctx.beginPath();
+        ctx.moveTo(playerX + 5, playerY + 14 + i * 8);
+        ctx.lineTo(playerX + 45, playerY + 14 + i * 8);
+        ctx.stroke();
       }
+      for (let i = 0; i < 5; i++) {
+        ctx.beginPath();
+        ctx.moveTo(playerX + 10 + i * 8, playerY + 8);
+        ctx.lineTo(playerX + 10 + i * 8, playerY + 43);
+        ctx.stroke();
+      }
+      
+      // Head (skin tone)
+      ctx.fillStyle = "#fcd9b6";
+      ctx.beginPath();
+      ctx.arc(playerX + 25, playerY - 5, 18, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Hat (dark cap/beanie)
+      ctx.fillStyle = "#1e3a5f";
+      ctx.beginPath();
+      ctx.ellipse(playerX + 25, playerY - 18, 20, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(playerX + 25, playerY - 12, 16, Math.PI, 0);
+      ctx.fill();
+      
+      // Face features
+      // Eyes
+      ctx.fillStyle = "#000";
+      ctx.beginPath();
+      ctx.arc(playerX + 19, playerY - 6, 2.5, 0, Math.PI * 2);
+      ctx.arc(playerX + 31, playerY - 6, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Eye whites
+      ctx.fillStyle = "#fff";
+      ctx.beginPath();
+      ctx.arc(playerX + 18, playerY - 7, 1, 0, Math.PI * 2);
+      ctx.arc(playerX + 30, playerY - 7, 1, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Nose
+      ctx.fillStyle = "#e5b99a";
+      ctx.beginPath();
+      ctx.ellipse(playerX + 25, playerY, 3, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Big bushy beard (black/dark brown)
+      ctx.fillStyle = "#2d1810";
+      ctx.beginPath();
+      ctx.moveTo(playerX + 10, playerY);
+      ctx.quadraticCurveTo(playerX + 5, playerY + 5, playerX + 8, playerY + 18);
+      ctx.quadraticCurveTo(playerX + 25, playerY + 25, playerX + 42, playerY + 18);
+      ctx.quadraticCurveTo(playerX + 45, playerY + 5, playerX + 40, playerY);
+      ctx.quadraticCurveTo(playerX + 25, playerY + 5, playerX + 10, playerY);
+      ctx.fill();
+      
+      // Mustache
+      ctx.beginPath();
+      ctx.moveTo(playerX + 15, playerY + 2);
+      ctx.quadraticCurveTo(playerX + 25, playerY + 6, playerX + 35, playerY + 2);
+      ctx.quadraticCurveTo(playerX + 25, playerY + 10, playerX + 15, playerY + 2);
+      ctx.fill();
+      
+      ctx.restore();
+      
+      // Arms and Axe
+      const axeRotation = chopAnimation ? (playerSide === "left" ? -0.8 : 0.8) : 0;
+      ctx.save();
+      
+      const armX = playerSide === "left" ? playerX + 42 : playerX + 8;
+      ctx.translate(armX, playerY + 20);
+      ctx.rotate(axeRotation + (playerSide === "left" ? -0.4 : 0.4));
+      
+      // Arm (shirt sleeve)
+      ctx.fillStyle = "#dc2626";
+      ctx.fillRect(-5, -5, 12, 20);
+      
+      // Hand
+      ctx.fillStyle = "#fcd9b6";
+      ctx.beginPath();
+      ctx.arc(1, 18, 6, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Axe handle (wood)
+      ctx.fillStyle = "#8b4513";
+      ctx.fillRect(-3, 12, 8, 45);
+      
+      // Axe head (metal)
+      const axeHeadDir = playerSide === "left" ? -1 : 1;
+      ctx.fillStyle = "#6b7280";
+      ctx.beginPath();
+      ctx.moveTo(0, 50);
+      ctx.lineTo(axeHeadDir * 25, 45);
+      ctx.lineTo(axeHeadDir * 25, 60);
+      ctx.lineTo(0, 58);
+      ctx.fill();
+      
+      // Axe blade shine
+      ctx.fillStyle = "#9ca3af";
+      ctx.beginPath();
+      ctx.moveTo(axeHeadDir * 5, 52);
+      ctx.lineTo(axeHeadDir * 20, 48);
+      ctx.lineTo(axeHeadDir * 20, 52);
+      ctx.lineTo(axeHeadDir * 5, 55);
       ctx.fill();
       
       ctx.restore();
