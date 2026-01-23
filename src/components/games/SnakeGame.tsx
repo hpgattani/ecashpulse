@@ -44,8 +44,20 @@ const SnakeGame = ({ onGameEnd, isPlaying }: SnakeGameProps) => {
       clearInterval(gameLoopRef.current);
       gameLoopRef.current = null;
     }
-    setSnake([{ x: 7, y: 7 }]);
-    setFood(generateFood());
+    // Start snake in center, moving right with some initial length
+    const centerX = Math.floor(GRID_SIZE / 2);
+    const centerY = Math.floor(GRID_SIZE / 2);
+    setSnake([
+      { x: centerX, y: centerY },
+      { x: centerX - 1, y: centerY },
+      { x: centerX - 2, y: centerY },
+    ]);
+    // Generate food away from starting position
+    let newFood: Position;
+    do {
+      newFood = generateFood();
+    } while (Math.abs(newFood.x - centerX) < 3 && Math.abs(newFood.y - centerY) < 3);
+    setFood(newFood);
     setDirection("RIGHT");
     directionRef.current = "RIGHT";
     setScore(0);
