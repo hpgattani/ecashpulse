@@ -233,17 +233,20 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
   };
 
   const handlePlayAgain = () => {
+    // First deactivate game to trigger reset in game component
+    setIsGameActive(false);
+    setFinalScore(0);
+    
     if (mode === "demo") {
       // In demo mode, allow instant replay without repaying
-      setFinalScore(0);
       setStep("playing");
-      setTimeout(() => setIsGameActive(true), 100);
+      // Small delay to ensure game component sees the isPlaying=false then true transition
+      setTimeout(() => setIsGameActive(true), 150);
     } else {
       // Competitive mode requires new payment
       const fee = Math.ceil(1 / (prices?.ecash || 0.00003));
       setLockedEntryFee(fee);
       setStep("payment");
-      setIsGameActive(false);
     }
   };
 
