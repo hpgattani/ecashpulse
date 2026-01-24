@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Trophy, Zap, CheckCircle, Gamepad2 } from "lucide-react";
+import { X, Trophy, Zap, CheckCircle, Gamepad2, Maximize2, Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCryptoPrices } from "@/hooks/useCryptoPrices";
@@ -8,8 +8,19 @@ import { toast } from "sonner";
 import { triggerHaptic } from "@/hooks/useHaptic";
 import SnakeGame from "./SnakeGame";
 import TetrisGame from "./TetrisGame";
-import LumberjackGame from "./LumberjackGame";
-import SpaceShooterGame from "./SpaceShooterGame";
+import ExternalGame from "./ExternalGame";
+
+// External web game URLs - curated free HTML5 games
+const EXTERNAL_GAMES: Record<string, { url: string; name: string }> = {
+  "lumberjack": {
+    url: "https://cdn.htmlgames.com/TimbermanChallenge/",
+    name: "Lumberjack Challenge"
+  },
+  "space-shooter": {
+    url: "https://cdn.htmlgames.com/SpaceDefender/",
+    name: "Space Defender"
+  }
+};
 
 interface MiniGame {
   id: string;
@@ -35,7 +46,9 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
   const [step, setStep] = useState<"payment" | "playing" | "finished">("payment");
   const [finalScore, setFinalScore] = useState(0);
   const [isGameActive, setIsGameActive] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const payButtonRef = useRef<HTMLDivElement>(null);
+  const gameContainerRef = useRef<HTMLDivElement>(null);
   
   // Lock entry fee at modal open to prevent PayButton re-renders
   const [lockedEntryFee, setLockedEntryFee] = useState(0);
@@ -50,8 +63,36 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
       setStep("payment");
       setFinalScore(0);
       setIsGameActive(false);
+      setIsFullscreen(false);
     }
   }, [isOpen, mode, prices?.ecash]);
+
+  // Fullscreen toggle
+  const toggleFullscreen = useCallback(async () => {
+    if (!gameContainerRef.current) return;
+
+    try {
+      if (!document.fullscreenElement) {
+        await gameContainerRef.current.requestFullscreen();
+        setIsFullscreen(true);
+      } else {
+        await document.exitFullscreen();
+        setIsFullscreen(false);
+      }
+    } catch (err) {
+      console.error("Fullscreen error:", err);
+    }
+  }, []);
+
+  // Listen for fullscreen changes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
 
   // Close any PayButton modals/overlays
   const closePayButtonModal = useCallback(() => {
@@ -218,15 +259,23 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
       isPlaying: isGameActive,
     };
 
+    // Check if this is an external game
+    const externalGame = EXTERNAL_GAMES[game.slug];
+    if (externalGame) {
+      return (
+        <ExternalGame
+          gameUrl={externalGame.url}
+          gameName={externalGame.name}
+          {...gameProps}
+        />
+      );
+    }
+
     switch (game.slug) {
       case "snake":
         return <SnakeGame {...gameProps} />;
       case "tetris":
         return <TetrisGame {...gameProps} />;
-      case "lumberjack":
-        return <LumberjackGame {...gameProps} />;
-      case "space-shooter":
-        return <SpaceShooterGame {...gameProps} />;
       default:
         return <div className="text-muted-foreground text-center p-8">Game not found</div>;
     }
@@ -346,10 +395,36 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
 
                 {step === "playing" && (
                   <div 
-                    className="w-full h-full min-h-[400px] sm:min-h-[450px] rounded-lg overflow-hidden bg-black/50"
+                    ref={gameContainerRef}
+                    className={`relative w-full rounded-lg overflow-hidden bg-background/80 ${
+                      isFullscreen ? "fixed inset-0 z-[100] rounded-none" : "h-full min-h-[400px] sm:min-h-[450px]"
+                    }`}
                     style={{ touchAction: 'none' }}
                   >
-                    {renderGame()}
+                    {/* Fullscreen toggle button */}
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={toggleFullscreen}
+                      className="absolute top-2 right-2 z-20 gap-1.5 bg-background/70 hover:bg-background/90 border border-border/50"
+                    >
+                      {isFullscreen ? (
+                        <>
+                          <Minimize2 className="w-4 h-4" />
+                          <span className="hidden sm:inline">Exit</span>
+                        </>
+                      ) : (
+                        <>
+                          <Maximize2 className="w-4 h-4" />
+                          <span className="hidden sm:inline">Fullscreen</span>
+                        </>
+                      )}
+                    </Button>
+                    
+                    {/* Game content */}
+                    <div className={`w-full h-full ${isFullscreen ? "h-screen" : ""}`}>
+                      {renderGame()}
+                    </div>
                   </div>
                 )}
 
