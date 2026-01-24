@@ -310,7 +310,7 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
           {/* Backdrop - prevent closing during game */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -320,15 +320,15 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
             className="absolute inset-0 bg-background/90 backdrop-blur-md"
           />
 
-          {/* Modal - fullscreen on mobile, centered on desktop */}
+          {/* Modal - centered on all screens */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ type: "spring", duration: 0.3 }}
-            className="absolute inset-2 sm:inset-4 md:inset-auto md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:max-w-lg md:w-full md:max-h-[90vh]"
+            className="relative z-10 w-[calc(100%-1rem)] sm:w-[calc(100%-2rem)] md:max-w-lg md:w-full max-h-[90vh]"
           >
-            <div className="glass-card glow-primary p-3 sm:p-4 h-full md:h-auto flex flex-col overflow-hidden rounded-2xl">
+            <div className="glass-card glow-primary p-3 sm:p-4 h-full flex flex-col overflow-hidden rounded-2xl">
               {/* Header */}
               <div className="flex items-start justify-between mb-3 flex-shrink-0">
                 <div className="flex items-center gap-2 sm:gap-3">

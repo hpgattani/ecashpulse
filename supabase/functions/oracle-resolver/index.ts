@@ -118,6 +118,97 @@ async function checkCryptoPrediction(title: string): Promise<OracleResult> {
   return { resolved: false };
 }
 
+// ==================== STOCK ORACLES ====================
+
+const STOCK_TICKERS: Record<string, string> = {
+  'aapl': 'AAPL', 'apple': 'AAPL',
+  'googl': 'GOOGL', 'google': 'GOOGL', 'alphabet': 'GOOGL',
+  'open': 'OPEN', 'opendoor': 'OPEN',
+  'msft': 'MSFT', 'microsoft': 'MSFT',
+  'amzn': 'AMZN', 'amazon': 'AMZN',
+  'tsla': 'TSLA', 'tesla': 'TSLA',
+  'meta': 'META', 'facebook': 'META',
+  'nvda': 'NVDA', 'nvidia': 'NVDA',
+};
+
+async function checkStockPrediction(title: string, endDate: string): Promise<OracleResult> {
+  const titleLower = title.toLowerCase();
+  
+  // Find stock ticker
+  let ticker: string | null = null;
+  for (const [keyword, symbol] of Object.entries(STOCK_TICKERS)) {
+    if (titleLower.includes(keyword) || titleLower.includes(`(${keyword})`)) {
+      ticker = symbol;
+      break;
+    }
+  }
+  
+  if (!ticker) return { resolved: false };
+  
+  // Only handle "up or down" predictions
+  if (!titleLower.includes('up or down')) return { resolved: false };
+  
+  try {
+    // Use Yahoo Finance API via RapidAPI or fallback to Perplexity
+    const perplexityKey = Deno.env.get('PERPLEXITY_API_KEY');
+    if (!perplexityKey) return { resolved: false };
+    
+    const targetDate = new Date(endDate).toISOString().split('T')[0];
+    
+    const response = await fetch('https://api.perplexity.ai/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${perplexityKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'sonar',
+        messages: [
+          { 
+            role: 'system', 
+            content: `You check stock price movements. For a given stock and date, determine if the stock closed HIGHER (up) or LOWER (down) compared to the previous trading day's close.
+
+RESPOND ONLY with JSON:
+{"resolved": true, "outcome": "yes", "reason": "TICKER closed at $X.XX (+X.XX%), up from previous close"} (if stock went UP)
+{"resolved": true, "outcome": "no", "reason": "TICKER closed at $X.XX (-X.XX%), down from previous close"} (if stock went DOWN)
+{"resolved": false, "reason": "Cannot determine"} (if data unavailable)`
+          },
+          { 
+            role: 'user', 
+            content: `Did ${ticker} stock close UP or DOWN on ${targetDate}? Search for the actual closing price.` 
+          }
+        ],
+        search_recency_filter: 'week',
+      }),
+    });
+
+    if (!response.ok) return { resolved: false };
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || '';
+    
+    let cleaned = content.trim();
+    if (cleaned.startsWith('```')) {
+      cleaned = cleaned.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+    }
+    
+    const result = JSON.parse(cleaned);
+    if (result.resolved && result.outcome) {
+      console.log(`📈 Stock oracle: ${ticker} -> ${result.outcome} (${result.reason})`);
+      return { 
+        resolved: true, 
+        outcome: result.outcome, 
+        reason: result.reason,
+        currentValue: ticker
+      };
+    }
+    return { resolved: false };
+  } catch (error) {
+    console.error(`Stock oracle error for ${ticker}:`, error);
+    return { resolved: false };
+  }
+}
+
 async function checkFlippening(): Promise<OracleResult> {
   try {
     const [btcData, ethData] = await Promise.all([
@@ -645,12 +736,19 @@ Deno.serve(async (req) => {
       const isSpread = titleLower.includes('cover') || titleLower.includes('spread') || 
                        titleLower.match(/-\d+\.?\d*\s*points?/) || titleLower.match(/[+-]\d+\.5/);
       
+      // Check for stock tickers
+      const stockTickers = ['aapl', 'apple', 'googl', 'google', 'open', 'opendoor', 'msft', 'microsoft', 'amzn', 'amazon', 'tsla', 'tesla', 'meta', 'nvda', 'nvidia'];
+      const isStock = stockTickers.some(t => titleLower.includes(t) || titleLower.includes(`(${t})`)) && titleLower.includes('up or down');
+      
       if (isSpread) {
         oracleResult = await checkSpreadPrediction(pred.title);
         source = 'NFL Score Oracle';
       } else if (titleLower.includes('flippen')) {
         oracleResult = await checkFlippening();
         source = 'CoinGecko';
+      } else if (isStock) {
+        oracleResult = await checkStockPrediction(pred.title, pred.end_date);
+        source = 'Stock Oracle';
       } else if (isCrypto) {
         oracleResult = await checkCryptoPrediction(pred.title);
         source = 'CoinGecko';
