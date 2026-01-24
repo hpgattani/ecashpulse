@@ -8,19 +8,8 @@ import { toast } from "sonner";
 import { triggerHaptic } from "@/hooks/useHaptic";
 import SnakeGame from "./SnakeGame";
 import TetrisGame from "./TetrisGame";
-import ExternalGame from "./ExternalGame";
-
-// External web game URLs - curated free HTML5 games
-const EXTERNAL_GAMES: Record<string, { url: string; name: string }> = {
-  "lumberjack": {
-    url: "https://cdn.htmlgames.com/TimbermanChallenge/",
-    name: "Lumberjack Challenge"
-  },
-  "space-shooter": {
-    url: "https://cdn.htmlgames.com/SpaceDefender/",
-    name: "Space Defender"
-  }
-};
+import LumberjackGame from "./LumberjackGame";
+import SpaceShooterGame from "./SpaceShooterGame";
 
 interface MiniGame {
   id: string;
@@ -259,23 +248,15 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
       isPlaying: isGameActive,
     };
 
-    // Check if this is an external game
-    const externalGame = EXTERNAL_GAMES[game.slug];
-    if (externalGame) {
-      return (
-        <ExternalGame
-          gameUrl={externalGame.url}
-          gameName={externalGame.name}
-          {...gameProps}
-        />
-      );
-    }
-
     switch (game.slug) {
       case "snake":
         return <SnakeGame {...gameProps} />;
       case "tetris":
         return <TetrisGame {...gameProps} />;
+      case "lumberjack":
+        return <LumberjackGame {...gameProps} />;
+      case "space-shooter":
+        return <SpaceShooterGame {...gameProps} />;
       default:
         return <div className="text-muted-foreground text-center p-8">Game not found</div>;
     }

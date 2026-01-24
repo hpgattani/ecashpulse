@@ -504,44 +504,16 @@ OR {"resolved": false, "reason": "Event unclear"}`
 }
 
 async function checkNewsEvent(title: string): Promise<OracleResult> {
-  const [perplexityResult, geminiResult, gptResult] = await Promise.all([
-    queryPerplexity(title),
-    queryLovableAI(title, 'google/gemini-2.5-flash'),
-    queryLovableAI(title, 'openai/gpt-5')
-  ]);
-  
-  const results: { outcome: 'yes' | 'no'; reason: string; source: string }[] = [];
+  // Use Perplexity as primary source (no AI consensus needed)
+  const perplexityResult = await queryPerplexity(title);
   
   if (perplexityResult?.resolved && perplexityResult.outcome) {
-    results.push({ outcome: perplexityResult.outcome, reason: perplexityResult.reason || '', source: 'Perplexity' });
-  }
-  if (geminiResult?.resolved && geminiResult.outcome) {
-    results.push({ outcome: geminiResult.outcome, reason: geminiResult.reason || '', source: geminiResult.source });
-  }
-  if (gptResult?.resolved && gptResult.outcome) {
-    results.push({ outcome: gptResult.outcome, reason: gptResult.reason || '', source: gptResult.source });
-  }
-  
-  if (results.length < 2) return { resolved: false };
-  
-  const yesVotes = results.filter(r => r.outcome === 'yes');
-  const noVotes = results.filter(r => r.outcome === 'no');
-  
-  if (yesVotes.length >= 2) {
+    console.log(`📰 Perplexity resolved: ${title.slice(0, 40)} -> ${perplexityResult.outcome}`);
     return {
       resolved: true,
-      outcome: 'yes',
-      reason: `${yesVotes[0].reason} [Verified: ${yesVotes.map(r => r.source).join(', ')}]`,
-      currentValue: `${yesVotes.length}/3`
-    };
-  }
-  
-  if (noVotes.length >= 2) {
-    return {
-      resolved: true,
-      outcome: 'no',
-      reason: `${noVotes[0].reason} [Verified: ${noVotes.map(r => r.source).join(', ')}]`,
-      currentValue: `${noVotes.length}/3`
+      outcome: perplexityResult.outcome,
+      reason: `${perplexityResult.reason} [Source: Perplexity Web Search]`,
+      currentValue: 'Perplexity'
     };
   }
   
