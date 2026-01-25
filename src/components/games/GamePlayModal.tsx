@@ -56,27 +56,42 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
     }
   }, [isOpen, mode, prices?.ecash]);
 
-  // True fullscreen toggle using document element for proper mobile fullscreen
+  // True fullscreen toggle - MUST use document.documentElement for real fullscreen
   const toggleFullscreen = useCallback(async () => {
-    const element = gameContainerRef.current || document.documentElement;
-    
     try {
-      if (!document.fullscreenElement && !(document as any).webkitFullscreenElement) {
-        // Request fullscreen - try standard first, then webkit for Safari/iOS
-        if (element.requestFullscreen) {
-          await element.requestFullscreen();
-        } else if ((element as any).webkitRequestFullscreen) {
-          await (element as any).webkitRequestFullscreen();
-        } else if ((element as any).webkitEnterFullscreen) {
-          await (element as any).webkitEnterFullscreen();
+      const doc = document as any;
+      const docEl = document.documentElement as any;
+      
+      // Check if currently in fullscreen
+      const isCurrentlyFullscreen = !!(
+        document.fullscreenElement ||
+        doc.webkitFullscreenElement ||
+        doc.mozFullScreenElement ||
+        doc.msFullscreenElement
+      );
+      
+      if (!isCurrentlyFullscreen) {
+        // Enter fullscreen - use documentElement for true fullscreen
+        if (docEl.requestFullscreen) {
+          await docEl.requestFullscreen();
+        } else if (docEl.webkitRequestFullscreen) {
+          await docEl.webkitRequestFullscreen();
+        } else if (docEl.mozRequestFullScreen) {
+          await docEl.mozRequestFullScreen();
+        } else if (docEl.msRequestFullscreen) {
+          await docEl.msRequestFullscreen();
         }
         setIsFullscreen(true);
       } else {
         // Exit fullscreen
         if (document.exitFullscreen) {
           await document.exitFullscreen();
-        } else if ((document as any).webkitExitFullscreen) {
-          await (document as any).webkitExitFullscreen();
+        } else if (doc.webkitExitFullscreen) {
+          await doc.webkitExitFullscreen();
+        } else if (doc.mozCancelFullScreen) {
+          await doc.mozCancelFullScreen();
+        } else if (doc.msExitFullscreen) {
+          await doc.msExitFullscreen();
         }
         setIsFullscreen(false);
       }
@@ -85,17 +100,28 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
     }
   }, []);
 
-  // Listen for fullscreen changes (including webkit prefix for Safari)
+  // Listen for fullscreen changes (all browser prefixes)
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement || !!(document as any).webkitFullscreenElement);
+      const doc = document as any;
+      const isFs = !!(
+        document.fullscreenElement ||
+        doc.webkitFullscreenElement ||
+        doc.mozFullScreenElement ||
+        doc.msFullscreenElement
+      );
+      setIsFullscreen(isFs);
     };
 
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+    document.addEventListener("mozfullscreenchange", handleFullscreenChange);
+    document.addEventListener("MSFullscreenChange", handleFullscreenChange);
     return () => {
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
       document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
+      document.removeEventListener("mozfullscreenchange", handleFullscreenChange);
+      document.removeEventListener("MSFullscreenChange", handleFullscreenChange);
     };
   }, []);
 

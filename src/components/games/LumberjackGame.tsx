@@ -18,9 +18,10 @@ const LumberjackGame = ({ onGameEnd, isPlaying }: LumberjackGameProps) => {
   const [gameOver, setGameOver] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
   const [timeLeft, setTimeLeft] = useState(100);
-  const [chopAnimation, setChopAnimation] = useState(false);
+  const [chopPhase, setChopPhase] = useState(0); // 0-5 for swing animation phases
   const timerRef = useRef<number | null>(null);
   const animationRef = useRef<number | null>(null);
+  const chopAnimRef = useRef<number | null>(null);
   const scoreRef = useRef(0);
   const gameOverRef = useRef(false);
   const haptic = useHaptic();
@@ -60,6 +61,7 @@ const LumberjackGame = ({ onGameEnd, isPlaying }: LumberjackGameProps) => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
+      if (chopAnimRef.current) clearTimeout(chopAnimRef.current);
     };
   }, []);
 
@@ -344,43 +346,98 @@ const LumberjackGame = ({ onGameEnd, isPlaying }: LumberjackGameProps) => {
       ctx.fill();
       ctx.fillRect(playerX + 9, playerY - 2, 32, 8);
 
-      // Axe
+      // Axe with realistic multi-phase swing animation
       ctx.save();
       const axeX = facingLeft ? playerX - 5 : playerX + 45;
       const axeY = playerY + 40;
-      const axeRotation = chopAnimation ? (facingLeft ? -0.8 : 0.8) : (facingLeft ? -0.2 : 0.2);
       
-      ctx.translate(axeX, axeY);
+      // Multi-phase axe swing: 0=ready, 1-2=wind up, 3-4=swing down, 5=impact
+      let axeRotation = facingLeft ? -0.2 : 0.2; // Default ready position
+      let axeOffsetX = 0;
+      let axeOffsetY = 0;
+      
+      if (chopPhase > 0) {
+        if (chopPhase === 1) {
+          // Wind up - raise axe back
+          axeRotation = facingLeft ? 0.6 : -0.6;
+          axeOffsetY = -10;
+        } else if (chopPhase === 2) {
+          // Peak of wind up
+          axeRotation = facingLeft ? 0.9 : -0.9;
+          axeOffsetY = -15;
+        } else if (chopPhase === 3) {
+          // Swing down - accelerating
+          axeRotation = facingLeft ? -0.3 : 0.3;
+          axeOffsetY = 5;
+        } else if (chopPhase === 4) {
+          // Impact - axe hits tree
+          axeRotation = facingLeft ? -1.0 : 1.0;
+          axeOffsetX = facingLeft ? 15 : -15;
+          axeOffsetY = 10;
+        } else if (chopPhase === 5) {
+          // Recoil/recovery
+          axeRotation = facingLeft ? -0.5 : 0.5;
+          axeOffsetX = facingLeft ? 8 : -8;
+          axeOffsetY = 5;
+        }
+      }
+      
+      ctx.translate(axeX + axeOffsetX, axeY + axeOffsetY);
       ctx.rotate(axeRotation);
       
-      // Handle
-      ctx.fillStyle = "#8D6E63";
-      ctx.fillRect(-3, -5, 6, 45);
+      // Handle - wooden with grain
+      const handleGradient = ctx.createLinearGradient(-3, -5, 3, -5);
+      handleGradient.addColorStop(0, "#6D4C41");
+      handleGradient.addColorStop(0.5, "#A1887F");
+      handleGradient.addColorStop(1, "#6D4C41");
+      ctx.fillStyle = handleGradient;
+      ctx.fillRect(-4, -5, 8, 50);
       
-      // Axe head - red/gray
-      ctx.fillStyle = "#757575";
+      // Handle detail lines
+      ctx.strokeStyle = "#5D4037";
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      ctx.moveTo(-1, 0);
+      ctx.lineTo(-1, 42);
+      ctx.moveTo(1, 0);
+      ctx.lineTo(1, 42);
+      ctx.stroke();
+      
+      // Axe head - steel with shine
+      const headGradient = ctx.createLinearGradient(facingLeft ? -25 : 3, 35, facingLeft ? -3 : 25, 50);
+      headGradient.addColorStop(0, "#9E9E9E");
+      headGradient.addColorStop(0.4, "#BDBDBD");
+      headGradient.addColorStop(0.6, "#757575");
+      headGradient.addColorStop(1, "#616161");
+      ctx.fillStyle = headGradient;
+      
       ctx.beginPath();
       if (facingLeft) {
-        ctx.moveTo(-3, 35);
-        ctx.lineTo(-25, 40);
-        ctx.lineTo(-25, 50);
-        ctx.lineTo(-3, 48);
+        ctx.moveTo(-3, 32);
+        ctx.lineTo(-28, 38);
+        ctx.quadraticCurveTo(-32, 44, -28, 52);
+        ctx.lineTo(-3, 52);
       } else {
-        ctx.moveTo(3, 35);
-        ctx.lineTo(25, 40);
-        ctx.lineTo(25, 50);
-        ctx.lineTo(3, 48);
+        ctx.moveTo(3, 32);
+        ctx.lineTo(28, 38);
+        ctx.quadraticCurveTo(32, 44, 28, 52);
+        ctx.lineTo(3, 52);
       }
       ctx.closePath();
       ctx.fill();
       
-      // Axe blade shine
-      ctx.fillStyle = "#9E9E9E";
+      // Blade edge shine
+      ctx.strokeStyle = "#E0E0E0";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
       if (facingLeft) {
-        ctx.fillRect(-20, 41, 10, 6);
+        ctx.moveTo(-28, 40);
+        ctx.lineTo(-28, 50);
       } else {
-        ctx.fillRect(10, 41, 10, 6);
+        ctx.moveTo(28, 40);
+        ctx.lineTo(28, 50);
       }
+      ctx.stroke();
       
       ctx.restore();
 
@@ -402,13 +459,34 @@ const LumberjackGame = ({ onGameEnd, isPlaying }: LumberjackGameProps) => {
 
     render();
     return () => { if (animationRef.current) cancelAnimationFrame(animationRef.current); };
-  }, [tree, playerSide, chopAnimation, gameOver, score, timeLeft]);
+  }, [tree, playerSide, chopPhase, gameOver, score, timeLeft]);
 
   const chop = useCallback((side: Side) => {
-    if (gameOverRef.current || !isPlaying || !gameStarted) return;
+    if (gameOverRef.current || !isPlaying || !gameStarted || chopPhase > 0) return;
     setPlayerSide(side);
-    setChopAnimation(true);
-    setTimeout(() => setChopAnimation(false), 100);
+    
+    // Start multi-phase swing animation
+    const animateSwing = () => {
+      let phase = 1;
+      const runPhase = () => {
+        setChopPhase(phase);
+        if (phase === 4) {
+          // Impact phase - play sound and haptic
+          haptic.chop();
+          play("chop");
+        }
+        phase++;
+        if (phase <= 5) {
+          chopAnimRef.current = window.setTimeout(runPhase, 35);
+        } else {
+          // Reset after animation completes
+          setTimeout(() => setChopPhase(0), 50);
+        }
+      };
+      runPhase();
+    };
+    
+    animateSwing();
 
     if (tree[0]?.hasBranch === side) {
       gameOverRef.current = true;
@@ -419,15 +497,12 @@ const LumberjackGame = ({ onGameEnd, isPlaying }: LumberjackGameProps) => {
       return;
     }
 
-    haptic.chop();
-    play("chop");
-
     setTree((prevTree) => [...prevTree.slice(1), generateSegment()]);
     const newScore = scoreRef.current + 1;
     scoreRef.current = newScore;
     setScore(newScore);
     setTimeLeft((t) => Math.min(100, t + 3));
-  }, [tree, isPlaying, gameStarted, haptic, play, onGameEnd]);
+  }, [tree, isPlaying, gameStarted, chopPhase, haptic, play, onGameEnd]);
 
   return (
     <div className="flex flex-col items-center justify-center h-full p-3" style={{ background: "linear-gradient(180deg, #87CEEB 0%, #E0F6FF 100%)" }}>
