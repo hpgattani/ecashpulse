@@ -104,7 +104,7 @@ const EVENT_ROSTERS: Record<string, { name: string; category: string; teams: str
   "t20_world_cup_2026": {
     name: "T20 World Cup 2026",
     category: "sports",
-    teams: ["India", "Australia", "England", "Pakistan", "South Africa", "New Zealand", "West Indies", "Sri Lanka", "Bangladesh", "Afghanistan", "Ireland", "Netherlands", "Zimbabwe", "Scotland", "Nepal", "USA", "Canada", "UAE", "Oman", "Namibia"]
+    teams: ["India", "Australia", "England", "Pakistan", "South Africa", "New Zealand", "West Indies", "Sri Lanka", "Afghanistan", "Ireland", "Netherlands", "Zimbabwe", "Scotland", "Nepal", "USA", "Canada", "UAE", "Oman", "Namibia", "Italy"]
   }
 };
 

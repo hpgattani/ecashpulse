@@ -42,7 +42,7 @@ export const OFFICIAL_EVENTS = [
     id: 't20_world_cup_2026', 
     name: 'T20 World Cup 2026', 
     category: 'sports', 
-    teams: ['India', 'Australia', 'England', 'Pakistan', 'South Africa', 'New Zealand', 'West Indies', 'Sri Lanka', 'Bangladesh', 'Afghanistan', 'Ireland', 'Netherlands', 'Zimbabwe', 'Scotland', 'Nepal', 'USA', 'Canada', 'UAE', 'Oman', 'Namibia'],
+    teams: ['India', 'Australia', 'England', 'Pakistan', 'South Africa', 'New Zealand', 'West Indies', 'Sri Lanka', 'Afghanistan', 'Ireland', 'Netherlands', 'Zimbabwe', 'Scotland', 'Nepal', 'USA', 'Canada', 'UAE', 'Oman', 'Namibia', 'Italy'],
     entryCostUsd: 2.50,
     description: 'Pick a team to win T20 World Cup 2026!',
     flag: '🏏'
