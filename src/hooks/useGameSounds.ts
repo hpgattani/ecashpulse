@@ -98,9 +98,11 @@ const useGameSounds = () => {
         break;
         
       case "chop":
-        // Wood chop sound
-        playNoise(0.08, 0.3);
-        playTone(150, 0.1, "sawtooth", 0.2);
+        // Satisfying wood chop sound - thud + crack
+        playNoise(0.12, 0.35);
+        playTone(80, 0.08, "triangle", 0.4);  // Deep thud
+        playTone(180, 0.06, "sawtooth", 0.25); // Crack
+        setTimeout(() => playTone(120, 0.1, "triangle", 0.15), 40); // Echo thud
         break;
         
       case "shoot":

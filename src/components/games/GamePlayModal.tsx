@@ -56,16 +56,28 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
     }
   }, [isOpen, mode, prices?.ecash]);
 
-  // Fullscreen toggle
+  // True fullscreen toggle using document element for proper mobile fullscreen
   const toggleFullscreen = useCallback(async () => {
-    if (!gameContainerRef.current) return;
-
+    const element = gameContainerRef.current || document.documentElement;
+    
     try {
-      if (!document.fullscreenElement) {
-        await gameContainerRef.current.requestFullscreen();
+      if (!document.fullscreenElement && !(document as any).webkitFullscreenElement) {
+        // Request fullscreen - try standard first, then webkit for Safari/iOS
+        if (element.requestFullscreen) {
+          await element.requestFullscreen();
+        } else if ((element as any).webkitRequestFullscreen) {
+          await (element as any).webkitRequestFullscreen();
+        } else if ((element as any).webkitEnterFullscreen) {
+          await (element as any).webkitEnterFullscreen();
+        }
         setIsFullscreen(true);
       } else {
-        await document.exitFullscreen();
+        // Exit fullscreen
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          await (document as any).webkitExitFullscreen();
+        }
         setIsFullscreen(false);
       }
     } catch (err) {
@@ -73,14 +85,18 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
     }
   }, []);
 
-  // Listen for fullscreen changes
+  // Listen for fullscreen changes (including webkit prefix for Safari)
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+      setIsFullscreen(!!document.fullscreenElement || !!(document as any).webkitFullscreenElement);
     };
 
     document.addEventListener("fullscreenchange", handleFullscreenChange);
-    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
+    };
   }, []);
 
   // Close any PayButton modals/overlays
@@ -377,33 +393,31 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
                 {step === "playing" && (
                   <div 
                     ref={gameContainerRef}
-                    className={`relative w-full rounded-lg overflow-hidden bg-background/80 ${
-                      isFullscreen ? "fixed inset-0 z-[100] rounded-none" : "h-full min-h-[400px] sm:min-h-[450px]"
+                    className={`relative w-full overflow-hidden bg-background ${
+                      isFullscreen 
+                        ? "fixed inset-0 z-[9999] !w-screen !h-screen" 
+                        : "h-full min-h-[400px] sm:min-h-[450px] rounded-lg"
                     }`}
                     style={{ touchAction: 'none' }}
                   >
                     {/* Fullscreen toggle button */}
                     <Button
                       variant="secondary"
-                      size="sm"
+                      size="icon"
                       onClick={toggleFullscreen}
-                      className="absolute top-2 right-2 z-20 gap-1.5 bg-background/70 hover:bg-background/90 border border-border/50"
+                      className={`absolute z-[10000] bg-background/80 hover:bg-background border border-border/50 ${
+                        isFullscreen ? "top-4 right-4 h-12 w-12" : "top-2 right-2 h-9 w-9"
+                      }`}
                     >
                       {isFullscreen ? (
-                        <>
-                          <Minimize2 className="w-4 h-4" />
-                          <span className="hidden sm:inline">Exit</span>
-                        </>
+                        <Minimize2 className="w-5 h-5" />
                       ) : (
-                        <>
-                          <Maximize2 className="w-4 h-4" />
-                          <span className="hidden sm:inline">Fullscreen</span>
-                        </>
+                        <Maximize2 className="w-4 h-4" />
                       )}
                     </Button>
                     
-                    {/* Game content */}
-                    <div className={`w-full h-full ${isFullscreen ? "h-screen" : ""}`}>
+                    {/* Game content - full height in fullscreen */}
+                    <div className={`w-full ${isFullscreen ? "h-screen" : "h-full"}`}>
                       {renderGame()}
                     </div>
                   </div>
