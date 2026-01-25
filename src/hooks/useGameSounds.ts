@@ -57,7 +57,7 @@ const useGameSounds = () => {
     oscillator.stop(ctx.currentTime + duration);
   }, []);
 
-  const playNoise = useCallback((duration: number, volume = 0.2) => {
+  const playNoise = useCallback((duration: number, volume = 0.2, filterFreq = 2000) => {
     if (!audioContextRef.current) {
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
@@ -76,7 +76,7 @@ const useGameSounds = () => {
     const filter = ctx.createBiquadFilter();
     
     filter.type = "lowpass";
-    filter.frequency.value = 2000;
+    filter.frequency.value = filterFreq;
     
     source.buffer = buffer;
     source.connect(filter);
@@ -98,11 +98,18 @@ const useGameSounds = () => {
         break;
         
       case "chop":
-        // Satisfying wood chop sound - thud + crack
-        playNoise(0.12, 0.35);
-        playTone(80, 0.08, "triangle", 0.4);  // Deep thud
-        playTone(180, 0.06, "sawtooth", 0.25); // Crack
-        setTimeout(() => playTone(120, 0.1, "triangle", 0.15), 40); // Echo thud
+        // Realistic wood chop: impact + wood crack + debris
+        playNoise(0.08, 0.5, 800);  // Initial impact burst (filtered low)
+        playTone(55, 0.12, "triangle", 0.5);  // Deep thud from axe hitting
+        playTone(110, 0.08, "triangle", 0.35); // Secondary resonance
+        setTimeout(() => {
+          playNoise(0.06, 0.3, 3500); // Wood crack/splinter (higher freq)
+          playTone(220, 0.04, "sawtooth", 0.2); // Sharp crack
+        }, 30);
+        setTimeout(() => {
+          playNoise(0.1, 0.15, 1200); // Wood chips falling
+          playTone(80, 0.15, "triangle", 0.12); // Residual thump
+        }, 70);
         break;
         
       case "shoot":
