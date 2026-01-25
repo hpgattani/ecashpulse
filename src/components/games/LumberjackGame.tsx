@@ -419,7 +419,7 @@ const LumberjackGame = ({ onGameEnd, isPlaying }: LumberjackGameProps) => {
       return;
     }
 
-    haptic.medium();
+    haptic.chop();
     play("chop");
 
     setTree((prevTree) => [...prevTree.slice(1), generateSegment()]);
