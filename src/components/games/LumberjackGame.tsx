@@ -346,41 +346,54 @@ const LumberjackGame = ({ onGameEnd, isPlaying }: LumberjackGameProps) => {
       ctx.fill();
       ctx.fillRect(playerX + 9, playerY - 2, 32, 8);
 
-      // Axe with realistic multi-phase swing animation
+      // Axe with realistic multi-phase swing animation - wider arc for realism
       ctx.save();
       const axeX = facingLeft ? playerX - 5 : playerX + 45;
       const axeY = playerY + 40;
       
-      // Multi-phase axe swing: 0=ready, 1-2=wind up, 3-4=swing down, 5=impact
-      let axeRotation = facingLeft ? -0.2 : 0.2; // Default ready position
+      // Multi-phase axe swing: 0=ready, 1=wind up, 2=peak, 3=swing, 4=impact, 5=recoil
+      // Using wider arc angles and more pronounced motion
+      let axeRotation = facingLeft ? -0.3 : 0.3; // Default ready position (resting)
       let axeOffsetX = 0;
       let axeOffsetY = 0;
+      let playerLean = 0; // Character body lean during swing
       
       if (chopPhase > 0) {
         if (chopPhase === 1) {
-          // Wind up - raise axe back
-          axeRotation = facingLeft ? 0.6 : -0.6;
-          axeOffsetY = -10;
+          // Wind up - pull axe back high over shoulder
+          axeRotation = facingLeft ? 1.2 : -1.2;
+          axeOffsetX = facingLeft ? -10 : 10;
+          axeOffsetY = -25;
+          playerLean = facingLeft ? -3 : 3;
         } else if (chopPhase === 2) {
-          // Peak of wind up
-          axeRotation = facingLeft ? 0.9 : -0.9;
-          axeOffsetY = -15;
+          // Peak of wind up - maximum backswing
+          axeRotation = facingLeft ? 1.6 : -1.6;
+          axeOffsetX = facingLeft ? -15 : 15;
+          axeOffsetY = -35;
+          playerLean = facingLeft ? -5 : 5;
         } else if (chopPhase === 3) {
-          // Swing down - accelerating
-          axeRotation = facingLeft ? -0.3 : 0.3;
-          axeOffsetY = 5;
+          // Swing down - fast forward arc
+          axeRotation = facingLeft ? -0.4 : 0.4;
+          axeOffsetX = facingLeft ? 5 : -5;
+          axeOffsetY = -5;
+          playerLean = facingLeft ? 2 : -2;
         } else if (chopPhase === 4) {
-          // Impact - axe hits tree
-          axeRotation = facingLeft ? -1.0 : 1.0;
-          axeOffsetX = facingLeft ? 15 : -15;
-          axeOffsetY = 10;
+          // Impact - axe buried in tree, maximum forward
+          axeRotation = facingLeft ? -1.4 : 1.4;
+          axeOffsetX = facingLeft ? 25 : -25;
+          axeOffsetY = 8;
+          playerLean = facingLeft ? 8 : -8;
         } else if (chopPhase === 5) {
-          // Recoil/recovery
-          axeRotation = facingLeft ? -0.5 : 0.5;
-          axeOffsetX = facingLeft ? 8 : -8;
-          axeOffsetY = 5;
+          // Recoil/recovery - pulling back
+          axeRotation = facingLeft ? -0.6 : 0.6;
+          axeOffsetX = facingLeft ? 12 : -12;
+          axeOffsetY = 3;
+          playerLean = facingLeft ? 4 : -4;
         }
       }
+      
+      // Apply player lean for body movement (subtle shift)
+      ctx.translate(playerLean, 0);
       
       ctx.translate(axeX + axeOffsetX, axeY + axeOffsetY);
       ctx.rotate(axeRotation);

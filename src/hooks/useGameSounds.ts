@@ -1,7 +1,10 @@
 /**
  * Game sounds using Web Audio API for low-latency game audio
+ * Now includes real audio file support for realistic sound effects
  */
 import { useCallback, useRef, useEffect } from "react";
+import axeChopSound from "@/assets/sfx/axe-chop.mp3";
+import axeChopAltSound from "@/assets/sfx/axe-chop-alt.mp3";
 
 type SoundType = 
   | "eat" 
@@ -17,6 +20,35 @@ type SoundType =
 
 const useGameSounds = () => {
   const audioContextRef = useRef<AudioContext | null>(null);
+  const chopBufferRef = useRef<AudioBuffer | null>(null);
+  const chopAltBufferRef = useRef<AudioBuffer | null>(null);
+  const chopIndexRef = useRef(0);
+
+  // Load audio files into buffers for low-latency playback
+  useEffect(() => {
+    const loadAudioBuffers = async () => {
+      try {
+        if (!audioContextRef.current) {
+          audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+        }
+        const ctx = audioContextRef.current;
+        
+        // Load main chop sound
+        const chopResponse = await fetch(axeChopSound);
+        const chopArrayBuffer = await chopResponse.arrayBuffer();
+        chopBufferRef.current = await ctx.decodeAudioData(chopArrayBuffer);
+        
+        // Load alternate chop sound for variety
+        const chopAltResponse = await fetch(axeChopAltSound);
+        const chopAltArrayBuffer = await chopAltResponse.arrayBuffer();
+        chopAltBufferRef.current = await ctx.decodeAudioData(chopAltArrayBuffer);
+      } catch (err) {
+        console.warn("Failed to load audio buffers:", err);
+      }
+    };
+    
+    loadAudioBuffers();
+  }, []);
 
   useEffect(() => {
     // Create audio context on first user interaction
@@ -89,6 +121,28 @@ const useGameSounds = () => {
     source.start(ctx.currentTime);
   }, []);
 
+  // Play audio buffer with pitch/volume variation for realism
+  const playBuffer = useCallback((buffer: AudioBuffer, volume = 0.7, pitchVariation = 0.05) => {
+    if (!audioContextRef.current || !buffer) return;
+    
+    const ctx = audioContextRef.current;
+    const source = ctx.createBufferSource();
+    const gainNode = ctx.createGain();
+    
+    source.buffer = buffer;
+    // Add slight pitch variation for realism (0.95-1.05)
+    source.playbackRate.value = 1 + (Math.random() - 0.5) * pitchVariation * 2;
+    
+    source.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    
+    // Slight volume variation (0.9-1.0 of target)
+    const actualVolume = volume * (0.9 + Math.random() * 0.1);
+    gainNode.gain.setValueAtTime(actualVolume, ctx.currentTime);
+    
+    source.start(ctx.currentTime);
+  }, []);
+
   const play = useCallback((sound: SoundType) => {
     switch (sound) {
       case "eat":
@@ -98,18 +152,23 @@ const useGameSounds = () => {
         break;
         
       case "chop":
-        // Realistic wood chop: impact + wood crack + debris
-        playNoise(0.08, 0.5, 800);  // Initial impact burst (filtered low)
-        playTone(55, 0.12, "triangle", 0.5);  // Deep thud from axe hitting
-        playTone(110, 0.08, "triangle", 0.35); // Secondary resonance
-        setTimeout(() => {
-          playNoise(0.06, 0.3, 3500); // Wood crack/splinter (higher freq)
-          playTone(220, 0.04, "sawtooth", 0.2); // Sharp crack
-        }, 30);
-        setTimeout(() => {
-          playNoise(0.1, 0.15, 1200); // Wood chips falling
-          playTone(80, 0.15, "triangle", 0.12); // Residual thump
-        }, 70);
+        // Play real axe chop sound - alternate between two sounds for variety
+        const buffer = chopIndexRef.current % 2 === 0 
+          ? chopBufferRef.current 
+          : (chopAltBufferRef.current || chopBufferRef.current);
+        
+        if (buffer) {
+          playBuffer(buffer, 0.8, 0.08);
+          chopIndexRef.current++;
+        } else {
+          // Fallback to synthesized sound if buffers not loaded
+          playNoise(0.08, 0.5, 800);
+          playTone(55, 0.12, "triangle", 0.5);
+          setTimeout(() => {
+            playNoise(0.06, 0.3, 3500);
+            playTone(220, 0.04, "sawtooth", 0.2);
+          }, 30);
+        }
         break;
         
       case "shoot":
@@ -162,7 +221,7 @@ const useGameSounds = () => {
         setTimeout(() => playTone(1047, 0.3, "square", 0.25), 300);
         break;
     }
-  }, [playTone, playNoise]);
+  }, [playTone, playNoise, playBuffer]);
 
   return { play };
 };

@@ -56,11 +56,11 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
     }
   }, [isOpen, mode, prices?.ecash]);
 
-  // True fullscreen toggle - MUST use document.documentElement for real fullscreen
+  // Toggle fullscreen for the game container ONLY (not the whole page)
   const toggleFullscreen = useCallback(async () => {
     try {
       const doc = document as any;
-      const docEl = document.documentElement as any;
+      const container = gameContainerRef.current as any;
       
       // Check if currently in fullscreen
       const isCurrentlyFullscreen = !!(
@@ -70,20 +70,20 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
         doc.msFullscreenElement
       );
       
-      if (!isCurrentlyFullscreen) {
-        // Enter fullscreen - use documentElement for true fullscreen
-        if (docEl.requestFullscreen) {
-          await docEl.requestFullscreen();
-        } else if (docEl.webkitRequestFullscreen) {
-          await docEl.webkitRequestFullscreen();
-        } else if (docEl.mozRequestFullScreen) {
-          await docEl.mozRequestFullScreen();
-        } else if (docEl.msRequestFullscreen) {
-          await docEl.msRequestFullscreen();
+      if (!isCurrentlyFullscreen && container) {
+        // Enter fullscreen - use the GAME CONTAINER only, not the whole document
+        if (container.requestFullscreen) {
+          await container.requestFullscreen();
+        } else if (container.webkitRequestFullscreen) {
+          await container.webkitRequestFullscreen();
+        } else if (container.mozRequestFullScreen) {
+          await container.mozRequestFullScreen();
+        } else if (container.msRequestFullscreen) {
+          await container.msRequestFullscreen();
         }
         setIsFullscreen(true);
       } else {
-        // Exit fullscreen
+        // Exit fullscreen - this properly returns to normal state
         if (document.exitFullscreen) {
           await document.exitFullscreen();
         } else if (doc.webkitExitFullscreen) {
@@ -100,16 +100,17 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
     }
   }, []);
 
-  // Listen for fullscreen changes (all browser prefixes)
+  // Listen for fullscreen changes and sync state
   useEffect(() => {
     const handleFullscreenChange = () => {
       const doc = document as any;
-      const isFs = !!(
-        document.fullscreenElement ||
+      const fsElement = document.fullscreenElement ||
         doc.webkitFullscreenElement ||
         doc.mozFullScreenElement ||
-        doc.msFullscreenElement
-      );
+        doc.msFullscreenElement;
+      
+      // Only consider it fullscreen if the game container is the fullscreen element
+      const isFs = fsElement === gameContainerRef.current;
       setIsFullscreen(isFs);
     };
 
@@ -419,19 +420,19 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
                 {step === "playing" && (
                   <div 
                     ref={gameContainerRef}
-                    className={`relative w-full overflow-hidden bg-background ${
-                      isFullscreen 
-                        ? "fixed inset-0 z-[9999] !w-screen !h-screen" 
-                        : "h-full min-h-[400px] sm:min-h-[450px] rounded-lg"
-                    }`}
-                    style={{ touchAction: 'none' }}
+                    className="relative w-full overflow-hidden bg-background rounded-lg"
+                    style={{ 
+                      touchAction: 'none',
+                      // When in fullscreen, the container fills the screen naturally
+                      minHeight: isFullscreen ? '100vh' : '400px'
+                    }}
                   >
                     {/* Fullscreen toggle button */}
                     <Button
                       variant="secondary"
                       size="icon"
                       onClick={toggleFullscreen}
-                      className={`absolute z-[10000] bg-background/80 hover:bg-background border border-border/50 ${
+                      className={`absolute z-[100] bg-background/80 hover:bg-background border border-border/50 ${
                         isFullscreen ? "top-4 right-4 h-12 w-12" : "top-2 right-2 h-9 w-9"
                       }`}
                     >
@@ -442,8 +443,8 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
                       )}
                     </Button>
                     
-                    {/* Game content - full height in fullscreen */}
-                    <div className={`w-full ${isFullscreen ? "h-screen" : "h-full"}`}>
+                    {/* Game content - scales to fill container in fullscreen */}
+                    <div className={`w-full h-full flex items-center justify-center ${isFullscreen ? "min-h-screen" : "min-h-[400px] sm:min-h-[450px]"}`}>
                       {renderGame()}
                     </div>
                   </div>
