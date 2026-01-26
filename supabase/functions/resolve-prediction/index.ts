@@ -5,8 +5,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const FINAL_STATUSES = ["FINAL", "COMPLETED", "ENDED"];
-
 // ---------------- PAYOUT LOGIC ----------------
 async function processPayouts(
   supabase: any,
@@ -39,29 +37,17 @@ async function processPayouts(
 
   for (const bet of winningBets) {
     const payout = winningPool > 0 ? Math.floor((bet.amount / winningPool) * totalPool) : bet.amount;
-
     totalPayout += payout;
-
     await supabase.from("bets").update({ status: "won", payout_amount: payout }).eq("id", bet.id);
   }
 
+  // Mark losing bets
   await supabase
     .from("bets")
     .update({ status: "lost", payout_amount: 0 })
     .eq("prediction_id", predictionId)
     .eq("position", winningPosition === "yes" ? "no" : "yes")
     .eq("status", "confirmed");
-
-  // ---- FINAL SAFETY CHECK BEFORE PAYOUT ----
-  const { data: finalCheck } = await supabase
-    .from("predictions")
-    .select("event_status")
-    .eq("id", predictionId)
-    .single();
-
-  if (!FINAL_STATUSES.includes(finalCheck.event_status)) {
-    throw new Error("Blocked payout: event not FINAL");
-  }
 
   // Trigger payout function
   await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-payouts`, {
@@ -82,7 +68,10 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const supabase = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+  );
 
   try {
     const { prediction_id, outcome } = await req.json();
@@ -94,10 +83,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ---- FETCH PREDICTION ----
+    // ---- FETCH PREDICTION (using actual schema columns) ----
     const { data: prediction, error } = await supabase
       .from("predictions")
-      .select("status, event_status, allow_resolution")
+      .select("status, end_date, resolution_date")
       .eq("id", prediction_id)
       .single();
 
@@ -116,29 +105,24 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ---- HARD EVENT FINISH CHECK ----
-    if (!FINAL_STATUSES.includes(prediction.event_status)) {
+    // ---- CHECK IF BETTING PERIOD HAS ENDED ----
+    const now = new Date();
+    const endDate = new Date(prediction.end_date);
+    
+    if (now < endDate) {
       return new Response(
         JSON.stringify({
-          error: "Event not finished",
-          event_status: prediction.event_status,
+          error: "Betting period not yet ended",
+          end_date: prediction.end_date,
         }),
         { status: 423, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
-    // ---- MANUAL ADMIN LOCK ----
-    if (!prediction.allow_resolution) {
-      return new Response(JSON.stringify({ error: "Resolution locked by admin" }), {
-        status: 423,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     // ---- RESOLVE ----
     const newStatus = outcome === "yes" ? "resolved_yes" : "resolved_no";
 
-    await supabase
+    const { error: updateError } = await supabase
       .from("predictions")
       .update({
         status: newStatus,
@@ -146,7 +130,19 @@ Deno.serve(async (req) => {
       })
       .eq("id", prediction_id);
 
+    if (updateError) {
+      console.error("Failed to update prediction status:", updateError);
+      return new Response(JSON.stringify({ error: "Failed to update prediction" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    console.info(`Prediction ${prediction_id} resolved as ${outcome}`);
+
     const payoutResult = await processPayouts(supabase, prediction_id, outcome);
+
+    console.info(`Payouts processed: ${payoutResult.winners} winners, ${payoutResult.totalPayout} total`);
 
     return new Response(
       JSON.stringify({
@@ -160,7 +156,7 @@ Deno.serve(async (req) => {
     );
   } catch (err) {
     console.error("Resolution error:", err);
-    return new Response(JSON.stringify({ error: "Resolution failed" }), {
+    return new Response(JSON.stringify({ error: "Resolution failed", details: String(err) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
