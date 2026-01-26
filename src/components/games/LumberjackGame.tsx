@@ -10,6 +10,19 @@ interface LumberjackGameProps {
 type Side = "left" | "right";
 type TreeSegment = { hasBranch: Side | null };
 
+// Wood chip particle type
+interface WoodChip {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  rotation: number;
+  rotationSpeed: number;
+  size: number;
+  color: string;
+  life: number;
+}
+
 const LumberjackGame = ({ onGameEnd, isPlaying }: LumberjackGameProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [playerSide, setPlayerSide] = useState<Side>("right");
@@ -24,8 +37,56 @@ const LumberjackGame = ({ onGameEnd, isPlaying }: LumberjackGameProps) => {
   const chopAnimRef = useRef<number | null>(null);
   const scoreRef = useRef(0);
   const gameOverRef = useRef(false);
+  const particlesRef = useRef<WoodChip[]>([]);
   const haptic = useHaptic();
   const { play } = useGameSounds();
+
+  // Spawn wood chip particles
+  const spawnWoodChips = useCallback((side: Side) => {
+    const trunkX = 140; // Center of canvas
+    const impactY = 320; // Where axe hits
+    const chipColors = ['#D4A574', '#C4956A', '#B8865A', '#A67B52', '#8B6914', '#CD853F'];
+    
+    const newChips: WoodChip[] = [];
+    const chipCount = 8 + Math.floor(Math.random() * 5); // 8-12 chips
+    
+    for (let i = 0; i < chipCount; i++) {
+      const angle = side === "left" 
+        ? -Math.PI / 4 + (Math.random() - 0.3) * Math.PI / 2  // Spray right-ish
+        : Math.PI / 4 + Math.PI / 2 + (Math.random() - 0.3) * Math.PI / 2; // Spray left-ish
+      
+      const speed = 3 + Math.random() * 5;
+      
+      newChips.push({
+        x: trunkX + (side === "left" ? -25 : 25),
+        y: impactY + (Math.random() - 0.5) * 20,
+        vx: Math.cos(angle) * speed * (side === "left" ? 1 : -1),
+        vy: -Math.abs(Math.sin(angle)) * speed - Math.random() * 2,
+        rotation: Math.random() * Math.PI * 2,
+        rotationSpeed: (Math.random() - 0.5) * 0.4,
+        size: 3 + Math.random() * 6,
+        color: chipColors[Math.floor(Math.random() * chipColors.length)],
+        life: 1.0
+      });
+    }
+    
+    particlesRef.current = [...particlesRef.current, ...newChips];
+  }, []);
+
+  // Update particles physics
+  const updateParticles = useCallback(() => {
+    particlesRef.current = particlesRef.current
+      .map(chip => ({
+        ...chip,
+        x: chip.x + chip.vx,
+        y: chip.y + chip.vy,
+        vy: chip.vy + 0.25, // Gravity
+        vx: chip.vx * 0.99, // Air resistance
+        rotation: chip.rotation + chip.rotationSpeed,
+        life: chip.life - 0.02
+      }))
+      .filter(chip => chip.life > 0 && chip.y < 500);
+  }, []);
 
   const generateSegment = (): TreeSegment => {
     const rand = Math.random();
@@ -588,6 +649,36 @@ const LumberjackGame = ({ onGameEnd, isPlaying }: LumberjackGameProps) => {
       
       ctx.restore();
 
+      // ===== WOOD CHIP PARTICLES =====
+      updateParticles();
+      
+      particlesRef.current.forEach(chip => {
+        ctx.save();
+        ctx.translate(chip.x, chip.y);
+        ctx.rotate(chip.rotation);
+        ctx.globalAlpha = chip.life;
+        
+        // Draw wood chip - irregular polygon shape
+        ctx.fillStyle = chip.color;
+        ctx.beginPath();
+        ctx.moveTo(-chip.size / 2, -chip.size / 3);
+        ctx.lineTo(chip.size / 2, -chip.size / 4);
+        ctx.lineTo(chip.size / 2 + 1, chip.size / 3);
+        ctx.lineTo(-chip.size / 3, chip.size / 2);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Highlight edge
+        ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.moveTo(-chip.size / 2, -chip.size / 3);
+        ctx.lineTo(chip.size / 2, -chip.size / 4);
+        ctx.stroke();
+        
+        ctx.restore();
+      });
+
       // Game over overlay
       if (gameOver) {
         ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
@@ -606,7 +697,7 @@ const LumberjackGame = ({ onGameEnd, isPlaying }: LumberjackGameProps) => {
 
     render();
     return () => { if (animationRef.current) cancelAnimationFrame(animationRef.current); };
-  }, [tree, playerSide, chopPhase, gameOver, score, timeLeft]);
+  }, [tree, playerSide, chopPhase, gameOver, score, timeLeft, updateParticles]);
 
   const chop = useCallback((side: Side) => {
     if (gameOverRef.current || !isPlaying || !gameStarted || chopPhase > 0) return;
@@ -618,9 +709,10 @@ const LumberjackGame = ({ onGameEnd, isPlaying }: LumberjackGameProps) => {
       const runPhase = () => {
         setChopPhase(phase);
         if (phase === 4) {
-          // Impact phase - play sound and haptic
+          // Impact phase - play sound, haptic, and spawn wood chips
           haptic.chop();
           play("chop");
+          spawnWoodChips(side);
         }
         phase++;
         if (phase <= 5) {
@@ -649,7 +741,7 @@ const LumberjackGame = ({ onGameEnd, isPlaying }: LumberjackGameProps) => {
     scoreRef.current = newScore;
     setScore(newScore);
     setTimeLeft((t) => Math.min(100, t + 3));
-  }, [tree, isPlaying, gameStarted, chopPhase, haptic, play, onGameEnd]);
+  }, [tree, isPlaying, gameStarted, chopPhase, haptic, play, onGameEnd, spawnWoodChips]);
 
   return (
     <div className="flex flex-col items-center justify-center h-full p-3" style={{ background: "linear-gradient(180deg, #87CEEB 0%, #E0F6FF 100%)" }}>
