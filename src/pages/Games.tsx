@@ -11,6 +11,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GameCard from "@/components/games/GameCard";
 import GameLeaderboard from "@/components/games/GameLeaderboard";
 import GamePlayModal from "@/components/games/GamePlayModal";
+import ExternalGameCard from "@/components/games/ExternalGameCard";
+
+// External games from itch.io and similar platforms
+const EXTERNAL_GAMES = [
+  {
+    id: "keyboard-ants",
+    name: "My Keyboard is Full of Ants",
+    description: "A quirky typing game where ants invade your keyboard! Type fast to clear them out.",
+    icon: "🐜",
+    url: "https://plasmastarfish.itch.io/my-keyboard-is-full-of-ants",
+    platform: "PC Only",
+  },
+];
 
 interface MiniGame {
   id: string;
@@ -194,16 +207,36 @@ const Games = () => {
                   ))}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {games.map((game, index) => (
-                    <GameCard
-                      key={game.id}
-                      game={game}
-                      index={index}
-                      onPlay={(mode) => handlePlay(game, mode)}
-                    />
-                  ))}
-                </div>
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {games.map((game, index) => (
+                      <GameCard
+                        key={game.id}
+                        game={game}
+                        index={index}
+                        onPlay={(mode) => handlePlay(game, mode)}
+                      />
+                    ))}
+                  </div>
+                  
+                  {/* External Games Section */}
+                  {EXTERNAL_GAMES.length > 0 && (
+                    <div className="mt-12">
+                      <h3 className="text-xl font-bold text-foreground mb-6 text-center">
+                        🎮 More Games
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        {EXTERNAL_GAMES.map((game, index) => (
+                          <ExternalGameCard
+                            key={game.id}
+                            game={game}
+                            index={index + games.length}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </TabsContent>
 

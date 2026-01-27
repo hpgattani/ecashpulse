@@ -1,10 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useHaptic } from "@/hooks/useHaptic";
 import useGameSounds from "@/hooks/useGameSounds";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SpaceShooterGameProps {
   onGameEnd: (score: number) => void;
   isPlaying: boolean;
+  isCompetitive?: boolean;
+  playerAddressHash?: string;
+  txHash?: string;
 }
 
 type Bullet = { id: number; x: number; y: number };
@@ -12,15 +16,17 @@ type Enemy = { id: number; x: number; y: number; type: number };
 type Star = { x: number; y: number; size: number; speed: number };
 type Explosion = { id: number; x: number; y: number; particles: ExplosionParticle[] };
 type ExplosionParticle = { x: number; y: number; vx: number; vy: number; life: number; color: string; size: number };
+type Powerup = { id: number; x: number; y: number; type: 'shield' | 'rapid' | 'double'; life: number };
 
 const GAME_WIDTH = 300;
 const GAME_HEIGHT = 400;
 
-const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
+const SpaceShooterGame = ({ onGameEnd, isPlaying, isCompetitive, playerAddressHash, txHash }: SpaceShooterGameProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
+  const [activePowerups, setActivePowerups] = useState<{ shield: number; rapid: number; double: number }>({ shield: 0, rapid: 0, double: 0 });
 
   const playerXRef = useRef(GAME_WIDTH / 2);
   const playerYRef = useRef(GAME_HEIGHT - 50);
@@ -28,16 +34,20 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
   const enemiesRef = useRef<Enemy[]>([]);
   const starsRef = useRef<Star[]>([]);
   const explosionsRef = useRef<Explosion[]>([]);
+  const powerupsRef = useRef<Powerup[]>([]);
   
   const gameLoopRef = useRef<number | null>(null);
   const animationRef = useRef<number | null>(null);
   const enemyIdRef = useRef(0);
   const bulletIdRef = useRef(0);
   const explosionIdRef = useRef(0);
+  const powerupIdRef = useRef(0);
   const lastShotRef = useRef(0);
   const scoreRef = useRef(0);
   const gameOverRef = useRef(false);
   const keysRef = useRef<Set<string>>(new Set());
+  const activePowerupsRef = useRef({ shield: 0, rapid: 0, double: 0 });
+  const lastPowerupScoreRef = useRef(0);
   
   const haptic = useHaptic();
   const { play } = useGameSounds();
@@ -65,6 +75,7 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
     bulletsRef.current = [];
     enemiesRef.current = [];
     explosionsRef.current = [];
+    powerupsRef.current = [];
     initStars();
     
     setScore(0);
@@ -75,6 +86,10 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
     enemyIdRef.current = 0;
     bulletIdRef.current = 0;
     explosionIdRef.current = 0;
+    powerupIdRef.current = 0;
+    lastPowerupScoreRef.current = 0;
+    activePowerupsRef.current = { shield: 0, rapid: 0, double: 0 };
+    setActivePowerups({ shield: 0, rapid: 0, double: 0 });
   }, [initStars]);
 
   useEffect(() => {
@@ -118,10 +133,22 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
     });
   }, []);
 
+  const spawnPowerup = useCallback((x: number, y: number) => {
+    const types: Array<'shield' | 'rapid' | 'double'> = ['shield', 'rapid', 'double'];
+    const type = types[Math.floor(Math.random() * types.length)];
+    powerupsRef.current.push({
+      id: powerupIdRef.current++,
+      x, y,
+      type,
+      life: 1,
+    });
+  }, []);
+
   const shoot = useCallback(() => {
     if (!gameStarted || gameOverRef.current) return;
     const now = Date.now();
-    if (now - lastShotRef.current < 120) return;
+    const cooldown = activePowerupsRef.current.rapid > 0 ? 60 : 120; // Rapid fire = faster shooting
+    if (now - lastShotRef.current < cooldown) return;
     lastShotRef.current = now;
 
     bulletsRef.current.push(
@@ -341,6 +368,41 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
         }
       });
       
+      // Draw powerups
+      powerupsRef.current.forEach(powerup => {
+        ctx.save();
+        ctx.globalAlpha = powerup.life;
+        
+        const colors = { shield: '#22d3ee', rapid: '#f59e0b', double: '#a855f7' };
+        const icons = { shield: '🛡️', rapid: '⚡', double: '✨' };
+        
+        // Glowing circle background
+        const grad = ctx.createRadialGradient(powerup.x, powerup.y, 0, powerup.x, powerup.y, 15);
+        grad.addColorStop(0, colors[powerup.type]);
+        grad.addColorStop(0.6, colors[powerup.type] + '80');
+        grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(powerup.x, powerup.y, 15, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Border
+        ctx.strokeStyle = colors[powerup.type];
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(powerup.x, powerup.y, 12, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // Emoji icon
+        ctx.font = '14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#fff';
+        ctx.fillText(icons[powerup.type], powerup.x, powerup.y);
+        
+        ctx.restore();
+      });
+      
       // Draw explosions
       explosionsRef.current.forEach(exp => {
         exp.particles.forEach(p => {
@@ -352,6 +414,26 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
         });
       });
       ctx.globalAlpha = 1;
+      
+      // Draw active powerup indicators
+      let indicatorY = 30;
+      if (activePowerupsRef.current.shield > 0) {
+        ctx.fillStyle = 'rgba(34, 211, 238, 0.8)';
+        ctx.font = '12px sans-serif';
+        ctx.fillText(`🛡️ Shield ${Math.ceil(activePowerupsRef.current.shield / 1000)}s`, 20, indicatorY);
+        indicatorY += 18;
+      }
+      if (activePowerupsRef.current.rapid > 0) {
+        ctx.fillStyle = 'rgba(245, 158, 11, 0.8)';
+        ctx.font = '12px sans-serif';
+        ctx.fillText(`⚡ Rapid ${Math.ceil(activePowerupsRef.current.rapid / 1000)}s`, 20, indicatorY);
+        indicatorY += 18;
+      }
+      if (activePowerupsRef.current.double > 0) {
+        ctx.fillStyle = 'rgba(168, 85, 247, 0.8)';
+        ctx.font = '12px sans-serif';
+        ctx.fillText(`✨ 2x Points ${Math.ceil(activePowerupsRef.current.double / 1000)}s`, 20, indicatorY);
+      }
       
       animationRef.current = requestAnimationFrame(render);
     };
@@ -416,6 +498,45 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
         });
       }
 
+      // Update powerups
+      powerupsRef.current = powerupsRef.current
+        .map(p => ({ ...p, y: p.y + 1.5, life: p.life - 0.002 }))
+        .filter(p => p.y < GAME_HEIGHT && p.life > 0);
+
+      // Decrement active powerup timers
+      if (activePowerupsRef.current.shield > 0) {
+        activePowerupsRef.current.shield -= 40;
+      }
+      if (activePowerupsRef.current.rapid > 0) {
+        activePowerupsRef.current.rapid -= 40;
+      }
+      if (activePowerupsRef.current.double > 0) {
+        activePowerupsRef.current.double -= 40;
+      }
+      setActivePowerups({ ...activePowerupsRef.current });
+
+      // Check player-powerup collisions
+      powerupsRef.current = powerupsRef.current.filter(powerup => {
+        const dx = Math.abs(playerXRef.current - powerup.x);
+        const dy = Math.abs(playerYRef.current - powerup.y);
+        if (dx < 25 && dy < 25) {
+          // Activate powerup for 8 seconds
+          activePowerupsRef.current[powerup.type] = 8000;
+          setActivePowerups({ ...activePowerupsRef.current });
+          haptic.success();
+          play("hit");
+          return false;
+        }
+        return true;
+      });
+
+      // Spawn powerup from score milestones (every 50 points) or randomly from destroyed enemies
+      if (scoreRef.current >= lastPowerupScoreRef.current + 100) {
+        lastPowerupScoreRef.current = Math.floor(scoreRef.current / 100) * 100;
+        // Spawn from center-top
+        spawnPowerup(GAME_WIDTH / 2 + (Math.random() - 0.5) * 100, 20);
+      }
+
       // Check collisions
       const remainingBullets: Bullet[] = [];
       bulletsRef.current.forEach(bullet => {
@@ -425,12 +546,21 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
           const dy = Math.abs(bullet.y - enemy.y);
           if (dx < 20 && dy < 20) {
             hit = true;
-            const pointValue = 10 + enemy.type * 5;
+            let pointValue = 10 + enemy.type * 5;
+            // Double points powerup
+            if (activePowerupsRef.current.double > 0) {
+              pointValue *= 2;
+            }
             scoreRef.current += pointValue;
             setScore(scoreRef.current);
             haptic.medium();
             play("hit");
             createExplosion(enemy.x, enemy.y);
+            
+            // 15% chance to spawn powerup from destroyed enemy
+            if (Math.random() < 0.15) {
+              spawnPowerup(enemy.x, enemy.y);
+            }
             return false;
           }
           return true;
@@ -443,7 +573,7 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying }: SpaceShooterGameProps) => {
     return () => {
       if (gameLoopRef.current) clearInterval(gameLoopRef.current);
     };
-  }, [isPlaying, gameStarted, onGameEnd, haptic, play, createExplosion]);
+  }, [isPlaying, gameStarted, onGameEnd, haptic, play, createExplosion, spawnPowerup]);
 
   const handleMoveLeft = useCallback(() => {
     if (!gameStarted || gameOverRef.current) return;
