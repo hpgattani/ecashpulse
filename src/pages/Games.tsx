@@ -21,7 +21,9 @@ const EXTERNAL_GAMES = [
     description: "A quirky typing game where ants invade your keyboard! Type fast to clear them out.",
     icon: "🐜",
     url: "https://plasmastarfish.itch.io/my-keyboard-is-full-of-ants",
+    embedUrl: "https://itch.io/embed-upload/11655206?color=1a1a2e",
     platform: "PC Only",
+    gameDbId: "f47ac10b-58cc-4372-a567-0e02b2c3d479",
   },
 ];
 
