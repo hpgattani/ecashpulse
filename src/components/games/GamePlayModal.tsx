@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCryptoPrices } from "@/hooks/useCryptoPrices";
 import { toast } from "sonner";
 import { triggerHaptic } from "@/hooks/useHaptic";
+import { supabase } from "@/integrations/supabase/client";
 import SnakeGame from "./SnakeGame";
 import TetrisGame from "./TetrisGame";
 import LumberjackGame from "./LumberjackGame";
@@ -264,20 +265,27 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
     setIsGameActive(false);
     triggerHaptic('medium');
 
-    if (mode === "competitive" && user) {
+    // Submit score for competitive mode
+    if (mode === "competitive") {
       try {
-        const response = await fetch("/api/submit-game-score", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+        const playerAddressHash = user?.ecash_address 
+          ? btoa(user.ecash_address).slice(0, 16) 
+          : "anonymous";
+        
+        const { data, error } = await supabase.functions.invoke('submit-game-score', {
+          body: {
             gameId: game.id,
             score,
             isCompetitive: true,
-          }),
+            playerAddressHash,
+          },
         });
         
-        if (response.ok) {
+        if (!error && data?.success) {
           toast.success(`Score submitted: ${score.toLocaleString()} points!`);
+        } else {
+          console.error("Failed to submit score:", error);
+          toast.error("Failed to submit score");
         }
       } catch (error) {
         console.error("Failed to submit score:", error);

@@ -48,12 +48,33 @@ interface PredictionCardProps {
   climateData?: ClimateData | null;
 }
 
-// Topic image component - only renders if real image URL exists (from Polymarket)
-const TopicImage = ({ imageUrl }: { imageUrl?: string }) => {
+// List of image URLs that look odd and should be hidden
+const ODD_IMAGE_PATTERNS = [
+  'polymarket.com', // Some polymarket images look odd
+  'ipl', // IPL cricket images
+  'mumbai', // Mumbai Indians
+  'cricket',
+];
+
+// Topic image component - only renders if real image URL exists (from Polymarket) and not in odd list
+const TopicImage = ({ imageUrl, title }: { imageUrl?: string; title?: string }) => {
   const [hasError, setHasError] = useState(false);
   
-  // Only render if we have a real image URL
-  if (!imageUrl || hasError) {
+  // Check if this image should be hidden based on odd patterns
+  const shouldHideImage = () => {
+    if (!imageUrl) return true;
+    if (!title) return false;
+    
+    const lowerTitle = title.toLowerCase();
+    // Hide images for IPL, cricket predictions that have odd/blurry images
+    if (lowerTitle.includes('ipl') || lowerTitle.includes('mumbai indians') || lowerTitle.includes('chennai super kings')) {
+      return true;
+    }
+    return false;
+  };
+  
+  // Only render if we have a real image URL and it's not in the odd list
+  if (!imageUrl || hasError || shouldHideImage()) {
     return null;
   }
 
@@ -376,7 +397,7 @@ const PredictionCard = ({ prediction, index, livePrice, climateData }: Predictio
 
           {/* Topic Image - only shows if Polymarket image exists */}
           <div className="flex items-start gap-3 mb-2">
-            <TopicImage imageUrl={prediction.image} />
+            <TopicImage imageUrl={prediction.image} title={prediction.question} />
             <div className="flex-1 min-w-0">
               {/* Sports Team Logos */}
               {sportsScore && (sportsScore.homeLogo || sportsScore.awayLogo) && (
