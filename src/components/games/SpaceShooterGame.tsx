@@ -299,6 +299,51 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying, isCompetitive, playerAddressHa
       ctx.arc(px, py - 5, 6, 0, Math.PI * 2);
       ctx.fill();
       
+      // Draw shield bubble if active
+      if (activePowerupsRef.current.shield > 0) {
+        const shieldPulse = 1 + Math.sin(Date.now() / 100) * 0.08;
+        const shieldRadius = 30 * shieldPulse;
+        
+        // Outer glow
+        const shieldGlow = ctx.createRadialGradient(px, py, shieldRadius * 0.7, px, py, shieldRadius * 1.2);
+        shieldGlow.addColorStop(0, 'transparent');
+        shieldGlow.addColorStop(0.5, 'rgba(34, 211, 238, 0.1)');
+        shieldGlow.addColorStop(1, 'transparent');
+        ctx.fillStyle = shieldGlow;
+        ctx.beginPath();
+        ctx.arc(px, py, shieldRadius * 1.2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Shield bubble
+        const shieldGrad = ctx.createRadialGradient(px, py - 5, 0, px, py, shieldRadius);
+        shieldGrad.addColorStop(0, 'rgba(34, 211, 238, 0.05)');
+        shieldGrad.addColorStop(0.7, 'rgba(34, 211, 238, 0.15)');
+        shieldGrad.addColorStop(1, 'rgba(34, 211, 238, 0.4)');
+        ctx.fillStyle = shieldGrad;
+        ctx.beginPath();
+        ctx.arc(px, py, shieldRadius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Shield border
+        ctx.strokeStyle = 'rgba(34, 211, 238, 0.8)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(px, py, shieldRadius, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // Hexagon pattern on shield
+        ctx.strokeStyle = 'rgba(34, 211, 238, 0.3)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 6; i++) {
+          const angle = (Math.PI * 2 / 6) * i + Date.now() / 2000;
+          const hexX = px + Math.cos(angle) * shieldRadius * 0.6;
+          const hexY = py + Math.sin(angle) * shieldRadius * 0.6;
+          ctx.beginPath();
+          ctx.arc(hexX, hexY, 5, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
+      
       // Draw bullets
       bulletsRef.current.forEach(bullet => {
         const bulletGrad = ctx.createLinearGradient(bullet.x, bullet.y - 8, bullet.x, bullet.y + 4);
@@ -537,7 +582,37 @@ const SpaceShooterGame = ({ onGameEnd, isPlaying, isCompetitive, playerAddressHa
         spawnPowerup(GAME_WIDTH / 2 + (Math.random() - 0.5) * 100, 20);
       }
 
-      // Check collisions
+      // Check enemy-player collisions (shield blocks them!)
+      enemiesRef.current = enemiesRef.current.filter(enemy => {
+        const dx = Math.abs(playerXRef.current - enemy.x);
+        const dy = Math.abs(playerYRef.current - enemy.y);
+        
+        if (dx < 25 && dy < 25) {
+          // Collision detected!
+          if (activePowerupsRef.current.shield > 0) {
+            // Shield absorbs the hit
+            createExplosion(enemy.x, enemy.y);
+            haptic.medium();
+            play("hit");
+            // Reduce shield duration on hit (takes 2 seconds off)
+            activePowerupsRef.current.shield = Math.max(0, activePowerupsRef.current.shield - 2000);
+            setActivePowerups({ ...activePowerupsRef.current });
+            return false; // Enemy destroyed by shield
+          } else {
+            // No shield - game over!
+            gameOverRef.current = true;
+            setGameOver(true);
+            haptic.error();
+            play("gameOver");
+            createExplosion(playerXRef.current, playerYRef.current);
+            onGameEnd(scoreRef.current);
+            return false;
+          }
+        }
+        return true;
+      });
+
+      // Check bullet-enemy collisions
       const remainingBullets: Bullet[] = [];
       bulletsRef.current.forEach(bullet => {
         let hit = false;
