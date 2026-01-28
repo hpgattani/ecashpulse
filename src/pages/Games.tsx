@@ -13,19 +13,17 @@ import GameLeaderboard from "@/components/games/GameLeaderboard";
 import GamePlayModal from "@/components/games/GamePlayModal";
 import ExternalGameCard from "@/components/games/ExternalGameCard";
 
-// External games from itch.io and similar platforms
-const EXTERNAL_GAMES = [
-  {
-    id: "keyboard-ants",
-    name: "My Keyboard is Full of Ants",
-    description: "A quirky typing game where ants invade your keyboard! Type fast to clear them out.",
-    icon: "🐜",
-    url: "https://plasmastarfish.itch.io/my-keyboard-is-full-of-ants",
-    embedUrl: "https://itch.io/embed-upload/11655206?color=1a1a2e",
-    platform: "PC Only",
-    gameDbId: "f47ac10b-58cc-4372-a567-0e02b2c3d479",
-  },
-];
+// External games from itch.io and similar platforms (currently empty as Keyboard Ants is now native)
+const EXTERNAL_GAMES: Array<{
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  url: string;
+  embedUrl: string;
+  platform: string;
+  gameDbId: string;
+}> = [];
 
 interface MiniGame {
   id: string;

@@ -11,6 +11,7 @@ import SnakeGame from "./SnakeGame";
 import TetrisGame from "./TetrisGame";
 import LumberjackGame from "./LumberjackGame";
 import SpaceShooterGame from "./SpaceShooterGame";
+import KeyboardAntsGame from "./KeyboardAntsGame";
 
 interface MiniGame {
   id: string;
@@ -308,6 +309,8 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
         return <LumberjackGame {...gameProps} />;
       case "space-shooter":
         return <SpaceShooterGame {...gameProps} />;
+      case "keyboard-ants":
+        return <KeyboardAntsGame {...gameProps} />;
       default:
         return <div className="text-muted-foreground text-center p-8">Game not found</div>;
     }
