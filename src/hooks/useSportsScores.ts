@@ -24,6 +24,22 @@ interface KnownGame {
   team2Logo: string;
 }
 
+// Official team logos from Wikipedia/Wikimedia Commons CDN
+const SCOTTISH_LOGOS = {
+  dundeeUtd: 'https://upload.wikimedia.org/wikipedia/en/thumb/f/fd/Dundee_United_FC_logo.svg/200px-Dundee_United_FC_logo.svg.png',
+  hearts: 'https://upload.wikimedia.org/wikipedia/en/thumb/e/e3/Heart_of_Midlothian_FC_logo.svg/200px-Heart_of_Midlothian_FC_logo.svg.png',
+  celtic: 'https://upload.wikimedia.org/wikipedia/en/thumb/3/35/Celtic_FC.svg/200px-Celtic_FC.svg.png',
+  rangers: 'https://upload.wikimedia.org/wikipedia/en/thumb/4/43/Rangers_FC.svg/200px-Rangers_FC.svg.png',
+  aberdeen: 'https://upload.wikimedia.org/wikipedia/en/thumb/4/4f/Aberdeen_FC_logo.svg/200px-Aberdeen_FC_logo.svg.png',
+  hibernian: 'https://upload.wikimedia.org/wikipedia/en/thumb/a/a3/Hibernian_FC_logo.svg/200px-Hibernian_FC_logo.svg.png',
+  motherwell: 'https://upload.wikimedia.org/wikipedia/en/thumb/4/42/Motherwell_FC_crest.svg/200px-Motherwell_FC_crest.svg.png',
+  stMirren: 'https://upload.wikimedia.org/wikipedia/en/thumb/5/5e/St_Mirren_FC_logo.svg/200px-St_Mirren_FC_logo.svg.png',
+  kilmarnock: 'https://upload.wikimedia.org/wikipedia/en/thumb/4/4d/Kilmarnock_FC_logo.svg/200px-Kilmarnock_FC_logo.svg.png',
+  rossCounty: 'https://upload.wikimedia.org/wikipedia/en/thumb/7/7c/Ross_County_F.C._logo.svg/200px-Ross_County_F.C._logo.svg.png',
+  dundee: 'https://upload.wikimedia.org/wikipedia/en/thumb/5/5c/Dundee_FC_2023.svg/200px-Dundee_FC_2023.svg.png',
+  stJohnstone: 'https://upload.wikimedia.org/wikipedia/en/thumb/1/1c/St_Johnstone_FC_logo.svg/200px-St_Johnstone_FC_logo.svg.png',
+};
+
 const KNOWN_GAMES: Record<string, KnownGame> = {
   'jaguars_bills': {
     team1: 'Jaguars',
@@ -55,6 +71,7 @@ const KNOWN_GAMES: Record<string, KnownGame> = {
     team1Logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/ne.png',
     team2Logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/lac.png',
   },
+  // Scottish Premiership matches
   'dundee_hearts': {
     team1: 'Dundee Utd',
     team2: 'Hearts',
@@ -62,8 +79,48 @@ const KNOWN_GAMES: Record<string, KnownGame> = {
     team2Score: null,
     status: 'scheduled',
     league: 'Scottish Premiership',
-    team1Logo: 'https://a.espncdn.com/i/teamlogos/soccer/500/328.png',
-    team2Logo: 'https://a.espncdn.com/i/teamlogos/soccer/500/324.png',
+    team1Logo: SCOTTISH_LOGOS.dundeeUtd,
+    team2Logo: SCOTTISH_LOGOS.hearts,
+  },
+  'celtic_rangers': {
+    team1: 'Celtic',
+    team2: 'Rangers',
+    team1Score: null,
+    team2Score: null,
+    status: 'scheduled',
+    league: 'Scottish Premiership',
+    team1Logo: SCOTTISH_LOGOS.celtic,
+    team2Logo: SCOTTISH_LOGOS.rangers,
+  },
+  'aberdeen_hibernian': {
+    team1: 'Aberdeen',
+    team2: 'Hibernian',
+    team1Score: null,
+    team2Score: null,
+    status: 'scheduled',
+    league: 'Scottish Premiership',
+    team1Logo: SCOTTISH_LOGOS.aberdeen,
+    team2Logo: SCOTTISH_LOGOS.hibernian,
+  },
+  'motherwell_kilmarnock': {
+    team1: 'Motherwell',
+    team2: 'Kilmarnock',
+    team1Score: null,
+    team2Score: null,
+    status: 'scheduled',
+    league: 'Scottish Premiership',
+    team1Logo: SCOTTISH_LOGOS.motherwell,
+    team2Logo: SCOTTISH_LOGOS.kilmarnock,
+  },
+  'stmirren_rossCounty': {
+    team1: 'St Mirren',
+    team2: 'Ross County',
+    team1Score: null,
+    team2Score: null,
+    status: 'scheduled',
+    league: 'Scottish Premiership',
+    team1Logo: SCOTTISH_LOGOS.stMirren,
+    team2Logo: SCOTTISH_LOGOS.rossCounty,
   },
 };
 
@@ -140,6 +197,88 @@ export function getKnownScore(title: string): GameScore | null {
       awayScore: dundeeFirst ? game.team2Score : game.team1Score,
       homeLogo: dundeeFirst ? game.team1Logo : game.team2Logo,
       awayLogo: dundeeFirst ? game.team2Logo : game.team1Logo,
+      status: game.status,
+      league: game.league,
+    };
+  }
+  
+  // Celtic vs Rangers - Old Firm Derby
+  if ((lower.includes('celtic') && lower.includes('rangers'))) {
+    const game = KNOWN_GAMES['celtic_rangers'];
+    const celticIdx = lower.indexOf('celtic');
+    const rangersIdx = lower.indexOf('rangers');
+    const celticFirst = celticIdx < rangersIdx;
+    
+    return {
+      homeTeam: celticFirst ? game.team1 : game.team2,
+      awayTeam: celticFirst ? game.team2 : game.team1,
+      homeScore: celticFirst ? game.team1Score : game.team2Score,
+      awayScore: celticFirst ? game.team2Score : game.team1Score,
+      homeLogo: celticFirst ? game.team1Logo : game.team2Logo,
+      awayLogo: celticFirst ? game.team2Logo : game.team1Logo,
+      status: game.status,
+      league: game.league,
+    };
+  }
+  
+  // Aberdeen vs Hibernian
+  if ((lower.includes('aberdeen') && (lower.includes('hibernian') || lower.includes('hibs')))) {
+    const game = KNOWN_GAMES['aberdeen_hibernian'];
+    const aberdeenIdx = lower.indexOf('aberdeen');
+    const hibsIdx = Math.min(
+      lower.includes('hibernian') ? lower.indexOf('hibernian') : Infinity,
+      lower.includes('hibs') ? lower.indexOf('hibs') : Infinity
+    );
+    const aberdeenFirst = aberdeenIdx < hibsIdx;
+    
+    return {
+      homeTeam: aberdeenFirst ? game.team1 : game.team2,
+      awayTeam: aberdeenFirst ? game.team2 : game.team1,
+      homeScore: aberdeenFirst ? game.team1Score : game.team2Score,
+      awayScore: aberdeenFirst ? game.team2Score : game.team1Score,
+      homeLogo: aberdeenFirst ? game.team1Logo : game.team2Logo,
+      awayLogo: aberdeenFirst ? game.team2Logo : game.team1Logo,
+      status: game.status,
+      league: game.league,
+    };
+  }
+  
+  // Motherwell vs Kilmarnock
+  if ((lower.includes('motherwell') && lower.includes('kilmarnock'))) {
+    const game = KNOWN_GAMES['motherwell_kilmarnock'];
+    const motherwellIdx = lower.indexOf('motherwell');
+    const kilmarnockIdx = lower.indexOf('kilmarnock');
+    const motherwellFirst = motherwellIdx < kilmarnockIdx;
+    
+    return {
+      homeTeam: motherwellFirst ? game.team1 : game.team2,
+      awayTeam: motherwellFirst ? game.team2 : game.team1,
+      homeScore: motherwellFirst ? game.team1Score : game.team2Score,
+      awayScore: motherwellFirst ? game.team2Score : game.team1Score,
+      homeLogo: motherwellFirst ? game.team1Logo : game.team2Logo,
+      awayLogo: motherwellFirst ? game.team2Logo : game.team1Logo,
+      status: game.status,
+      league: game.league,
+    };
+  }
+  
+  // St Mirren vs Ross County
+  if (((lower.includes('st mirren') || lower.includes('st. mirren')) && lower.includes('ross county'))) {
+    const game = KNOWN_GAMES['stmirren_rossCounty'];
+    const stMirrenIdx = Math.min(
+      lower.includes('st mirren') ? lower.indexOf('st mirren') : Infinity,
+      lower.includes('st. mirren') ? lower.indexOf('st. mirren') : Infinity
+    );
+    const rossCountyIdx = lower.indexOf('ross county');
+    const stMirrenFirst = stMirrenIdx < rossCountyIdx;
+    
+    return {
+      homeTeam: stMirrenFirst ? game.team1 : game.team2,
+      awayTeam: stMirrenFirst ? game.team2 : game.team1,
+      homeScore: stMirrenFirst ? game.team1Score : game.team2Score,
+      awayScore: stMirrenFirst ? game.team2Score : game.team1Score,
+      homeLogo: stMirrenFirst ? game.team1Logo : game.team2Logo,
+      awayLogo: stMirrenFirst ? game.team2Logo : game.team1Logo,
       status: game.status,
       league: game.league,
     };
