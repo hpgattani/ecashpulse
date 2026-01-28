@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react';
 
+// Import local team logos
+import dundeeUtdLogo from '@/assets/teams/dundee-united.jpg';
+import heartsLogo from '@/assets/teams/hearts.jpg';
+
 export interface GameScore {
   homeTeam: string;
   awayTeam: string;
@@ -24,10 +28,11 @@ interface KnownGame {
   team2Logo: string;
 }
 
-// Official team logos from Wikipedia/Wikimedia Commons CDN
+// Team logos - local files for SPL, external URLs for others
 const SCOTTISH_LOGOS = {
-  dundeeUtd: 'https://upload.wikimedia.org/wikipedia/en/thumb/f/fd/Dundee_United_FC_logo.svg/200px-Dundee_United_FC_logo.svg.png',
-  hearts: 'https://upload.wikimedia.org/wikipedia/en/thumb/e/e3/Heart_of_Midlothian_FC_logo.svg/200px-Heart_of_Midlothian_FC_logo.svg.png',
+  dundeeUtd: dundeeUtdLogo,
+  hearts: heartsLogo,
+  // Wikipedia CDN for other Scottish teams
   celtic: 'https://upload.wikimedia.org/wikipedia/en/thumb/3/35/Celtic_FC.svg/200px-Celtic_FC.svg.png',
   rangers: 'https://upload.wikimedia.org/wikipedia/en/thumb/4/43/Rangers_FC.svg/200px-Rangers_FC.svg.png',
   aberdeen: 'https://upload.wikimedia.org/wikipedia/en/thumb/4/4f/Aberdeen_FC_logo.svg/200px-Aberdeen_FC_logo.svg.png',
