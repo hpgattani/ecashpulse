@@ -55,6 +55,16 @@ const KNOWN_GAMES: Record<string, KnownGame> = {
     team1Logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/ne.png',
     team2Logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/lac.png',
   },
+  'dundee_hearts': {
+    team1: 'Dundee Utd',
+    team2: 'Hearts',
+    team1Score: null,
+    team2Score: null,
+    status: 'scheduled',
+    league: 'Scottish Premiership',
+    team1Logo: 'https://a.espncdn.com/i/teamlogos/soccer/500/328.png',
+    team2Logo: 'https://a.espncdn.com/i/teamlogos/soccer/500/324.png',
+  },
 };
 
 export function getKnownScore(title: string): GameScore | null {
@@ -111,6 +121,25 @@ export function getKnownScore(title: string): GameScore | null {
       awayScore: patriotsFirst ? game.team2Score : game.team1Score,
       homeLogo: patriotsFirst ? game.team1Logo : game.team2Logo,
       awayLogo: patriotsFirst ? game.team2Logo : game.team1Logo,
+      status: game.status,
+      league: game.league,
+    };
+  }
+  
+  // Dundee United vs Hearts - Scottish Premiership
+  if ((lower.includes('dundee') && lower.includes('hearts'))) {
+    const game = KNOWN_GAMES['dundee_hearts'];
+    const dundeeIdx = lower.indexOf('dundee');
+    const heartsIdx = lower.indexOf('hearts');
+    const dundeeFirst = dundeeIdx < heartsIdx;
+    
+    return {
+      homeTeam: dundeeFirst ? game.team1 : game.team2,
+      awayTeam: dundeeFirst ? game.team2 : game.team1,
+      homeScore: dundeeFirst ? game.team1Score : game.team2Score,
+      awayScore: dundeeFirst ? game.team2Score : game.team1Score,
+      homeLogo: dundeeFirst ? game.team1Logo : game.team2Logo,
+      awayLogo: dundeeFirst ? game.team2Logo : game.team1Logo,
       status: game.status,
       league: game.league,
     };

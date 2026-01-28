@@ -1,5 +1,7 @@
 import { Trophy } from 'lucide-react';
 import { useNflScoreFromTitle } from '@/hooks/useNflScore';
+import { getKnownScore } from '@/hooks/useSportsScores';
+import { useMemo } from 'react';
 
 interface SportsScoreBadgeProps {
   title: string;
@@ -21,7 +23,34 @@ const TeamLogo = ({ src, alt }: { src: string | null | undefined; alt: string })
 
 const SportsScoreBadge = ({ title, category }: SportsScoreBadgeProps) => {
   const isSports = category?.toLowerCase().trim() === 'sports';
-  const score = useNflScoreFromTitle(title, isSports);
+  
+  // First check for known static scores (including non-NFL like Scottish Premiership)
+  const knownScore = useMemo(() => {
+    if (!isSports) return null;
+    return getKnownScore(title);
+  }, [isSports, title]);
+  
+  // Use NFL API hook for NFL games
+  const nflScore = useNflScoreFromTitle(title, isSports && !knownScore);
+
+  // Prefer known scores over API for static matches, then NFL API
+  const score = useMemo(() => {
+    if (knownScore) {
+      return {
+        team1: knownScore.homeTeam,
+        team2: knownScore.awayTeam,
+        team1Score: knownScore.homeScore,
+        team2Score: knownScore.awayScore,
+        team1Logo: knownScore.homeLogo,
+        team2Logo: knownScore.awayLogo,
+        status: knownScore.status,
+        league: knownScore.league,
+        period: null,
+        clock: null,
+      };
+    }
+    return nflScore;
+  }, [knownScore, nflScore]);
 
   if (!isSports || !score) return null;
 
