@@ -85,7 +85,12 @@ const KeyboardAntsGame = ({ onGameEnd, isPlaying }: KeyboardAntsGameProps) => {
   const [gameOver, setGameOver] = useState(false);
   const [combo, setCombo] = useState(0);
   const [message, setMessage] = useState('');
-  const [antAnimation, setAntAnimation] = useState(0);
+  
+  // Avoid React re-renders for ant animation (prevents mobile input/caret glitches)
+  const rafRef = useRef<number | null>(null);
+  const lastFrameAtRef = useRef<number>(0);
+  const antKeyRef = useRef<string>('A');
+  const isPlayingRef = useRef<boolean>(false);
   
   const scoreRef = useRef(0);
   const gameOverRef = useRef(false);
@@ -143,7 +148,8 @@ const KeyboardAntsGame = ({ onGameEnd, isPlaying }: KeyboardAntsGameProps) => {
       });
     }, 1000);
     
-    setTimeout(() => inputRef.current?.focus(), 100);
+    // Ensure the input reliably grabs focus (especially inside modals)
+    setTimeout(() => inputRef.current?.focus(), 150);
   }, [getRandomKey, haptic, play, onGameEnd]);
 
   // Handle word submission
@@ -216,136 +222,157 @@ const KeyboardAntsGame = ({ onGameEnd, isPlaying }: KeyboardAntsGameProps) => {
     };
   }, [isPlaying, resetGame]);
 
-  // Animate ant
+  // Keep refs in sync for the canvas animation loop
   useEffect(() => {
-    const interval = setInterval(() => {
-      setAntAnimation(prev => (prev + 1) % 4);
-    }, 250);
-    return () => clearInterval(interval);
-  }, []);
+    antKeyRef.current = antKey;
+  }, [antKey]);
 
-  // Draw keyboard with ant
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
+
+  // Canvas animation loop (no React state updates)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    
+
     const width = canvas.width;
     const height = canvas.height;
-    
-    // Clear
-    ctx.fillStyle = '#1a1a2e';
-    ctx.fillRect(0, 0, width, height);
-    
-    // Draw keyboard
+
     const keyWidth = 32;
     const keyHeight = 38;
     const keyGap = 4;
     const startY = 30;
-    
-    KEYBOARD_ROWS.forEach((row, rowIndex) => {
-      const rowOffset = rowIndex * 15; // Stagger each row
-      const rowWidth = row.length * (keyWidth + keyGap);
-      const startX = (width - rowWidth) / 2 + rowOffset;
-      
-      row.forEach((key, keyIndex) => {
-        const x = startX + keyIndex * (keyWidth + keyGap);
-        const y = startY + rowIndex * (keyHeight + keyGap);
-        
-        const isAntKey = key === antKey;
-        
-        // Key shadow
-        ctx.fillStyle = '#0a0a15';
-        ctx.beginPath();
-        ctx.roundRect(x, y + 3, keyWidth, keyHeight, 6);
-        ctx.fill();
-        
-        // Key background
-        const gradient = ctx.createLinearGradient(x, y, x, y + keyHeight);
-        if (isAntKey) {
-          gradient.addColorStop(0, '#22c55e');
-          gradient.addColorStop(1, '#15803d');
-        } else {
-          gradient.addColorStop(0, '#3b3b5c');
-          gradient.addColorStop(1, '#2a2a40');
-        }
-        ctx.fillStyle = gradient;
-        ctx.beginPath();
-        ctx.roundRect(x, y, keyWidth, keyHeight, 6);
-        ctx.fill();
-        
-        // Key border
-        ctx.strokeStyle = isAntKey ? '#4ade80' : '#4a4a6a';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-        
-        // Key letter
-        ctx.fillStyle = isAntKey ? '#fff' : '#c0c0d0';
-        ctx.font = 'bold 16px Space Grotesk, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(key, x + keyWidth / 2, y + keyHeight / 2);
-        
-        // Draw ant on the key
-        if (isAntKey) {
-          const antX = x + keyWidth / 2;
-          const antY = y - 8;
-          const wiggle = Math.sin(antAnimation * Math.PI / 2) * 2;
-          
-          // Ant body (3 segments)
-          ctx.fillStyle = '#1a1a2e';
+
+    const drawFrame = (t: number) => {
+      // Throttle to ~20fps to keep input/caret stable on mobile
+      if (t - lastFrameAtRef.current < 50) {
+        rafRef.current = requestAnimationFrame(drawFrame);
+        return;
+      }
+      lastFrameAtRef.current = t;
+
+      // Always render a stable frame when visible; avoid depending on React state
+      const currentAntKey = antKeyRef.current;
+      const wiggle = Math.sin(t * 0.012) * 1.5;
+      const legPhase = Math.sin(t * 0.02);
+
+      // Clear
+      ctx.fillStyle = "#1a1a2e";
+      ctx.fillRect(0, 0, width, height);
+
+      KEYBOARD_ROWS.forEach((row, rowIndex) => {
+        const rowOffset = rowIndex * 15;
+        const rowWidth = row.length * (keyWidth + keyGap);
+        const startX = (width - rowWidth) / 2 + rowOffset;
+
+        row.forEach((key, keyIndex) => {
+          const x = startX + keyIndex * (keyWidth + keyGap);
+          const y = startY + rowIndex * (keyHeight + keyGap);
+
+          const isAntKey = key === currentAntKey;
+
+          // Key shadow
+          ctx.fillStyle = "#0a0a15";
           ctx.beginPath();
-          ctx.ellipse(antX - 8 + wiggle, antY, 5, 4, 0, 0, Math.PI * 2);
+          ctx.roundRect(x, y + 3, keyWidth, keyHeight, 6);
           ctx.fill();
-          ctx.beginPath();
-          ctx.ellipse(antX + wiggle, antY, 6, 5, 0, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.beginPath();
-          ctx.ellipse(antX + 9 + wiggle, antY, 5, 4, 0, 0, Math.PI * 2);
-          ctx.fill();
-          
-          // Ant legs
-          ctx.strokeStyle = '#1a1a2e';
-          ctx.lineWidth = 1.5;
-          for (let i = 0; i < 3; i++) {
-            const legX = antX - 6 + i * 6 + wiggle;
-            const legOffset = (i + antAnimation) % 2 === 0 ? 2 : -2;
-            
-            ctx.beginPath();
-            ctx.moveTo(legX, antY + 3);
-            ctx.lineTo(legX - 4, antY + 10 + legOffset);
-            ctx.stroke();
-            
-            ctx.beginPath();
-            ctx.moveTo(legX, antY + 3);
-            ctx.lineTo(legX + 4, antY + 10 - legOffset);
-            ctx.stroke();
+
+          // Key background
+          const gradient = ctx.createLinearGradient(x, y, x, y + keyHeight);
+          if (isAntKey) {
+            gradient.addColorStop(0, "#22c55e");
+            gradient.addColorStop(1, "#15803d");
+          } else {
+            gradient.addColorStop(0, "#3b3b5c");
+            gradient.addColorStop(1, "#2a2a40");
           }
-          
-          // Antennae
+          ctx.fillStyle = gradient;
           ctx.beginPath();
-          ctx.moveTo(antX + 12 + wiggle, antY - 2);
-          ctx.lineTo(antX + 18 + wiggle, antY - 8 + Math.sin(antAnimation) * 2);
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.moveTo(antX + 12 + wiggle, antY + 2);
-          ctx.lineTo(antX + 18 + wiggle, antY + 6 - Math.sin(antAnimation) * 2);
-          ctx.stroke();
-          
-          // Eyes
-          ctx.fillStyle = '#fff';
-          ctx.beginPath();
-          ctx.arc(antX + 11 + wiggle, antY, 2, 0, Math.PI * 2);
+          ctx.roundRect(x, y, keyWidth, keyHeight, 6);
           ctx.fill();
-        }
+
+          // Key border
+          ctx.strokeStyle = isAntKey ? "#4ade80" : "#4a4a6a";
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+
+          // Key letter
+          ctx.fillStyle = isAntKey ? "#fff" : "#c0c0d0";
+          ctx.font = "bold 16px Space Grotesk, sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(key, x + keyWidth / 2, y + keyHeight / 2);
+
+          if (isAntKey) {
+            const antX = x + keyWidth / 2;
+            const antY = y - 8;
+
+            // Body
+            ctx.fillStyle = "#1a1a2e";
+            ctx.beginPath();
+            ctx.ellipse(antX - 8 + wiggle, antY, 5, 4, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(antX + wiggle, antY, 6, 5, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(antX + 9 + wiggle, antY, 5, 4, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Legs
+            ctx.strokeStyle = "#1a1a2e";
+            ctx.lineWidth = 1.5;
+            for (let i = 0; i < 3; i++) {
+              const legX = antX - 6 + i * 6 + wiggle;
+              const legOffset = (i % 2 === 0 ? 1 : -1) * legPhase * 2;
+              ctx.beginPath();
+              ctx.moveTo(legX, antY + 3);
+              ctx.lineTo(legX - 4, antY + 10 + legOffset);
+              ctx.stroke();
+              ctx.beginPath();
+              ctx.moveTo(legX, antY + 3);
+              ctx.lineTo(legX + 4, antY + 10 - legOffset);
+              ctx.stroke();
+            }
+
+            // Antennae
+            ctx.beginPath();
+            ctx.moveTo(antX + 12 + wiggle, antY - 2);
+            ctx.lineTo(antX + 18 + wiggle, antY - 8 + legPhase * 2);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(antX + 12 + wiggle, antY + 2);
+            ctx.lineTo(antX + 18 + wiggle, antY + 6 - legPhase * 2);
+            ctx.stroke();
+
+            // Eyes
+            ctx.fillStyle = "#fff";
+            ctx.beginPath();
+            ctx.arc(antX + 11 + wiggle, antY, 2, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        });
       });
-    });
-  }, [antKey, antAnimation]);
+
+      rafRef.current = requestAnimationFrame(drawFrame);
+    };
+
+    rafRef.current = requestAnimationFrame(drawFrame);
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    };
+  }, []);
 
   return (
-    <div className="flex flex-col items-center justify-center h-full p-4" style={{ background: "linear-gradient(180deg, #1a1a2e 0%, #0f0f1a 100%)" }}>
+    <div
+      className="flex flex-col items-center justify-center h-full p-4"
+      style={{ background: "linear-gradient(180deg, #1a1a2e 0%, #0f0f1a 100%)" }}
+      onPointerDown={() => inputRef.current?.focus()}
+    >
       {/* Header */}
       <div className="flex justify-between items-center w-full max-w-md mb-4">
         <div className="text-left">
@@ -408,6 +435,8 @@ const KeyboardAntsGame = ({ onGameEnd, isPlaying }: KeyboardAntsGameProps) => {
           className="flex-1 px-4 py-3 bg-background/50 border border-primary/30 rounded-lg text-center text-xl font-mono uppercase tracking-widest focus:outline-none focus:border-primary"
           autoComplete="off"
           autoCapitalize="characters"
+          autoCorrect="off"
+          spellCheck={false}
         />
         <button
           onClick={handleSubmit}
