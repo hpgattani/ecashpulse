@@ -54,7 +54,8 @@ const Games = () => {
       .order("name");
 
     if (!error && data) {
-      setGames(data);
+      // Removed from product due to persistent UX issues
+      setGames(data.filter((g) => g.slug !== "keyboard-ants"));
     }
     setLoading(false);
   };
