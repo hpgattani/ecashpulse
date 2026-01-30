@@ -14,8 +14,10 @@ import {
   Users, 
   Clock,
   Sparkles,
-  Lock
+  Lock,
+  Share2
 } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -38,6 +40,7 @@ interface SentimentTopic {
 const Sentiment = () => {
   const { user } = useAuth();
   const { prices } = useCryptoPrices();
+  const isMobile = useIsMobile();
   const [topics, setTopics] = useState<SentimentTopic[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -94,6 +97,27 @@ const Sentiment = () => {
     }
     setSelectedTopic(topic);
     setVotePosition(position);
+  };
+
+  const handleShare = async (topic: SentimentTopic) => {
+    const shareUrl = `${window.location.origin}/sentiment`;
+    const shareText = `🗳️ "${topic.title}" - Vote your sentiment anonymously on eCash Pulse!`;
+    
+    if (isMobile && navigator.share) {
+      try {
+        await navigator.share({
+          title: topic.title,
+          text: shareText,
+          url: shareUrl,
+        });
+      } catch (err) {
+        // User cancelled or share failed silently
+      }
+    } else {
+      // Share to X (Twitter)
+      const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`;
+      window.open(tweetUrl, '_blank', 'noopener,noreferrer');
+    }
   };
 
   const redactAddress = (hash: string) => {
@@ -229,14 +253,23 @@ const Sentiment = () => {
                         className="glass-card p-4 rounded-xl border border-white/10 hover:border-primary/30 transition-all"
                       >
                         {/* Header */}
-                        <div className="flex items-start justify-between gap-3 mb-2">
-                          <h3 className="text-base font-semibold text-foreground leading-snug">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <h3 className="text-base font-semibold text-foreground leading-snug flex-1">
                             {topic.title}
                           </h3>
-                          <Badge variant="outline" className="shrink-0 gap-1 text-xs px-2 py-0.5">
-                            <Clock className="w-3 h-3" />
-                            {formatDistanceToNow(new Date(topic.expires_at), { addSuffix: true })}
-                          </Badge>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button
+                              onClick={() => handleShare(topic)}
+                              className="p-1.5 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+                              aria-label="Share topic"
+                            >
+                              <Share2 className="w-4 h-4" />
+                            </button>
+                            <Badge variant="outline" className="gap-1 text-xs px-2 py-0.5">
+                              <Clock className="w-3 h-3" />
+                              {formatDistanceToNow(new Date(topic.expires_at), { addSuffix: true })}
+                            </Badge>
+                          </div>
                         </div>
                         
                         {topic.description && (
