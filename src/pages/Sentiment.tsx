@@ -272,11 +272,16 @@ const Sentiment = () => {
                           </div>
                         </div>
                         
-                        {topic.description && (
-                          <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
-                            {topic.description}
-                          </p>
-                        )}
+                        {/* Description or default explainer */}
+                        <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                          {topic.description || "Tap Agree or Disagree to cast your anonymous vote. Your identity stays hidden—only results are shown."}
+                        </p>
+                        
+                        {/* How it works hint */}
+                        <div className="flex items-center gap-1.5 text-xs text-primary/70 mb-3">
+                          <MessageCircleHeart className="w-3 h-3" />
+                          <span>Anonymous • Pay {topic.vote_cost.toLocaleString()} XEC • Funds treasury</span>
+                        </div>
 
                         {/* Sentiment Bar */}
                         <div className="mb-3">
