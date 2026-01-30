@@ -223,71 +223,72 @@ const Sentiment = () => {
                     const totalVotes = topic.agree_count + topic.disagree_count;
                     const agreePercent = totalVotes > 0 ? (topic.agree_count / totalVotes) * 100 : 50;
                     
-                    return (
-                      <div key={topic.id}>
-                        <Card className="overflow-hidden hover:border-primary/30 transition-colors">
-                          <CardHeader className="pb-3">
-                            <div className="flex items-start justify-between gap-4">
-                              <CardTitle className="text-lg font-semibold text-foreground">
-                                {topic.title}
-                              </CardTitle>
-                              <Badge variant="outline" className="shrink-0 gap-1 text-xs">
-                                <Clock className="w-3 h-3" />
-                                {formatDistanceToNow(new Date(topic.expires_at), { addSuffix: true })}
-                              </Badge>
-                            </div>
-                            {topic.description && (
-                              <p className="text-sm text-muted-foreground mt-2">
-                                {topic.description}
-                              </p>
-                            )}
-                          </CardHeader>
-                          
-                          <CardContent>
-                            {/* Sentiment Bar */}
-                            <div className="mb-4">
-                              <div className="flex justify-between text-sm mb-2">
-                                <span className="text-green-500 font-medium flex items-center gap-1">
-                                  <ThumbsUp className="w-3.5 h-3.5" />
-                                  Agree ({topic.agree_count})
-                                </span>
-                                <span className="text-red-500 font-medium flex items-center gap-1">
-                                  Disagree ({topic.disagree_count})
-                                  <ThumbsDown className="w-3.5 h-3.5" />
-                                </span>
-                              </div>
-                              <div className="relative h-3 rounded-full overflow-hidden bg-red-500/20">
-                                <div 
-                                  className="absolute left-0 top-0 h-full bg-gradient-to-r from-green-500 to-green-400 transition-all duration-500"
-                                  style={{ width: `${agreePercent}%` }}
-                                />
-                              </div>
-                              <p className="text-xs text-muted-foreground text-center mt-2">
-                                {totalVotes} anonymous votes
-                              </p>
-                            </div>
+                      return (
+                      <div 
+                        key={topic.id}
+                        className="glass-card p-4 rounded-xl border border-white/10 hover:border-primary/30 transition-all"
+                      >
+                        {/* Header */}
+                        <div className="flex items-start justify-between gap-3 mb-2">
+                          <h3 className="text-base font-semibold text-foreground leading-snug">
+                            {topic.title}
+                          </h3>
+                          <Badge variant="outline" className="shrink-0 gap-1 text-xs px-2 py-0.5">
+                            <Clock className="w-3 h-3" />
+                            {formatDistanceToNow(new Date(topic.expires_at), { addSuffix: true })}
+                          </Badge>
+                        </div>
+                        
+                        {topic.description && (
+                          <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                            {topic.description}
+                          </p>
+                        )}
 
-                            {/* Vote Buttons */}
-                            <div className="flex gap-3">
-                              <Button 
-                                variant="outline" 
-                                className="flex-1 gap-2 border-green-500/30 hover:bg-green-500/10 hover:text-green-500 hover:border-green-500"
-                                onClick={() => handleVote(topic, 'agree')}
-                              >
-                                <ThumbsUp className="w-4 h-4" />
-                                Agree ({topic.vote_cost.toLocaleString()} XEC)
-                              </Button>
-                              <Button 
-                                variant="outline" 
-                                className="flex-1 gap-2 border-red-500/30 hover:bg-red-500/10 hover:text-red-500 hover:border-red-500"
-                                onClick={() => handleVote(topic, 'disagree')}
-                              >
-                                <ThumbsDown className="w-4 h-4" />
-                                Disagree ({topic.vote_cost.toLocaleString()} XEC)
-                              </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
+                        {/* Sentiment Bar */}
+                        <div className="mb-3">
+                          <div className="flex justify-between text-xs mb-1.5">
+                            <span className="text-green-500 font-medium flex items-center gap-1">
+                              <ThumbsUp className="w-3 h-3" />
+                              Agree ({topic.agree_count})
+                            </span>
+                            <span className="text-red-500 font-medium flex items-center gap-1">
+                              Disagree ({topic.disagree_count})
+                              <ThumbsDown className="w-3 h-3" />
+                            </span>
+                          </div>
+                          <div className="relative h-2 rounded-full overflow-hidden bg-red-500/20">
+                            <div 
+                              className="absolute left-0 top-0 h-full bg-gradient-to-r from-green-500 to-green-400 transition-all duration-500"
+                              style={{ width: `${agreePercent}%` }}
+                            />
+                          </div>
+                          <p className="text-xs text-muted-foreground text-center mt-1.5">
+                            {totalVotes} anonymous votes
+                          </p>
+                        </div>
+
+                        {/* Vote Buttons */}
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="flex-1 gap-1.5 text-xs border-green-500/30 hover:bg-green-500/10 hover:text-green-500 hover:border-green-500"
+                            onClick={() => handleVote(topic, 'agree')}
+                          >
+                            <ThumbsUp className="w-3.5 h-3.5" />
+                            Agree ({topic.vote_cost.toLocaleString()} XEC)
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="flex-1 gap-1.5 text-xs border-red-500/30 hover:bg-red-500/10 hover:text-red-500 hover:border-red-500"
+                            onClick={() => handleVote(topic, 'disagree')}
+                          >
+                            <ThumbsDown className="w-3.5 h-3.5" />
+                            Disagree ({topic.vote_cost.toLocaleString()} XEC)
+                          </Button>
+                        </div>
                       </div>
                     );
                   })}
