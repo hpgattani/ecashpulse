@@ -274,8 +274,8 @@ export function SentimentVoteModal({ open, onOpenChange, topic, position, onSucc
               </div>
             </div>
 
-            {/* PayButton container */}
-            <div ref={payButtonRef} className="min-h-[52px]" />
+            {/* PayButton container - full width */}
+            <div ref={payButtonRef} className="min-h-[52px] w-full [&>div]:w-full [&_button]:w-full" />
 
             <Button variant="outline" className="w-full" onClick={() => setStep('info')}>
               Back
