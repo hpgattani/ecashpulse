@@ -280,7 +280,7 @@ const Sentiment = () => {
                         {/* How it works hint */}
                         <div className="flex items-center gap-1.5 text-xs text-primary/70 mb-3">
                           <MessageCircleHeart className="w-3 h-3" />
-                          <span>Anonymous • Pay {topic.vote_cost.toLocaleString()} XEC • Funds treasury</span>
+                          <span>Anonymous voting • Funds eCash Pulse</span>
                         </div>
 
                         {/* Sentiment Bar */}
