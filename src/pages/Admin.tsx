@@ -58,10 +58,21 @@ interface Prediction {
   created_at: string;
 }
 
+interface PlatformStats {
+  totalBets: number;
+  totalVolume: number;
+  uniqueBettors: number;
+  totalUsers: number;
+  totalWon: number;
+  totalPredictions: number;
+  resolvedPredictions: number;
+}
+
 const Admin = () => {
   const [bets, setBets] = useState<BetWithDetails[]>([]);
   const [users, setUsers] = useState<UserWithProfile[]>([]);
   const [predictions, setPredictions] = useState<Prediction[]>([]);
+  const [platformStats, setPlatformStats] = useState<PlatformStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [usersLoading, setUsersLoading] = useState(true);
   const [predictionsLoading, setPredictionsLoading] = useState(true);
@@ -143,22 +154,36 @@ const Admin = () => {
     }
   };
 
+  const fetchPlatformStats = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('get-platform-stats');
+      if (error) throw error;
+      setPlatformStats(data);
+    } catch (error) {
+      console.error('Error fetching platform stats:', error);
+    }
+  };
+
   useEffect(() => {
     if (isAdmin) {
       fetchAllBets();
       fetchAllUsers();
       fetchAllPredictions();
+      fetchPlatformStats();
       
       const channel = supabase
         .channel('admin-bets')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'bets' }, () => {
           fetchAllBets();
+          fetchPlatformStats();
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => {
           fetchAllUsers();
+          fetchPlatformStats();
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'predictions' }, () => {
           fetchAllPredictions();
+          fetchPlatformStats();
         })
         .subscribe();
 
@@ -312,11 +337,11 @@ const Admin = () => {
     }
   };
 
-  // Stats
-  const totalBets = bets.length;
-  const totalVolume = bets.reduce((sum, bet) => sum + bet.amount, 0);
-  const confirmedBets = bets.filter(b => b.status === 'confirmed').length;
-  const uniqueUsers = new Set(bets.map(b => b.user_id)).size;
+  // Stats from platform stats API (accurate totals) 
+  const totalBets = platformStats?.totalBets ?? 0;
+  const totalVolume = platformStats?.totalVolume ?? 0;
+  const confirmedBets = platformStats?.totalBets ?? 0; // All fetched bets are confirmed
+  const totalUsers = platformStats?.totalUsers ?? users.length;
 
   if (checkingAdmin) {
     return (
@@ -457,7 +482,7 @@ const Admin = () => {
                   <Users className="w-4 h-4" />
                   Total Users
                 </div>
-                <div className="text-2xl font-bold text-foreground">{users.length}</div>
+                <div className="text-2xl font-bold text-foreground">{totalUsers}</div>
               </motion.div>
             </div>
 
