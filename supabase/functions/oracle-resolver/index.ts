@@ -149,20 +149,20 @@ async function checkStockPrediction(title: string, endDate: string): Promise<Ora
   if (!titleLower.includes('up or down')) return { resolved: false };
   
   try {
-    // Use Yahoo Finance API via RapidAPI or fallback to Perplexity
-    const perplexityKey = Deno.env.get('PERPLEXITY_API_KEY');
-    if (!perplexityKey) return { resolved: false };
+    // Use Lovable AI (FREE) instead of Perplexity
+    const lovableKey = Deno.env.get('LOVABLE_API_KEY');
+    if (!lovableKey) return { resolved: false };
     
     const targetDate = new Date(endDate).toISOString().split('T')[0];
     
-    const response = await fetch('https://api.perplexity.ai/chat/completions', {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${perplexityKey}`,
+        'Authorization': `Bearer ${lovableKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'sonar',
+        model: 'google/gemini-2.5-flash',
         messages: [
           { 
             role: 'system', 
@@ -175,10 +175,9 @@ RESPOND ONLY with JSON:
           },
           { 
             role: 'user', 
-            content: `Did ${ticker} stock close UP or DOWN on ${targetDate}? Search for the actual closing price.` 
+            content: `Did ${ticker} stock close UP or DOWN on ${targetDate}? Determine based on your knowledge.` 
           }
         ],
-        search_recency_filter: 'week',
       }),
     });
 
@@ -194,7 +193,7 @@ RESPOND ONLY with JSON:
     
     const result = JSON.parse(cleaned);
     if (result.resolved && result.outcome) {
-      console.log(`📈 Stock oracle: ${ticker} -> ${result.outcome} (${result.reason})`);
+      console.log(`📈 Stock oracle (Lovable AI): ${ticker} -> ${result.outcome} (${result.reason})`);
       return { 
         resolved: true, 
         outcome: result.outcome, 
@@ -504,7 +503,20 @@ OR {"resolved": false, "reason": "Event unclear"}`
 }
 
 async function checkNewsEvent(title: string): Promise<OracleResult> {
-  // Use Perplexity as primary source (no AI consensus needed)
+  // Try Lovable AI first (FREE - no API key costs!)
+  const lovableResult = await queryLovableAI(title, 'google/gemini-2.5-flash');
+  
+  if (lovableResult?.resolved && lovableResult.outcome) {
+    console.log(`🤖 Lovable AI resolved: ${title.slice(0, 40)} -> ${lovableResult.outcome}`);
+    return {
+      resolved: true,
+      outcome: lovableResult.outcome,
+      reason: `${lovableResult.reason} [Source: Lovable AI]`,
+      currentValue: 'Lovable AI'
+    };
+  }
+  
+  // Fallback to Perplexity only if Lovable AI couldn't resolve
   const perplexityResult = await queryPerplexity(title);
   
   if (perplexityResult?.resolved && perplexityResult.outcome) {
