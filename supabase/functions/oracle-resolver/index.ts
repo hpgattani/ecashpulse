@@ -149,58 +149,42 @@ async function checkStockPrediction(title: string, endDate: string): Promise<Ora
   if (!titleLower.includes('up or down')) return { resolved: false };
   
   try {
-    // Use Lovable AI (FREE) instead of Perplexity
-    const lovableKey = Deno.env.get('LOVABLE_API_KEY');
-    if (!lovableKey) return { resolved: false };
-    
+    // Try Yahoo Finance API (free, no API key)
     const targetDate = new Date(endDate).toISOString().split('T')[0];
+    const targetTimestamp = Math.floor(new Date(endDate).getTime() / 1000);
+    const prevTimestamp = targetTimestamp - 86400 * 3; // 3 days before
     
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
+    const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?period1=${prevTimestamp}&period2=${targetTimestamp}&interval=1d`;
+    
+    const response = await fetch(yahooUrl, {
       headers: {
-        'Authorization': `Bearer ${lovableKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          { 
-            role: 'system', 
-            content: `You check stock price movements. For a given stock and date, determine if the stock closed HIGHER (up) or LOWER (down) compared to the previous trading day's close.
-
-RESPOND ONLY with JSON:
-{"resolved": true, "outcome": "yes", "reason": "TICKER closed at $X.XX (+X.XX%), up from previous close"} (if stock went UP)
-{"resolved": true, "outcome": "no", "reason": "TICKER closed at $X.XX (-X.XX%), down from previous close"} (if stock went DOWN)
-{"resolved": false, "reason": "Cannot determine"} (if data unavailable)`
-          },
-          { 
-            role: 'user', 
-            content: `Did ${ticker} stock close UP or DOWN on ${targetDate}? Determine based on your knowledge.` 
-          }
-        ],
-      }),
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      }
     });
 
-    if (!response.ok) return { resolved: false };
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || '';
-    
-    let cleaned = content.trim();
-    if (cleaned.startsWith('```')) {
-      cleaned = cleaned.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+    if (response.ok) {
+      const data = await response.json();
+      const quotes = data.chart?.result?.[0]?.indicators?.quote?.[0];
+      const closes = quotes?.close?.filter((c: number | null) => c !== null);
+      
+      if (closes && closes.length >= 2) {
+        const prevClose = closes[closes.length - 2];
+        const lastClose = closes[closes.length - 1];
+        const change = ((lastClose - prevClose) / prevClose) * 100;
+        const wentUp = lastClose > prevClose;
+        
+        console.log(`📈 Yahoo Finance: ${ticker} ${prevClose} -> ${lastClose} (${change >= 0 ? '+' : ''}${change.toFixed(2)}%)`);
+        
+        return {
+          resolved: true,
+          outcome: wentUp ? 'yes' : 'no',
+          reason: `${ticker} closed at $${lastClose.toFixed(2)} (${change >= 0 ? '+' : ''}${change.toFixed(2)}%) on ${targetDate}`,
+          currentValue: `$${lastClose.toFixed(2)}`
+        };
+      }
     }
     
-    const result = JSON.parse(cleaned);
-    if (result.resolved && result.outcome) {
-      console.log(`📈 Stock oracle (Lovable AI): ${ticker} -> ${result.outcome} (${result.reason})`);
-      return { 
-        resolved: true, 
-        outcome: result.outcome, 
-        reason: result.reason,
-        currentValue: ticker
-      };
-    }
+    console.log(`Yahoo Finance unavailable for ${ticker}, stock prediction unresolved`);
     return { resolved: false };
   } catch (error) {
     console.error(`Stock oracle error for ${ticker}:`, error);
@@ -503,20 +487,7 @@ OR {"resolved": false, "reason": "Event unclear"}`
 }
 
 async function checkNewsEvent(title: string): Promise<OracleResult> {
-  // Try Lovable AI first (FREE - no API key costs!)
-  const lovableResult = await queryLovableAI(title, 'google/gemini-2.5-flash');
-  
-  if (lovableResult?.resolved && lovableResult.outcome) {
-    console.log(`🤖 Lovable AI resolved: ${title.slice(0, 40)} -> ${lovableResult.outcome}`);
-    return {
-      resolved: true,
-      outcome: lovableResult.outcome,
-      reason: `${lovableResult.reason} [Source: Lovable AI]`,
-      currentValue: 'Lovable AI'
-    };
-  }
-  
-  // Fallback to Perplexity only if Lovable AI couldn't resolve
+  // Try Perplexity first if available (has real-time search)
   const perplexityResult = await queryPerplexity(title);
   
   if (perplexityResult?.resolved && perplexityResult.outcome) {
@@ -529,6 +500,21 @@ async function checkNewsEvent(title: string): Promise<OracleResult> {
     };
   }
   
+  // Try Lovable AI as fallback (if available, but may hit 402)
+  const lovableResult = await queryLovableAI(title, 'google/gemini-2.5-flash');
+  
+  if (lovableResult?.resolved && lovableResult.outcome) {
+    console.log(`🤖 Lovable AI resolved: ${title.slice(0, 40)} -> ${lovableResult.outcome}`);
+    return {
+      resolved: true,
+      outcome: lovableResult.outcome,
+      reason: `${lovableResult.reason} [Source: Lovable AI]`,
+      currentValue: 'Lovable AI'
+    };
+  }
+  
+  // If both AI sources failed, mark as unresolved - needs manual admin resolution
+  console.log(`⚠️ News event needs manual resolution: ${title.slice(0, 50)}`);
   return { resolved: false };
 }
 
