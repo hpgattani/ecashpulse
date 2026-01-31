@@ -62,6 +62,28 @@ async function processPayouts(
   return { winners: winningBets.length, totalPayout };
 }
 
+// ---------------- ADMIN AUTH CHECK ----------------
+async function verifyAdminSession(supabase: any, sessionToken: string): Promise<boolean> {
+  if (!sessionToken) return false;
+  
+  const { data: session } = await supabase
+    .from('sessions')
+    .select('user_id, expires_at')
+    .eq('token', sessionToken)
+    .single();
+  
+  if (!session || new Date(session.expires_at) < new Date()) return false;
+  
+  const { data: role } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', session.user_id)
+    .eq('role', 'admin')
+    .single();
+  
+  return !!role;
+}
+
 // ---------------- MAIN HANDLER ----------------
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -74,13 +96,24 @@ Deno.serve(async (req) => {
   );
 
   try {
-    const { prediction_id, outcome } = await req.json();
+    const { prediction_id, outcome, session_token, force } = await req.json();
 
     if (!prediction_id || !["yes", "no"].includes(outcome)) {
       return new Response(JSON.stringify({ error: "Invalid prediction_id or outcome" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+    
+    // Require admin session for manual resolution
+    if (session_token) {
+      const isAdmin = await verifyAdminSession(supabase, session_token);
+      if (!isAdmin) {
+        return new Response(JSON.stringify({ error: "Admin access required" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     // ---- FETCH PREDICTION (using actual schema columns) ----
@@ -105,11 +138,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ---- CHECK IF BETTING PERIOD HAS ENDED ----
+    // ---- CHECK IF BETTING PERIOD HAS ENDED (skip if force=true for admin) ----
     const now = new Date();
     const endDate = new Date(prediction.end_date);
     
-    if (now < endDate) {
+    if (now < endDate && !force) {
       return new Response(
         JSON.stringify({
           error: "Betting period not yet ended",

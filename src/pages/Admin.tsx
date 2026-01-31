@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
-import { ArrowLeft, TrendingUp, TrendingDown, ExternalLink, Users, DollarSign, Clock, CheckCircle2, Shield, User, Sparkles, RefreshCw, Target, KeyRound, Loader2 } from 'lucide-react';
+import { ArrowLeft, TrendingUp, TrendingDown, ExternalLink, Users, DollarSign, Clock, CheckCircle2, Shield, User, Sparkles, RefreshCw, Target, KeyRound, Loader2, Gavel, XCircle, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -66,6 +66,7 @@ const Admin = () => {
   const [usersLoading, setUsersLoading] = useState(true);
   const [predictionsLoading, setPredictionsLoading] = useState(true);
   const [fetchingTopics, setFetchingTopics] = useState(false);
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkingAdmin, setCheckingAdmin] = useState(true);
   // Admin secret login
@@ -212,6 +213,42 @@ const Admin = () => {
       toast.error(error instanceof Error ? error.message : 'Failed to fetch trending topics');
     } finally {
       setFetchingTopics(false);
+    }
+  };
+
+  const handleManualResolve = async (predictionId: string, outcome: 'yes' | 'no', title: string) => {
+    if (!sessionToken) {
+      toast.error('Session expired. Please log in again.');
+      return;
+    }
+
+    const confirmMsg = outcome === 'yes' 
+      ? `Resolve as YES (winners: YES bettors)?`
+      : `Resolve as NO (winners: NO bettors)?`;
+    
+    if (!confirm(`${title.slice(0, 60)}...\n\n${confirmMsg}`)) return;
+
+    setResolvingId(predictionId);
+    try {
+      const { data, error } = await supabase.functions.invoke('resolve-prediction', {
+        body: { 
+          prediction_id: predictionId, 
+          outcome,
+          session_token: sessionToken,
+          force: true // Allow resolving even if end_date hasn't passed
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast.success(`Resolved as ${outcome.toUpperCase()}! ${data?.winners || 0} winners paid.`);
+      fetchAllPredictions();
+    } catch (error) {
+      console.error('Resolution error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to resolve prediction');
+    } finally {
+      setResolvingId(null);
     }
   };
 
@@ -657,7 +694,7 @@ const Admin = () => {
                             <th className="p-4">Yes Pool</th>
                             <th className="p-4">No Pool</th>
                             <th className="p-4">End Date</th>
-                            <th className="p-4">Created</th>
+                            <th className="p-4">Actions</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
@@ -698,8 +735,44 @@ const Admin = () => {
                               <td className="p-4 text-sm text-muted-foreground">
                                 {new Date(p.end_date).toLocaleDateString()}
                               </td>
-                              <td className="p-4 text-sm text-muted-foreground">
-                                {formatDate(p.created_at)}
+                              <td className="p-4">
+                                {p.status === 'active' ? (
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant="yes"
+                                      disabled={resolvingId === p.id}
+                                      onClick={() => handleManualResolve(p.id, 'yes', p.title)}
+                                      className="gap-1 h-7 px-2 text-xs"
+                                    >
+                                      {resolvingId === p.id ? (
+                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                      ) : (
+                                        <CheckCircle className="w-3 h-3" />
+                                      )}
+                                      Yes
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="no"
+                                      disabled={resolvingId === p.id}
+                                      onClick={() => handleManualResolve(p.id, 'no', p.title)}
+                                      className="gap-1 h-7 px-2 text-xs"
+                                    >
+                                      {resolvingId === p.id ? (
+                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                      ) : (
+                                        <XCircle className="w-3 h-3" />
+                                      )}
+                                      No
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <Badge className="bg-muted text-muted-foreground">
+                                    <Gavel className="w-3 h-3 mr-1" />
+                                    {p.status.replace('resolved_', '').toUpperCase()}
+                                  </Badge>
+                                )}
                               </td>
                             </motion.tr>
                           ))}
