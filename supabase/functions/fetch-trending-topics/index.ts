@@ -289,48 +289,24 @@ function detectCategory(question: string): string {
   return 'politics';
 }
 
-// Fetch markets from Polymarket Gamma API (FREE - no API key needed)
+// Fetch markets from Polymarket Gamma API
 async function fetchPolymarketData(): Promise<Array<{ title: string; description: string; category: string; endDate?: string; yesOdds?: number; noOdds?: number; imageUrl?: string }>> {
   try {
-    // Fetch latest active markets, sorted by volume/activity
-    // Using multiple endpoints to get diverse, trending markets
-    const urls = [
-      'https://gamma-api.polymarket.com/markets?limit=50&active=true&order=volume&ascending=false',
-      'https://gamma-api.polymarket.com/markets?limit=30&active=true&order=createdAt&ascending=false',
-    ];
+    const response = await fetch('https://gamma-api.polymarket.com/markets?limit=50&active=true', {
+      headers: { 'Accept': 'application/json' }
+    });
 
-    const allRawMarkets: any[] = [];
-    
-    for (const url of urls) {
-      try {
-        const response = await fetch(url, {
-          headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0' }
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          const marketList = Array.isArray(data) ? data : (data.markets || data.data || []);
-          allRawMarkets.push(...marketList);
-        }
-      } catch (e) {
-        console.log('Polymarket endpoint error:', e);
-      }
+    if (!response.ok) {
+      console.log('Polymarket Gamma API error:', response.status);
+      return [];
     }
 
-    // Deduplicate by question/title
-    const seen = new Set<string>();
-    const uniqueMarkets: any[] = [];
-    for (const m of allRawMarkets) {
-      const key = (m.question || m.title || '').toLowerCase().slice(0, 100);
-      if (key && !seen.has(key)) {
-        seen.add(key);
-        uniqueMarkets.push(m);
-      }
-    }
-
+    const data = await response.json();
     const markets: Array<{ title: string; description: string; category: string; endDate?: string; yesOdds?: number; noOdds?: number; imageUrl?: string }> = [];
 
-    for (const market of uniqueMarkets.slice(0, 60)) {
+    const marketList = Array.isArray(data) ? data : (data.markets || data.data || []);
+
+    for (const market of marketList.slice(0, 30)) {
       const question = market.question || market.title || market.name;
       if (!question) continue;
 
@@ -381,7 +357,7 @@ async function fetchPolymarketData(): Promise<Array<{ title: string; description
       });
     }
 
-    console.log(`Fetched ${markets.length} markets from Polymarket API (FREE, no AI)`);
+    console.log(`Fetched ${markets.length} markets from Polymarket API`);
     return markets;
   } catch (error) {
     console.error('Polymarket fetch error:', error);
@@ -558,13 +534,15 @@ async function syncPredictions(supabase: any): Promise<{ created: number; resolv
   let created = 0;
   let resolved = 0;
 
-  // Fetch ONLY from Polymarket (FREE - no AI credits needed)
-  // Perplexity and AI generation are disabled to save costs
-  console.log('Fetching from Polymarket API only (FREE mode)...');
-  const polymarketMarkets = await fetchPolymarketData();
+  // Fetch from all sources in parallel
+  const [polymarketMarkets, perplexityMarkets, aiPredictions] = await Promise.all([
+    fetchPolymarketData(),
+    fetchPerplexityPolymarket(),
+    generateAIPredictions()
+  ]);
 
-  const allMarkets = [...polymarketMarkets];
-  console.log(`Total markets fetched: ${allMarkets.length} from Polymarket (FREE, no AI costs)`);
+  const allMarkets = [...polymarketMarkets, ...perplexityMarkets, ...aiPredictions];
+  console.log(`Total markets fetched: ${allMarkets.length} (Polymarket: ${polymarketMarkets.length}, Perplexity: ${perplexityMarkets.length}, AI: ${aiPredictions.length})`);
 
   // Get existing predictions
   const { data: existingPredictions } = await supabase
@@ -683,7 +661,7 @@ Deno.serve(async (req) => {
   );
 
   try {
-    console.log('Starting prediction sync (Polymarket ONLY - FREE mode)...');
+    console.log('Starting prediction sync (Polymarket + Perplexity + AI)...');
     const result = await syncPredictions(supabase);
     console.log(`Sync complete: ${result.created} created, ${result.resolved} resolved`);
 
