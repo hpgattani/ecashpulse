@@ -558,13 +558,16 @@ async function syncPredictions(supabase: any): Promise<{ created: number; resolv
   let created = 0;
   let resolved = 0;
 
-  // Fetch ONLY from Polymarket (FREE - no AI credits needed)
-  // Perplexity and AI generation are disabled to save costs
-  console.log('Fetching from Polymarket API only (FREE mode)...');
-  const polymarketMarkets = await fetchPolymarketData();
+  // Fetch from Perplexity (Polymarket search) + direct Polymarket API
+  console.log('Fetching from Perplexity + Polymarket API...');
+  
+  const [perplexityMarkets, polymarketMarkets] = await Promise.all([
+    fetchPerplexityPolymarket(),
+    fetchPolymarketData(),
+  ]);
 
-  const allMarkets = [...polymarketMarkets];
-  console.log(`Total markets fetched: ${allMarkets.length} from Polymarket (FREE, no AI costs)`);
+  const allMarkets = [...perplexityMarkets, ...polymarketMarkets];
+  console.log(`Total markets fetched: ${perplexityMarkets.length} from Perplexity, ${polymarketMarkets.length} from Polymarket`);
 
   // Get existing predictions
   const { data: existingPredictions } = await supabase
@@ -636,9 +639,9 @@ async function syncPredictions(supabase: any): Promise<{ created: number; resolv
     }
 
     const marketWithOdds = market as { yesOdds?: number; noOdds?: number; imageUrl?: string };
-    const yesPool = marketWithOdds.yesOdds ? marketWithOdds.yesOdds * 100 : 0;
-    const noPool = marketWithOdds.noOdds ? marketWithOdds.noOdds * 100 : 0;
 
+    // IMPORTANT: Do NOT set fake volume from odds!
+    // Pools must always start at 0 and only increase via real bets
     const newPrediction = {
       title: market.title.slice(0, 200),
       description: (market.description || '').slice(0, 500),
@@ -646,8 +649,8 @@ async function syncPredictions(supabase: any): Promise<{ created: number; resolv
       escrow_address: generateEscrowAddress(),
       end_date: normalizedEndDate,
       status: 'active',
-      yes_pool: yesPool,
-      no_pool: noPool,
+      yes_pool: 0,
+      no_pool: 0,
       image_url: marketWithOdds.imageUrl || null,
     };
 
@@ -683,7 +686,7 @@ Deno.serve(async (req) => {
   );
 
   try {
-    console.log('Starting prediction sync (Polymarket ONLY - FREE mode)...');
+    console.log('Starting prediction sync (Perplexity + Polymarket)...');
     const result = await syncPredictions(supabase);
     console.log(`Sync complete: ${result.created} created, ${result.resolved} resolved`);
 
