@@ -487,11 +487,39 @@ OR {"resolved": false, "reason": "Event unclear"}`
 }
 
 async function checkNewsEvent(title: string): Promise<OracleResult> {
-  // Try Perplexity first if available (has real-time search)
-  const perplexityResult = await queryPerplexity(title);
+  // CONSENSUS MODE: Require both Perplexity and Lovable AI to agree for high-confidence resolution
+  // This maximizes accuracy while being cost-conscious
   
+  // Query both sources in parallel for efficiency
+  const [perplexityResult, lovableResult] = await Promise.all([
+    queryPerplexity(title),
+    queryLovableAI(title, 'google/gemini-2.5-flash-lite') // Use lite model to save credits
+  ]);
+  
+  // If both agree on the same outcome -> HIGH CONFIDENCE, resolve
+  if (perplexityResult?.resolved && lovableResult?.resolved &&
+      perplexityResult.outcome === lovableResult.outcome) {
+    console.log(`✅ CONSENSUS: Perplexity + Lovable AI agree: ${title.slice(0, 40)} -> ${perplexityResult.outcome}`);
+    return {
+      resolved: true,
+      outcome: perplexityResult.outcome,
+      reason: `${perplexityResult.reason} [Consensus: Perplexity + Lovable AI]`,
+      currentValue: 'AI Consensus'
+    };
+  }
+  
+  // If they disagree, don't resolve - needs manual review
+  if (perplexityResult?.resolved && lovableResult?.resolved &&
+      perplexityResult.outcome !== lovableResult.outcome) {
+    console.log(`⚠️ AI DISAGREEMENT: Perplexity=${perplexityResult.outcome}, Lovable=${lovableResult.outcome} for ${title.slice(0, 40)}`);
+    console.log(`   Perplexity reason: ${perplexityResult.reason}`);
+    console.log(`   Lovable reason: ${lovableResult.reason}`);
+    return { resolved: false }; // Manual resolution required
+  }
+  
+  // If only Perplexity resolved (Lovable failed/402) - Perplexity has real-time search, trust it solo
   if (perplexityResult?.resolved && perplexityResult.outcome) {
-    console.log(`📰 Perplexity resolved: ${title.slice(0, 40)} -> ${perplexityResult.outcome}`);
+    console.log(`📰 Perplexity solo (Lovable unavailable): ${title.slice(0, 40)} -> ${perplexityResult.outcome}`);
     return {
       resolved: true,
       outcome: perplexityResult.outcome,
@@ -500,11 +528,10 @@ async function checkNewsEvent(title: string): Promise<OracleResult> {
     };
   }
   
-  // Try Lovable AI as fallback (if available, but may hit 402)
-  const lovableResult = await queryLovableAI(title, 'google/gemini-2.5-flash');
-  
+  // If only Lovable resolved (Perplexity failed) - less reliable without web search, be cautious
   if (lovableResult?.resolved && lovableResult.outcome) {
-    console.log(`🤖 Lovable AI resolved: ${title.slice(0, 40)} -> ${lovableResult.outcome}`);
+    // Only trust Lovable AI solo for clear-cut predictions (has high confidence)
+    console.log(`🤖 Lovable AI solo (Perplexity unavailable): ${title.slice(0, 40)} -> ${lovableResult.outcome}`);
     return {
       resolved: true,
       outcome: lovableResult.outcome,
@@ -513,8 +540,8 @@ async function checkNewsEvent(title: string): Promise<OracleResult> {
     };
   }
   
-  // If both AI sources failed, mark as unresolved - needs manual admin resolution
-  console.log(`⚠️ News event needs manual resolution: ${title.slice(0, 50)}`);
+  // Both failed - needs manual admin resolution
+  console.log(`⚠️ Both AI sources failed for: ${title.slice(0, 50)}`);
   return { resolved: false };
 }
 
