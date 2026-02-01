@@ -547,8 +547,84 @@ async function checkNewsEvent(title: string): Promise<OracleResult> {
 
 // ==================== PAYOUT PROCESSING ====================
 
+const REFUND_FEE_PERCENT = 1.0; // 1% fee on refunds for one-sided bets
+
+async function processRefunds(supabase: any, predictionId: string): Promise<boolean> {
+  // Check if this is a one-sided bet situation (only bets on one side)
+  const { data: prediction } = await supabase
+    .from('predictions')
+    .select('yes_pool, no_pool, title')
+    .eq('id', predictionId)
+    .single();
+  
+  if (!prediction) return false;
+  
+  const hasYesBets = prediction.yes_pool > 0;
+  const hasNoBets = prediction.no_pool > 0;
+  
+  // If bets on both sides, normal payout applies
+  if (hasYesBets && hasNoBets) return false;
+  
+  // If no bets at all, nothing to refund
+  if (!hasYesBets && !hasNoBets) return false;
+  
+  // ONE-SIDED BETS: Refund all bettors minus 1% fee
+  const oneSidedPosition = hasYesBets ? 'yes' : 'no';
+  console.log(`💸 ONE-SIDED BETS detected for ${predictionId}, refunding ${oneSidedPosition} bettors minus ${REFUND_FEE_PERCENT}% fee`);
+  
+  const { data: betsToRefund } = await supabase
+    .from('bets')
+    .select('id, amount')
+    .eq('prediction_id', predictionId)
+    .eq('status', 'confirmed');
+  
+  if (!betsToRefund?.length) {
+    console.log('No confirmed bets to refund');
+    return true;
+  }
+  
+  // Calculate refund amounts (original amount minus 1% fee)
+  for (const bet of betsToRefund) {
+    const fee = Math.floor(bet.amount * (REFUND_FEE_PERCENT / 100));
+    const refundAmount = bet.amount - fee;
+    
+    await supabase
+      .from('bets')
+      .update({ 
+        status: 'refunded', 
+        payout_amount: refundAmount,
+        platform_fee: fee 
+      })
+      .eq('id', bet.id);
+    
+    console.log(`Bet ${bet.id}: refund=${refundAmount} (fee=${fee})`);
+  }
+  
+  // Trigger payout for refunds
+  await new Promise(resolve => setTimeout(resolve, 500));
+  
+  const { error: payoutError } = await supabase.functions.invoke('send-payouts', {
+    body: { prediction_id: predictionId }
+  });
+  
+  if (payoutError) {
+    console.error('send-payouts (refund) failed:', payoutError);
+  } else {
+    console.log(`✅ Refunds triggered for ${predictionId}`);
+  }
+  
+  return true;
+}
+
 async function processPayouts(supabase: any, predictionId: string, winningPosition: 'yes' | 'no'): Promise<void> {
   console.log(`💰 Processing payouts for ${predictionId}, winner: ${winningPosition}`);
+  
+  // First check if this is a one-sided bet situation - if so, refund instead
+  const wasRefunded = await processRefunds(supabase, predictionId);
+  if (wasRefunded) {
+    console.log(`💸 Prediction ${predictionId} was one-sided, processed as refund`);
+    return;
+  }
   
   const { data: prediction, error: predError } = await supabase
     .from('predictions')

@@ -601,7 +601,7 @@ Deno.serve(async (req) => {
     const { prediction_id } = await req.json();
     console.log(`Processing payouts for prediction: ${prediction_id || 'all pending'}`);
 
-    // Get all won bets that haven't been paid out
+    // Get all won OR refunded bets that haven't been paid out
     let query = supabase
       .from('bets')
       .select(`
@@ -609,9 +609,10 @@ Deno.serve(async (req) => {
         user_id,
         amount,
         payout_amount,
+        status,
         users!inner(ecash_address)
       `)
-      .eq('status', 'won')
+      .in('status', ['won', 'refunded'])
       .is('payout_tx_hash', null)
       .not('payout_amount', 'is', null);
 
