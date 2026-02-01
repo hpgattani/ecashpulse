@@ -707,6 +707,15 @@ Deno.serve(async (req) => {
       
       console.log(`Checking: ${pred.title.slice(0, 50)}...`);
       
+      // COST OPTIMIZATION: Check if any bets exist before spending AI credits
+      const { count: betCount } = await supabase
+        .from('bets')
+        .select('*', { count: 'exact', head: true })
+        .eq('prediction_id', pred.id)
+        .eq('status', 'confirmed');
+      
+      const hasBets = (betCount || 0) > 0;
+      
       let oracleResult: OracleResult = { resolved: false };
       let source = 'unknown';
       const titleLower = pred.title.toLowerCase();
@@ -737,6 +746,24 @@ Deno.serve(async (req) => {
       const stockTickers = ['aapl', 'apple', 'googl', 'google', 'open', 'opendoor', 'msft', 'microsoft', 'amzn', 'amazon', 'tsla', 'tesla', 'meta', 'nvda', 'nvidia'];
       const isStock = stockTickers.some(t => titleLower.includes(t) || titleLower.includes(`(${t})`)) && titleLower.includes('up or down');
       
+      // Determine if this oracle type uses AI credits (expensive)
+      const needsAI = !isSpread && !titleLower.includes('flippen') && !isStock && !isCrypto && !isNFL;
+      
+      // Skip AI resolution for predictions with no bets (save credits!)
+      if (needsAI && !hasBets) {
+        console.log(`💰 Skipping AI resolution (no bets): ${pred.title.slice(0, 40)}`);
+        // Auto-cancel zero-bet predictions after 7 days past end date
+        const daysSinceEnd = (now.getTime() - new Date(pred.end_date).getTime()) / 86400000;
+        if (daysSinceEnd > 7) {
+          await supabase
+            .from('predictions')
+            .update({ status: 'cancelled', resolved_at: now.toISOString() })
+            .eq('id', pred.id);
+          console.log(`🗑️ Auto-cancelled (no bets, 7d expired): ${pred.title.slice(0, 40)}`);
+        }
+        continue;
+      }
+      
       if (isSpread) {
         oracleResult = await checkSpreadPrediction(pred.title);
         source = 'NFL Score Oracle';
@@ -753,12 +780,15 @@ Deno.serve(async (req) => {
         oracleResult = await checkSportsResult(pred.title);
         source = 'ESPN';
       } else {
+        // Only spend AI credits if bets exist (already checked above)
+        console.log(`🤖 Running AI consensus (${betCount} bets): ${pred.title.slice(0, 40)}`);
         oracleResult = await checkNewsEvent(pred.title);
-        source = 'Multi-source AI';
+        source = 'AI Consensus';
       }
       
-      // Fallback to news oracle
-      if (!oracleResult.resolved) {
+      // Fallback to AI only if free oracles failed AND bets exist
+      if (!oracleResult.resolved && hasBets) {
+        console.log(`🔄 AI fallback for: ${pred.title.slice(0, 40)}`);
         oracleResult = await checkNewsEvent(pred.title);
         source = 'AI Fallback';
       }
