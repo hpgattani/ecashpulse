@@ -39,6 +39,8 @@ interface TipData {
   recipient: string;
   recipientAddress: string;
   amount: number;
+  rawText: string;
+  note?: string;
 }
 
 const MAX_MESSAGE_LENGTH = 500;
@@ -71,10 +73,17 @@ const parseTipCommand = (text: string): TipData | null => {
   const amount = parseInt(amountToken, 10);
   if (!recipient || !Number.isFinite(amount) || amount <= 0) return null;
 
+  const note = args
+    .filter((p) => p !== usernameToken && p !== amountToken && p.toLowerCase() !== 'xec')
+    .join(' ')
+    .trim();
+
   return {
     recipient,
     recipientAddress: '', // resolved later
     amount,
+    rawText: trimmed,
+    note: note || undefined,
   };
 };
 
@@ -98,7 +107,17 @@ declare global {
 }
 
 // TipPayButton component that properly initializes PayButton
-const TipPayButton = ({ to, amount, recipient }: { to: string; amount: number; recipient: string }) => {
+const TipPayButton = ({
+  to,
+  amount,
+  recipient,
+  rawText,
+}: {
+  to: string;
+  amount: number;
+  recipient: string;
+  rawText?: string;
+}) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -142,12 +161,30 @@ const TipPayButton = ({ to, amount, recipient }: { to: string; amount: number; r
           animation: 'slide',
           hideToasts: true,
           onSuccess: (tx) => {
+            const extractTxHash = (value: unknown): string => {
+              if (!value) return '';
+              if (typeof value === 'string') return value;
+              if (typeof value === 'object') {
+                const v = value as any;
+                return (
+                  v.txid ||
+                  v.txId ||
+                  v.txHash ||
+                  v.hash ||
+                  v?.transaction?.txid ||
+                  ''
+                );
+              }
+              return '';
+            };
+
             window.dispatchEvent(
               new CustomEvent('tipSuccess', {
                 detail: {
                   recipient,
                   amount,
-                  txHash: tx?.txid || '',
+                  txHash: extractTxHash(tx),
+                  rawText,
                 },
               })
             );
@@ -351,6 +388,14 @@ export const ChatRoom = () => {
         // Reset regex lastIndex
         urlPattern.lastIndex = 0;
         const isExplorerLink = urlPart.includes('explorer.e.cash/tx/');
+
+        const explorerLabel = () => {
+          const txid = urlPart.split('/tx/')[1]?.split(/[?#]/)[0] || '';
+          if (!txid) return '🔗 View TX';
+          const short = `${txid.slice(0, 8)}…${txid.slice(-6)}`;
+          return `🔗 TX ${short}`;
+        };
+
         return (
           <a 
             key={`url-${urlIdx}`}
@@ -359,7 +404,7 @@ export const ChatRoom = () => {
             rel="noopener noreferrer"
             className="text-primary underline hover:text-primary/80 break-all"
           >
-            {isExplorerLink ? '🔗 View TX' : urlPart}
+            {isExplorerLink ? explorerLabel() : urlPart}
           </a>
         );
       }
@@ -537,8 +582,8 @@ export const ChatRoom = () => {
 
   // Handle tip success event
   useEffect(() => {
-    const handleTipSuccess = async (e: CustomEvent<{ recipient: string; amount: number; txHash?: string }>) => {
-      const { recipient, amount, txHash } = e.detail;
+    const handleTipSuccess = async (e: CustomEvent<{ recipient: string; amount: number; txHash?: string; rawText?: string }>) => {
+      const { recipient, amount, txHash, rawText } = e.detail;
       toast.success(`Sent ${amount.toLocaleString()} XEC to @${recipient}! 💸`);
       setPendingTip(null);
       setNewMessage('');
@@ -547,9 +592,14 @@ export const ChatRoom = () => {
       if (sessionToken && encrypt) {
         try {
           const txLink = txHash ? `https://explorer.e.cash/tx/${txHash}` : '';
-          const confirmMessage = txHash 
-            ? `💸 Tipped @${recipient} ${amount.toLocaleString()} XEC | TX: ${txLink}`
-            : `💸 Tipped @${recipient} ${amount.toLocaleString()} XEC`;
+          // Include the original /tip text (including any extra note text) + TX link
+          const base = rawText?.trim()
+            ? rawText.trim()
+            : `/tip @${recipient} ${amount.toLocaleString()} xec`;
+
+          const confirmMessage = txHash
+            ? `${base} | TX: ${txLink}`
+            : base;
           const { encrypted, iv } = await encrypt(confirmMessage);
           await supabase.functions.invoke('send-chat-message', {
             body: {
@@ -596,6 +646,35 @@ export const ChatRoom = () => {
         toast.error(`User @${tipCommand.recipient} not found`);
         return;
       }
+
+      // Post the user's /tip message into chat (so it appears in history)
+      setSending(true);
+      try {
+        const { encrypted, iv } = await encrypt(tipCommand.rawText);
+        const { data, error } = await supabase.functions.invoke('send-chat-message', {
+          body: {
+            session_token: sessionToken,
+            encrypted_content: encrypted,
+            iv,
+          },
+        });
+
+        if (error || data?.error) {
+          toast.error(data?.error || 'Failed to send tip message');
+          return;
+        }
+
+        setNewMessage('');
+        setMentionQuery(null);
+        setMentionUsers([]);
+      } catch (error) {
+        console.error('Send tip message error:', error);
+        toast.error('Failed to send tip message');
+        return;
+      } finally {
+        setSending(false);
+      }
+
       setPendingTip({
         ...tipCommand,
         recipientAddress
@@ -955,6 +1034,7 @@ export const ChatRoom = () => {
                     to={pendingTip.recipientAddress}
                     amount={pendingTip.amount}
                     recipient={pendingTip.recipient}
+                    rawText={pendingTip.rawText}
                   />
                 </div>
               </div>
