@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { MessageCircle, Send, Lock, Shield, X, Loader2, SmilePlus } from 'lucide-react';
+import { MessageCircle, Send, Lock, Shield, X, Loader2, SmilePlus, Maximize2, Minimize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -46,6 +46,7 @@ export const ChatRoom = () => {
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [reactingTo, setReactingTo] = useState<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -60,13 +61,23 @@ export const ChatRoom = () => {
     return decrypted;
   }, [decrypt]);
 
-  // Redact ecash address for display (e.g., "ecash:qz6j...0pp")
+  // Redact ecash address for display (e.g., "qz6j...0pp")
   const redactAddress = (address: string): string => {
     if (!address) return 'Anonymous';
     // Remove "ecash:" prefix if present for display
     const cleanAddress = address.replace(/^ecash:/i, '');
     if (cleanAddress.length <= 10) return cleanAddress;
     return `${cleanAddress.slice(0, 6)}...${cleanAddress.slice(-4)}`;
+  };
+
+  // Check if display_name is a real username (not a redacted address pattern)
+  const isRealUsername = (displayName: string | null | undefined): boolean => {
+    if (!displayName) return false;
+    // Redacted addresses look like "qz6jsg..." with exactly 6 chars + "..." + 4 chars
+    const redactedPattern = /^[a-z0-9]{6}\.\.\.[a-z0-9]{4}$/i;
+    // Also check for the old pattern from the trigger that created "qzq2vds3..."
+    const oldTriggerPattern = /^[a-z0-9]{8}\.\.\.$/i;
+    return !redactedPattern.test(displayName) && !oldTriggerPattern.test(displayName);
   };
 
   // Load messages with user info and reactions
@@ -116,7 +127,10 @@ export const ChatRoom = () => {
       const messagesWithProfiles = data.map(msg => {
         const profile = profileMap.get(msg.user_id);
         const ecashAddress = userMap.get(msg.user_id) || '';
-        const displayName = profile?.display_name || redactAddress(ecashAddress);
+        // Use display_name only if it's a real username, not a redacted address
+        const displayName = isRealUsername(profile?.display_name) 
+          ? profile!.display_name 
+          : redactAddress(ecashAddress);
         
         return {
           ...msg,
@@ -160,7 +174,9 @@ export const ChatRoom = () => {
               .single()
           ]);
 
-          const displayName = profileRes.data?.display_name || redactAddress(userRes.data?.ecash_address || '');
+          const displayName = isRealUsername(profileRes.data?.display_name) 
+            ? profileRes.data!.display_name 
+            : redactAddress(userRes.data?.ecash_address || '');
           const decryptedContent = await decrypt(newMsg.encrypted_content, newMsg.iv);
           
           setMessages(prev => [...prev, {
@@ -340,7 +356,11 @@ export const ChatRoom = () => {
 
       {/* Chat Window */}
       {isOpen && (
-        <div className="fixed bottom-6 right-6 z-50 w-96 max-w-[calc(100vw-3rem)] h-[500px] max-h-[calc(100vh-6rem)] bg-card border border-border rounded-lg shadow-2xl flex flex-col overflow-hidden">
+        <div className={`fixed z-50 bg-card border border-border rounded-lg shadow-2xl flex flex-col overflow-hidden transition-all duration-300 ${
+          isFullscreen 
+            ? 'inset-4 w-auto h-auto' 
+            : 'bottom-6 right-6 w-96 max-w-[calc(100vw-3rem)] h-[500px] max-h-[calc(100vh-6rem)]'
+        }`}>
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-border bg-muted/50">
             <div className="flex items-center gap-2">
@@ -350,8 +370,21 @@ export const ChatRoom = () => {
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
                 <Lock className="w-3 h-3" />
-                <span>E2E Encrypted</span>
+                <span className="hidden sm:inline">E2E Encrypted</span>
               </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setIsFullscreen(!isFullscreen)}
+                title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+              >
+                {isFullscreen ? (
+                  <Minimize2 className="w-4 h-4" />
+                ) : (
+                  <Maximize2 className="w-4 h-4" />
+                )}
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"
