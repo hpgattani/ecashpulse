@@ -98,24 +98,25 @@ function isValidTxHash(txHash: unknown): txHash is string {
   return typeof txHash === 'string' && /^[a-f0-9]{64}$/i.test(txHash);
 }
 
-// Chronik endpoints (keep this tight to avoid long waits)
+// Multiple Chronik endpoints for redundancy
 const CHRONIK_ENDPOINTS = [
   'https://chronik.be.cash/xec',
+  'https://ecash.coin.dance/api/chronik',
 ];
 
-// Get sender address from transaction using Chronik API (fast timeout + light retry)
+// Get sender address from transaction using Chronik API with longer timeout and retries
 async function getSenderFromTx(txHash: string): Promise<string | null> {
-  // Try each endpoint with a retry
+  // Try each endpoint with retries
   for (const endpoint of CHRONIK_ENDPOINTS) {
-    for (let attempt = 0; attempt < 2; attempt++) {
+    for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        // Add small delay on retry
+        // Increasing delay on retry (500ms, 1000ms)
         if (attempt > 0) {
-          await new Promise(r => setTimeout(r, 350));
+          await new Promise(r => setTimeout(r, 500 * attempt));
         }
         
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+        const timeout = setTimeout(() => controller.abort(), 12000); // 12 second timeout
         
         const response = await fetch(`${endpoint}/tx/${txHash}`, {
           signal: controller.signal,
