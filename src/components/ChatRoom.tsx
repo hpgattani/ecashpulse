@@ -1,13 +1,21 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { MessageCircle, Send, Lock, Shield, X, Loader2 } from 'lucide-react';
+import { MessageCircle, Send, Lock, Shield, X, Loader2, SmilePlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useChatEncryption } from '@/hooks/useChatEncryption';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
+
+interface ChatReaction {
+  id: string;
+  message_id: string;
+  user_id: string;
+  emoji: string;
+}
 
 interface ChatMessage {
   id: string;
@@ -18,9 +26,11 @@ interface ChatMessage {
   decrypted_content?: string;
   display_name?: string;
   avatar_url?: string;
+  reactions?: ChatReaction[];
 }
 
 const MAX_MESSAGE_LENGTH = 500;
+const ALLOWED_EMOJIS = ['👍', '❤️', '😂', '🔥', '👎', '🎯', '💎'];
 const SPAM_PATTERNS = [
   /(.)\1{10,}/i,
   /(https?:\/\/[^\s]+){3,}/i,
@@ -35,6 +45,7 @@ export const ChatRoom = () => {
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [reactingTo, setReactingTo] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -49,17 +60,11 @@ export const ChatRoom = () => {
     return decrypted;
   }, [decrypt]);
 
-  // Load messages with user info
+  // Load messages with user info and reactions
   const loadMessages = useCallback(async () => {
     const { data, error } = await supabase
       .from('chat_messages')
-      .select(`
-        id,
-        user_id,
-        encrypted_content,
-        iv,
-        created_at
-      `)
+      .select('id, user_id, encrypted_content, iv, created_at')
       .order('created_at', { ascending: true })
       .limit(100);
 
@@ -76,12 +81,27 @@ export const ChatRoom = () => {
         .select('user_id, display_name, avatar_url')
         .in('user_id', userIds);
 
+      // Get reactions for all messages
+      const messageIds = data.map(m => m.id);
+      const { data: reactions } = await supabase
+        .from('chat_reactions')
+        .select('id, message_id, user_id, emoji')
+        .in('message_id', messageIds);
+
       const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
+      const reactionsByMessage = new Map<string, ChatReaction[]>();
+      reactions?.forEach(r => {
+        if (!reactionsByMessage.has(r.message_id)) {
+          reactionsByMessage.set(r.message_id, []);
+        }
+        reactionsByMessage.get(r.message_id)!.push(r);
+      });
       
       const messagesWithProfiles = data.map(msg => ({
         ...msg,
         display_name: profileMap.get(msg.user_id)?.display_name || 'Anonymous',
-        avatar_url: profileMap.get(msg.user_id)?.avatar_url
+        avatar_url: profileMap.get(msg.user_id)?.avatar_url,
+        reactions: reactionsByMessage.get(msg.id) || []
       }));
 
       const decrypted = await decryptMessages(messagesWithProfiles);
@@ -96,19 +116,14 @@ export const ChatRoom = () => {
 
     loadMessages();
 
-    const channel = supabase
+    const messagesChannel = supabase
       .channel('chat-messages')
       .on(
         'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'chat_messages'
-        },
+        { event: 'INSERT', schema: 'public', table: 'chat_messages' },
         async (payload) => {
           const newMsg = payload.new as ChatMessage;
           
-          // Get profile for the new message
           const { data: msgProfile } = await supabase
             .from('profiles')
             .select('display_name, avatar_url')
@@ -121,14 +136,49 @@ export const ChatRoom = () => {
             ...newMsg,
             decrypted_content: decryptedContent,
             display_name: msgProfile?.display_name || 'Anonymous',
-            avatar_url: msgProfile?.avatar_url
+            avatar_url: msgProfile?.avatar_url,
+            reactions: []
           }]);
         }
       )
       .subscribe();
 
+    const reactionsChannel = supabase
+      .channel('chat-reactions')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'chat_reactions' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const newReaction = payload.new as ChatReaction;
+            setMessages(prev => prev.map(msg => {
+              if (msg.id === newReaction.message_id) {
+                return {
+                  ...msg,
+                  reactions: [...(msg.reactions || []), newReaction]
+                };
+              }
+              return msg;
+            }));
+          } else if (payload.eventType === 'DELETE') {
+            const oldReaction = payload.old as { id: string; message_id: string };
+            setMessages(prev => prev.map(msg => {
+              if (msg.id === oldReaction.message_id) {
+                return {
+                  ...msg,
+                  reactions: (msg.reactions || []).filter(r => r.id !== oldReaction.id)
+                };
+              }
+              return msg;
+            }));
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(messagesChannel);
+      supabase.removeChannel(reactionsChannel);
     };
   }, [isOpen, loadMessages, decrypt]);
 
@@ -149,7 +199,6 @@ export const ChatRoom = () => {
 
     const trimmedMessage = newMessage.trim();
 
-    // Validation
     if (trimmedMessage.length > MAX_MESSAGE_LENGTH) {
       toast.error(`Message too long (max ${MAX_MESSAGE_LENGTH} characters)`);
       return;
@@ -163,7 +212,6 @@ export const ChatRoom = () => {
     setSending(true);
 
     try {
-      // Encrypt the message
       const { encrypted, iv } = await encrypt(trimmedMessage);
 
       const { data, error } = await supabase.functions.invoke('send-chat-message', {
@@ -189,11 +237,59 @@ export const ChatRoom = () => {
     }
   };
 
+  const handleReaction = async (messageId: string, emoji: string) => {
+    if (!sessionToken) return;
+
+    setReactingTo(messageId);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('toggle-chat-reaction', {
+        body: {
+          session_token: sessionToken,
+          message_id: messageId,
+          emoji
+        }
+      });
+
+      if (error || data?.error) {
+        toast.error(data?.error || 'Failed to add reaction');
+      }
+    } catch (error) {
+      console.error('Reaction error:', error);
+      toast.error('Failed to add reaction');
+    } finally {
+      setReactingTo(null);
+    }
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
+  };
+
+  // Group reactions by emoji with counts
+  const getReactionSummary = (reactions: ChatReaction[] = []) => {
+    const summary: { emoji: string; count: number; userReacted: boolean }[] = [];
+    const emojiMap = new Map<string, { count: number; userReacted: boolean }>();
+
+    reactions.forEach(r => {
+      if (!emojiMap.has(r.emoji)) {
+        emojiMap.set(r.emoji, { count: 0, userReacted: false });
+      }
+      const entry = emojiMap.get(r.emoji)!;
+      entry.count++;
+      if (r.user_id === user?.id) {
+        entry.userReacted = true;
+      }
+    });
+
+    emojiMap.forEach((value, emoji) => {
+      summary.push({ emoji, ...value });
+    });
+
+    return summary;
   };
 
   if (!user) {
@@ -256,28 +352,82 @@ export const ChatRoom = () => {
               <div className="space-y-4">
                 {messages.map((msg) => {
                   const isOwn = msg.user_id === user.id;
+                  const reactionSummary = getReactionSummary(msg.reactions);
+                  
                   return (
                     <div
                       key={msg.id}
                       className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
                     >
-                      <div
-                        className={`max-w-[80%] rounded-lg px-3 py-2 ${
-                          isOwn
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-muted'
-                        }`}
-                      >
-                        {!isOwn && (
-                          <div className="text-xs font-medium mb-1 opacity-70">
-                            {msg.display_name}
+                      <div className="max-w-[80%] group">
+                        <div
+                          className={`rounded-lg px-3 py-2 ${
+                            isOwn
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-muted'
+                          }`}
+                        >
+                          {!isOwn && (
+                            <div className="text-xs font-medium mb-1 opacity-70">
+                              {msg.display_name}
+                            </div>
+                          )}
+                          <div className="text-sm break-words">
+                            {msg.decrypted_content}
+                          </div>
+                          <div className={`text-[10px] mt-1 ${isOwn ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>
+                            {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
+                          </div>
+                        </div>
+
+                        {/* Reactions Display */}
+                        {reactionSummary.length > 0 && (
+                          <div className={`flex flex-wrap gap-1 mt-1 ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                            {reactionSummary.map(({ emoji, count, userReacted }) => (
+                              <button
+                                key={emoji}
+                                onClick={() => handleReaction(msg.id, emoji)}
+                                className={`text-xs px-1.5 py-0.5 rounded-full border transition-colors ${
+                                  userReacted 
+                                    ? 'bg-primary/20 border-primary/50' 
+                                    : 'bg-muted border-border hover:bg-muted/80'
+                                }`}
+                              >
+                                {emoji} {count}
+                              </button>
+                            ))}
                           </div>
                         )}
-                        <div className="text-sm break-words">
-                          {msg.decrypted_content}
-                        </div>
-                        <div className={`text-[10px] mt-1 ${isOwn ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>
-                          {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
+
+                        {/* Add Reaction Button */}
+                        <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mt-1`}>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <button
+                                className="opacity-0 group-hover:opacity-100 transition-opacity text-xs text-muted-foreground hover:text-foreground p-1 rounded"
+                                disabled={reactingTo === msg.id}
+                              >
+                                {reactingTo === msg.id ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  <SmilePlus className="w-3.5 h-3.5" />
+                                )}
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-2" side="top">
+                              <div className="flex gap-1">
+                                {ALLOWED_EMOJIS.map((emoji) => (
+                                  <button
+                                    key={emoji}
+                                    onClick={() => handleReaction(msg.id, emoji)}
+                                    className="text-lg hover:scale-125 transition-transform p-1"
+                                  >
+                                    {emoji}
+                                  </button>
+                                ))}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
                         </div>
                       </div>
                     </div>
