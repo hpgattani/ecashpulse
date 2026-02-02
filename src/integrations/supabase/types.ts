@@ -84,6 +84,70 @@ export type Database = {
           },
         ]
       }
+      chat_messages: {
+        Row: {
+          created_at: string
+          encrypted_content: string
+          id: string
+          iv: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          encrypted_content: string
+          id?: string
+          iv: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          encrypted_content?: string
+          id?: string
+          iv?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_rate_limits: {
+        Row: {
+          id: string
+          last_message_at: string
+          message_count: number
+          user_id: string
+          window_start: string
+        }
+        Insert: {
+          id?: string
+          last_message_at?: string
+          message_count?: number
+          user_id: string
+          window_start?: string
+        }
+        Update: {
+          id?: string
+          last_message_at?: string
+          message_count?: number
+          user_id?: string
+          window_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_rate_limits_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       comments: {
         Row: {
           content: string
