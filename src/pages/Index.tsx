@@ -12,6 +12,7 @@ import { Leaderboard } from '@/components/Leaderboard';
 import HowItWorks from '@/components/HowItWorks';
 import Footer from '@/components/Footer';
 import PublicBets from '@/components/PublicBets';
+import { ChatRoom } from '@/components/ChatRoom';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePredictions } from '@/hooks/usePredictions';
 
@@ -93,6 +94,7 @@ const Index = () => {
           <HowItWorks />
         </main>
         <Footer />
+        <ChatRoom />
       </div>
     </>
   );
