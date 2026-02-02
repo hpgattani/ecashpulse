@@ -792,9 +792,7 @@ export const ChatRoom = () => {
     return summary;
   };
 
-  if (!user) {
-    return null;
-  }
+  const isGuest = !user;
 
   return (
     <>
@@ -893,7 +891,7 @@ export const ChatRoom = () => {
             ) : (
               <div className="space-y-4">
                 {messages.map((msg) => {
-                  const isOwn = msg.user_id === user.id;
+                  const isOwn = user ? msg.user_id === user.id : false;
                   const reactionSummary = getReactionSummary(msg.reactions);
                   
                   return (
@@ -928,12 +926,13 @@ export const ChatRoom = () => {
                             {reactionSummary.map(({ emoji, count, userReacted }) => (
                               <button
                                 key={emoji}
-                                onClick={() => handleReaction(msg.id, emoji)}
+                                onClick={() => !isGuest && handleReaction(msg.id, emoji)}
+                                disabled={isGuest}
                                 className={`text-xs px-1.5 py-0.5 rounded-full border transition-colors ${
                                   userReacted 
                                     ? 'bg-primary/20 border-primary/50' 
                                     : 'bg-muted border-border hover:bg-muted/80'
-                                }`}
+                                } ${isGuest ? 'cursor-default' : ''}`}
                               >
                                 {emoji} {count}
                               </button>
@@ -941,36 +940,38 @@ export const ChatRoom = () => {
                           </div>
                         )}
 
-                        {/* Add Reaction Button */}
-                        <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mt-1`}>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <button
-                                className="opacity-0 group-hover:opacity-100 transition-opacity text-xs text-muted-foreground hover:text-foreground p-1 rounded"
-                                disabled={reactingTo === msg.id}
-                              >
-                                {reactingTo === msg.id ? (
-                                  <Loader2 className="w-3 h-3 animate-spin" />
-                                ) : (
-                                  <SmilePlus className="w-3.5 h-3.5" />
-                                )}
-                              </button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-2" side="top">
-                              <div className="flex gap-1">
-                                {ALLOWED_EMOJIS.map((emoji) => (
-                                  <button
-                                    key={emoji}
-                                    onClick={() => handleReaction(msg.id, emoji)}
-                                    className="text-lg hover:scale-125 transition-transform p-1"
-                                  >
-                                    {emoji}
-                                  </button>
-                                ))}
-                              </div>
-                            </PopoverContent>
-                          </Popover>
-                        </div>
+                        {/* Add Reaction Button - only for logged in users */}
+                        {!isGuest && (
+                          <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mt-1`}>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <button
+                                  className="opacity-0 group-hover:opacity-100 transition-opacity text-xs text-muted-foreground hover:text-foreground p-1 rounded"
+                                  disabled={reactingTo === msg.id}
+                                >
+                                  {reactingTo === msg.id ? (
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                  ) : (
+                                    <SmilePlus className="w-3.5 h-3.5" />
+                                  )}
+                                </button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-2" side="top">
+                                <div className="flex gap-1">
+                                  {ALLOWED_EMOJIS.map((emoji) => (
+                                    <button
+                                      key={emoji}
+                                      onClick={() => handleReaction(msg.id, emoji)}
+                                      className="text-lg hover:scale-125 transition-transform p-1"
+                                    >
+                                      {emoji}
+                                    </button>
+                                  ))}
+                                </div>
+                              </PopoverContent>
+                            </Popover>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -981,8 +982,8 @@ export const ChatRoom = () => {
 
           {/* Input */}
           <div className="p-4 border-t border-border bg-muted/30 relative">
-            {/* Mention Autocomplete Dropdown */}
-            {mentionQuery !== null && mentionUsers.length > 0 && (
+            {/* Mention Autocomplete Dropdown - only for logged in users */}
+            {!isGuest && mentionQuery !== null && mentionUsers.length > 0 && (
               <div className="absolute bottom-full left-4 right-4 mb-1 bg-popover border border-border rounded-lg shadow-lg overflow-hidden z-10">
                 {mentionUsers.map((mentionUser, index) => (
                   <button
@@ -1002,7 +1003,7 @@ export const ChatRoom = () => {
               </div>
             )}
             
-            {loadingMentions && mentionQuery !== null && (
+            {!isGuest && loadingMentions && mentionQuery !== null && (
               <div className="absolute bottom-full left-4 right-4 mb-1 bg-popover border border-border rounded-lg shadow-lg p-3 z-10">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="w-3 h-3 animate-spin" />
@@ -1011,8 +1012,8 @@ export const ChatRoom = () => {
               </div>
             )}
 
-            {/* Pending Tip Modal */}
-            {pendingTip && (
+            {/* Pending Tip Modal - only for logged in users */}
+            {!isGuest && pendingTip && (
               <div className="absolute bottom-full left-4 right-4 mb-2 bg-card border border-border rounded-lg shadow-xl p-4 z-20">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
@@ -1040,31 +1041,51 @@ export const ChatRoom = () => {
               </div>
             )}
 
-            <div className="flex gap-2">
-              <Input
-                ref={inputRef}
-                value={newMessage}
-                onChange={(e) => handleInputChange(e.target.value)}
-                onKeyDown={handleKeyPress}
-                placeholder="Type a message... @mention or /tip @user amount"
-                disabled={sending}
-                className="flex-1"
-              />
-              <Button
-                onClick={handleSend}
-                disabled={!newMessage.trim() || sending}
-                size="icon"
-              >
-                {sending ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Send className="w-4 h-4" />
-                )}
-              </Button>
-            </div>
-            <div className="text-xs text-muted-foreground mt-2 text-right">
-              {newMessage.length}/{MAX_MESSAGE_LENGTH}
-            </div>
+            {isGuest ? (
+              <div className="flex items-center justify-center gap-2 py-2 px-3 bg-muted/50 rounded-lg border border-border">
+                <Lock className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Connect wallet to chat</span>
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={() => {
+                    setIsOpen(false);
+                    // Trigger auth modal - assuming there's a login button in the header
+                    document.querySelector<HTMLButtonElement>('[data-auth-trigger]')?.click();
+                  }}
+                >
+                  Connect
+                </Button>
+              </div>
+            ) : (
+              <>
+                <div className="flex gap-2">
+                  <Input
+                    ref={inputRef}
+                    value={newMessage}
+                    onChange={(e) => handleInputChange(e.target.value)}
+                    onKeyDown={handleKeyPress}
+                    placeholder="Type a message... @mention or /tip @user amount"
+                    disabled={sending}
+                    className="flex-1"
+                  />
+                  <Button
+                    onClick={handleSend}
+                    disabled={!newMessage.trim() || sending}
+                    size="icon"
+                  >
+                    {sending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Send className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+                <div className="text-xs text-muted-foreground mt-2 text-right">
+                  {newMessage.length}/{MAX_MESSAGE_LENGTH}
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
