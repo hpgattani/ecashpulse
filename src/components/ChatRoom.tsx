@@ -60,6 +60,15 @@ export const ChatRoom = () => {
     return decrypted;
   }, [decrypt]);
 
+  // Redact ecash address for display (e.g., "ecash:qz6j...0pp")
+  const redactAddress = (address: string): string => {
+    if (!address) return 'Anonymous';
+    // Remove "ecash:" prefix if present for display
+    const cleanAddress = address.replace(/^ecash:/i, '');
+    if (cleanAddress.length <= 10) return cleanAddress;
+    return `${cleanAddress.slice(0, 6)}...${cleanAddress.slice(-4)}`;
+  };
+
   // Load messages with user info and reactions
   const loadMessages = useCallback(async () => {
     const { data, error } = await supabase
@@ -81,6 +90,12 @@ export const ChatRoom = () => {
         .select('user_id, display_name, avatar_url')
         .in('user_id', userIds);
 
+      // Get user addresses for fallback display names
+      const { data: users } = await supabase
+        .from('users')
+        .select('id, ecash_address')
+        .in('id', userIds);
+
       // Get reactions for all messages
       const messageIds = data.map(m => m.id);
       const { data: reactions } = await supabase
@@ -89,6 +104,7 @@ export const ChatRoom = () => {
         .in('message_id', messageIds);
 
       const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
+      const userMap = new Map(users?.map(u => [u.id, u.ecash_address]) || []);
       const reactionsByMessage = new Map<string, ChatReaction[]>();
       reactions?.forEach(r => {
         if (!reactionsByMessage.has(r.message_id)) {
@@ -97,12 +113,18 @@ export const ChatRoom = () => {
         reactionsByMessage.get(r.message_id)!.push(r);
       });
       
-      const messagesWithProfiles = data.map(msg => ({
-        ...msg,
-        display_name: profileMap.get(msg.user_id)?.display_name || 'Anonymous',
-        avatar_url: profileMap.get(msg.user_id)?.avatar_url,
-        reactions: reactionsByMessage.get(msg.id) || []
-      }));
+      const messagesWithProfiles = data.map(msg => {
+        const profile = profileMap.get(msg.user_id);
+        const ecashAddress = userMap.get(msg.user_id) || '';
+        const displayName = profile?.display_name || redactAddress(ecashAddress);
+        
+        return {
+          ...msg,
+          display_name: displayName,
+          avatar_url: profile?.avatar_url,
+          reactions: reactionsByMessage.get(msg.id) || []
+        };
+      });
 
       const decrypted = await decryptMessages(messagesWithProfiles);
       setMessages(decrypted);
@@ -124,19 +146,28 @@ export const ChatRoom = () => {
         async (payload) => {
           const newMsg = payload.new as ChatMessage;
           
-          const { data: msgProfile } = await supabase
-            .from('profiles')
-            .select('display_name, avatar_url')
-            .eq('user_id', newMsg.user_id)
-            .single();
+          // Fetch both profile and user address for display name fallback
+          const [profileRes, userRes] = await Promise.all([
+            supabase
+              .from('profiles')
+              .select('display_name, avatar_url')
+              .eq('user_id', newMsg.user_id)
+              .single(),
+            supabase
+              .from('users')
+              .select('ecash_address')
+              .eq('id', newMsg.user_id)
+              .single()
+          ]);
 
+          const displayName = profileRes.data?.display_name || redactAddress(userRes.data?.ecash_address || '');
           const decryptedContent = await decrypt(newMsg.encrypted_content, newMsg.iv);
           
           setMessages(prev => [...prev, {
             ...newMsg,
             decrypted_content: decryptedContent,
-            display_name: msgProfile?.display_name || 'Anonymous',
-            avatar_url: msgProfile?.avatar_url,
+            display_name: displayName,
+            avatar_url: profileRes.data?.avatar_url,
             reactions: []
           }]);
         }
