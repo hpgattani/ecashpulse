@@ -374,7 +374,8 @@ export const ChatRoom = () => {
   }, []);
 
   // Render message content with styled mentions and links
-  const renderMessageContent = (content: string) => {
+  // isOwn determines if we need contrasting colors for own messages (primary background)
+  const renderMessageContent = (content: string, isOwn: boolean = false) => {
     // Split by @mentions and URLs, highlight them appropriately
     const urlPattern = /(https?:\/\/[^\s]+)/g;
     const mentionPattern = /(@\w+)/g;
@@ -402,7 +403,11 @@ export const ChatRoom = () => {
             href={urlPart}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-primary underline hover:text-primary/80 break-all"
+            className={`underline break-all ${
+              isOwn 
+                ? 'text-primary-foreground/90 hover:text-primary-foreground' 
+                : 'text-primary hover:text-primary/80'
+            }`}
           >
             {isExplorerLink ? explorerLabel() : urlPart}
           </a>
@@ -414,7 +419,14 @@ export const ChatRoom = () => {
       return mentionParts.map((part, mentionIdx) => {
         if (part.startsWith('@')) {
           return (
-            <span key={`mention-${urlIdx}-${mentionIdx}`} className="text-primary font-medium">
+            <span 
+              key={`mention-${urlIdx}-${mentionIdx}`} 
+              className={`font-semibold ${
+                isOwn 
+                  ? 'text-primary-foreground underline decoration-primary-foreground/50' 
+                  : 'text-primary'
+              }`}
+            >
               {part}
             </span>
           );
@@ -573,12 +585,17 @@ export const ChatRoom = () => {
     };
   }, [isOpen, loadMessages, decrypt]);
 
-  // Auto-scroll to bottom
+  // Auto-scroll to bottom when messages load or change
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (scrollRef.current && messages.length > 0) {
+      // Use setTimeout to ensure DOM has updated
+      setTimeout(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+      }, 50);
     }
-  }, [messages]);
+  }, [messages, isOpen]);
 
   // Handle tip success event - post TX link as follow-up message
   useEffect(() => {
@@ -906,7 +923,7 @@ export const ChatRoom = () => {
                             </div>
                           )}
                           <div className="text-sm break-words">
-                            {renderMessageContent(msg.decrypted_content || '')}
+                            {renderMessageContent(msg.decrypted_content || '', isOwn)}
                           </div>
                           <div className={`text-[10px] mt-1 ${isOwn ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>
                             {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
