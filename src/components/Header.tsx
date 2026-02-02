@@ -288,6 +288,18 @@ const Header = () => {
                         size="sm"
                         className="w-full gap-2"
                         onClick={() => {
+                          setIsProfileOpen(true);
+                          setIsMenuOpen(false);
+                        }}
+                      >
+                        <User className="w-4 h-4" />
+                        {t.editProfile}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full gap-2"
+                        onClick={() => {
                           logout();
                           setIsMenuOpen(false);
                         }}
