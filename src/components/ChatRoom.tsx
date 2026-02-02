@@ -87,24 +87,7 @@ const parseTipCommand = (text: string): TipData | null => {
   };
 };
 
-// Declare PayButton type for window
-declare global {
-  interface Window {
-    PayButton?: {
-      render: (container: HTMLElement, config: {
-        to: string;
-        amount: number;
-        currency: string;
-        text: string;
-        hoverText: string;
-        successText: string;
-        animation: string;
-        hideToasts: boolean;
-        onSuccess: (tx: { txid?: string }) => void;
-      }) => void;
-    };
-  }
-}
+import '@/types/paybutton.d.ts';
 
 // TipPayButton component that properly initializes PayButton
 const TipPayButton = ({
@@ -904,7 +887,7 @@ export const ChatRoom = () => {
           </div>
 
           {/* Messages */}
-          <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+          <ScrollArea className="flex-1 p-4" viewportRef={scrollRef}>
             {loading ? (
               <div className="flex items-center justify-center h-full">
                 <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />

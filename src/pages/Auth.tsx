@@ -13,25 +13,7 @@ import { ChronikClient } from 'chronik-client';
 const AUTH_WALLET = 'ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp';
 const AUTH_AMOUNT = 5.46; // XEC amount for verification
 
-declare global {
-  interface Window {
-    PayButton?: {
-      render: (element: HTMLElement, config: Record<string, unknown>) => void;
-    };
-  }
-}
-
-interface PayButtonTransaction {
-  hash: string;
-  amount: string;
-  paymentId: string;
-  confirmed?: boolean;
-  message: string;
-  timestamp: number;
-  address: string;
-  rawMessage?: string;
-  inputAddresses?: string[];
-}
+import type { PayButtonTransaction } from '@/types/paybutton.d.ts';
 
 const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
