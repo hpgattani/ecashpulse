@@ -94,10 +94,12 @@ function outputScriptToAddress(script: string): string | null {
   }
 }
 
+const CHRONIK_URL = 'https://chronik.be.cash/xec';
+
 // Get sender address from transaction using Chronik API
 async function getSenderFromTx(txHash: string): Promise<string | null> {
   try {
-    const response = await fetch(`https://chronik.fabien.cash/tx/${txHash}`);
+    const response = await fetch(`${CHRONIK_URL}/tx/${txHash}`);
     if (!response.ok) {
       console.error(`Chronik API error: ${response.status}`);
       return null;
