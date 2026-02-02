@@ -966,23 +966,23 @@ export const ChatRoom = () => {
                             <Popover>
                               <PopoverTrigger asChild>
                                 <button
-                                  className="opacity-0 group-hover:opacity-100 transition-opacity text-xs text-muted-foreground hover:text-foreground p-1 rounded"
+                                  className="md:opacity-0 md:group-hover:opacity-100 opacity-60 transition-opacity text-xs text-muted-foreground hover:text-foreground active:text-foreground p-1.5 rounded-md active:bg-muted/50 touch-manipulation"
                                   disabled={reactingTo === msg.id}
                                 >
                                   {reactingTo === msg.id ? (
-                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                    <Loader2 className="w-4 h-4 animate-spin" />
                                   ) : (
-                                    <SmilePlus className="w-3.5 h-3.5" />
+                                    <SmilePlus className="w-4 h-4" />
                                   )}
                                 </button>
                               </PopoverTrigger>
-                              <PopoverContent className="w-auto p-2" side="top">
-                                <div className="flex gap-1">
+                              <PopoverContent className="w-auto p-2" side="top" align="center">
+                                <div className="flex gap-2">
                                   {ALLOWED_EMOJIS.map((emoji) => (
                                     <button
                                       key={emoji}
                                       onClick={() => handleReaction(msg.id, emoji)}
-                                      className="text-lg hover:scale-125 transition-transform p-1"
+                                      className="text-xl hover:scale-125 active:scale-110 transition-transform p-1.5 touch-manipulation"
                                     >
                                       {emoji}
                                     </button>
