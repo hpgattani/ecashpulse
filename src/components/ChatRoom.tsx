@@ -588,14 +588,29 @@ export const ChatRoom = () => {
   // Auto-scroll to bottom when messages load or change
   useEffect(() => {
     if (scrollRef.current && messages.length > 0) {
-      // Use setTimeout to ensure DOM has updated
-      setTimeout(() => {
-        if (scrollRef.current) {
-          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-        }
-      }, 50);
+      // Use requestAnimationFrame + setTimeout to ensure DOM has fully updated
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          if (scrollRef.current) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+          }
+        }, 100);
+      });
     }
-  }, [messages, isOpen]);
+  }, [messages]);
+
+  // Scroll to bottom when chat opens
+  useEffect(() => {
+    if (isOpen && scrollRef.current && messages.length > 0) {
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          if (scrollRef.current) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+          }
+        }, 150);
+      });
+    }
+  }, [isOpen]);
 
   // Handle tip success event - post TX link as follow-up message
   useEffect(() => {
