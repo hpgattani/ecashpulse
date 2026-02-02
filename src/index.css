@@ -777,7 +777,51 @@
   --paybutton-secondary-color: hsl(var(--muted)) !important;
 }
 
-/* Style PayButton container */
+/* PayButton popup/modal container */
+.paybutton-widget > div,
+[class*="paybutton"] > div,
+div[id^="paybutton"] > div {
+  background: hsl(var(--card)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: 
+    0 8px 32px hsl(0 0% 0% / 0.4),
+    0 0 0 1px hsl(var(--primary) / 0.1) !important;
+  backdrop-filter: blur(20px) !important;
+}
+
+/* PayButton header text */
+.paybutton-widget span,
+.paybutton-widget p,
+.paybutton-widget div:not([class]),
+[class*="paybutton"] span,
+[class*="paybutton"] p,
+div[id^="paybutton"] span,
+div[id^="paybutton"] p {
+  color: hsl(var(--foreground)) !important;
+}
+
+/* PayButton "Click to copy" and footer text */
+.paybutton-widget small,
+.paybutton-widget a,
+[class*="paybutton"] small,
+[class*="paybutton"] a,
+div[id^="paybutton"] small,
+div[id^="paybutton"] a {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+/* QR code container */
+.paybutton-widget svg,
+.paybutton-widget canvas,
+[class*="paybutton"] svg,
+[class*="paybutton"] canvas {
+  background: white !important;
+  border-radius: calc(var(--radius) - 4px) !important;
+  padding: 8px !important;
+}
+
+/* Style PayButton main button */
 .paybutton-widget button,
 [class*="paybutton"] button,
 div[id^="paybutton"] button {
@@ -805,6 +849,15 @@ div[id^="paybutton"] button:hover {
 }
 
 /* Light mode PayButton adjustments */
+.light .paybutton-widget > div,
+.light [class*="paybutton"] > div,
+.light div[id^="paybutton"] > div {
+  background: hsl(var(--card)) !important;
+  box-shadow: 
+    0 8px 32px hsl(0 0% 0% / 0.15),
+    0 0 0 1px hsl(var(--primary) / 0.15) !important;
+}
+
 .light .paybutton-widget button,
 .light [class*="paybutton"] button,
 .light div[id^="paybutton"] button {
