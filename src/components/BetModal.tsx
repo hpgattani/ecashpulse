@@ -38,6 +38,7 @@ interface BetModalProps {
 
 const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: BetModalProps) => {
   const payButtonRef = useRef<HTMLDivElement>(null);
+  const submitLockRef = useRef(false);
   const { user, sessionToken } = useAuth();
   const navigate = useNavigate();
   const { t } = useLanguage();
@@ -45,6 +46,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
   const [betSuccess, setBetSuccess] = useState(false);
   const [betProcessing, setBetProcessing] = useState(false);
   const [betError, setBetError] = useState<{ title: string; details: string } | null>(null);
+  const [lastTxHash, setLastTxHash] = useState<string | null>(null);
   const [betPosition, setBetPosition] = useState<"yes" | "no">(position);
 
   // If a specific outcome is selected, always treat it as "bet ON this outcome"
@@ -55,6 +57,17 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
       setBetPosition(position);
     }
   }, [position, selectedOutcome]);
+
+  // Reset transient state when opening/closing the modal
+  useEffect(() => {
+    if (isOpen) {
+      setBetSuccess(false);
+      setBetProcessing(false);
+      setBetError(null);
+      setLastTxHash(null);
+      submitLockRef.current = false;
+    }
+  }, [isOpen]);
 
   // Calculate potential payout using actual pool values (parimutuel formula)
   const betAmountXec = parseFloat(betAmount) || 0;
@@ -135,6 +148,10 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
     async (txHash?: string) => {
       if (!user || !sessionToken) return;
 
+      // Prevent double submission (PayButton can fire onSuccess twice on some devices)
+      if (submitLockRef.current) return;
+      submitLockRef.current = true;
+
       // IMMEDIATELY close PayButton modal/QR code
       closePayButtonModal();
       
@@ -152,7 +169,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
             prediction_id: prediction.id,
             position: betPosition,
             amount: betAmountSatoshis,
-            tx_hash: txHash || `pb_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
+            tx_hash: txHash,
             outcome_id: selectedOutcome?.id || null,
           },
         });
@@ -172,6 +189,9 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
             description: errorDetails,
             duration: 8000,
           });
+
+          // Allow retry (for verification propagation) without forcing user to pay again
+          submitLockRef.current = false;
           return;
         }
 
@@ -201,6 +221,8 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
         triggerHaptic('error');
         setBetError({ title: "Failed to place bet", details: err.message });
         toast.error("Failed to place bet", { description: err.message });
+
+        submitLockRef.current = false;
       }
     },
     [user, sessionToken, betAmount, prediction.id, betPosition, selectedOutcome, onClose, closePayButtonModal, t],
@@ -272,6 +294,25 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
               txHash = txResult.txId;
             }
 
+            const isValidTxId =
+              typeof txHash === "string" && /^[a-f0-9]{64}$/i.test(txHash);
+
+            if (!isValidTxId) {
+              setBetError({
+                title: "Transaction hash missing",
+                details:
+                  "Payment succeeded but the wallet didn't return a transaction id, so we can't verify sender/address. Please try again with a wallet that provides a tx id.",
+              });
+              toast.error("Transaction hash missing", {
+                description:
+                  "Payment succeeded but no tx id was returned, so verification can't run.",
+                duration: 8000,
+              });
+              submitLockRef.current = false;
+              return;
+            }
+
+            setLastTxHash(txHash!);
             recordBet(txHash);
           },
           onError: (error: any) => {
@@ -382,9 +423,28 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                   <p className="text-muted-foreground mb-6 text-sm px-2">
                     {betError.details}
                   </p>
-                  <Button variant="outline" onClick={() => { setBetError(null); onClose(); }}>
-                    Close
-                  </Button>
+                  <div className="flex items-center justify-center gap-3">
+                    {lastTxHash ? (
+                      <Button
+                        onClick={() => {
+                          setBetError(null);
+                          submitLockRef.current = false;
+                          recordBet(lastTxHash);
+                        }}
+                      >
+                        Retry verification
+                      </Button>
+                    ) : null}
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setBetError(null);
+                        onClose();
+                      }}
+                    >
+                      Close
+                    </Button>
+                  </div>
                 </div>
               ) : betSuccess ? (
                 <div className="text-center py-8">
