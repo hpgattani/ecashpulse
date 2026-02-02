@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useChatEncryption } from '@/hooks/useChatEncryption';
@@ -15,6 +16,7 @@ interface ChatReaction {
   message_id: string;
   user_id: string;
   emoji: string;
+  display_name?: string;
 }
 
 interface ChatMessage {
@@ -454,6 +456,16 @@ export const ChatRoom = () => {
         .select('id, message_id, user_id, emoji')
         .in('message_id', messageIds);
 
+      // Get reactor profiles for display names
+      const reactorIds = [...new Set(reactions?.map(r => r.user_id) || [])];
+      const [reactorProfiles, reactorUsers] = await Promise.all([
+        supabase.from('profiles').select('user_id, display_name').in('user_id', reactorIds),
+        supabase.from('users').select('id, ecash_address').in('id', reactorIds)
+      ]);
+      
+      const reactorProfileMap = new Map(reactorProfiles.data?.map(p => [p.user_id, p.display_name]) || []);
+      const reactorUserMap = new Map(reactorUsers.data?.map(u => [u.id, u.ecash_address]) || []);
+
       const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
       const userMap = new Map(users?.map(u => [u.id, u.ecash_address]) || []);
       const reactionsByMessage = new Map<string, ChatReaction[]>();
@@ -461,7 +473,11 @@ export const ChatRoom = () => {
         if (!reactionsByMessage.has(r.message_id)) {
           reactionsByMessage.set(r.message_id, []);
         }
-        reactionsByMessage.get(r.message_id)!.push(r);
+        // Add display name to reaction
+        const profileName = reactorProfileMap.get(r.user_id);
+        const address = reactorUserMap.get(r.user_id) || '';
+        const displayName = isRealUsername(profileName) ? profileName : redactAddress(address);
+        reactionsByMessage.get(r.message_id)!.push({ ...r, display_name: displayName });
       });
       
       const messagesWithProfiles = data.map(msg => {
@@ -535,14 +551,25 @@ export const ChatRoom = () => {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'chat_reactions' },
-        (payload) => {
+        async (payload) => {
           if (payload.eventType === 'INSERT') {
             const newReaction = payload.new as ChatReaction;
+            
+            // Fetch reactor display name
+            const [profileRes, userRes] = await Promise.all([
+              supabase.from('profiles').select('display_name').eq('user_id', newReaction.user_id).single(),
+              supabase.from('users').select('ecash_address').eq('id', newReaction.user_id).single()
+            ]);
+            
+            const displayName = isRealUsername(profileRes.data?.display_name)
+              ? profileRes.data!.display_name
+              : redactAddress(userRes.data?.ecash_address || '');
+            
             setMessages(prev => prev.map(msg => {
               if (msg.id === newReaction.message_id) {
                 return {
                   ...msg,
-                  reactions: [...(msg.reactions || []), newReaction]
+                  reactions: [...(msg.reactions || []), { ...newReaction, display_name: displayName }]
                 };
               }
               return msg;
@@ -789,17 +816,20 @@ export const ChatRoom = () => {
     }
   };
 
-  // Group reactions by emoji with counts
+  // Group reactions by emoji with counts and user names
   const getReactionSummary = (reactions: ChatReaction[] = []) => {
-    const summary: { emoji: string; count: number; userReacted: boolean }[] = [];
-    const emojiMap = new Map<string, { count: number; userReacted: boolean }>();
+    const summary: { emoji: string; count: number; userReacted: boolean; users: string[] }[] = [];
+    const emojiMap = new Map<string, { count: number; userReacted: boolean; users: string[] }>();
 
     reactions.forEach(r => {
       if (!emojiMap.has(r.emoji)) {
-        emojiMap.set(r.emoji, { count: 0, userReacted: false });
+        emojiMap.set(r.emoji, { count: 0, userReacted: false, users: [] });
       }
       const entry = emojiMap.get(r.emoji)!;
       entry.count++;
+      if (r.display_name) {
+        entry.users.push(r.display_name);
+      }
       if (r.user_id === user?.id) {
         entry.userReacted = true;
       }
@@ -943,20 +973,41 @@ export const ChatRoom = () => {
                         {/* Reactions Display */}
                         {reactionSummary.length > 0 && (
                           <div className={`flex flex-wrap gap-1 mt-1 ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                            {reactionSummary.map(({ emoji, count, userReacted }) => (
-                              <button
-                                key={emoji}
-                                onClick={() => !isGuest && handleReaction(msg.id, emoji)}
-                                disabled={isGuest}
-                                className={`text-xs px-1.5 py-0.5 rounded-full border transition-colors ${
-                                  userReacted 
-                                    ? 'bg-primary/20 border-primary/50' 
-                                    : 'bg-muted border-border hover:bg-muted/80'
-                                } ${isGuest ? 'cursor-default' : ''}`}
-                              >
-                                {emoji} {count}
-                              </button>
-                            ))}
+                            <TooltipProvider delayDuration={200}>
+                              {reactionSummary.map(({ emoji, count, userReacted, users }) => (
+                                <Tooltip key={emoji}>
+                                  <TooltipTrigger asChild>
+                                    <button
+                                      onClick={() => !isGuest && handleReaction(msg.id, emoji)}
+                                      disabled={isGuest}
+                                      className={`text-xs px-1.5 py-0.5 rounded-full border transition-colors touch-manipulation ${
+                                        userReacted 
+                                          ? 'bg-primary/20 border-primary/50' 
+                                          : 'bg-muted border-border hover:bg-muted/80'
+                                      } ${isGuest ? 'cursor-default' : ''}`}
+                                    >
+                                      {emoji} {count}
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="max-w-[200px]">
+                                    <div className="text-xs">
+                                      {users.length > 0 ? (
+                                        <div className="flex flex-col gap-0.5">
+                                          {users.slice(0, 10).map((name, i) => (
+                                            <span key={i}>{name}</span>
+                                          ))}
+                                          {users.length > 10 && (
+                                            <span className="text-muted-foreground">+{users.length - 10} more</span>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <span className="text-muted-foreground">Loading...</span>
+                                      )}
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
+                              ))}
+                            </TooltipProvider>
                           </div>
                         )}
 

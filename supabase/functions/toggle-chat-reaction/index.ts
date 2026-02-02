@@ -93,6 +93,29 @@ Deno.serve(async (req) => {
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     } else {
+      // Enforce limits: 👍 = max 1 per user per message, others = max 3 per user per message
+      const maxAllowed = emoji === '👍' ? 1 : 3;
+      
+      const { data: userReactionsForEmoji } = await supabase
+        .from('chat_reactions')
+        .select('id')
+        .eq('message_id', message_id)
+        .eq('user_id', userId)
+        .eq('emoji', emoji);
+
+      const currentCount = userReactionsForEmoji?.length || 0;
+      
+      if (currentCount >= maxAllowed) {
+        return new Response(
+          JSON.stringify({ 
+            error: emoji === '👍' 
+              ? 'You can only give one 👍 per message' 
+              : `You can only add ${maxAllowed} ${emoji} reactions per message`
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       // Add reaction
       const { error: insertError } = await supabase
         .from('chat_reactions')
