@@ -609,7 +609,7 @@ export const ChatRoom = () => {
       if (sessionToken && encrypt && txHash) {
         try {
           const txLink = `https://explorer.e.cash/tx/${txHash}`;
-          const confirmMessage = `✅ Tip sent to @${recipient}: ${amount.toLocaleString()} XEC | ${txLink}`;
+          const confirmMessage = `💸 Tip sent to @${recipient}: ${amount.toLocaleString()} XEC | ${txLink}`;
           const { encrypted, iv } = await encrypt(confirmMessage);
           await supabase.functions.invoke('send-chat-message', {
             body: {
