@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useChatEncryption } from '@/hooks/useChatEncryption';
@@ -973,41 +972,46 @@ export const ChatRoom = () => {
                         {/* Reactions Display */}
                         {reactionSummary.length > 0 && (
                           <div className={`flex flex-wrap gap-1 mt-1 ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                            <TooltipProvider delayDuration={200}>
-                              {reactionSummary.map(({ emoji, count, userReacted, users }) => (
-                                <Tooltip key={emoji}>
-                                  <TooltipTrigger asChild>
-                                    <button
-                                      onClick={() => !isGuest && handleReaction(msg.id, emoji)}
-                                      disabled={isGuest}
-                                      className={`text-xs px-1.5 py-0.5 rounded-full border transition-colors touch-manipulation ${
-                                        userReacted 
-                                          ? 'bg-primary/20 border-primary/50' 
-                                          : 'bg-muted border-border hover:bg-muted/80'
-                                      } ${isGuest ? 'cursor-default' : ''}`}
-                                    >
-                                      {emoji} {count}
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="top" className="max-w-[200px]">
-                                    <div className="text-xs">
-                                      {users.length > 0 ? (
-                                        <div className="flex flex-col gap-0.5">
-                                          {users.slice(0, 10).map((name, i) => (
-                                            <span key={i}>{name}</span>
-                                          ))}
-                                          {users.length > 10 && (
-                                            <span className="text-muted-foreground">+{users.length - 10} more</span>
-                                          )}
-                                        </div>
-                                      ) : (
-                                        <span className="text-muted-foreground">Loading...</span>
-                                      )}
-                                    </div>
-                                  </TooltipContent>
-                                </Tooltip>
-                              ))}
-                            </TooltipProvider>
+                            {reactionSummary.map(({ emoji, count, userReacted, users }) => (
+                              <Popover key={emoji}>
+                                <PopoverTrigger asChild>
+                                  <button
+                                    className={`text-xs px-1.5 py-0.5 rounded-full border transition-colors touch-manipulation ${
+                                      userReacted 
+                                        ? 'bg-primary/20 border-primary/50' 
+                                        : 'bg-muted border-border hover:bg-muted/80'
+                                    }`}
+                                  >
+                                    {emoji} {count}
+                                  </button>
+                                </PopoverTrigger>
+                                <PopoverContent side="top" align="center" className="w-auto p-2 max-w-[200px]">
+                                  <div className="text-xs space-y-1">
+                                    <div className="font-medium border-b border-border pb-1 mb-1">{emoji} Reactions</div>
+                                    {users.length > 0 ? (
+                                      <div className="flex flex-col gap-0.5">
+                                        {users.slice(0, 10).map((name, i) => (
+                                          <span key={i}>{name}</span>
+                                        ))}
+                                        {users.length > 10 && (
+                                          <span className="text-muted-foreground">+{users.length - 10} more</span>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <span className="text-muted-foreground">Loading...</span>
+                                    )}
+                                    {!isGuest && (
+                                      <button
+                                        onClick={() => handleReaction(msg.id, emoji)}
+                                        className="w-full mt-2 text-center py-1 rounded bg-muted hover:bg-muted/80 transition-colors"
+                                      >
+                                        {userReacted ? 'Remove your reaction' : 'Add reaction'}
+                                      </button>
+                                    )}
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
+                            ))}
                           </div>
                         )}
 
