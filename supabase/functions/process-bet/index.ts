@@ -177,7 +177,7 @@ Deno.serve(async (req) => {
     let user_id = sessionResult.userId;
     console.log(`Processing bet: user=${user_id}, prediction=${prediction_id}, position=${position}, amount=${amount}`);
 
-    // If tx_hash provided, verify the actual sender and use that user instead
+    // If tx_hash provided, verify the actual sender matches the logged-in user
     if (tx_hash) {
       const senderAddress = await getSenderFromTx(tx_hash);
       if (senderAddress) {
@@ -193,35 +193,23 @@ Deno.serve(async (req) => {
         
         const loggedInAddress = loggedInUser?.ecash_address?.trim().toLowerCase();
         
-        // If sender differs from logged-in user, find or create user for sender
+        // REJECT if sender differs from logged-in user
         if (loggedInAddress !== normalizedAddress) {
-          console.log(`Sender (${normalizedAddress}) differs from logged-in user (${loggedInAddress})`);
+          console.log(`REJECTED: Sender (${normalizedAddress}) differs from logged-in user (${loggedInAddress})`);
           
-          // Check if sender wallet already exists as a user
-          let { data: senderUser } = await supabase
-            .from('users')
-            .select('id')
-            .eq('ecash_address', normalizedAddress)
-            .maybeSingle();
+          // Format addresses for display (show first 10 and last 6 chars)
+          const formatAddr = (addr: string) => {
+            if (addr.length <= 20) return addr;
+            return `${addr.slice(0, 16)}...${addr.slice(-6)}`;
+          };
           
-          if (!senderUser) {
-            // Create new user for this wallet
-            const { data: newUser, error: createError } = await supabase
-              .from('users')
-              .insert({ ecash_address: normalizedAddress })
-              .select()
-              .single();
-            
-            if (!createError && newUser) {
-              senderUser = newUser;
-              console.log(`Created new user for sender wallet: ${normalizedAddress}`);
-            }
-          }
-          
-          if (senderUser) {
-            user_id = senderUser.id;
-            console.log(`Re-attributed bet to actual sender: ${user_id}`);
-          }
+          return new Response(
+            JSON.stringify({ 
+              error: 'Wrong wallet used for payment',
+              details: `You paid from ${formatAddr(normalizedAddress)} but you're logged in with ${formatAddr(loggedInAddress || '')}. Please pay from your logged-in wallet.`
+            }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
         }
       }
     }
