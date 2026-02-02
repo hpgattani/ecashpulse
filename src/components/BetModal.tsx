@@ -43,6 +43,8 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
   const { t } = useLanguage();
   const [betAmount, setBetAmount] = useState("100");
   const [betSuccess, setBetSuccess] = useState(false);
+  const [betProcessing, setBetProcessing] = useState(false);
+  const [betError, setBetError] = useState<{ title: string; details: string } | null>(null);
   const [betPosition, setBetPosition] = useState<"yes" | "no">(position);
 
   // If a specific outcome is selected, always treat it as "bet ON this outcome"
@@ -136,11 +138,9 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
       // IMMEDIATELY close PayButton modal/QR code
       closePayButtonModal();
       
-      // Haptic feedback for successful bet
-      triggerHaptic('success');
-      
-      // Show success state right away for better UX
-      setBetSuccess(true);
+      // Show processing state (NOT success yet - wait for API response)
+      setBetProcessing(true);
+      setBetError(null);
 
       const betAmountXec = parseFloat(betAmount);
       const betAmountSatoshis = Math.round(betAmountXec * 100);
@@ -157,20 +157,27 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
           },
         });
 
+        setBetProcessing(false);
+
         if (error || data?.error) {
-          setBetSuccess(false);
           triggerHaptic('error');
           
-          // Show detailed error message if available (e.g., wrong wallet warning)
+          // Show detailed error in modal (not just toast) for visibility
           const errorTitle = data?.error || "Bet recording failed";
           const errorDetails = data?.details || error?.message || "Please try again";
           
+          setBetError({ title: errorTitle, details: errorDetails });
+          
           toast.error(errorTitle, {
             description: errorDetails,
-            duration: 8000, // Show longer for important wallet mismatch errors
+            duration: 8000,
           });
           return;
         }
+
+        // NOW show success - only after API confirms
+        triggerHaptic('success');
+        setBetSuccess(true);
 
         const outcomeLabel = selectedOutcome ? selectedOutcome.label : betPosition.toUpperCase();
         toast.success("Payment Sent!", {
@@ -188,10 +195,11 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
         setTimeout(() => {
           setBetSuccess(false);
           onClose();
-        }, 1200);
+        }, 1500);
       } catch (err: any) {
-        setBetSuccess(false);
+        setBetProcessing(false);
         triggerHaptic('error');
+        setBetError({ title: "Failed to place bet", details: err.message });
         toast.error("Failed to place bet", { description: err.message });
       }
     },
@@ -356,6 +364,25 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                     This market is no longer accepting bets. Awaiting resolution.
                   </p>
                   <Button variant="outline" onClick={onClose}>
+                    Close
+                  </Button>
+                </div>
+              ) : betProcessing ? (
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 mx-auto mb-4 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                  <h2 className="font-display font-bold text-xl text-foreground mb-2">Verifying Payment...</h2>
+                  <p className="text-muted-foreground">
+                    Checking transaction on the blockchain
+                  </p>
+                </div>
+              ) : betError ? (
+                <div className="text-center py-8">
+                  <AlertCircle className="w-16 h-16 text-destructive mx-auto mb-4" />
+                  <h2 className="font-display font-bold text-xl text-foreground mb-2">{betError.title}</h2>
+                  <p className="text-muted-foreground mb-6 text-sm px-2">
+                    {betError.details}
+                  </p>
+                  <Button variant="outline" onClick={() => { setBetError(null); onClose(); }}>
                     Close
                   </Button>
                 </div>

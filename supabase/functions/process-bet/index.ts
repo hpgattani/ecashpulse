@@ -94,29 +94,58 @@ function outputScriptToAddress(script: string): string | null {
   }
 }
 
-const CHRONIK_URL = 'https://chronik.be.cash/xec';
+// Multiple Chronik endpoints for redundancy
+const CHRONIK_ENDPOINTS = [
+  'https://chronik.be.cash/xec',
+  'https://chronik.fabien.cash',
+  'https://xec.coin.space/chronik',
+];
 
-// Get sender address from transaction using Chronik API
+// Get sender address from transaction using Chronik API with fallback endpoints and retry
 async function getSenderFromTx(txHash: string): Promise<string | null> {
-  try {
-    const response = await fetch(`${CHRONIK_URL}/tx/${txHash}`);
-    if (!response.ok) {
-      console.error(`Chronik API error: ${response.status}`);
-      return null;
+  // Try each endpoint with a retry
+  for (const endpoint of CHRONIK_ENDPOINTS) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        // Add small delay on retry
+        if (attempt > 0) {
+          await new Promise(r => setTimeout(r, 500));
+        }
+        
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+        
+        const response = await fetch(`${endpoint}/tx/${txHash}`, {
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+        
+        if (!response.ok) {
+          console.log(`Chronik ${endpoint} returned ${response.status}, trying next...`);
+          continue;
+        }
+        
+        const tx = await response.json();
+        
+        // Extract sender address from first input
+        if (tx.inputs && tx.inputs.length > 0 && tx.inputs[0].outputScript) {
+          const address = outputScriptToAddress(tx.inputs[0].outputScript);
+          if (address) {
+            console.log(`Successfully got sender from ${endpoint}`);
+            return address;
+          }
+        }
+        
+        console.log(`Could not extract address from tx at ${endpoint}`);
+      } catch (error) {
+        console.log(`Chronik ${endpoint} error (attempt ${attempt + 1}):`, error instanceof Error ? error.message : error);
+        // Continue to next attempt/endpoint
+      }
     }
-    
-    const tx = await response.json();
-    
-    // Extract sender address from first input
-    if (tx.inputs && tx.inputs.length > 0 && tx.inputs[0].outputScript) {
-      return outputScriptToAddress(tx.inputs[0].outputScript);
-    }
-    
-    return null;
-  } catch (error) {
-    console.error('Error fetching tx from Chronik:', error);
-    return null;
   }
+  
+  console.error('All Chronik endpoints failed for tx:', txHash);
+  return null;
 }
 
 async function validateSession(supabase: any, sessionToken: string | null | undefined) {
