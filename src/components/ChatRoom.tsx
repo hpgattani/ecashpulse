@@ -62,6 +62,59 @@ const parseTipCommand = (text: string): TipData | null => {
   return null;
 };
 
+// Declare PayButton type for window
+declare global {
+  interface Window {
+    PayButton?: {
+      render: (container: HTMLElement, config: {
+        to: string;
+        amount: number;
+        currency: string;
+        text: string;
+        hoverText: string;
+        successText: string;
+        animation: string;
+        hideToasts: boolean;
+        onSuccess: (tx: { txid?: string }) => void;
+      }) => void;
+    };
+  }
+}
+
+// TipPayButton component that properly initializes PayButton
+const TipPayButton = ({ to, amount, recipient }: { to: string; amount: number; recipient: string }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (containerRef.current && window.PayButton) {
+      // Clear any existing content
+      containerRef.current.innerHTML = '';
+      
+      window.PayButton.render(containerRef.current, {
+        to,
+        amount,
+        currency: 'XEC',
+        text: `Send ${amount.toLocaleString()} XEC`,
+        hoverText: 'Send Tip',
+        successText: 'Tip Sent! 💸',
+        animation: 'slide',
+        hideToasts: true,
+        onSuccess: (tx) => {
+          window.dispatchEvent(new CustomEvent('tipSuccess', { 
+            detail: { 
+              recipient, 
+              amount, 
+              txHash: tx?.txid || '' 
+            } 
+          }));
+        }
+      });
+    }
+  }, [to, amount, recipient]);
+
+  return <div ref={containerRef} className="min-w-[200px]" />;
+};
+
 export const ChatRoom = () => {
   const { user, profile, sessionToken } = useAuth();
   const { encrypt, decrypt } = useChatEncryption();
@@ -842,20 +895,10 @@ export const ChatRoom = () => {
                   Send {pendingTip.amount.toLocaleString()} XEC to @{pendingTip.recipient}
                 </p>
                 <div className="flex justify-center">
-                  <div 
-                    dangerouslySetInnerHTML={{
-                      __html: `<pay-button 
-                        to="${pendingTip.recipientAddress}"
-                        amount="${pendingTip.amount}"
-                        currency="XEC"
-                        text="Send ${pendingTip.amount.toLocaleString()} XEC"
-                        hover-text="Send Tip"
-                        success-text="Tip Sent! 💸"
-                        animation="slide"
-                        hide-toasts="true"
-                        onsuccess="(function(tx) { window.dispatchEvent(new CustomEvent('tipSuccess', { detail: { recipient: '${pendingTip.recipient}', amount: ${pendingTip.amount}, txHash: tx && tx.txid ? tx.txid : '' } })); })(arguments[0])"
-                      ></pay-button>`
-                    }}
+                  <TipPayButton 
+                    to={pendingTip.recipientAddress}
+                    amount={pendingTip.amount}
+                    recipient={pendingTip.recipient}
                   />
                 </div>
               </div>
