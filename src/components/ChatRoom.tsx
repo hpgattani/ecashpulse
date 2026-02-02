@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { MessageCircle, Send, Lock, Shield, X, Loader2, SmilePlus, Maximize2, Minimize2 } from 'lucide-react';
+import { MessageCircle, Send, Lock, Shield, X, Loader2, SmilePlus, Maximize2, Minimize2, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -40,7 +40,14 @@ const SPAM_PATTERNS = [
 export const ChatRoom = () => {
   const { user, profile, sessionToken } = useAuth();
   const { encrypt, decrypt } = useChatEncryption();
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(() => {
+    // Auto-open if URL has ?chat=open
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('chat') === 'open';
+    }
+    return false;
+  });
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
@@ -372,6 +379,31 @@ export const ChatRoom = () => {
                 <Lock className="w-3 h-3" />
                 <span className="hidden sm:inline">E2E Encrypted</span>
               </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={async () => {
+                  const chatUrl = `${window.location.origin}/?chat=open`;
+                  if (navigator.share) {
+                    try {
+                      await navigator.share({
+                        title: 'eCash Pulse Chat',
+                        text: 'Join the conversation on eCash Pulse!',
+                        url: chatUrl,
+                      });
+                    } catch (err) {
+                      // User cancelled or share failed silently
+                    }
+                  } else {
+                    await navigator.clipboard.writeText(chatUrl);
+                    toast.success('Chat link copied to clipboard!');
+                  }
+                }}
+                title="Share chat"
+              >
+                <Share2 className="w-4 h-4" />
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"
