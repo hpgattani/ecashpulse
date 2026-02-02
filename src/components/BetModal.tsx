@@ -160,8 +160,14 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
         if (error || data?.error) {
           setBetSuccess(false);
           triggerHaptic('error');
-          toast.error("Bet recording failed", {
-            description: data?.error || error?.message || "Please try again",
+          
+          // Show detailed error message if available (e.g., wrong wallet warning)
+          const errorTitle = data?.error || "Bet recording failed";
+          const errorDetails = data?.details || error?.message || "Please try again";
+          
+          toast.error(errorTitle, {
+            description: errorDetails,
+            duration: 8000, // Show longer for important wallet mismatch errors
           });
           return;
         }

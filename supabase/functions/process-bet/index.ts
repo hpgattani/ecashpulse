@@ -179,41 +179,55 @@ Deno.serve(async (req) => {
     let user_id = sessionResult.userId;
     console.log(`Processing bet: user=${user_id}, prediction=${prediction_id}, position=${position}, amount=${amount}`);
 
-    // If tx_hash provided, verify the actual sender matches the logged-in user
-    if (tx_hash) {
+    // If tx_hash provided (real blockchain transaction), verify the actual sender matches the logged-in user
+    // This is MANDATORY - if we can't verify the sender, reject the bet to prevent fraud
+    if (tx_hash && tx_hash.length === 64 && /^[a-f0-9]+$/i.test(tx_hash)) {
       const senderAddress = await getSenderFromTx(tx_hash);
-      if (senderAddress) {
-        const normalizedAddress = senderAddress.trim().toLowerCase();
-        console.log(`Transaction sender address: ${normalizedAddress}`);
-        
-        // Get logged-in user's address
-        const { data: loggedInUser } = await supabase
-          .from('users')
-          .select('ecash_address')
-          .eq('id', user_id)
-          .maybeSingle();
-        
-        const loggedInAddress = loggedInUser?.ecash_address?.trim().toLowerCase();
-        
-        // REJECT if sender differs from logged-in user
-        if (loggedInAddress !== normalizedAddress) {
-          console.log(`REJECTED: Sender (${normalizedAddress}) differs from logged-in user (${loggedInAddress})`);
-          
-          // Format addresses for display (show first 10 and last 6 chars)
-          const formatAddr = (addr: string) => {
-            if (addr.length <= 20) return addr;
-            return `${addr.slice(0, 16)}...${addr.slice(-6)}`;
-          };
-          
-          return new Response(
-            JSON.stringify({ 
-              error: 'Wrong wallet used for payment',
-              details: `You paid from ${formatAddr(normalizedAddress)} but you're logged in with ${formatAddr(loggedInAddress || '')}. Please pay from your logged-in wallet.`
-            }),
-            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
+      
+      // CRITICAL: If we can't verify sender, reject the bet (Chronik may be down, tx not propagated yet)
+      if (!senderAddress) {
+        console.log(`REJECTED: Could not verify sender for tx ${tx_hash}`);
+        return new Response(
+          JSON.stringify({ 
+            error: 'Transaction verification failed',
+            details: 'Could not verify the payment sender. The transaction may still be propagating. Please wait a moment and try again.'
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
+      
+      const normalizedAddress = senderAddress.trim().toLowerCase();
+      console.log(`Transaction sender address: ${normalizedAddress}`);
+      
+      // Get logged-in user's address
+      const { data: loggedInUser } = await supabase
+        .from('users')
+        .select('ecash_address')
+        .eq('id', user_id)
+        .maybeSingle();
+      
+      const loggedInAddress = loggedInUser?.ecash_address?.trim().toLowerCase();
+      
+      // REJECT if sender differs from logged-in user
+      if (loggedInAddress !== normalizedAddress) {
+        console.log(`REJECTED: Sender (${normalizedAddress}) differs from logged-in user (${loggedInAddress})`);
+        
+        // Format addresses for display (show first 16 and last 6 chars)
+        const formatAddr = (addr: string) => {
+          if (addr.length <= 24) return addr;
+          return `${addr.slice(0, 16)}...${addr.slice(-6)}`;
+        };
+        
+        return new Response(
+          JSON.stringify({ 
+            error: 'Wrong wallet used for payment',
+            details: `You paid from ${formatAddr(normalizedAddress)} but you're logged in with ${formatAddr(loggedInAddress || '')}. Please pay from your logged-in wallet.`
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      console.log(`Sender verification PASSED: ${normalizedAddress}`);
     }
 
     if (!prediction_id || !isValidUUID(prediction_id)) {
