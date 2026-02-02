@@ -568,32 +568,38 @@ export const ChatRoom = () => {
     };
   }, [isOpen, loadMessages, decrypt]);
 
+  // Scroll to bottom helper function
+  const scrollToBottom = useCallback(() => {
+    if (scrollRef.current) {
+      // Force immediate scroll
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      // Then schedule another scroll after a short delay for any delayed renders
+      requestAnimationFrame(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+      });
+    }
+  }, []);
+
   // Auto-scroll to bottom when messages load or change
   useEffect(() => {
-    if (scrollRef.current && messages.length > 0) {
-      // Use requestAnimationFrame + setTimeout to ensure DOM has fully updated
-      requestAnimationFrame(() => {
-        setTimeout(() => {
-          if (scrollRef.current) {
-            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-          }
-        }, 100);
-      });
+    if (messages.length > 0) {
+      // Use multiple timeouts to ensure scroll happens after all DOM updates
+      scrollToBottom();
+      setTimeout(scrollToBottom, 50);
+      setTimeout(scrollToBottom, 150);
     }
-  }, [messages]);
+  }, [messages, scrollToBottom]);
 
-  // Scroll to bottom when chat opens
+  // Scroll to bottom when chat opens with messages already loaded
   useEffect(() => {
-    if (isOpen && scrollRef.current && messages.length > 0) {
-      requestAnimationFrame(() => {
-        setTimeout(() => {
-          if (scrollRef.current) {
-            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-          }
-        }, 150);
-      });
+    if (isOpen && messages.length > 0) {
+      // Delay to ensure ScrollArea viewport is rendered
+      setTimeout(scrollToBottom, 100);
+      setTimeout(scrollToBottom, 300);
     }
-  }, [isOpen]);
+  }, [isOpen, messages.length, scrollToBottom]);
 
   // Handle tip success event - post TX link as follow-up message
   useEffect(() => {

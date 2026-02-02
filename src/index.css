@@ -769,3 +769,45 @@
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-muted-foreground/50;
 }
+
+/* PayButton Theming - Match Liquid Glass Design System */
+.paybutton-widget,
+[class*="paybutton"] {
+  --paybutton-primary-color: hsl(var(--primary)) !important;
+  --paybutton-secondary-color: hsl(var(--muted)) !important;
+}
+
+/* Style PayButton container */
+.paybutton-widget button,
+[class*="paybutton"] button,
+div[id^="paybutton"] button {
+  background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.8) 100%) !important;
+  color: hsl(var(--primary-foreground)) !important;
+  border: 1px solid hsl(var(--primary) / 0.3) !important;
+  border-radius: var(--radius) !important;
+  font-family: 'Space Grotesk', sans-serif !important;
+  font-weight: 500 !important;
+  box-shadow: 
+    0 4px 14px 0 hsl(var(--primary) / 0.25),
+    inset 0 1px 0 hsl(0 0% 100% / 0.1) !important;
+  transition: all 0.2s ease !important;
+  backdrop-filter: blur(10px) !important;
+}
+
+.paybutton-widget button:hover,
+[class*="paybutton"] button:hover,
+div[id^="paybutton"] button:hover {
+  background: linear-gradient(135deg, hsl(var(--primary) / 0.9) 0%, hsl(var(--primary) / 0.7) 100%) !important;
+  box-shadow: 
+    0 6px 20px 0 hsl(var(--primary) / 0.35),
+    inset 0 1px 0 hsl(0 0% 100% / 0.15) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Light mode PayButton adjustments */
+.light .paybutton-widget button,
+.light [class*="paybutton"] button,
+.light div[id^="paybutton"] button {
+  background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(168 80% 32%) 100%) !important;
+  color: white !important;
+}
