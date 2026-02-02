@@ -41,6 +41,7 @@ interface TipData {
   amount: number;
   rawText: string;
   note?: string;
+  messageId?: string; // Track the message ID so we can delete if cancelled
 }
 
 const MAX_MESSAGE_LENGTH = 500;
@@ -663,6 +664,7 @@ export const ChatRoom = () => {
 
       // Post the user's /tip message into chat (so it appears in history)
       setSending(true);
+      let tipMessageId: string | undefined;
       try {
         const { encrypted, iv } = await encrypt(tipCommand.rawText);
         const { data, error } = await supabase.functions.invoke('send-chat-message', {
@@ -678,6 +680,9 @@ export const ChatRoom = () => {
           return;
         }
 
+        // Store the message ID so we can delete if tip is cancelled
+        tipMessageId = data?.message_id;
+        
         setNewMessage('');
         setMentionQuery(null);
         setMentionUsers([]);
@@ -691,7 +696,8 @@ export const ChatRoom = () => {
 
       setPendingTip({
         ...tipCommand,
-        recipientAddress
+        recipientAddress,
+        messageId: tipMessageId
       });
       return; // Don't send as regular message
     }
@@ -1035,7 +1041,20 @@ export const ChatRoom = () => {
                     <span className="font-semibold">Tip @{pendingTip.recipient}</span>
                   </div>
                   <button 
-                    onClick={() => setPendingTip(null)}
+                    onClick={async () => {
+                      // Delete the tip message if user cancels without paying
+                      if (pendingTip.messageId && sessionToken) {
+                        try {
+                          await supabase
+                            .from('chat_messages')
+                            .delete()
+                            .eq('id', pendingTip.messageId);
+                        } catch (error) {
+                          console.error('Failed to delete cancelled tip message:', error);
+                        }
+                      }
+                      setPendingTip(null);
+                    }}
                     className="text-muted-foreground hover:text-foreground"
                   >
                     <X className="w-4 h-4" />
@@ -1044,7 +1063,7 @@ export const ChatRoom = () => {
                 <p className="text-sm text-muted-foreground mb-3">
                   Send {pendingTip.amount.toLocaleString()} XEC to @{pendingTip.recipient}
                 </p>
-                <div className="flex justify-center">
+                <div className="flex justify-center tip-paybutton-container">
                   <TipPayButton 
                     to={pendingTip.recipientAddress}
                     amount={pendingTip.amount}
