@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { MessageCircle, Send, Lock, Shield, X, Loader2, SmilePlus, Maximize2, Minimize2, Share2 } from 'lucide-react';
+import { MessageCircle, Send, Lock, Shield, X, Loader2, SmilePlus, Maximize2, Minimize2, Share2, AtSign, Coins } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -29,6 +29,18 @@ interface ChatMessage {
   reactions?: ChatReaction[];
 }
 
+interface MentionUser {
+  id: string;
+  display_name: string;
+  ecash_address: string;
+}
+
+interface TipData {
+  recipient: string;
+  recipientAddress: string;
+  amount: number;
+}
+
 const MAX_MESSAGE_LENGTH = 500;
 const ALLOWED_EMOJIS = ['👍', '❤️', '😂', '🔥', '👎', '🎯', '💎'];
 const SPAM_PATTERNS = [
@@ -36,6 +48,19 @@ const SPAM_PATTERNS = [
   /(https?:\/\/[^\s]+){3,}/i,
   /\b(buy|sell|free|click|subscribe|follow)\b.*\b(now|here|link)\b/i,
 ];
+
+// Parse /tip @username amount command
+const parseTipCommand = (text: string): TipData | null => {
+  const tipMatch = text.match(/^\/tip\s+@(\S+)\s+(\d+)\s*(?:xec)?$/i);
+  if (tipMatch) {
+    return {
+      recipient: tipMatch[1],
+      recipientAddress: '', // Will be resolved
+      amount: parseInt(tipMatch[2], 10)
+    };
+  }
+  return null;
+};
 
 export const ChatRoom = () => {
   const { user, profile, sessionToken } = useAuth();
@@ -54,6 +79,16 @@ export const ChatRoom = () => {
   const [loading, setLoading] = useState(true);
   const [reactingTo, setReactingTo] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  
+  // Mention autocomplete state
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [mentionUsers, setMentionUsers] = useState<MentionUser[]>([]);
+  const [mentionIndex, setMentionIndex] = useState(0);
+  const [loadingMentions, setLoadingMentions] = useState(false);
+  
+  // Tip state
+  const [pendingTip, setPendingTip] = useState<TipData | null>(null);
+  
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -85,6 +120,127 @@ export const ChatRoom = () => {
     // Also check for the old pattern from the trigger that created "qzq2vds3..."
     const oldTriggerPattern = /^[a-z0-9]{8}\.\.\.$/i;
     return !redactedPattern.test(displayName) && !oldTriggerPattern.test(displayName);
+  };
+
+  // Search for users to mention
+  const searchMentionUsers = useCallback(async (query: string) => {
+    if (query.length < 1) {
+      setMentionUsers([]);
+      return;
+    }
+    
+    setLoadingMentions(true);
+    try {
+      // Search profiles with display names matching the query
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, display_name')
+        .ilike('display_name', `%${query}%`)
+        .limit(5);
+
+      if (profiles && profiles.length > 0) {
+        // Get ecash addresses for these users
+        const userIds = profiles.map(p => p.user_id);
+        const { data: users } = await supabase
+          .from('users')
+          .select('id, ecash_address')
+          .in('id', userIds);
+
+        const mentionList: MentionUser[] = profiles
+          .filter(p => isRealUsername(p.display_name))
+          .map(p => {
+            const userRecord = users?.find(u => u.id === p.user_id);
+            return {
+              id: p.user_id,
+              display_name: p.display_name || '',
+              ecash_address: userRecord?.ecash_address || ''
+            };
+          })
+          .filter(m => m.display_name && m.ecash_address);
+
+        setMentionUsers(mentionList);
+      } else {
+        setMentionUsers([]);
+      }
+    } catch (error) {
+      console.error('Error searching mentions:', error);
+      setMentionUsers([]);
+    } finally {
+      setLoadingMentions(false);
+    }
+  }, []);
+
+  // Handle input change with mention detection
+  const handleInputChange = (value: string) => {
+    setNewMessage(value.slice(0, MAX_MESSAGE_LENGTH));
+    
+    // Detect @mention in progress
+    const cursorPos = inputRef.current?.selectionStart || value.length;
+    const textBeforeCursor = value.slice(0, cursorPos);
+    const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
+    
+    if (mentionMatch) {
+      setMentionQuery(mentionMatch[1]);
+      setMentionIndex(0);
+      searchMentionUsers(mentionMatch[1]);
+    } else {
+      setMentionQuery(null);
+      setMentionUsers([]);
+    }
+  };
+
+  // Insert mention into message
+  const insertMention = (user: MentionUser) => {
+    const cursorPos = inputRef.current?.selectionStart || newMessage.length;
+    const textBeforeCursor = newMessage.slice(0, cursorPos);
+    const textAfterCursor = newMessage.slice(cursorPos);
+    
+    // Replace @query with @username
+    const newTextBefore = textBeforeCursor.replace(/@\w*$/, `@${user.display_name} `);
+    const newValue = newTextBefore + textAfterCursor;
+    
+    setNewMessage(newValue);
+    setMentionQuery(null);
+    setMentionUsers([]);
+    
+    // Focus back on input
+    setTimeout(() => inputRef.current?.focus(), 0);
+  };
+
+  // Resolve tip recipient address
+  const resolveTipRecipient = useCallback(async (username: string): Promise<string | null> => {
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('user_id, display_name')
+      .ilike('display_name', username)
+      .limit(1);
+
+    if (profiles && profiles.length > 0) {
+      const { data: users } = await supabase
+        .from('users')
+        .select('ecash_address')
+        .eq('id', profiles[0].user_id)
+        .single();
+      
+      return users?.ecash_address || null;
+    }
+    return null;
+  }, []);
+
+  // Render message content with styled mentions
+  const renderMessageContent = (content: string) => {
+    // Split by @mentions and highlight them
+    const parts = content.split(/(@\w+)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith('@')) {
+        return (
+          <span key={i} className="text-primary font-medium">
+            {part}
+          </span>
+        );
+      }
+      return part;
+    });
   };
 
   // Load messages with user info and reactions
@@ -243,6 +399,36 @@ export const ChatRoom = () => {
     }
   }, [messages]);
 
+  // Handle tip success event
+  useEffect(() => {
+    const handleTipSuccess = async (e: CustomEvent<{ recipient: string; amount: number }>) => {
+      const { recipient, amount } = e.detail;
+      toast.success(`Sent ${amount.toLocaleString()} XEC to @${recipient}! 💸`);
+      setPendingTip(null);
+      setNewMessage('');
+      
+      // Send a confirmation message in chat
+      if (sessionToken && encrypt) {
+        try {
+          const confirmMessage = `💸 Tipped @${recipient} ${amount.toLocaleString()} XEC`;
+          const { encrypted, iv } = await encrypt(confirmMessage);
+          await supabase.functions.invoke('send-chat-message', {
+            body: {
+              session_token: sessionToken,
+              encrypted_content: encrypted,
+              iv
+            }
+          });
+        } catch (error) {
+          console.error('Failed to send tip confirmation:', error);
+        }
+      }
+    };
+
+    window.addEventListener('tipSuccess', handleTipSuccess as EventListener);
+    return () => window.removeEventListener('tipSuccess', handleTipSuccess as EventListener);
+  }, [sessionToken, encrypt]);
+
   // Client-side spam check
   const isSpam = (content: string): boolean => {
     return SPAM_PATTERNS.some(pattern => pattern.test(content));
@@ -261,6 +447,21 @@ export const ChatRoom = () => {
     if (isSpam(trimmedMessage)) {
       toast.error('Message blocked: Spam detected');
       return;
+    }
+
+    // Check for /tip command
+    const tipCommand = parseTipCommand(trimmedMessage);
+    if (tipCommand) {
+      const recipientAddress = await resolveTipRecipient(tipCommand.recipient);
+      if (!recipientAddress) {
+        toast.error(`User @${tipCommand.recipient} not found`);
+        return;
+      }
+      setPendingTip({
+        ...tipCommand,
+        recipientAddress
+      });
+      return; // Don't send as regular message
     }
 
     setSending(true);
@@ -282,6 +483,8 @@ export const ChatRoom = () => {
       }
 
       setNewMessage('');
+      setMentionQuery(null);
+      setMentionUsers([]);
       inputRef.current?.focus();
     } catch (error) {
       console.error('Send error:', error);
@@ -317,6 +520,31 @@ export const ChatRoom = () => {
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
+    // Handle mention autocomplete navigation
+    if (mentionQuery !== null && mentionUsers.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setMentionIndex(prev => Math.min(prev + 1, mentionUsers.length - 1));
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setMentionIndex(prev => Math.max(prev - 1, 0));
+        return;
+      }
+      if (e.key === 'Tab' || e.key === 'Enter') {
+        e.preventDefault();
+        insertMention(mentionUsers[mentionIndex]);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setMentionQuery(null);
+        setMentionUsers([]);
+        return;
+      }
+    }
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -469,7 +697,7 @@ export const ChatRoom = () => {
                             </div>
                           )}
                           <div className="text-sm break-words">
-                            {msg.decrypted_content}
+                            {renderMessageContent(msg.decrypted_content || '')}
                           </div>
                           <div className={`text-[10px] mt-1 ${isOwn ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>
                             {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
@@ -534,14 +762,82 @@ export const ChatRoom = () => {
           </ScrollArea>
 
           {/* Input */}
-          <div className="p-4 border-t border-border bg-muted/30">
+          <div className="p-4 border-t border-border bg-muted/30 relative">
+            {/* Mention Autocomplete Dropdown */}
+            {mentionQuery !== null && mentionUsers.length > 0 && (
+              <div className="absolute bottom-full left-4 right-4 mb-1 bg-popover border border-border rounded-lg shadow-lg overflow-hidden z-10">
+                {mentionUsers.map((mentionUser, index) => (
+                  <button
+                    key={mentionUser.id}
+                    onClick={() => insertMention(mentionUser)}
+                    className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${
+                      index === mentionIndex 
+                        ? 'bg-primary text-primary-foreground' 
+                        : 'hover:bg-muted'
+                    }`}
+                  >
+                    <AtSign className="w-3.5 h-3.5" />
+                    <span className="font-medium">{mentionUser.display_name}</span>
+                    <span className="text-xs opacity-60">{redactAddress(mentionUser.ecash_address)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            
+            {loadingMentions && mentionQuery !== null && (
+              <div className="absolute bottom-full left-4 right-4 mb-1 bg-popover border border-border rounded-lg shadow-lg p-3 z-10">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Searching users...
+                </div>
+              </div>
+            )}
+
+            {/* Pending Tip Modal */}
+            {pendingTip && (
+              <div className="absolute bottom-full left-4 right-4 mb-2 bg-card border border-border rounded-lg shadow-xl p-4 z-20">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Coins className="w-5 h-5 text-primary" />
+                    <span className="font-semibold">Tip @{pendingTip.recipient}</span>
+                  </div>
+                  <button 
+                    onClick={() => setPendingTip(null)}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Send {pendingTip.amount.toLocaleString()} XEC to @{pendingTip.recipient}
+                </p>
+                <div className="flex justify-center">
+                  <div 
+                    dangerouslySetInnerHTML={{
+                      __html: `<pay-button 
+                        to="${pendingTip.recipientAddress}"
+                        amount="${pendingTip.amount}"
+                        currency="XEC"
+                        text="Send ${pendingTip.amount.toLocaleString()} XEC"
+                        hover-text="Send Tip"
+                        success-text="Tip Sent! 💸"
+                        animation="slide"
+                        hide-toasts="true"
+                        onsuccess="window.dispatchEvent(new CustomEvent('tipSuccess', { detail: { recipient: '${pendingTip.recipient}', amount: ${pendingTip.amount} } }))"
+                      ></pay-button>`
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-2">
               <Input
                 ref={inputRef}
                 value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value.slice(0, MAX_MESSAGE_LENGTH))}
-                onKeyPress={handleKeyPress}
-                placeholder="Type a message..."
+                onChange={(e) => handleInputChange(e.target.value)}
+                onKeyDown={handleKeyPress}
+                placeholder="Type a message... @mention or /tip @user amount"
                 disabled={sending}
                 className="flex-1"
               />
