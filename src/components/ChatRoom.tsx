@@ -51,15 +51,31 @@ const SPAM_PATTERNS = [
 
 // Parse /tip @username amount command
 const parseTipCommand = (text: string): TipData | null => {
-  const tipMatch = text.match(/^\/tip\s+@(\S+)\s+(\d+)\s*(?:xec)?$/i);
-  if (tipMatch) {
-    return {
-      recipient: tipMatch[1],
-      recipientAddress: '', // Will be resolved
-      amount: parseInt(tipMatch[2], 10)
-    };
-  }
-  return null;
+  const trimmed = text.trim();
+  if (!/^\/tip\b/i.test(trimmed)) return null;
+
+  // Support multiple formats:
+  // - /tip @username 5000
+  // - /tip @username 5000 xec
+  // - /tip 5000 @username
+  // - /tip 5000 xec @username
+  const parts = trimmed.split(/\s+/).filter(Boolean);
+  const args = parts.slice(1);
+
+  const usernameToken = args.find((p) => p.startsWith('@'));
+  const amountToken = args.find((p) => /^\d+$/.test(p));
+
+  if (!usernameToken || !amountToken) return null;
+
+  const recipient = usernameToken.replace(/^@/, '');
+  const amount = parseInt(amountToken, 10);
+  if (!recipient || !Number.isFinite(amount) || amount <= 0) return null;
+
+  return {
+    recipient,
+    recipientAddress: '', // resolved later
+    amount,
+  };
 };
 
 // Declare PayButton type for window
@@ -86,30 +102,70 @@ const TipPayButton = ({ to, amount, recipient }: { to: string; amount: number; r
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (containerRef.current && window.PayButton) {
-      // Clear any existing content
+    let cancelled = false;
+    if (!containerRef.current) return;
+    if (!to || !amount) return;
+
+    const ensurePayButtonScript = () => {
+      // index.html already includes this, but in case it fails / loads late, ensure it's present.
+      if (document.querySelector('script[src*="paybutton"]')) return;
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/@paybutton/paybutton/dist/paybutton.js';
+      script.async = true;
+      document.body.appendChild(script);
+    };
+
+    const tryRender = (attempt = 0) => {
+      if (cancelled) return;
+      if (!containerRef.current) return;
+
+      const payButton = window.PayButton;
+      if (!payButton?.render) {
+        if (attempt < 30) window.setTimeout(() => tryRender(attempt + 1), 150);
+        return;
+      }
+
+      // Clear and render into a fresh inner node (matches the working pattern elsewhere)
       containerRef.current.innerHTML = '';
-      
-      window.PayButton.render(containerRef.current, {
-        to,
-        amount,
-        currency: 'XEC',
-        text: `Send ${amount.toLocaleString()} XEC`,
-        hoverText: 'Send Tip',
-        successText: 'Tip Sent! 💸',
-        animation: 'slide',
-        hideToasts: true,
-        onSuccess: (tx) => {
-          window.dispatchEvent(new CustomEvent('tipSuccess', { 
-            detail: { 
-              recipient, 
-              amount, 
-              txHash: tx?.txid || '' 
-            } 
-          }));
-        }
-      });
-    }
+      const buttonContainer = document.createElement('div');
+      buttonContainer.id = `paybutton-tip-${Date.now()}`;
+      containerRef.current.appendChild(buttonContainer);
+
+      try {
+        payButton.render(buttonContainer, {
+          to,
+          amount,
+          currency: 'XEC',
+          text: `Send ${amount.toLocaleString()} XEC`,
+          hoverText: 'Send Tip',
+          successText: 'Tip Sent! 💸',
+          animation: 'slide',
+          hideToasts: true,
+          onSuccess: (tx) => {
+            window.dispatchEvent(
+              new CustomEvent('tipSuccess', {
+                detail: {
+                  recipient,
+                  amount,
+                  txHash: tx?.txid || '',
+                },
+              })
+            );
+          },
+        });
+      } catch (e) {
+        // Surface this so we can diagnose quickly
+        console.error('Tip PayButton render failed:', e);
+      }
+    };
+
+    ensurePayButtonScript();
+    tryRender();
+
+    return () => {
+      cancelled = true;
+      if (containerRef.current) containerRef.current.innerHTML = '';
+    };
   }, [to, amount, recipient]);
 
   return <div ref={containerRef} className="min-w-[200px]" />;
