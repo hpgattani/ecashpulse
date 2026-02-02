@@ -227,19 +227,46 @@ export const ChatRoom = () => {
     return null;
   }, []);
 
-  // Render message content with styled mentions
+  // Render message content with styled mentions and links
   const renderMessageContent = (content: string) => {
-    // Split by @mentions and highlight them
-    const parts = content.split(/(@\w+)/g);
-    return parts.map((part, i) => {
-      if (part.startsWith('@')) {
+    // Split by @mentions and URLs, highlight them appropriately
+    const urlPattern = /(https?:\/\/[^\s]+)/g;
+    const mentionPattern = /(@\w+)/g;
+    
+    // First split by URLs
+    const urlParts = content.split(urlPattern);
+    
+    return urlParts.map((urlPart, urlIdx) => {
+      // Check if this part is a URL
+      if (urlPattern.test(urlPart)) {
+        // Reset regex lastIndex
+        urlPattern.lastIndex = 0;
+        const isExplorerLink = urlPart.includes('explorer.e.cash/tx/');
         return (
-          <span key={i} className="text-primary font-medium">
-            {part}
-          </span>
+          <a 
+            key={`url-${urlIdx}`}
+            href={urlPart}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary underline hover:text-primary/80 break-all"
+          >
+            {isExplorerLink ? '🔗 View TX' : urlPart}
+          </a>
         );
       }
-      return part;
+      
+      // Split non-URL parts by mentions
+      const mentionParts = urlPart.split(mentionPattern);
+      return mentionParts.map((part, mentionIdx) => {
+        if (part.startsWith('@')) {
+          return (
+            <span key={`mention-${urlIdx}-${mentionIdx}`} className="text-primary font-medium">
+              {part}
+            </span>
+          );
+        }
+        return <span key={`text-${urlIdx}-${mentionIdx}`}>{part}</span>;
+      });
     });
   };
 
@@ -401,16 +428,19 @@ export const ChatRoom = () => {
 
   // Handle tip success event
   useEffect(() => {
-    const handleTipSuccess = async (e: CustomEvent<{ recipient: string; amount: number }>) => {
-      const { recipient, amount } = e.detail;
+    const handleTipSuccess = async (e: CustomEvent<{ recipient: string; amount: number; txHash?: string }>) => {
+      const { recipient, amount, txHash } = e.detail;
       toast.success(`Sent ${amount.toLocaleString()} XEC to @${recipient}! 💸`);
       setPendingTip(null);
       setNewMessage('');
       
-      // Send a confirmation message in chat
+      // Send a confirmation message in chat with tx link
       if (sessionToken && encrypt) {
         try {
-          const confirmMessage = `💸 Tipped @${recipient} ${amount.toLocaleString()} XEC`;
+          const txLink = txHash ? `https://explorer.e.cash/tx/${txHash}` : '';
+          const confirmMessage = txHash 
+            ? `💸 Tipped @${recipient} ${amount.toLocaleString()} XEC | TX: ${txLink}`
+            : `💸 Tipped @${recipient} ${amount.toLocaleString()} XEC`;
           const { encrypted, iv } = await encrypt(confirmMessage);
           await supabase.functions.invoke('send-chat-message', {
             body: {
@@ -823,7 +853,7 @@ export const ChatRoom = () => {
                         success-text="Tip Sent! 💸"
                         animation="slide"
                         hide-toasts="true"
-                        onsuccess="window.dispatchEvent(new CustomEvent('tipSuccess', { detail: { recipient: '${pendingTip.recipient}', amount: ${pendingTip.amount} } }))"
+                        onsuccess="(function(tx) { window.dispatchEvent(new CustomEvent('tipSuccess', { detail: { recipient: '${pendingTip.recipient}', amount: ${pendingTip.amount}, txHash: tx && tx.txid ? tx.txid : '' } })); })(arguments[0])"
                       ></pay-button>`
                     }}
                   />
