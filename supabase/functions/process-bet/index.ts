@@ -94,14 +94,16 @@ function outputScriptToAddress(script: string): string | null {
   }
 }
 
-// Multiple Chronik endpoints for redundancy
+function isValidTxHash(txHash: unknown): txHash is string {
+  return typeof txHash === 'string' && /^[a-f0-9]{64}$/i.test(txHash);
+}
+
+// Chronik endpoints (keep this tight to avoid long waits)
 const CHRONIK_ENDPOINTS = [
   'https://chronik.be.cash/xec',
-  'https://chronik.fabien.cash',
-  'https://xec.coin.space/chronik',
 ];
 
-// Get sender address from transaction using Chronik API with fallback endpoints and retry
+// Get sender address from transaction using Chronik API (fast timeout + light retry)
 async function getSenderFromTx(txHash: string): Promise<string | null> {
   // Try each endpoint with a retry
   for (const endpoint of CHRONIK_ENDPOINTS) {
@@ -109,11 +111,11 @@ async function getSenderFromTx(txHash: string): Promise<string | null> {
       try {
         // Add small delay on retry
         if (attempt > 0) {
-          await new Promise(r => setTimeout(r, 500));
+          await new Promise(r => setTimeout(r, 350));
         }
         
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+        const timeout = setTimeout(() => controller.abort(), 3000); // 3 second timeout
         
         const response = await fetch(`${endpoint}/tx/${txHash}`, {
           signal: controller.signal,
@@ -121,7 +123,7 @@ async function getSenderFromTx(txHash: string): Promise<string | null> {
         clearTimeout(timeout);
         
         if (!response.ok) {
-          console.log(`Chronik ${endpoint} returned ${response.status}, trying next...`);
+          console.log(`Chronik ${endpoint} returned ${response.status}, attempt ${attempt + 1}`);
           continue;
         }
         
@@ -196,6 +198,17 @@ Deno.serve(async (req) => {
     console.log('Received body:', JSON.stringify({ ...body, session_token: '[REDACTED]' }));
     const { session_token, prediction_id, position, amount, tx_hash, outcome_id } = body;
 
+    // We require a real txid so we can verify sender and prevent wrong-wallet attribution.
+    if (!isValidTxHash(tx_hash)) {
+      return new Response(
+        JSON.stringify({
+          error: 'Transaction hash missing',
+          details: 'Payment succeeded but no valid tx hash was provided, so we cannot verify the sender wallet. Please retry with a wallet that provides a tx id.'
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Validate session and get authenticated user_id
     const sessionResult = await validateSession(supabase, session_token);
     if (!sessionResult.valid) {
@@ -208,9 +221,43 @@ Deno.serve(async (req) => {
     let user_id = sessionResult.userId;
     console.log(`Processing bet: user=${user_id}, prediction=${prediction_id}, position=${position}, amount=${amount}`);
 
-    // If tx_hash provided (real blockchain transaction), verify the actual sender matches the logged-in user
-    // This is MANDATORY - if we can't verify the sender, reject the bet to prevent fraud
-    if (tx_hash && tx_hash.length === 64 && /^[a-f0-9]+$/i.test(tx_hash)) {
+    // Idempotency: if we've already recorded this tx_hash, return the existing bet.
+    // This avoids double-recording when the client retries verification.
+    const { data: existingBet } = await supabase
+      .from('bets')
+      .select('id, user_id, prediction_id, position, amount, status')
+      .eq('tx_hash', tx_hash)
+      .maybeSingle();
+
+    if (existingBet) {
+      // Extra safety: if tx_hash already tied to a different user, do NOT leak details.
+      if (existingBet.user_id !== user_id) {
+        return new Response(
+          JSON.stringify({
+            error: 'Transaction already used',
+            details: 'This transaction hash has already been used for a bet.'
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          bet_id: existingBet.id,
+          amount: existingBet.amount,
+          position: existingBet.position,
+          status: existingBet.status,
+          escrow_address: ESCROW_ADDRESS,
+          message: 'Bet already recorded for this transaction'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Verify the actual sender matches the logged-in user.
+    // This is MANDATORY - if we can't verify sender yet (propagation / node issues), ask client to retry.
+    {
       const senderAddress = await getSenderFromTx(tx_hash);
       
       // CRITICAL: If we can't verify sender, reject the bet (Chronik may be down, tx not propagated yet)
@@ -219,7 +266,7 @@ Deno.serve(async (req) => {
         return new Response(
           JSON.stringify({ 
             error: 'Transaction verification failed',
-            details: 'Could not verify the payment sender. The transaction may still be propagating. Please wait a moment and try again.'
+            details: 'Could not verify the payment sender yet. The transaction may still be propagating. Please wait 10–30 seconds and tap Retry.'
           }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
@@ -347,7 +394,7 @@ Deno.serve(async (req) => {
         position,
         amount: betAmount,
         status: 'confirmed',
-        tx_hash: tx_hash || null,
+        tx_hash,
         confirmed_at: new Date().toISOString(),
         outcome_id: outcome_id || null
       })
