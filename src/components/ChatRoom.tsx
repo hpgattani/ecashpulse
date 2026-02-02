@@ -580,26 +580,19 @@ export const ChatRoom = () => {
     }
   }, [messages]);
 
-  // Handle tip success event
+  // Handle tip success event - post TX link as follow-up message
   useEffect(() => {
     const handleTipSuccess = async (e: CustomEvent<{ recipient: string; amount: number; txHash?: string; rawText?: string }>) => {
-      const { recipient, amount, txHash, rawText } = e.detail;
+      const { recipient, amount, txHash } = e.detail;
       toast.success(`Sent ${amount.toLocaleString()} XEC to @${recipient}! 💸`);
       setPendingTip(null);
       setNewMessage('');
       
-      // Send a confirmation message in chat with tx link
-      if (sessionToken && encrypt) {
+      // Only post a TX link message if we have a transaction hash
+      if (sessionToken && encrypt && txHash) {
         try {
-          const txLink = txHash ? `https://explorer.e.cash/tx/${txHash}` : '';
-          // Include the original /tip text (including any extra note text) + TX link
-          const base = rawText?.trim()
-            ? rawText.trim()
-            : `/tip @${recipient} ${amount.toLocaleString()} xec`;
-
-          const confirmMessage = txHash
-            ? `${base} | TX: ${txLink}`
-            : base;
+          const txLink = `https://explorer.e.cash/tx/${txHash}`;
+          const confirmMessage = `✅ Tip sent to @${recipient}: ${amount.toLocaleString()} XEC | ${txLink}`;
           const { encrypted, iv } = await encrypt(confirmMessage);
           await supabase.functions.invoke('send-chat-message', {
             body: {
