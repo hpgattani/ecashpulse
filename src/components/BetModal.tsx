@@ -163,16 +163,27 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
       const betAmountSatoshis = Math.round(betAmountXec * 100);
 
       try {
-        const { data, error } = await supabase.functions.invoke("process-bet", {
+        // Client-side timeout so the UI never gets stuck on "Recording..." if the network hangs.
+        const invokePromise = supabase.functions.invoke("process-bet", {
           body: {
             session_token: sessionToken,
             prediction_id: prediction.id,
             position: betPosition,
             amount: betAmountSatoshis,
+            // tx_hash is optional (some wallets don't return a txid reliably)
             tx_hash: txHash,
             outcome_id: selectedOutcome?.id || null,
           },
         });
+
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          window.setTimeout(() => reject(new Error("Recording timed out")), 12000);
+        });
+
+        const { data, error } = (await Promise.race([
+          invokePromise,
+          timeoutPromise,
+        ])) as Awaited<typeof invokePromise>;
 
         setBetProcessing(false);
 
@@ -219,8 +230,22 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
       } catch (err: any) {
         setBetProcessing(false);
         triggerHaptic('error');
-        setBetError({ title: "Failed to place bet", details: err.message });
-        toast.error("Failed to place bet", { description: err.message });
+        setBetError({
+          title: err?.message === 'Recording timed out' ? 'Recording timed out' : "Failed to place bet",
+          details:
+            err?.message === 'Recording timed out'
+              ? 'Your payment may have gone through, but recording is taking too long. Please tap Retry.'
+              : err.message,
+        });
+        toast.error(
+          err?.message === 'Recording timed out' ? 'Recording timed out' : 'Failed to place bet',
+          {
+            description:
+              err?.message === 'Recording timed out'
+                ? 'Please wait a moment and tap Retry.'
+                : err.message,
+          }
+        );
 
         submitLockRef.current = false;
       }
@@ -297,23 +322,15 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
             const isValidTxId =
               typeof txHash === "string" && /^[a-f0-9]{64}$/i.test(txHash);
 
-            if (!isValidTxId) {
-              setBetError({
-                title: "Transaction hash missing",
-                details:
-                  "Payment succeeded but the wallet didn't return a transaction id, so we can't verify sender/address. Please try again with a wallet that provides a tx id.",
-              });
-              toast.error("Transaction hash missing", {
-                description:
-                  "Payment succeeded but no tx id was returned, so verification can't run.",
-                duration: 8000,
-              });
-              submitLockRef.current = false;
-              return;
+            // txid is OPTIONAL: record bet even if the wallet doesn't return it.
+            // (We keep it when available so we can dedupe/reconcile later.)
+            if (isValidTxId) {
+              setLastTxHash(txHash!);
+              recordBet(txHash);
+            } else {
+              setLastTxHash(null);
+              recordBet(undefined);
             }
-
-            setLastTxHash(txHash!);
-            recordBet(txHash);
           },
           onError: (error: any) => {
             console.error("PayButton error:", error);
@@ -411,9 +428,9 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
               ) : betProcessing ? (
                 <div className="text-center py-8">
                   <div className="w-16 h-16 mx-auto mb-4 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-                  <h2 className="font-display font-bold text-xl text-foreground mb-2">Verifying Payment...</h2>
+                  <h2 className="font-display font-bold text-xl text-foreground mb-2">Recording Bet...</h2>
                   <p className="text-muted-foreground">
-                    Checking transaction on the blockchain
+                    Finalizing your bet
                   </p>
                 </div>
               ) : betError ? (
@@ -424,17 +441,15 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                     {betError.details}
                   </p>
                   <div className="flex items-center justify-center gap-3">
-                    {lastTxHash ? (
-                      <Button
-                        onClick={() => {
-                          setBetError(null);
-                          submitLockRef.current = false;
-                          recordBet(lastTxHash);
-                        }}
-                      >
-                        Retry verification
-                      </Button>
-                    ) : null}
+                    <Button
+                      onClick={() => {
+                        setBetError(null);
+                        submitLockRef.current = false;
+                        recordBet(lastTxHash || undefined);
+                      }}
+                    >
+                      Retry recording
+                    </Button>
                     <Button
                       variant="outline"
                       onClick={() => {
