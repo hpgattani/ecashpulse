@@ -197,7 +197,7 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     console.log('Received body:', JSON.stringify({ ...body, session_token: '[REDACTED]' }));
-    const { session_token, prediction_id, position, amount, tx_hash, outcome_id } = body;
+    const { session_token, prediction_id, position, amount, tx_hash, outcome_id, note } = body;
 
     // Validate session and get authenticated user_id
     const sessionResult = await validateSession(supabase, session_token);
@@ -314,6 +314,9 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Validate note if provided (max 280 chars like Twitter)
+    const sanitizedNote = typeof note === 'string' ? note.trim().slice(0, 280) : null;
+
     // Create bet with confirmed status (payment already verified by PayButton)
     console.log('Creating bet in database...');
     const { data: bet, error: betError } = await supabase
@@ -326,7 +329,8 @@ Deno.serve(async (req) => {
         status: 'confirmed',
         tx_hash,
         confirmed_at: new Date().toISOString(),
-        outcome_id: outcome_id || null
+        outcome_id: outcome_id || null,
+        note: sanitizedNote
       })
       .select()
       .single();
