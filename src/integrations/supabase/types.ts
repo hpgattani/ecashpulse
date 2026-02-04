@@ -20,6 +20,7 @@ export type Database = {
           confirmed_at: string | null
           created_at: string
           id: string
+          note: string | null
           outcome_id: string | null
           payout_amount: number | null
           payout_tx_hash: string | null
@@ -35,6 +36,7 @@ export type Database = {
           confirmed_at?: string | null
           created_at?: string
           id?: string
+          note?: string | null
           outcome_id?: string | null
           payout_amount?: number | null
           payout_tx_hash?: string | null
@@ -50,6 +52,7 @@ export type Database = {
           confirmed_at?: string | null
           created_at?: string
           id?: string
+          note?: string | null
           outcome_id?: string | null
           payout_amount?: number | null
           payout_tx_hash?: string | null
@@ -848,6 +851,50 @@ export type Database = {
           last_login_at?: string | null
         }
         Relationships: []
+      }
+      weekly_rewards: {
+        Row: {
+          created_at: string
+          id: string
+          payout_tx_hash: string | null
+          rank: number
+          reward_amount: number
+          user_id: string
+          week_number: number
+          wins_count: number
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          payout_tx_hash?: string | null
+          rank: number
+          reward_amount?: number
+          user_id: string
+          week_number: number
+          wins_count?: number
+          year: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          payout_tx_hash?: string | null
+          rank?: number
+          reward_amount?: number
+          user_id?: string
+          week_number?: number
+          wins_count?: number
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_rewards_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

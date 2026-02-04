@@ -29,6 +29,7 @@ Deno.serve(async (req) => {
         confirmed_at,
         user_id,
         prediction_id,
+        note,
         users(ecash_address),
         predictions(title)
       `)

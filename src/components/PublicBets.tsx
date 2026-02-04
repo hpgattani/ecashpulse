@@ -22,6 +22,7 @@ interface Bet {
   confirmed_at: string | null;
   user_id: string;
   prediction_id: string;
+  note: string | null;
   users: {
     ecash_address: string;
   } | null;
@@ -223,8 +224,15 @@ const PublicBets = () => {
               </div>
               
               {bet.predictions?.title && (
-                <p className="text-xs text-foreground/80 mb-2 line-clamp-1">
+                <p className="text-xs text-foreground/80 mb-1 line-clamp-1">
                   {translateTitle(bet.predictions.title)}
+                </p>
+              )}
+              
+              {/* Display bet note/reasoning if present */}
+              {bet.note && (
+                <p className="text-xs text-muted-foreground italic mb-2 line-clamp-2 bg-muted/20 rounded px-2 py-1">
+                  "{bet.note}"
                 </p>
               )}
               
