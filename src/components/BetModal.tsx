@@ -43,7 +43,6 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
   const navigate = useNavigate();
   const { t } = useLanguage();
   const [betAmount, setBetAmount] = useState("100");
-  const [betNote, setBetNote] = useState("");
   const [betSuccess, setBetSuccess] = useState(false);
   const [betProcessing, setBetProcessing] = useState(false);
   const [betError, setBetError] = useState<{ title: string; details: string } | null>(null);
@@ -66,7 +65,6 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
       setBetProcessing(false);
       setBetError(null);
       setLastTxHash(null);
-      setBetNote("");
       submitLockRef.current = false;
     }
   }, [isOpen]);
@@ -175,7 +173,6 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
             // tx_hash is optional (some wallets don't return a txid reliably)
             tx_hash: txHash,
             outcome_id: selectedOutcome?.id || null,
-            note: betNote.trim() || null,
           },
         });
 
@@ -253,7 +250,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
         submitLockRef.current = false;
       }
     },
-    [user, sessionToken, betAmount, betNote, prediction.id, betPosition, selectedOutcome, onClose, closePayButtonModal, t],
+    [user, sessionToken, betAmount, prediction.id, betPosition, selectedOutcome, onClose, closePayButtonModal, t],
   );
 
   // Load PayButton script
@@ -560,22 +557,6 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                         />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium text-sm">XEC</span>
                       </div>
-                    </div>
-
-                    {/* Optional Note/Reasoning */}
-                    <div>
-                      <label className="text-sm text-muted-foreground mb-1.5 block">
-                        Add a note <span className="text-muted-foreground/60">(optional)</span>
-                      </label>
-                      <Input
-                        type="text"
-                        placeholder="Why are you betting this way?"
-                        value={betNote}
-                        onChange={(e) => setBetNote(e.target.value.slice(0, 280))}
-                        maxLength={280}
-                        className="text-sm"
-                      />
-                      <p className="text-xs text-muted-foreground/50 mt-1 text-right">{betNote.length}/280</p>
                     </div>
 
                     {betAmount && parseFloat(betAmount) > 0 && (
