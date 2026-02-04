@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Convert to array - only users with wins
+    // Convert to array - only users with wins and more than 1 bet
     const leaderboard = Object.entries(userStats)
       .map(([user_id, stats]) => ({
         user_id,
@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
           ? Math.round((stats.total_wins / stats.total_bets) * 100) 
           : 0
       }))
-      .filter(l => l.total_wins > 0)
+      .filter(l => l.total_wins > 0 && l.total_bets > 1)
       .sort((a, b) => {
         // Primary: best win rate
         if (b.win_rate !== a.win_rate) return b.win_rate - a.win_rate;
