@@ -401,6 +401,50 @@ export type Database = {
         }
         Relationships: []
       }
+      monthly_rewards: {
+        Row: {
+          created_at: string
+          id: string
+          month: number
+          payout_tx_hash: string | null
+          reward_amount: number
+          total_profit: number
+          user_id: string
+          wins_count: number
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          month: number
+          payout_tx_hash?: string | null
+          reward_amount?: number
+          total_profit?: number
+          user_id: string
+          wins_count?: number
+          year: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          month?: number
+          payout_tx_hash?: string | null
+          reward_amount?: number
+          total_profit?: number
+          user_id?: string
+          wins_count?: number
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "monthly_rewards_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       outcomes: {
         Row: {
           created_at: string
@@ -851,50 +895,6 @@ export type Database = {
           last_login_at?: string | null
         }
         Relationships: []
-      }
-      weekly_rewards: {
-        Row: {
-          created_at: string
-          id: string
-          payout_tx_hash: string | null
-          rank: number
-          reward_amount: number
-          user_id: string
-          week_number: number
-          wins_count: number
-          year: number
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          payout_tx_hash?: string | null
-          rank: number
-          reward_amount?: number
-          user_id: string
-          week_number: number
-          wins_count?: number
-          year: number
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          payout_tx_hash?: string | null
-          rank?: number
-          reward_amount?: number
-          user_id?: string
-          week_number?: number
-          wins_count?: number
-          year?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "weekly_rewards_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
       }
     }
     Views: {
