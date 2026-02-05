@@ -16,9 +16,10 @@ import { getKnownScore } from "@/hooks/useSportsScores";
 
 // Old shared links may point at a duplicate/deleted prediction record.
 // Keep a lightweight redirect map so those links continue to work.
+// Format: { "old_deleted_id": "current_active_id" }
 const LEGACY_PREDICTION_ID_REDIRECTS: Record<string, string> = {
-  // ETH Sep 11 @ 12PM ET market
-  "7aa6c355-8a2b-4fab-8a45-9f0d2a040bea": "2ada6356-d8a4-4b02-a5cc-25ab9a2dd28c",
+  // ETH Sep 11 @ 12PM ET market - redirect deleted duplicate to active market
+  "2ada6356-d8a4-4b02-a5cc-25ab9a2dd28c": "7aa6c355-8a2b-4fab-8a45-9f0d2a040bea",
 };
 
 interface PredictionData {
