@@ -131,3 +131,18 @@ verify_jwt = false
 
 [functions.send-bonus-payouts]
 verify_jwt = false
+
+[functions.resolve-game-leaderboards]
+verify_jwt = false
+
+[functions.send-chat-message]
+verify_jwt = false
+
+[functions.toggle-chat-reaction]
+verify_jwt = false
+
+[functions.submit-game-score]
+verify_jwt = false
+
+[functions.get-scottish-scores]
+verify_jwt = false
