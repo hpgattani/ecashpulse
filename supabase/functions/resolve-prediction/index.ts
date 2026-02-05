@@ -290,7 +290,7 @@ Deno.serve(async (req) => {
       payoutResult = await processPayoutsBinary(supabase, prediction_id, outcome);
 
       // ONLY trigger bonus payout for the specific ETH $4,475 September market
-      const ETH_BONUS_MARKET_ID = "7aa6c355-b823-426f-82af-08ff2cd8b400";
+      const ETH_BONUS_MARKET_ID = "7aa6c355-8a2b-4fab-8a45-9f0d2a040bea";
       
       if (outcome === "yes" && prediction_id === ETH_BONUS_MARKET_ID) {
         console.info("ETH $4,475 Sep market resolved YES - triggering 1k XEC bonus for ALL site bettors");
