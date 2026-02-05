@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      bet_audit_log: {
+        Row: {
+          amount: number | null
+          bet_id: string | null
+          created_at: string
+          event_type: string
+          id: string
+          metadata: Json | null
+          position: string | null
+          prediction_id: string | null
+          status: string | null
+          tx_hash: string | null
+          user_id: string | null
+        }
+        Insert: {
+          amount?: number | null
+          bet_id?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          position?: string | null
+          prediction_id?: string | null
+          status?: string | null
+          tx_hash?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          amount?: number | null
+          bet_id?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          position?: string | null
+          prediction_id?: string | null
+          status?: string | null
+          tx_hash?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       bets: {
         Row: {
           amount: number

@@ -332,11 +332,38 @@ Deno.serve(async (req) => {
       .eq('id', bet_id);
 
     if (updateError) {
+      // Log failed confirmation to audit
+      await supabase.from('bet_audit_log').insert({
+        event_type: 'bet_confirm_failed',
+        bet_id,
+        prediction_id: bet.prediction_id,
+        user_id: actualUserId,
+        tx_hash,
+        amount: bet.amount,
+        status: 'error',
+        metadata: { error: updateError.message, verification }
+      });
       return new Response(
         JSON.stringify({ error: 'Failed to confirm bet' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // Log successful confirmation to permanent audit table
+    await supabase.from('bet_audit_log').insert({
+      event_type: 'bet_confirmed',
+      bet_id,
+      prediction_id: bet.prediction_id,
+      user_id: actualUserId,
+      tx_hash,
+      amount: verification.actualAmount,
+      status: 'confirmed',
+      metadata: { 
+        original_user_id: bet.user_id,
+        sender_address: verification.senderAddress,
+        user_id_changed: actualUserId !== bet.user_id
+      }
+    });
 
     console.log(`Bet ${bet_id} confirmed with tx ${tx_hash} - verified escrow destination, user_id: ${actualUserId}`);
 
