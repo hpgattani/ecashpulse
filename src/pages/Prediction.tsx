@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { motion } from "framer-motion";
 import { ArrowLeft, Share2, Clock, Users, TrendingUp, TrendingDown, Copy, Check, CheckCircle2, Activity, Loader2, Bitcoin, Landmark, Trophy, Cpu, Film, Vote, DollarSign, Globe2, BarChart3, Map, Leaf, Globe } from "lucide-react";
@@ -13,6 +13,13 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getKnownScore } from "@/hooks/useSportsScores";
+
+// Old shared links may point at a duplicate/deleted prediction record.
+// Keep a lightweight redirect map so those links continue to work.
+const LEGACY_PREDICTION_ID_REDIRECTS: Record<string, string> = {
+  // ETH Sep 11 @ 12PM ET market
+  "7aa6c355-8a2b-4fab-8a45-9f0d2a040bea": "2ada6356-d8a4-4b02-a5cc-25ab9a2dd28c",
+};
 
 interface PredictionData {
   id: string;
@@ -45,6 +52,7 @@ interface BetActivity {
 
 const Prediction = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { t, translateTitle } = useLanguage();
   const [prediction, setPrediction] = useState<PredictionData | null>(null);
@@ -61,11 +69,21 @@ const Prediction = () => {
   const fetchPrediction = async () => {
     if (!id) return;
 
+    // If this is an outdated link, redirect immediately.
+    const redirectId = LEGACY_PREDICTION_ID_REDIRECTS[id];
+    if (redirectId && redirectId !== id) {
+      navigate(`/prediction/${redirectId}`, { replace: true });
+      return;
+    }
+
+    setLoading(true);
+    setPrediction(null);
+
     const { data: predData, error: predError } = await supabase
       .from("predictions")
       .select("*")
       .eq("id", id)
-      .single();
+      .maybeSingle();
 
     if (predError || !predData) {
       setLoading(false);
