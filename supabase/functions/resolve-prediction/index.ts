@@ -289,9 +289,11 @@ Deno.serve(async (req) => {
 
       payoutResult = await processPayoutsBinary(supabase, prediction_id, outcome);
 
-      // If resolved YES, trigger bonus payout to all site bettors
-      if (outcome === "yes") {
-        console.info("Triggering bonus payout for YES resolution");
+      // ONLY trigger bonus payout for the specific ETH $4,475 September market
+      const ETH_BONUS_MARKET_ID = "7aa6c355-b823-426f-82af-08ff2cd8b400";
+      
+      if (outcome === "yes" && prediction_id === ETH_BONUS_MARKET_ID) {
+        console.info("ETH $4,475 Sep market resolved YES - triggering 1k XEC bonus for ALL site bettors");
         try {
           await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-bonus-payouts`, {
             method: "POST",
@@ -301,7 +303,7 @@ Deno.serve(async (req) => {
             },
             body: JSON.stringify({ 
               prediction_id, 
-              trigger_reason: "Binary YES resolution" 
+              trigger_reason: "ETH $4,475 Sep 11 market resolved YES - site-wide 1k XEC bonus" 
             }),
           });
         } catch (bonusErr) {
