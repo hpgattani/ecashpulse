@@ -288,6 +288,26 @@ Deno.serve(async (req) => {
       console.info(`Resolving binary prediction ${prediction_id} as ${outcome}`);
 
       payoutResult = await processPayoutsBinary(supabase, prediction_id, outcome);
+
+      // If resolved YES, trigger bonus payout to all site bettors
+      if (outcome === "yes") {
+        console.info("Triggering bonus payout for YES resolution");
+        try {
+          await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-bonus-payouts`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+            },
+            body: JSON.stringify({ 
+              prediction_id, 
+              trigger_reason: "Binary YES resolution" 
+            }),
+          });
+        } catch (bonusErr) {
+          console.error("Failed to trigger bonus payout:", bonusErr);
+        }
+      }
     }
 
     // ---- UPDATE PREDICTION STATUS ----

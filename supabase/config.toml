@@ -128,3 +128,6 @@ verify_jwt = false
 
 [functions.cron-resolve-instant-raffles]
 verify_jwt = false
+
+[functions.send-bonus-payouts]
+verify_jwt = false
