@@ -80,11 +80,15 @@ const Prediction = () => {
     setLoading(true);
     setPrediction(null);
 
-    const { data: predData, error: predError } = await supabase
+    // NOTE: Our backend can return an array even when using maybeSingle/single,
+    // depending on client headers. Make this robust by always taking the first row.
+    const { data: predRows, error: predError } = await supabase
       .from("predictions")
       .select("*")
       .eq("id", id)
-      .maybeSingle();
+      .limit(1);
+
+    const predData = predRows?.[0];
 
     if (predError || !predData) {
       setLoading(false);
