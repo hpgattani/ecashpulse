@@ -337,6 +337,17 @@ Deno.serve(async (req) => {
 
     if (betError) {
       console.error('Error creating bet:', JSON.stringify(betError));
+      // Log failed bet attempt to audit
+      await supabase.from('bet_audit_log').insert({
+        event_type: 'bet_create_failed',
+        prediction_id,
+        user_id,
+        tx_hash,
+        amount: betAmount,
+        position,
+        status: 'error',
+        metadata: { error: betError.message, outcome_id }
+      });
       return new Response(
         JSON.stringify({ error: 'Failed to create bet: ' + betError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -344,6 +355,19 @@ Deno.serve(async (req) => {
     }
     
     console.log('Bet created successfully:', bet.id);
+
+    // Log successful bet creation to permanent audit table
+    await supabase.from('bet_audit_log').insert({
+      event_type: 'bet_created',
+      bet_id: bet.id,
+      prediction_id,
+      user_id,
+      tx_hash,
+      amount: betAmount,
+      position,
+      status: 'confirmed',
+      metadata: { outcome_id, note: sanitizedNote }
+    });
 
     // Record platform fee (1%)
     const feeAmount = Math.floor(betAmount * PLATFORM_FEE_PERCENT);
