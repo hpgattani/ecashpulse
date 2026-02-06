@@ -550,7 +550,10 @@ Deno.serve(async (req) => {
       totalAvailable += parseInt(utxo.value);
     }
 
-    const estimatedFee = 300; // Simple tx fee
+    // Fee calculation: ~1 sat/byte minimum, estimate based on tx size
+    // Base: 10 bytes + inputs (180 each) + outputs (34 each)
+    const estimatedSize = 10 + 180 + (3 * 34) + 50; // 1 input, 3 outputs, buffer
+    const estimatedFee = Math.max(400, estimatedSize); // Minimum 400 sats to be safe
     
     console.log(`Refund: ${amountSats} sats, Fee: ~${estimatedFee}, Available: ${totalAvailable}`);
 
