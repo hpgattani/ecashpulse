@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { ChronikClient } from 'chronik-client';
 
 // Platform auth wallet - receives verification payments
 const AUTH_WALLET = 'ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp';
@@ -63,39 +62,27 @@ const Auth = () => {
     }
   }, []);
 
-  // Verify transaction on-chain using Chronik and create session
+  // Submit tx to server for verification and session creation
   const verifyAndLogin = useCallback(async (txHash: string, senderAddress: string) => {
     setIsLoading(true);
     setPendingTxHash(txHash);
     setError(null);
 
     try {
-      // Verify transaction exists on-chain using Chronik
-      const chronik = new ChronikClient(['https://chronik.fabien.cash', 'https://chronik.e.cash']);
-      
       let attempts = 0;
-      const maxAttempts = 30;
-      
+      const maxAttempts = 20;
+
       while (attempts < maxAttempts) {
         try {
-          const tx = await chronik.tx(txHash);
-          
-          if (tx) {
-            console.log('Transaction verified on-chain:', txHash);
-            
-            // Transaction verified - create session via edge function
-            const { data, error: sessionError } = await supabase.functions.invoke('create-session', {
-              body: { 
-                ecash_address: senderAddress,
-                tx_hash: txHash 
-              }
-            });
+          const { data, error: sessionError } = await supabase.functions.invoke('create-session', {
+            body: {
+              ecash_address: senderAddress,
+              tx_hash: txHash,
+            },
+          });
 
-            if (sessionError || !data?.success) {
-              throw new Error(data?.error || 'Failed to create session');
-            }
-
-            // Store session locally
+          if (!sessionError && data?.success) {
+            // Session created/found - store locally
             localStorage.setItem('ecash_user', JSON.stringify(data.user));
             localStorage.setItem('ecash_session_token', data.session_token);
             if (data.profile) {
@@ -106,22 +93,23 @@ const Auth = () => {
             toast.success('Payment Sent!', {
               description: `Paid ${AUTH_AMOUNT} XEC — wallet verified`,
             });
-            
-            // Check for return URL (e.g., user was trying to bet before login)
+
             const returnUrl = sessionStorage.getItem('auth_return_url');
             sessionStorage.removeItem('auth_return_url');
-            
-            // Redirect back to where they came from, or home
             setTimeout(() => (window.location.href = returnUrl || '/'), 1500);
             return;
           }
-        } catch (txError) {
-          // Transaction not found yet, keep trying
-          console.log(`Attempt ${attempts + 1}: Waiting for transaction...`);
+
+          // If tx verification failed (not just "not found yet"), stop retrying
+          if (data?.error && !data.error.includes('Could not verify')) {
+            throw new Error(data.error);
+          }
+        } catch (invokeErr: any) {
+          console.log(`Attempt ${attempts + 1}: Server verifying transaction...`);
         }
 
         attempts++;
-        await new Promise((r) => setTimeout(r, 2000));
+        await new Promise((r) => setTimeout(r, 3000));
       }
 
       throw new Error('Transaction verification timeout. Please try again.');
@@ -130,7 +118,7 @@ const Auth = () => {
       setError(err instanceof Error ? err.message : 'Verification failed');
       setIsLoading(false);
     }
-  }, [toast]);
+  }, []);
 
   // Render PayButton when script is loaded
   useEffect(() => {
