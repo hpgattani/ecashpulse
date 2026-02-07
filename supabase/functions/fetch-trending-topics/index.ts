@@ -55,6 +55,17 @@ const AUTO_BLOCKED_TITLE_KEYWORDS = [
   'third largest',
   'largest company by market cap',
   'market cap ranking',
+  // Block esports junk miscategorized as politics
+  'total kills',
+  'first blood',
+  'win 1 maps',
+  'win 2 maps',
+  'win 3 maps',
+  'to win maps',
+  'game 1',
+  'game 2',
+  'game 3',
+  'over/under',
 ];
 
 // Patterns that are obviously trivially-true or nonsense (e.g., "American team win Super Bowl")
