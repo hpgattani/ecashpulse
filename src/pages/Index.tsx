@@ -50,7 +50,7 @@ const Index = () => {
     <>
       <Helmet>
         <title>eCash Pulse - Decentralized Prediction Market | Bet with XEC</title>
-        <meta name="description" content="Trade on real-world events with eCash Pulse. The decentralized prediction market built on eCash (XEC) with instant settlements and near-zero fees." />
+        <meta name="description" content="Trade on real-world events with eCash Pulse. The first prediction market built on eCash (XEC) with instant settlements and near-zero fees." />
         <meta name="keywords" content="eCash, XEC, prediction market, crypto betting, decentralized, blockchain" />
       </Helmet>
       

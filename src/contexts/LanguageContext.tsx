@@ -292,7 +292,7 @@ const translations: Record<Language, Translations> = {
     // Hero
     heroTitle1: 'Predict the Future,',
     heroTitle2: 'Bet with Confidence',
-    heroSubtitle: 'The decentralized prediction market built on eCash. Trade on real-world events with instant settlements and near-zero fees.',
+    heroSubtitle: 'The first prediction market built on eCash. Trade on real-world events with instant settlements and near-zero fees.',
     poweredBy: 'Powered by',
     startTrading: 'Start Trading',
     exploreMarkets: 'Explore Markets',
@@ -378,7 +378,7 @@ const translations: Record<Language, Translations> = {
     aboutEcash: 'About eCash',
     getWallet: 'Get a Wallet',
     payButtonDocs: 'PayButton Docs',
-    footerDesc: 'The decentralized prediction market built on eCash. Trade on real-world events with instant settlements and near-zero fees.',
+    footerDesc: 'The first prediction market built on eCash. Trade on real-world events with instant settlements and near-zero fees.',
     copyright: '© 2026 eCash Pulse. Powered by eCash (XEC).',
     disclaimer: 'Prediction markets are for informational purposes only. Trade responsibly.',
     
@@ -482,7 +482,7 @@ const translations: Record<Language, Translations> = {
     // Hero
     heroTitle1: 'Preveja o Futuro,',
     heroTitle2: 'Aposte com Confiança',
-    heroSubtitle: 'O mercado de previsões descentralizado construído em eCash. Negocie eventos do mundo real com liquidações instantâneas e taxas quase zero.',
+    heroSubtitle: 'O primeiro mercado de previsões construído em eCash. Negocie eventos do mundo real com liquidações instantâneas e taxas quase zero.',
     poweredBy: 'Desenvolvido por',
     startTrading: 'Começar a Negociar',
     exploreMarkets: 'Explorar Mercados',
@@ -568,7 +568,7 @@ const translations: Record<Language, Translations> = {
     aboutEcash: 'Sobre o eCash',
     getWallet: 'Obter uma Carteira',
     payButtonDocs: 'Documentação PayButton',
-    footerDesc: 'O mercado de previsões descentralizado construído em eCash. Negocie eventos do mundo real com liquidações instantâneas e taxas quase zero.',
+    footerDesc: 'O primeiro mercado de previsões construído em eCash. Negocie eventos do mundo real com liquidações instantâneas e taxas quase zero.',
     copyright: '© 2026 eCash Pulse. Desenvolvido por eCash (XEC).',
     disclaimer: 'Os mercados de previsão são apenas para fins informativos. Negocie com responsabilidade.',
     
@@ -672,7 +672,7 @@ const translations: Record<Language, Translations> = {
     // Hero
     heroTitle1: '미래를 예측하고,',
     heroTitle2: '자신있게 베팅하세요',
-    heroSubtitle: 'eCash 기반 탈중앙화 예측 마켓. 즉시 정산과 거의 제로에 가까운 수수료로 실제 이벤트에 거래하세요.',
+    heroSubtitle: 'eCash 기반 최초의 예측 마켓. 즉시 정산과 거의 제로에 가까운 수수료로 실제 이벤트에 거래하세요.',
     poweredBy: 'Powered by',
     startTrading: '거래 시작',
     exploreMarkets: '마켓 탐색',
@@ -758,7 +758,7 @@ const translations: Record<Language, Translations> = {
     aboutEcash: 'eCash 소개',
     getWallet: '지갑 받기',
     payButtonDocs: 'PayButton 문서',
-    footerDesc: 'eCash 기반 탈중앙화 예측 마켓. 즉시 정산과 거의 제로에 가까운 수수료로 실제 이벤트에 거래하세요.',
+    footerDesc: 'eCash 기반 최초의 예측 마켓. 즉시 정산과 거의 제로에 가까운 수수료로 실제 이벤트에 거래하세요.',
     copyright: '© 2026 eCash Pulse. Powered by eCash (XEC).',
     disclaimer: '예측 마켓은 정보 제공 목적입니다. 책임감 있게 거래하세요.',
     
@@ -862,7 +862,7 @@ const translations: Record<Language, Translations> = {
     // Hero
     heroTitle1: '未来を予測し、',
     heroTitle2: '自信を持ってベット',
-    heroSubtitle: 'eCash上に構築された分散型予測マーケット。即時決済とほぼゼロの手数料で実世界のイベントに取引。',
+    heroSubtitle: 'eCash上に構築された初の予測マーケット。即時決済とほぼゼロの手数料で実世界のイベントに取引。',
     poweredBy: 'Powered by',
     startTrading: '取引開始',
     exploreMarkets: 'マーケットを探索',
@@ -948,7 +948,7 @@ const translations: Record<Language, Translations> = {
     aboutEcash: 'eCashについて',
     getWallet: 'ウォレットを取得',
     payButtonDocs: 'PayButtonドキュメント',
-    footerDesc: 'eCash上に構築された分散型予測マーケット。即時決済とほぼゼロの手数料で実世界のイベントに取引。',
+    footerDesc: 'eCash上に構築された初の予測マーケット。即時決済とほぼゼロの手数料で実世界のイベントに取引。',
     copyright: '© 2026 eCash Pulse. Powered by eCash (XEC).',
     disclaimer: '予測マーケットは情報提供目的のみです。責任を持って取引してください。',
     
