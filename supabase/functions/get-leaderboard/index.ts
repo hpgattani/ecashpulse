@@ -87,12 +87,12 @@ Deno.serve(async (req) => {
           ? Math.round((stats.total_wins / stats.total_bets) * 100) 
           : 0
       }))
-      .filter(l => l.total_wins > 0 && l.total_bets > 1)
+      .filter(l => l.total_wins >= 2 && l.total_bets > 1)
       .sort((a, b) => {
-        // Primary: best win rate
-        if (b.win_rate !== a.win_rate) return b.win_rate - a.win_rate;
-        // Tiebreaker 1: more wins
+        // Primary: most wins
         if (b.total_wins !== a.total_wins) return b.total_wins - a.total_wins;
+        // Tiebreaker 1: best win rate
+        if (b.win_rate !== a.win_rate) return b.win_rate - a.win_rate;
         // Tiebreaker 2: higher winnings
         return b.total_winnings - a.total_winnings;
       })
