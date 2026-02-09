@@ -57,6 +57,8 @@ const AUTO_BLOCKED_TITLE_KEYWORDS = [
   'market cap ranking',
   // Block esports junk miscategorized as politics
   'total kills',
+  'most kills',
+  'series: most kills',
   'first blood',
   'win 1 maps',
   'win 2 maps',
