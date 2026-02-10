@@ -68,6 +68,10 @@ const AUTO_BLOCKED_TITLE_KEYWORDS = [
   'game 2',
   'game 3',
   'over/under',
+  // Block outdated political figures / expired events
+  'biden',
+  'drop out speech',
+  'dropout speech',
 ];
 
 // Patterns that are obviously trivially-true or nonsense (e.g., "American team win Super Bowl")
