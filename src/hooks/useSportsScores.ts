@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 // Import local team logos
 import dundeeUtdLogo from '@/assets/teams/dundee-united.jpg';
 import heartsLogo from '@/assets/teams/hearts.jpg';
+import scotlandCricketLogo from '@/assets/teams/scotland-cricket.png';
+import englandCricketLogo from '@/assets/teams/england-cricket.png';
 
 export interface GameScore {
   homeTeam: string;
@@ -135,8 +137,8 @@ const KNOWN_GAMES: Record<string, KnownGame> = {
     team2Score: null,
     status: 'scheduled',
     league: 'ICC T20 World Cup',
-    team1Logo: 'https://img1.hscicdn.com/image/upload/f_auto,t_ds_square_w_80/lsci/db/PICTURES/CMS/340400/340469.png',
-    team2Logo: 'https://img1.hscicdn.com/image/upload/f_auto,t_ds_square_w_80/lsci/db/PICTURES/CMS/340400/340432.png',
+    team1Logo: scotlandCricketLogo,
+    team2Logo: englandCricketLogo,
   },
 };
 
