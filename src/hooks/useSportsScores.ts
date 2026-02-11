@@ -135,8 +135,8 @@ const KNOWN_GAMES: Record<string, KnownGame> = {
     team2Score: null,
     status: 'scheduled',
     league: 'ICC T20 World Cup',
-    team1Logo: 'https://upload.wikimedia.org/wikipedia/en/thumb/2/29/Cricket_Scotland_logo.svg/200px-Cricket_Scotland_logo.svg.png',
-    team2Logo: 'https://upload.wikimedia.org/wikipedia/en/thumb/c/ce/England_cricket_team_cap_insignia.svg/200px-England_cricket_team_cap_insignia.svg.png',
+    team1Logo: 'https://img1.hscicdn.com/image/upload/f_auto,t_ds_square_w_80/lsci/db/PICTURES/CMS/340400/340469.png',
+    team2Logo: 'https://img1.hscicdn.com/image/upload/f_auto,t_ds_square_w_80/lsci/db/PICTURES/CMS/340400/340432.png',
   },
 };
 
