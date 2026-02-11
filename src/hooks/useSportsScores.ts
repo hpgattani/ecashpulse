@@ -127,6 +127,17 @@ const KNOWN_GAMES: Record<string, KnownGame> = {
     team1Logo: SCOTTISH_LOGOS.stMirren,
     team2Logo: SCOTTISH_LOGOS.rossCounty,
   },
+  // ICC T20 World Cup 2026
+  'scotland_england_cricket': {
+    team1: 'Scotland',
+    team2: 'England',
+    team1Score: null,
+    team2Score: null,
+    status: 'scheduled',
+    league: 'ICC T20 World Cup',
+    team1Logo: 'https://upload.wikimedia.org/wikipedia/en/thumb/2/29/Cricket_Scotland_logo.svg/200px-Cricket_Scotland_logo.svg.png',
+    team2Logo: 'https://upload.wikimedia.org/wikipedia/en/thumb/c/ce/England_cricket_team_cap_insignia.svg/200px-England_cricket_team_cap_insignia.svg.png',
+  },
 };
 
 export function getKnownScore(title: string): GameScore | null {
@@ -284,6 +295,24 @@ export function getKnownScore(title: string): GameScore | null {
       awayScore: stMirrenFirst ? game.team2Score : game.team1Score,
       homeLogo: stMirrenFirst ? game.team1Logo : game.team2Logo,
       awayLogo: stMirrenFirst ? game.team2Logo : game.team1Logo,
+      status: game.status,
+      league: game.league,
+    };
+  }
+  // Scotland vs England - ICC T20 World Cup
+  if (lower.includes('scotland') && lower.includes('england')) {
+    const game = KNOWN_GAMES['scotland_england_cricket'];
+    const scotlandIdx = lower.indexOf('scotland');
+    const englandIdx = lower.indexOf('england');
+    const scotlandFirst = scotlandIdx < englandIdx;
+    
+    return {
+      homeTeam: scotlandFirst ? game.team1 : game.team2,
+      awayTeam: scotlandFirst ? game.team2 : game.team1,
+      homeScore: scotlandFirst ? game.team1Score : game.team2Score,
+      awayScore: scotlandFirst ? game.team2Score : game.team1Score,
+      homeLogo: scotlandFirst ? game.team1Logo : game.team2Logo,
+      awayLogo: scotlandFirst ? game.team2Logo : game.team1Logo,
       status: game.status,
       league: game.league,
     };
