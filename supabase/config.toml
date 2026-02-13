@@ -146,3 +146,6 @@ verify_jwt = false
 
 [functions.get-scottish-scores]
 verify_jwt = false
+
+[functions.get-cricket-score]
+verify_jwt = false
