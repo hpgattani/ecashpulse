@@ -88,14 +88,16 @@ Deno.serve(async (req) => {
           : 0
       }))
       .filter(l => l.total_wins >= 2 && l.total_bets > 1)
-      .sort((a, b) => {
-        // Primary: most wins
-        if (b.total_wins !== a.total_wins) return b.total_wins - a.total_wins;
-        // Tiebreaker 1: best win rate
-        if (b.win_rate !== a.win_rate) return b.win_rate - a.win_rate;
-        // Tiebreaker 2: higher winnings
-        return b.total_winnings - a.total_winnings;
+      .map(l => {
+        // Combination score: weighted formula
+        // 40% wins (normalized), 35% winnings (log-scaled), 25% win rate
+        const winsScore = l.total_wins;
+        const winningsScore = l.total_winnings > 0 ? Math.log10(l.total_winnings) : 0;
+        const winRateScore = l.win_rate / 100;
+        l.combo_score = (winsScore * 0.4) + (winningsScore * 3.5) + (winRateScore * 2.5);
+        return l;
       })
+      .sort((a, b) => (b as any).combo_score - (a as any).combo_score)
       .slice(0, 10);
 
     console.log(`Leaderboard: ${leaderboard.length} winners found`);
