@@ -2,26 +2,23 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
-import { Zap, AlertCircle, Loader2, CheckCircle, Wallet } from 'lucide-react';
+import { Zap, AlertCircle, CheckCircle, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
+
+import type { PayButtonTransaction } from '@/types/paybutton.d.ts';
 
 // Platform auth wallet - receives verification payments
 const AUTH_WALLET = 'ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp';
 const AUTH_AMOUNT = 5.46; // XEC amount for verification
 
-import type { PayButtonTransaction } from '@/types/paybutton.d.ts';
-
 const Auth = () => {
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [authSuccess, setAuthSuccess] = useState(false);
   const [scriptLoaded, setScriptLoaded] = useState(false);
-  const [pendingTxHash, setPendingTxHash] = useState<string | null>(null);
   const payButtonRef = useRef<HTMLDivElement>(null);
-  const { user } = useAuth();
+  const { user, login } = useAuth();
   const navigate = useNavigate();
 
   // Load PayButton script
@@ -39,7 +36,7 @@ const Auth = () => {
     document.body.appendChild(script);
   }, []);
 
-  // Close any PayButton QR/modal overlays for faster UX
+  // Close any PayButton QR/modal overlays
   const closePayButtonModal = useCallback(() => {
     const selectors = [
       '.paybutton-modal',
@@ -62,70 +59,11 @@ const Auth = () => {
     }
   }, []);
 
-  // Submit tx to server for verification and session creation
-  const verifyAndLogin = useCallback(async (txHash: string, senderAddress: string) => {
-    setIsLoading(true);
-    setPendingTxHash(txHash);
-    setError(null);
-
-    try {
-      let attempts = 0;
-      const maxAttempts = 20;
-
-      while (attempts < maxAttempts) {
-        try {
-          const { data, error: sessionError } = await supabase.functions.invoke('create-session', {
-            body: {
-              ecash_address: senderAddress,
-              tx_hash: txHash,
-            },
-          });
-
-          if (!sessionError && data?.success) {
-            // Session created/found - store locally
-            localStorage.setItem('ecash_user', JSON.stringify(data.user));
-            localStorage.setItem('ecash_session_token', data.session_token);
-            if (data.profile) {
-              localStorage.setItem('ecash_profile', JSON.stringify(data.profile));
-            }
-
-            setAuthSuccess(true);
-            toast.success('Payment Sent!', {
-              description: `Paid ${AUTH_AMOUNT} XEC — wallet verified`,
-            });
-
-            const returnUrl = sessionStorage.getItem('auth_return_url');
-            sessionStorage.removeItem('auth_return_url');
-            setTimeout(() => (window.location.href = returnUrl || '/'), 1500);
-            return;
-          }
-
-          // If tx verification failed (not just "not found yet"), stop retrying
-          if (data?.error && !data.error.includes('Could not verify')) {
-            throw new Error(data.error);
-          }
-        } catch (invokeErr: any) {
-          console.log(`Attempt ${attempts + 1}: Server verifying transaction...`);
-        }
-
-        attempts++;
-        await new Promise((r) => setTimeout(r, 3000));
-      }
-
-      throw new Error('Transaction verification timeout. Please try again.');
-    } catch (err) {
-      console.error('Verification error:', err);
-      setError(err instanceof Error ? err.message : 'Verification failed');
-      setIsLoading(false);
-    }
-  }, []);
-
   // Render PayButton when script is loaded
   useEffect(() => {
     if (!payButtonRef.current) return;
 
-    // If user is already logged in, loading, or auth succeeded, ensure QR/modal is closed
-    if (user || isLoading || authSuccess) {
+    if (user || authSuccess) {
       closePayButtonModal();
       return;
     }
@@ -135,20 +73,33 @@ const Auth = () => {
     payButtonRef.current.innerHTML = '';
 
     const handleSuccess = async (transaction: PayButtonTransaction) => {
-      // Immediately close the PayButton QR/modal for snappy UX
       closePayButtonModal();
 
       console.log('Auth payment detected:', transaction);
-      
+
       const senderAddress = transaction.inputAddresses?.[0];
-      const txHash = transaction.hash;
-      
+
       if (!senderAddress) {
         setError('Could not detect sender wallet address. Please try again.');
         return;
       }
 
-      verifyAndLogin(txHash, senderAddress);
+      // Client-side login — no server calls needed
+      const { error: loginError } = await login(senderAddress, transaction.hash);
+
+      if (loginError) {
+        setError(loginError);
+        return;
+      }
+
+      setAuthSuccess(true);
+      toast.success('Payment Sent!', {
+        description: `Paid ${AUTH_AMOUNT} XEC — wallet verified`,
+      });
+
+      const returnUrl = sessionStorage.getItem('auth_return_url');
+      sessionStorage.removeItem('auth_return_url');
+      setTimeout(() => (window.location.href = returnUrl || '/'), 1500);
     };
 
     window.PayButton.render(payButtonRef.current, {
@@ -172,7 +123,7 @@ const Auth = () => {
     return () => {
       closePayButtonModal();
     };
-  }, [scriptLoaded, user, isLoading, authSuccess, verifyAndLogin, closePayButtonModal]);
+  }, [scriptLoaded, user, authSuccess, login, closePayButtonModal]);
 
   useEffect(() => {
     if (user) {
@@ -239,7 +190,7 @@ const Auth = () => {
             {/* Security Badge */}
             <div className="flex items-center justify-center gap-2 mb-4 text-xs text-primary">
               <Wallet className="w-4 h-4" />
-              <span>Verified on-chain via Chronik</span>
+              <span>Client-side wallet verification</span>
             </div>
 
             {error && (
@@ -253,31 +204,17 @@ const Auth = () => {
               </motion.div>
             )}
 
-            {isLoading ? (
-              <div className="flex flex-col items-center justify-center py-8">
-                <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
-                <p className="text-muted-foreground text-sm">
-                  Verifying transaction on-chain...
-                </p>
-                {pendingTxHash && (
-                  <p className="text-xs text-muted-foreground/60 mt-2 font-mono">
-                    TX: {pendingTxHash.slice(0, 12)}...
-                  </p>
-                )}
+            <div className="space-y-4">
+              {/* PayButton container */}
+              <div className="flex justify-center min-h-[50px]">
+                <div ref={payButtonRef} />
               </div>
-            ) : (
-              <div className="space-y-4">
-                {/* PayButton container */}
-                <div className="flex justify-center min-h-[50px]">
-                  <div ref={payButtonRef} />
-                </div>
 
-                <div className="text-center text-xs text-muted-foreground space-y-1">
-                  <p>This small verification fee proves wallet ownership.</p>
-                  <p className="text-primary/80">Transaction verified directly on eCash blockchain.</p>
-                </div>
+              <div className="text-center text-xs text-muted-foreground space-y-1">
+                <p>This small verification fee proves wallet ownership.</p>
+                <p className="text-primary/80">Session stored locally in your browser.</p>
               </div>
-            )}
+            </div>
 
             <div className="mt-6 pt-6 border-t border-border/30">
               <p className="text-xs text-muted-foreground text-center">

@@ -1,5 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 interface User {
   id: string;
@@ -49,6 +48,27 @@ const isValidEcashAddress = (address: string): boolean => {
   return ecashRegex.test(address.toLowerCase()) || legacyRegex.test(address.toLowerCase());
 };
 
+// Generate a deterministic-ish user ID from address (consistent across sessions)
+const addressToUserId = (address: string): string => {
+  // Simple hash-like approach: use the address itself as a stable ID seed
+  let hash = 0;
+  for (let i = 0; i < address.length; i++) {
+    const char = address.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash |= 0;
+  }
+  // Create a UUID-like string from the address for consistency
+  const hex = Math.abs(hash).toString(16).padStart(8, '0');
+  return `${hex}-${hex.slice(0, 4)}-4${hex.slice(1, 4)}-a${hex.slice(1, 4)}-${address.slice(-12)}`;
+};
+
+// Generate a random session token
+const generateSessionToken = (): string => {
+  const array = new Uint8Array(32);
+  crypto.getRandomValues(array);
+  return Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const readLocalJson = <T,>(key: string): T | null => {
     try {
@@ -65,80 +85,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [sessionToken, setSessionToken] = useState<string | null>(() => localStorage.getItem('ecash_session_token'));
   const [loading, setLoading] = useState(true);
 
-  // Validate session with server
-  const validateSession = useCallback(async (): Promise<boolean> => {
+  // Client-side session validation — just check localStorage
+  const validateSession = async (): Promise<boolean> => {
     const storedToken = localStorage.getItem('ecash_session_token');
+    const storedUser = readLocalJson<User>('ecash_user');
 
-    if (!storedToken) {
+    if (!storedToken || !storedUser) {
       setUser(null);
       setProfile(null);
       setSessionToken(null);
       return false;
     }
 
-    try {
-      const { data, error } = await supabase.functions.invoke('validate-session', {
-        body: { session_token: storedToken }
-      });
+    // Session is valid if it exists locally
+    setUser(storedUser);
+    setProfile(readLocalJson<Profile>('ecash_profile'));
+    setSessionToken(storedToken);
+    return true;
+  };
 
-      // Important: do NOT log users out on transient network/function errors.
-      if (error) {
-        console.warn('Session validation request failed (keeping local session):', error);
-        setSessionToken(storedToken);
-        return false;
-      }
-
-      if (!data?.valid) {
-        // Session invalid - clear local storage
-        localStorage.removeItem('ecash_user');
-        localStorage.removeItem('ecash_profile');
-        localStorage.removeItem('ecash_session_token');
-        setUser(null);
-        setProfile(null);
-        setSessionToken(null);
-        return false;
-      }
-
-      // Session valid - update state with fresh server data
-      setUser(data.user);
-      setProfile(data.profile);
-      setSessionToken(storedToken);
-
-      localStorage.setItem('ecash_user', JSON.stringify(data.user));
-      if (data.profile) {
-        localStorage.setItem('ecash_profile', JSON.stringify(data.profile));
-      } else {
-        localStorage.removeItem('ecash_profile');
-      }
-
-      return true;
-    } catch (error) {
-      console.error('Session validation error (keeping local session):', error);
-      setSessionToken(storedToken);
-      return false;
-    }
-  }, []);
-
-  // Initialize auth state - validate session on load
+  // Initialize auth state
   useEffect(() => {
     const initAuth = async () => {
-      const storedToken = localStorage.getItem('ecash_session_token');
-      
-      if (storedToken) {
-        // Validate session with server
-        const isValid = await validateSession();
-        if (!isValid) {
-          console.log('Stored session is invalid or expired');
-        }
-      }
-      
+      await validateSession();
       setLoading(false);
     };
-
     initAuth();
-  }, [validateSession]);
+  }, []);
 
-  // Login by checking for webhook-created session
+  // Client-side login — create session directly from address
   const login = async (ecashAddress: string, txHash?: string): Promise<{ error: string | null }> => {
     const trimmedAddress = ecashAddress.trim().toLowerCase();
     
@@ -146,33 +121,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return { error: 'Invalid eCash address format' };
     }
 
-    try {
-      // Query for session created by webhook for this address
-      const { data, error } = await supabase.functions.invoke('validate-session', {
-        body: { ecash_address: trimmedAddress, tx_hash: txHash }
-      });
+    const userId = addressToUserId(trimmedAddress);
+    const now = new Date().toISOString();
+    const token = generateSessionToken();
 
-      if (error || !data?.valid) {
-        // Webhook hasn't created session yet
-        return { error: 'Session not ready - waiting for server verification' };
-      }
+    const newUser: User = {
+      id: userId,
+      ecash_address: trimmedAddress,
+      created_at: now,
+      last_login_at: now,
+    };
 
-      // Session found and valid
-      setUser(data.user);
-      setProfile(data.profile || null);
-      setSessionToken(data.session_token);
+    setUser(newUser);
+    setSessionToken(token);
 
-      localStorage.setItem('ecash_user', JSON.stringify(data.user));
-      localStorage.setItem('ecash_session_token', data.session_token);
-      if (data.profile) {
-        localStorage.setItem('ecash_profile', JSON.stringify(data.profile));
-      }
-      
-      return { error: null };
-    } catch (err) {
-      console.error('Login error:', err);
-      return { error: 'Authentication failed' };
-    }
+    localStorage.setItem('ecash_user', JSON.stringify(newUser));
+    localStorage.setItem('ecash_session_token', token);
+
+    return { error: null };
   };
 
   const logout = () => {
