@@ -199,22 +199,58 @@ Deno.serve(async (req) => {
     console.log('Received body:', JSON.stringify({ ...body, session_token: '[REDACTED]' }));
     const { session_token, prediction_id, position, amount, tx_hash, outcome_id, note, user_id: client_user_id } = body;
 
-    // Support client-side auth: accept user_id directly, fall back to session validation
+    // Support client-side auth: accept user_id directly, fall back to session/tx lookup
     let user_id: string | undefined;
     
     if (client_user_id && typeof client_user_id === 'string' && client_user_id.length > 0) {
       // Client-side auth: trust the user_id from the client
       user_id = client_user_id;
     } else if (session_token) {
-      // Legacy server-side session validation
+      // Try server-side session validation first
       const sessionResult = await validateSession(supabase, session_token);
-      if (!sessionResult.valid) {
-        return new Response(
-          JSON.stringify({ error: sessionResult.error }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      if (sessionResult.valid) {
+        user_id = sessionResult.userId;
+      } else {
+        console.log('Session validation failed, trying tx_hash lookup...');
+        // Fall back: identify user by tx sender address
+        if (tx_hash && isValidTxHash(tx_hash)) {
+          const senderAddress = await getSenderFromTx(tx_hash);
+          if (senderAddress) {
+            console.log('Sender address from tx:', senderAddress);
+            // Look up or create user by address
+            const { data: existingUser } = await supabase
+              .from('users')
+              .select('id')
+              .eq('ecash_address', senderAddress)
+              .maybeSingle();
+            
+            if (existingUser) {
+              user_id = existingUser.id;
+              console.log('Found existing user by tx sender:', user_id);
+            } else {
+              // Create user from sender address
+              const { data: newUser, error: createErr } = await supabase
+                .from('users')
+                .insert({ ecash_address: senderAddress })
+                .select('id')
+                .single();
+              if (newUser) {
+                user_id = newUser.id;
+                console.log('Created new user from tx sender:', user_id);
+              } else {
+                console.error('Failed to create user:', createErr);
+              }
+            }
+          }
+        }
+        
+        if (!user_id) {
+          return new Response(
+            JSON.stringify({ error: 'Authentication failed and could not identify sender from transaction' }),
+            { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
       }
-      user_id = sessionResult.userId;
     } else {
       return new Response(
         JSON.stringify({ error: 'Authentication required' }),
