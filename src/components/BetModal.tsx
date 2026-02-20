@@ -167,10 +167,10 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
         const invokePromise = supabase.functions.invoke("process-bet", {
           body: {
             session_token: sessionToken,
+            user_id: user.id,
             prediction_id: prediction.id,
             position: betPosition,
             amount: betAmountSatoshis,
-            // tx_hash is optional (some wallets don't return a txid reliably)
             tx_hash: txHash,
             outcome_id: selectedOutcome?.id || null,
           },

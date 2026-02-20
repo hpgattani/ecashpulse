@@ -197,18 +197,30 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     console.log('Received body:', JSON.stringify({ ...body, session_token: '[REDACTED]' }));
-    const { session_token, prediction_id, position, amount, tx_hash, outcome_id, note } = body;
+    const { session_token, prediction_id, position, amount, tx_hash, outcome_id, note, user_id: client_user_id } = body;
 
-    // Validate session and get authenticated user_id
-    const sessionResult = await validateSession(supabase, session_token);
-    if (!sessionResult.valid) {
+    // Support client-side auth: accept user_id directly, fall back to session validation
+    let user_id: string | undefined;
+    
+    if (client_user_id && typeof client_user_id === 'string' && client_user_id.length > 0) {
+      // Client-side auth: trust the user_id from the client
+      user_id = client_user_id;
+    } else if (session_token) {
+      // Legacy server-side session validation
+      const sessionResult = await validateSession(supabase, session_token);
+      if (!sessionResult.valid) {
+        return new Response(
+          JSON.stringify({ error: sessionResult.error }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      user_id = sessionResult.userId;
+    } else {
       return new Response(
-        JSON.stringify({ error: sessionResult.error }),
+        JSON.stringify({ error: 'Authentication required' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    const user_id = sessionResult.userId;
     console.log(`Processing bet: user=${user_id}, prediction=${prediction_id}, position=${position}, amount=${amount}`);
 
     // Optional: check for duplicate tx_hash to avoid double-recording
