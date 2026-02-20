@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface User {
@@ -42,6 +42,13 @@ export const useAuth = () => {
   return context;
 };
 
+// Simple eCash address validation
+const isValidEcashAddress = (address: string): boolean => {
+  const ecashRegex = /^ecash:q[a-z0-9]{41}$/;
+  const legacyRegex = /^q[a-z0-9]{41}$/;
+  return ecashRegex.test(address.toLowerCase()) || legacyRegex.test(address.toLowerCase());
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const readLocalJson = <T,>(key: string): T | null => {
     try {
@@ -58,9 +65,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [sessionToken, setSessionToken] = useState<string | null>(() => localStorage.getItem('ecash_session_token'));
   const [loading, setLoading] = useState(true);
 
-  // Server-side session validation
-  const validateSession = async (): Promise<boolean> => {
+  // Validate session with server
+  const validateSession = useCallback(async (): Promise<boolean> => {
     const storedToken = localStorage.getItem('ecash_session_token');
+
     if (!storedToken) {
       setUser(null);
       setProfile(null);
@@ -70,73 +78,88 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       const { data, error } = await supabase.functions.invoke('validate-session', {
-        body: { session_token: storedToken },
+        body: { session_token: storedToken }
       });
 
-      if (error || !data?.valid) {
-        console.log('Session invalid, clearing local state');
-        setUser(null);
-        setProfile(null);
-        setSessionToken(null);
-        localStorage.removeItem('ecash_user');
-        localStorage.removeItem('ecash_profile');
-        localStorage.removeItem('ecash_session_token');
+      // Important: do NOT log users out on transient network/function errors.
+      if (error) {
+        console.warn('Session validation request failed (keeping local session):', error);
+        setSessionToken(storedToken);
         return false;
       }
 
+      if (!data?.valid) {
+        // Session invalid - clear local storage
+        localStorage.removeItem('ecash_user');
+        localStorage.removeItem('ecash_profile');
+        localStorage.removeItem('ecash_session_token');
+        setUser(null);
+        setProfile(null);
+        setSessionToken(null);
+        return false;
+      }
+
+      // Session valid - update state with fresh server data
       setUser(data.user);
       setProfile(data.profile);
-      setSessionToken(data.session_token || storedToken);
+      setSessionToken(storedToken);
 
       localStorage.setItem('ecash_user', JSON.stringify(data.user));
       if (data.profile) {
         localStorage.setItem('ecash_profile', JSON.stringify(data.profile));
+      } else {
+        localStorage.removeItem('ecash_profile');
       }
 
       return true;
-    } catch (err) {
-      console.error('Session validation error:', err);
-      // Keep local state on network failure (offline resilience)
-      const storedUser = readLocalJson<User>('ecash_user');
-      if (storedUser) {
-        setUser(storedUser);
-        setProfile(readLocalJson<Profile>('ecash_profile'));
-        setSessionToken(storedToken);
-        return true;
-      }
+    } catch (error) {
+      console.error('Session validation error (keeping local session):', error);
+      setSessionToken(storedToken);
       return false;
     }
-  };
-
-  // Initialize auth state
-  useEffect(() => {
-    const initAuth = async () => {
-      await validateSession();
-      setLoading(false);
-    };
-    initAuth();
   }, []);
 
-  // Server-side login — calls create-session edge function
+  // Initialize auth state - validate session on load
+  useEffect(() => {
+    const initAuth = async () => {
+      const storedToken = localStorage.getItem('ecash_session_token');
+      
+      if (storedToken) {
+        // Validate session with server
+        const isValid = await validateSession();
+        if (!isValid) {
+          console.log('Stored session is invalid or expired');
+        }
+      }
+      
+      setLoading(false);
+    };
+
+    initAuth();
+  }, [validateSession]);
+
+  // Login by checking for webhook-created session
   const login = async (ecashAddress: string, txHash?: string): Promise<{ error: string | null }> => {
     const trimmedAddress = ecashAddress.trim().toLowerCase();
+    
+    if (!isValidEcashAddress(trimmedAddress)) {
+      return { error: 'Invalid eCash address format' };
+    }
 
     try {
-      const { data, error } = await supabase.functions.invoke('create-session', {
-        body: { ecash_address: trimmedAddress, tx_hash: txHash },
+      // Query for session created by webhook for this address
+      const { data, error } = await supabase.functions.invoke('validate-session', {
+        body: { ecash_address: trimmedAddress, tx_hash: txHash }
       });
 
-      if (error) {
-        console.error('Create session error:', error);
-        return { error: error.message || 'Failed to create session' };
+      if (error || !data?.valid) {
+        // Webhook hasn't created session yet
+        return { error: 'Session not ready - waiting for server verification' };
       }
 
-      if (!data?.success) {
-        return { error: data?.error || 'Login failed' };
-      }
-
+      // Session found and valid
       setUser(data.user);
-      setProfile(data.profile);
+      setProfile(data.profile || null);
       setSessionToken(data.session_token);
 
       localStorage.setItem('ecash_user', JSON.stringify(data.user));
@@ -144,11 +167,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (data.profile) {
         localStorage.setItem('ecash_profile', JSON.stringify(data.profile));
       }
-
+      
       return { error: null };
-    } catch (err: any) {
+    } catch (err) {
       console.error('Login error:', err);
-      return { error: err.message || 'Network error during login' };
+      return { error: 'Authentication failed' };
     }
   };
 

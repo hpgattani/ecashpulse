@@ -170,6 +170,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
             prediction_id: prediction.id,
             position: betPosition,
             amount: betAmountSatoshis,
+            // tx_hash is optional (some wallets don't return a txid reliably)
             tx_hash: txHash,
             outcome_id: selectedOutcome?.id || null,
           },
