@@ -167,7 +167,6 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
         const invokePromise = supabase.functions.invoke("process-bet", {
           body: {
             session_token: sessionToken,
-            user_id: user.id,
             prediction_id: prediction.id,
             position: betPosition,
             amount: betAmountSatoshis,
