@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface User {
   id: string;
@@ -41,34 +42,6 @@ export const useAuth = () => {
   return context;
 };
 
-// Simple eCash address validation
-const isValidEcashAddress = (address: string): boolean => {
-  const ecashRegex = /^ecash:q[a-z0-9]{41}$/;
-  const legacyRegex = /^q[a-z0-9]{41}$/;
-  return ecashRegex.test(address.toLowerCase()) || legacyRegex.test(address.toLowerCase());
-};
-
-// Generate a deterministic-ish user ID from address (consistent across sessions)
-const addressToUserId = (address: string): string => {
-  // Simple hash-like approach: use the address itself as a stable ID seed
-  let hash = 0;
-  for (let i = 0; i < address.length; i++) {
-    const char = address.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash |= 0;
-  }
-  // Create a UUID-like string from the address for consistency
-  const hex = Math.abs(hash).toString(16).padStart(8, '0');
-  return `${hex}-${hex.slice(0, 4)}-4${hex.slice(1, 4)}-a${hex.slice(1, 4)}-${address.slice(-12)}`;
-};
-
-// Generate a random session token
-const generateSessionToken = (): string => {
-  const array = new Uint8Array(32);
-  crypto.getRandomValues(array);
-  return Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
-};
-
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const readLocalJson = <T,>(key: string): T | null => {
     try {
@@ -85,23 +58,54 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [sessionToken, setSessionToken] = useState<string | null>(() => localStorage.getItem('ecash_session_token'));
   const [loading, setLoading] = useState(true);
 
-  // Client-side session validation — just check localStorage
+  // Server-side session validation
   const validateSession = async (): Promise<boolean> => {
     const storedToken = localStorage.getItem('ecash_session_token');
-    const storedUser = readLocalJson<User>('ecash_user');
-
-    if (!storedToken || !storedUser) {
+    if (!storedToken) {
       setUser(null);
       setProfile(null);
       setSessionToken(null);
       return false;
     }
 
-    // Session is valid if it exists locally
-    setUser(storedUser);
-    setProfile(readLocalJson<Profile>('ecash_profile'));
-    setSessionToken(storedToken);
-    return true;
+    try {
+      const { data, error } = await supabase.functions.invoke('validate-session', {
+        body: { session_token: storedToken },
+      });
+
+      if (error || !data?.valid) {
+        console.log('Session invalid, clearing local state');
+        setUser(null);
+        setProfile(null);
+        setSessionToken(null);
+        localStorage.removeItem('ecash_user');
+        localStorage.removeItem('ecash_profile');
+        localStorage.removeItem('ecash_session_token');
+        return false;
+      }
+
+      setUser(data.user);
+      setProfile(data.profile);
+      setSessionToken(data.session_token || storedToken);
+
+      localStorage.setItem('ecash_user', JSON.stringify(data.user));
+      if (data.profile) {
+        localStorage.setItem('ecash_profile', JSON.stringify(data.profile));
+      }
+
+      return true;
+    } catch (err) {
+      console.error('Session validation error:', err);
+      // Keep local state on network failure (offline resilience)
+      const storedUser = readLocalJson<User>('ecash_user');
+      if (storedUser) {
+        setUser(storedUser);
+        setProfile(readLocalJson<Profile>('ecash_profile'));
+        setSessionToken(storedToken);
+        return true;
+      }
+      return false;
+    }
   };
 
   // Initialize auth state
@@ -113,32 +117,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     initAuth();
   }, []);
 
-  // Client-side login — create session directly from address
+  // Server-side login — calls create-session edge function
   const login = async (ecashAddress: string, txHash?: string): Promise<{ error: string | null }> => {
     const trimmedAddress = ecashAddress.trim().toLowerCase();
-    
-    if (!isValidEcashAddress(trimmedAddress)) {
-      return { error: 'Invalid eCash address format' };
+
+    try {
+      const { data, error } = await supabase.functions.invoke('create-session', {
+        body: { ecash_address: trimmedAddress, tx_hash: txHash },
+      });
+
+      if (error) {
+        console.error('Create session error:', error);
+        return { error: error.message || 'Failed to create session' };
+      }
+
+      if (!data?.success) {
+        return { error: data?.error || 'Login failed' };
+      }
+
+      setUser(data.user);
+      setProfile(data.profile);
+      setSessionToken(data.session_token);
+
+      localStorage.setItem('ecash_user', JSON.stringify(data.user));
+      localStorage.setItem('ecash_session_token', data.session_token);
+      if (data.profile) {
+        localStorage.setItem('ecash_profile', JSON.stringify(data.profile));
+      }
+
+      return { error: null };
+    } catch (err: any) {
+      console.error('Login error:', err);
+      return { error: err.message || 'Network error during login' };
     }
-
-    const userId = addressToUserId(trimmedAddress);
-    const now = new Date().toISOString();
-    const token = generateSessionToken();
-
-    const newUser: User = {
-      id: userId,
-      ecash_address: trimmedAddress,
-      created_at: now,
-      last_login_at: now,
-    };
-
-    setUser(newUser);
-    setSessionToken(token);
-
-    localStorage.setItem('ecash_user', JSON.stringify(newUser));
-    localStorage.setItem('ecash_session_token', token);
-
-    return { error: null };
   };
 
   const logout = () => {

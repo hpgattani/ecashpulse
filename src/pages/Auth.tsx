@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
-import { Zap, AlertCircle, CheckCircle, Wallet } from 'lucide-react';
+import { Zap, AlertCircle, CheckCircle, Wallet, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -16,6 +16,7 @@ const AUTH_AMOUNT = 5.46; // XEC amount for verification
 const Auth = () => {
   const [error, setError] = useState<string | null>(null);
   const [authSuccess, setAuthSuccess] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const payButtonRef = useRef<HTMLDivElement>(null);
   const { user, login } = useAuth();
@@ -63,7 +64,7 @@ const Auth = () => {
   useEffect(() => {
     if (!payButtonRef.current) return;
 
-    if (user || authSuccess) {
+    if (user || authSuccess || isProcessing) {
       closePayButtonModal();
       return;
     }
@@ -74,6 +75,8 @@ const Auth = () => {
 
     const handleSuccess = async (transaction: PayButtonTransaction) => {
       closePayButtonModal();
+      setIsProcessing(true);
+      setError(null);
 
       console.log('Auth payment detected:', transaction);
 
@@ -81,20 +84,23 @@ const Auth = () => {
 
       if (!senderAddress) {
         setError('Could not detect sender wallet address. Please try again.');
+        setIsProcessing(false);
         return;
       }
 
-      // Client-side login — no server calls needed
+      // Server-side login via create-session edge function
       const { error: loginError } = await login(senderAddress, transaction.hash);
 
       if (loginError) {
         setError(loginError);
+        setIsProcessing(false);
         return;
       }
 
+      setIsProcessing(false);
       setAuthSuccess(true);
-      toast.success('Payment Sent!', {
-        description: `Paid ${AUTH_AMOUNT} XEC — wallet verified`,
+      toast.success('Wallet Verified!', {
+        description: `Paid ${AUTH_AMOUNT} XEC — session created`,
       });
 
       const returnUrl = sessionStorage.getItem('auth_return_url');
@@ -123,7 +129,7 @@ const Auth = () => {
     return () => {
       closePayButtonModal();
     };
-  }, [scriptLoaded, user, authSuccess, login, closePayButtonModal]);
+  }, [scriptLoaded, user, authSuccess, isProcessing, login, closePayButtonModal]);
 
   useEffect(() => {
     if (user) {
@@ -147,6 +153,26 @@ const Auth = () => {
           </h2>
           <p className="text-muted-foreground text-sm mt-2">
             Redirecting to eCash Pulse...
+          </p>
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (isProcessing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-center"
+        >
+          <div className="w-16 h-16 mx-auto mb-4 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          <h2 className="font-display text-xl font-bold text-foreground mb-2">
+            Verifying Transaction...
+          </h2>
+          <p className="text-muted-foreground text-sm">
+            Confirming your payment on-chain
           </p>
         </motion.div>
       </div>
@@ -189,8 +215,8 @@ const Auth = () => {
 
             {/* Security Badge */}
             <div className="flex items-center justify-center gap-2 mb-4 text-xs text-primary">
-              <Wallet className="w-4 h-4" />
-              <span>Client-side wallet verification</span>
+              <Shield className="w-4 h-4" />
+              <span>Server-verified wallet authentication</span>
             </div>
 
             {error && (
@@ -212,7 +238,7 @@ const Auth = () => {
 
               <div className="text-center text-xs text-muted-foreground space-y-1">
                 <p>This small verification fee proves wallet ownership.</p>
-                <p className="text-primary/80">Session stored locally in your browser.</p>
+                <p className="text-primary/80">Session verified on-chain via Chronik.</p>
               </div>
             </div>
 
