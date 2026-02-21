@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Activity, Menu, X, Wallet, LogOut, TrendingUp, User, BarChart3, MessageCircleHeart, Ticket, Gamepad2 } from "lucide-react";
+import { Activity, Menu, X, Wallet, LogOut, TrendingUp, User, BarChart3, MessageCircleHeart, Ticket, Gamepad2, Coins } from "lucide-react";
 import { ProfileModal } from "./ProfileModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -148,6 +148,10 @@ const Header = () => {
                 <Gamepad2 className="w-4 h-4" />
                 Games
               </Link>
+              <Link to="/token" className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+                <Coins className="w-4 h-4" />
+                $XPULSE
+              </Link>
             </nav>
 
             {/* Desktop Actions */}
@@ -268,6 +272,14 @@ const Header = () => {
                 >
                   <Gamepad2 className="w-4 h-4" />
                   Games
+                </Link>
+                <Link
+                  to="/token"
+                  className="text-foreground/80 hover:text-primary transition-colors flex items-center gap-2 font-medium"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <Coins className="w-4 h-4" />
+                  $XPULSE
                 </Link>
                 <div className="flex items-center justify-between pt-2 border-t border-border/30">
                   <span className="text-sm text-muted-foreground">Theme</span>
