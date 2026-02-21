@@ -64,6 +64,11 @@ const Token = () => {
                   Introductory price for the first 2 months · Price hike planned
                 </p>
               </div>
+              <div className="text-center md:text-right">
+                <p className="text-sm text-muted-foreground uppercase tracking-wider mb-1">Total Supply</p>
+                <p className="text-2xl md:text-3xl font-display font-bold text-foreground">500,000,000</p>
+                <p className="text-sm text-muted-foreground mt-1">500M $XPULSE</p>
+              </div>
               <div className="flex flex-col gap-3">
                 <Button size="lg" className="gap-2" asChild>
                   <a href={CASHTAB_URL} target="_blank" rel="noopener noreferrer">
