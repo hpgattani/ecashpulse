@@ -18,6 +18,7 @@ import Stats from "./pages/Stats";
 import Sentiment from "./pages/Sentiment";
 import Raffle from "./pages/Raffle";
 import Games from "./pages/Games";
+import Token from "./pages/Token";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -48,6 +49,7 @@ const App = () => (
                     <Route path="/sentiment" element={<Sentiment />} />
                     <Route path="/raffle" element={<Raffle />} />
                     <Route path="/games" element={<Games />} />
+                    <Route path="/token" element={<Token />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </BrowserRouter>
