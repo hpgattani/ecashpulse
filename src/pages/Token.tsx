@@ -92,7 +92,7 @@ const Token = () => {
               {
                 icon: Shield,
                 title: "eCash eToken",
-                desc: "Built on the eCash blockchain as a native SLP/eToken with full on-chain transparency.",
+                desc: "Built on the eCash blockchain as a native ALP ⛰️ eToken with full on-chain transparency.",
               },
             ].map((item, i) => (
               <motion.div
