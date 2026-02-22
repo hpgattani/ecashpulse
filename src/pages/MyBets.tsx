@@ -279,9 +279,10 @@ const MyBets = () => {
                 <div className="text-center py-16 text-muted-foreground">{t.noBetsYet}</div>
               ) : (
                 safeBets.map((bet) => (
-                  <div
+                  <button
                     key={bet.id}
-                    className="glass-card p-4 cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all"
+                    type="button"
+                    className="glass-card p-4 cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all w-full text-left relative z-10"
                     onClick={() => navigate(`/prediction/${bet.prediction_id}`)}
                   >
                     <h3 className="font-semibold">{translateTitle(bet.prediction!.title)}</h3>
@@ -293,7 +294,7 @@ const MyBets = () => {
                     </div>
 
                     <div className="mt-3 font-bold">{formatXEC(bet.amount)}</div>
-                  </div>
+                  </button>
                 ))
               )}
             </TabsContent>
