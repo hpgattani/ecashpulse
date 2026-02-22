@@ -51,35 +51,11 @@ const PublicBets = () => {
   useEffect(() => {
     fetchBets();
 
-    // Subscribe to realtime updates for new bets and updates
-    const channel = supabase
-      .channel('public-bets-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'bets'
-        },
-        () => {
-          fetchBets();
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'bets'
-        },
-        () => {
-          fetchBets();
-        }
-      )
-      .subscribe();
+    // Poll every 30 seconds for new bets (realtime won't work due to RLS on bets table)
+    const interval = setInterval(fetchBets, 30000);
 
     return () => {
-      supabase.removeChannel(channel);
+      clearInterval(interval);
     };
   }, []);
 
