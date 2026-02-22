@@ -274,8 +274,8 @@ export function SentimentVoteModal({ open, onOpenChange, topic, position, onSucc
               </div>
             </div>
 
-            {/* PayButton container - full width */}
-            <div ref={payButtonRef} className="min-h-[52px] w-full [&>div]:w-full [&_button]:w-full" />
+            {/* PayButton container - full width, high z-index to stay clickable above dialog overlay */}
+            <div ref={payButtonRef} className="min-h-[52px] w-full relative z-[60] [&>div]:w-full [&>div]:relative [&>div]:z-[60] [&_button]:w-full [&_button]:relative [&_button]:z-[60] [&_button]:cursor-pointer [&_button]:pointer-events-auto" style={{ isolation: 'isolate' }} />
 
             <Button variant="outline" className="w-full" onClick={() => setStep('info')}>
               Back
