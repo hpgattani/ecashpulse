@@ -794,6 +794,19 @@ body > div[style*="position: fixed"][style*="z-index"] {
     0 0 0 1px hsl(var(--primary) / 0.2) !important;
   backdrop-filter: blur(20px) !important;
   z-index: 9999 !important;
+  pointer-events: auto !important;
+}
+
+/* Ensure PayButton buttons inside dialogs are always clickable */
+div[id^="paybutton"] button,
+div[id^="paybutton"] a,
+div[id^="paybutton"] [role="button"],
+[class*="paybutton"] button,
+[class*="paybutton"] a {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  position: relative !important;
+  z-index: 60 !important;
 }
 
 /* Target PayButton's internal wrapper that shows QR */
