@@ -54,7 +54,7 @@ export default function Raffle() {
   const [deepLinkOfficialEvent, setDeepLinkOfficialEvent] = useState<typeof OFFICIAL_EVENTS[0] | null>(null);
   const [deepLinkInstantRaffle, setDeepLinkInstantRaffle] = useState<Raffle | null>(null);
 
-  const xecPrice = prices.ecash || 0.0001;
+  const xecPrice = prices.ecash || 0.00000771;
   const creationFeeXec = Math.ceil(1 / xecPrice);
 
   const fetchRaffles = async () => {

@@ -157,7 +157,7 @@ export function SentimentVoteModal({ open, onOpenChange, topic, position, onSucc
 
   const isAgree = position === 'agree';
   const voteCost = topic.vote_cost || 500;
-  const xecPrice = prices.ecash || 0.0001;
+  const xecPrice = prices.ecash || 0.00000771;
   const voteCostUsd = (voteCost * xecPrice).toFixed(2);
 
   return (
@@ -192,7 +192,7 @@ export function SentimentVoteModal({ open, onOpenChange, topic, position, onSucc
               </div>
             </div>
 
-            <div ref={payButtonRef} className="min-h-[52px] w-full relative z-[60] [&>div]:w-full [&>div]:relative [&>div]:z-[60] [&_button]:w-full [&_button]:relative [&_button]:z-[60] [&_button]:cursor-pointer [&_button]:pointer-events-auto" style={{ isolation: 'isolate' }} />
+            <div ref={payButtonRef} className="min-h-[52px] flex justify-center" />
           </div>
         )}
 

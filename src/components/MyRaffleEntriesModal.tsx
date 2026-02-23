@@ -33,7 +33,7 @@ export function MyRaffleEntriesModal({ open, onOpenChange }: MyRaffleEntriesModa
   const [entries, setEntries] = useState<RaffleEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const xecPrice = prices.ecash || 0.0001;
+  const xecPrice = prices.ecash || 0.00000771;
 
   useEffect(() => {
     if (!open || !sessionToken) return;

@@ -48,7 +48,7 @@ const Sentiment = () => {
   const [votePosition, setVotePosition] = useState<'agree' | 'disagree' | null>(null);
 
   // Dynamic XEC amount for $1 based on live price
-  const xecPrice = prices.ecash || 0.0001;
+  const xecPrice = prices.ecash || 0.00000771; // Fallback to recent known XEC price
   const creationFeeXec = Math.ceil(1 / xecPrice);
 
   const fetchTopics = async () => {

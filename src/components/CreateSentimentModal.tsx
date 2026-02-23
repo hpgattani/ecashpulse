@@ -38,7 +38,7 @@ export function CreateSentimentModal({ open, onOpenChange, onSuccess }: CreateSe
   const [submitting, setSubmitting] = useState(false);
 
   // Dynamic XEC amount for $1 based on live price
-  const xecPrice = prices.ecash || 0.0001; // Fallback to ~$0.0001 per XEC
+  const xecPrice = prices.ecash || 0.00000771; // Fallback to recent known XEC price
   const creationFeeXec = Math.ceil(1 / xecPrice); // $1 worth of XEC
 
   // Calculate USD equivalent for vote cost
