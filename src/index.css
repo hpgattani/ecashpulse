@@ -772,11 +772,19 @@
 
 /* PayButton Theming - Match Liquid Glass Design System */
 
-/* Prevent PayButton from collapsing itself with scale(0) */
-div[id^="paybutton"],
-div[id^="paybutton"] > div,
-div[id^="paybutton"] > div > div {
-  transform: none !important;
+/* Ensure PayButton is always visible and not collapsed */
+div[id^="paybutton"] {
+  min-height: 48px !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  display: block !important;
+}
+
+div[id^="paybutton"] > div {
+  visibility: visible !important;
+  opacity: 1 !important;
+  transform: scale(1) !important;
+  display: block !important;
 }
 
 /* Hide PayButton's default outer wrapper styles */
