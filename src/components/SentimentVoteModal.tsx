@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { ThumbsUp, ThumbsDown, Loader2, EyeOff, Shield, CheckCircle } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, Loader2, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,7 +19,6 @@ interface SentimentVoteModalProps {
   onSuccess: () => void;
 }
 
-// Same escrow address used for betting
 const ESCROW_ADDRESS = "ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp";
 
 export function SentimentVoteModal({ open, onOpenChange, topic, position, onSuccess }: SentimentVoteModalProps) {
@@ -27,30 +26,22 @@ export function SentimentVoteModal({ open, onOpenChange, topic, position, onSucc
   const { prices } = useCryptoPrices();
   const payButtonRef = useRef<HTMLDivElement>(null);
   
-  const [step, setStep] = useState<'info' | 'payment' | 'confirming' | 'success'>('info');
+  const [step, setStep] = useState<'payment' | 'confirming' | 'success'>('payment');
   const [submitting, setSubmitting] = useState(false);
 
-  // Close any PayButton modals/overlays
   const closePayButtonModal = useCallback(() => {
     const selectors = [
-      '.paybutton-modal',
-      '.paybutton-overlay', 
-      '[class*="paybutton"][class*="modal"]',
-      '[class*="paybutton"][class*="overlay"]',
-      '.ReactModal__Overlay',
-      '[data-paybutton-modal]',
+      '.paybutton-modal', '.paybutton-overlay',
+      '[class*="paybutton"][class*="modal"]', '[class*="paybutton"][class*="overlay"]',
+      '.ReactModal__Overlay', '[data-paybutton-modal]',
     ];
-    
     selectors.forEach(selector => {
       document.querySelectorAll(selector).forEach(el => {
         (el as HTMLElement).style.display = 'none';
         el.remove();
       });
     });
-
-    if (payButtonRef.current) {
-      payButtonRef.current.innerHTML = '';
-    }
+    if (payButtonRef.current) payButtonRef.current.innerHTML = '';
   }, []);
 
   const handlePaymentSuccess = useCallback(async (txHash?: string) => {
@@ -74,14 +65,11 @@ export function SentimentVoteModal({ open, onOpenChange, topic, position, onSucc
 
       if (data.success) {
         setStep('success');
-        toast.success('Payment Sent!', {
-          description: `Vote submitted anonymously`
-        });
-        
+        toast.success('Vote submitted!');
         setTimeout(() => {
           onSuccess();
           onOpenChange(false);
-          resetForm();
+          setStep('payment');
         }, 1500);
       } else {
         throw new Error(data.error || 'Failed to submit vote');
@@ -94,11 +82,6 @@ export function SentimentVoteModal({ open, onOpenChange, topic, position, onSucc
       setSubmitting(false);
     }
   }, [user, sessionToken, topic, position, closePayButtonModal, onSuccess, onOpenChange]);
-
-  const resetForm = () => {
-    setStep('info');
-    setSubmitting(false);
-  };
 
   // Load PayButton script
   useEffect(() => {
@@ -113,19 +96,15 @@ export function SentimentVoteModal({ open, onOpenChange, topic, position, onSucc
   // Render PayButton
   useEffect(() => {
     if (step !== 'payment' || !payButtonRef.current || !user || !sessionToken || !topic) {
-      if (payButtonRef.current) {
-        payButtonRef.current.innerHTML = "";
-      }
+      if (payButtonRef.current) payButtonRef.current.innerHTML = "";
       return;
     }
 
     const voteCost = topic.vote_cost || 500;
-
     payButtonRef.current.innerHTML = "";
 
     const renderButton = () => {
       if (!payButtonRef.current) return;
-
       payButtonRef.current.innerHTML = "";
 
       const buttonContainer = document.createElement("div");
@@ -139,7 +118,7 @@ export function SentimentVoteModal({ open, onOpenChange, topic, position, onSucc
           to: ESCROW_ADDRESS,
           amount: voteCost,
           currency: "XEC",
-          text: `Vote ${isAgree ? 'Agree' : 'Disagree'} - ${voteCost.toLocaleString()} XEC`,
+          text: `Vote ${isAgree ? 'Agree' : 'Disagree'} – ${voteCost.toLocaleString()} XEC`,
           hoverText: "Confirm",
           successText: "Vote Sent!",
           autoClose: true,
@@ -153,34 +132,24 @@ export function SentimentVoteModal({ open, onOpenChange, topic, position, onSucc
           },
           onSuccess: (txResult: any) => {
             let txHash: string | undefined;
-            if (typeof txResult === "string") {
-              txHash = txResult;
-            } else if (txResult?.hash) {
-              txHash = txResult.hash;
-            } else if (txResult?.txid) {
-              txHash = txResult.txid;
-            } else if (txResult?.txId) {
-              txHash = txResult.txId;
-            }
+            if (typeof txResult === "string") txHash = txResult;
+            else if (txResult?.hash) txHash = txResult.hash;
+            else if (txResult?.txid) txHash = txResult.txid;
+            else if (txResult?.txId) txHash = txResult.txId;
             handlePaymentSuccess(txHash);
           },
           onError: (error: any) => {
             console.error("PayButton error:", error);
-            toast.error("Payment failed", {
-              description: "Please try again.",
-            });
+            toast.error("Payment failed. Please try again.");
           },
         });
       }
     };
 
     const timeoutId = setTimeout(renderButton, 100);
-
     return () => {
       clearTimeout(timeoutId);
-      if (payButtonRef.current) {
-        payButtonRef.current.innerHTML = "";
-      }
+      if (payButtonRef.current) payButtonRef.current.innerHTML = "";
     };
   }, [step, user, sessionToken, topic, position, handlePaymentSuccess]);
 
@@ -188,15 +157,13 @@ export function SentimentVoteModal({ open, onOpenChange, topic, position, onSucc
 
   const isAgree = position === 'agree';
   const voteCost = topic.vote_cost || 500;
-  
-  // Dynamic USD calculation based on live price
   const xecPrice = prices.ecash || 0.0001;
   const voteCostUsd = (voteCost * xecPrice).toFixed(2);
 
   return (
-    <Dialog open={open} onOpenChange={(open) => {
-      if (!open) resetForm();
-      onOpenChange(open);
+    <Dialog open={open} onOpenChange={(o) => {
+      if (!o) setStep('payment');
+      onOpenChange(o);
     }}>
       <DialogContent className="max-w-md" onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
         <DialogHeader>
@@ -206,90 +173,33 @@ export function SentimentVoteModal({ open, onOpenChange, topic, position, onSucc
             ) : (
               <ThumbsDown className="w-5 h-5 text-red-500" />
             )}
-            {isAgree ? 'Agree' : 'Disagree'} with Topic
+            {isAgree ? 'Agree' : 'Disagree'}
           </DialogTitle>
           <DialogDescription className="line-clamp-2">
             "{topic.title}"
           </DialogDescription>
         </DialogHeader>
 
-        {step === 'info' && (
-          <div className="space-y-4">
-            <div className={`rounded-lg p-4 border ${isAgree ? 'bg-green-500/5 border-green-500/20' : 'bg-red-500/5 border-red-500/20'}`}>
-              <div className="flex items-center gap-3 mb-3">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isAgree ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
-                  {isAgree ? (
-                    <ThumbsUp className="w-5 h-5 text-green-500" />
-                  ) : (
-                    <ThumbsDown className="w-5 h-5 text-red-500" />
-                  )}
-                </div>
-                <div>
-                  <p className="font-medium text-foreground">
-                    You're voting: <span className={isAgree ? 'text-green-500' : 'text-red-500'}>{isAgree ? 'AGREE' : 'DISAGREE'}</span>
-                  </p>
-                  <p className="text-sm text-muted-foreground">Amount: {voteCost.toLocaleString()} XEC (~${voteCostUsd})</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 space-y-2">
-              <div className="flex items-center gap-2 text-primary">
-                <Shield className="w-4 h-4" />
-                <span className="font-medium text-sm">Anonymous Voting</span>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Your wallet address will be <strong className="text-foreground">cryptographically hashed</strong> and only a 
-                redacted version (e.g., a1b2****c3d4) will be stored. Your identity remains private.
-              </p>
-            </div>
-
-            <div className="bg-muted/50 rounded-lg p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <EyeOff className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm font-medium text-foreground">No Payouts</span>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                All votes contribute to eCash Pulse treasury. This is purely for sentiment gauging.
-              </p>
-            </div>
-
-            <Button className="w-full" onClick={() => setStep('payment')}>
-              Continue to Payment
-            </Button>
-          </div>
-        )}
-
         {step === 'payment' && (
           <div className="space-y-4">
-            <div className={`border rounded-lg p-4 space-y-3 ${isAgree ? 'bg-green-500/5 border-green-500/20' : 'bg-red-500/5 border-red-500/20'}`}>
-              <p className="text-sm text-foreground font-medium">Vote Cost:</p>
-              <div className="flex items-center justify-between bg-background rounded-lg p-3">
-                <span className={`font-mono text-lg font-bold ${isAgree ? 'text-green-500' : 'text-red-500'}`}>
+            <div className="flex items-center justify-between bg-muted/50 rounded-lg p-3">
+              <span className="text-sm text-muted-foreground">Vote cost</span>
+              <div className="text-right">
+                <span className={`font-mono font-bold ${isAgree ? 'text-green-500' : 'text-red-500'}`}>
                   {voteCost.toLocaleString()} XEC
                 </span>
-                <span className={`text-sm px-2 py-1 rounded ${isAgree ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
-                  ~${voteCostUsd}
-                </span>
+                <span className="text-xs text-muted-foreground ml-2">(~${voteCostUsd})</span>
               </div>
             </div>
 
-            {/* PayButton container - full width, high z-index to stay clickable above dialog overlay */}
             <div ref={payButtonRef} className="min-h-[52px] w-full relative z-[60] [&>div]:w-full [&>div]:relative [&>div]:z-[60] [&_button]:w-full [&_button]:relative [&_button]:z-[60] [&_button]:cursor-pointer [&_button]:pointer-events-auto" style={{ isolation: 'isolate' }} />
-
-            <Button variant="outline" className="w-full" onClick={() => setStep('info')}>
-              Back
-            </Button>
           </div>
         )}
 
         {step === 'confirming' && (
           <div className="py-8 text-center">
             <Loader2 className="w-12 h-12 text-primary animate-spin mx-auto mb-4" />
-            <p className="text-foreground font-medium">Verifying & recording vote...</p>
-            <p className="text-sm text-muted-foreground mt-2">
-              Your address is being anonymized
-            </p>
+            <p className="text-foreground font-medium">Recording vote...</p>
           </div>
         )}
 
@@ -297,9 +207,6 @@ export function SentimentVoteModal({ open, onOpenChange, topic, position, onSucc
           <div className="py-8 text-center">
             <CheckCircle className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
             <h2 className="font-display font-bold text-xl text-foreground mb-2">Vote Submitted!</h2>
-            <p className="text-muted-foreground">
-              Your anonymous vote has been recorded
-            </p>
           </div>
         )}
       </DialogContent>
