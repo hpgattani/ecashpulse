@@ -772,6 +772,13 @@
 
 /* PayButton Theming - Match Liquid Glass Design System */
 
+/* Prevent PayButton from collapsing itself with scale(0) */
+div[id^="paybutton"],
+div[id^="paybutton"] > div,
+div[id^="paybutton"] > div > div {
+  transform: none !important;
+}
+
 /* Hide PayButton's default outer wrapper styles */
 .tip-paybutton-container [class*="paybutton"],
 .tip-paybutton-container div[id^="paybutton-tip"] {
