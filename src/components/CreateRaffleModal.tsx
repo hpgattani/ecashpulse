@@ -47,7 +47,7 @@ export function CreateRaffleModal({ open, onOpenChange, onSuccess }: CreateRaffl
   const [step, setStep] = useState<'form' | 'payment' | 'confirming' | 'success'>('form');
   const [submitting, setSubmitting] = useState(false);
 
-  const xecPrice = prices.ecash || 0.0001;
+  const xecPrice = prices.ecash || 0.00000771;
   const creationFeeXec = Math.ceil(1 / xecPrice);
 
   const selectedEventData = EVENT_OPTIONS.find(e => e.id === selectedEvent);
