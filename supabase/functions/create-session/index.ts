@@ -216,18 +216,41 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    const { ecash_address, tx_hash } = await req.json();
-
-    if (!ecash_address) {
-      return new Response(
-        JSON.stringify({ error: 'eCash address required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    let { ecash_address, tx_hash } = await req.json();
 
     if (!tx_hash || typeof tx_hash !== 'string' || tx_hash.length < 60) {
       return new Response(
         JSON.stringify({ error: 'Valid transaction hash required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // If client couldn't detect sender address, extract from tx via Chronik
+    if (!ecash_address || ecash_address === '__from_tx__') {
+      console.log(`Extracting sender address from tx ${tx_hash} via Chronik...`);
+      for (const baseUrl of CHRONIK_URLS) {
+        try {
+          const resp = await fetch(`${baseUrl}/tx/${tx_hash}`);
+          if (!resp.ok) continue;
+          const txData = await resp.json();
+          const firstInput = txData.inputs?.[0];
+          if (firstInput?.outputScript) {
+            const addr = scriptToAddress(firstInput.outputScript);
+            if (addr) {
+              ecash_address = addr;
+              console.log(`Extracted sender address: ${ecash_address}`);
+              break;
+            }
+          }
+        } catch (err) {
+          console.warn(`Chronik ${baseUrl} failed for sender extraction:`, err);
+        }
+      }
+    }
+
+    if (!ecash_address || ecash_address === '__from_tx__') {
+      return new Response(
+        JSON.stringify({ error: 'Could not detect sender wallet address' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
