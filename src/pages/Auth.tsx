@@ -140,12 +140,19 @@ const Auth = () => {
 
       console.log('Auth payment detected:', transaction);
       
-      const senderAddress = transaction.inputAddresses?.[0];
+      let senderAddress = transaction.inputAddresses?.[0];
       const txHash = transaction.hash;
       
-      if (!senderAddress) {
-        setError('Could not detect sender wallet address. Please try again.');
+      if (!txHash) {
+        setError('No transaction hash received. Please try again.');
         return;
+      }
+
+      // If PayButton didn't provide inputAddresses, skip client-side detection
+      // and let the server extract the sender from the tx hash via Chronik
+      if (!senderAddress) {
+        console.log('PayButton did not provide sender address, server will extract from tx');
+        senderAddress = '__from_tx__'; // Signal server to extract from tx
       }
 
       verifyAndLogin(txHash, senderAddress);
