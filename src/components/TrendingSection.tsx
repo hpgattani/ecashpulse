@@ -1,11 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { usePredictions } from '@/hooks/usePredictions';
 import { TrendingUp, Flame, Loader2, ChevronLeft, ChevronRight, Bitcoin, Landmark, Trophy, Cpu, Film, Vote, DollarSign, Globe2, BarChart3, Map, Leaf, Globe } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import type { Prediction } from '@/hooks/usePredictions';
 
-const TrendingSection = () => {
-  const { predictions, loading } = usePredictions();
+interface TrendingSectionProps {
+  predictions: Prediction[];
+  loading: boolean;
+}
+
+const TrendingSection = ({ predictions, loading }: TrendingSectionProps) => {
   const { t, translateTitle } = useLanguage();
   const navigate = useNavigate();
   const scrollRef = useRef<HTMLDivElement>(null);

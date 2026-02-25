@@ -19,7 +19,7 @@ import { usePredictions } from '@/hooks/usePredictions';
 const Index = () => {
   const location = useLocation();
   const { t } = useLanguage();
-  const { predictions } = usePredictions();
+  const { predictions, loading, error } = usePredictions();
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -66,10 +66,13 @@ const Index = () => {
               predictions={predictions.map(p => ({ id: p.id, question: p.question, category: p.category }))}
             />
             <PendingBetsSection />
-            <TrendingSection />
-            <MarketsSection 
+            <TrendingSection predictions={predictions} loading={loading} />
+            <MarketsSection
               activeCategory={activeCategory}
               searchQuery={searchQuery}
+              predictions={predictions}
+              loading={loading}
+              error={error}
             />
             <ResolvedBets />
             <Leaderboard />
