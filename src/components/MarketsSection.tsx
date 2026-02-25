@@ -1,17 +1,19 @@
 import { useMemo } from 'react';
-import { usePredictions } from '@/hooks/usePredictions';
 import { useCryptoPrices } from '@/hooks/useCryptoPrices';
 import PredictionCard from './PredictionCard';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Skeleton } from '@/components/ui/skeleton';
+import type { Prediction } from '@/hooks/usePredictions';
 
 interface MarketsSectionProps {
   activeCategory: string;
   searchQuery: string;
+  predictions: Prediction[];
+  loading: boolean;
+  error: string | null;
 }
 
-const MarketsSection = ({ activeCategory, searchQuery }: MarketsSectionProps) => {
-  const { predictions, loading, error } = usePredictions();
+const MarketsSection = ({ activeCategory, searchQuery, predictions, loading, error }: MarketsSectionProps) => {
   const { getPriceForCrypto } = useCryptoPrices();
   const { t } = useLanguage();
 
@@ -24,8 +26,8 @@ const MarketsSection = ({ activeCategory, searchQuery }: MarketsSectionProps) =>
   const filteredPredictions = useMemo(() => {
     return predictions.filter((p) => {
       const matchesCategory = activeCategory === 'all' ? true : p.category === activeCategory;
-      const matchesSearch = searchQuery.trim() === '' 
-        ? true 
+      const matchesSearch = searchQuery.trim() === ''
+        ? true
         : p.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
           p.category.toLowerCase().includes(searchQuery.toLowerCase());
       return matchesCategory && matchesSearch;
