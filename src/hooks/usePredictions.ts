@@ -461,6 +461,15 @@ export const usePredictions = () => {
 
   const inFlightRef = useRef<Promise<void> | null>(null);
 
+  const withTimeout = async <T,>(promiseLike: PromiseLike<T>, ms: number, label: string): Promise<T> => {
+    return await Promise.race([
+      Promise.resolve(promiseLike),
+      new Promise<T>((_, reject) => {
+        window.setTimeout(() => reject(new Error(`${label} timeout`)), ms);
+      }),
+    ]);
+  };
+
   const fetchPredictions = useCallback(async () => {
     // Avoid stacking multiple concurrent fetches when many realtime events fire.
     if (inFlightRef.current) return inFlightRef.current;
@@ -468,21 +477,43 @@ export const usePredictions = () => {
     const task = (async () => {
       try {
         const now = new Date().toISOString();
-        const [predictionsResult, outcomesResult] = await Promise.all([
+
+        const predictionsResult = await withTimeout(
           supabase
             .from('predictions')
-            .select('*')
+            .select('id, title, description, category, image_url, end_date, status, yes_pool, no_pool, escrow_address, created_at')
             .eq('status', 'active')
-            .gt('end_date', now) // Only show predictions that haven't expired
-            .order('end_date', { ascending: true }), // Near expiry first
-          supabase.from('outcomes').select('*'),
-        ]);
+            .gt('end_date', now)
+            .order('end_date', { ascending: true })
+            .limit(200),
+          10000,
+          'predictions fetch'
+        );
 
         if (predictionsResult.error) {
           setError(predictionsResult.error.message);
           console.error('Error fetching predictions:', predictionsResult.error);
           return;
         }
+
+        const predictionRows = (predictionsResult.data || []) as DBPrediction[];
+
+        if (predictionRows.length === 0) {
+          setPredictions([]);
+          setError(null);
+          return;
+        }
+
+        const predictionIds = predictionRows.map((p) => p.id);
+
+        const outcomesResult = await withTimeout(
+          supabase
+            .from('outcomes')
+            .select('id, prediction_id, label, pool')
+            .in('prediction_id', predictionIds),
+          10000,
+          'outcomes fetch'
+        );
 
         if (outcomesResult.error) {
           setError(outcomesResult.error.message);
@@ -491,14 +522,14 @@ export const usePredictions = () => {
         }
 
         const outcomes = (outcomesResult.data || []) as DBOutcome[];
-        const allPredictions = (predictionsResult.data as DBPrediction[]).map((p) => transformPrediction(p, outcomes));
-        
+        const allPredictions = predictionRows.map((p) => transformPrediction(p, outcomes));
+
         // Filter to show only next upcoming daily prediction per series
         const filteredPredictions = filterDailyPredictions(allPredictions);
-        
+
         // Deduplicate similar predictions
         const dedupedPredictions = deduplicatePredictions(filteredPredictions);
-        
+
         setPredictions(dedupedPredictions);
         setError(null);
       } catch (err: any) {
