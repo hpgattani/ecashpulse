@@ -597,7 +597,7 @@ export const usePredictions = () => {
     // Hard fallback: polling so odds update even if realtime drops.
     const intervalId = window.setInterval(() => {
       fetchPredictions();
-    }, 8000);
+    }, 60000);
 
     const handleForceRefresh = () => fetchPredictions();
     window.addEventListener('predictions:refetch', handleForceRefresh);

@@ -70,7 +70,8 @@ const Auth = () => {
 
     try {
       let attempts = 0;
-      const maxAttempts = 20;
+      const maxAttempts = 12;
+      const baseDelay = 2000;
 
       while (attempts < maxAttempts) {
         try {
@@ -105,11 +106,14 @@ const Auth = () => {
             throw new Error(data.error);
           }
         } catch (invokeErr: any) {
-          console.log(`Attempt ${attempts + 1}: Server verifying transaction...`);
+          // Network error — use shorter retry
+          console.log(`Attempt ${attempts + 1}/${maxAttempts}: Server verifying transaction...`);
         }
 
         attempts++;
-        await new Promise((r) => setTimeout(r, 3000));
+        // Shorter delay: 2s, 2s, 3s, 3s, then 4s
+        const delay = attempts <= 2 ? baseDelay : attempts <= 4 ? 3000 : 4000;
+        await new Promise((r) => setTimeout(r, delay));
       }
 
       throw new Error('Transaction verification timeout. Please try again.');
