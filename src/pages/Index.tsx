@@ -13,6 +13,7 @@ import HowItWorks from '@/components/HowItWorks';
 import Footer from '@/components/Footer';
 import PublicBets from '@/components/PublicBets';
 import { ChatRoom } from '@/components/ChatRoom';
+import LazySection from '@/components/LazySection';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePredictions } from '@/hooks/usePredictions';
 
@@ -74,25 +75,31 @@ const Index = () => {
               loading={loading}
               error={error}
             />
-            <ResolvedBets />
-            <Leaderboard />
+            <LazySection>
+              <ResolvedBets />
+            </LazySection>
+            <LazySection>
+              <Leaderboard />
+            </LazySection>
           
           {/* Transparent Public Bets Section */}
-          <section className="py-8 sm:py-16 px-4">
-            <div className="max-w-7xl mx-auto">
-              <div className="text-center mb-8">
-                <h2 className="font-display font-bold text-2xl md:text-3xl text-foreground mb-2">
-                  {t.transparentBetting}
-                </h2>
-                <p className="text-muted-foreground">
-                  {t.transparentBettingDesc}
-                </p>
+          <LazySection>
+            <section className="py-8 sm:py-16 px-4">
+              <div className="max-w-7xl mx-auto">
+                <div className="text-center mb-8">
+                  <h2 className="font-display font-bold text-2xl md:text-3xl text-foreground mb-2">
+                    {t.transparentBetting}
+                  </h2>
+                  <p className="text-muted-foreground">
+                    {t.transparentBettingDesc}
+                  </p>
+                </div>
+                <div className="max-w-2xl mx-auto">
+                  <PublicBets />
+                </div>
               </div>
-              <div className="max-w-2xl mx-auto">
-                <PublicBets />
-              </div>
-            </div>
-          </section>
+            </section>
+          </LazySection>
           
           <HowItWorks />
         </main>
