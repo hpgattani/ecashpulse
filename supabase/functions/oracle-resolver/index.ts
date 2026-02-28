@@ -764,11 +764,14 @@ Deno.serve(async (req) => {
     
     const now = new Date();
     
+    // Add a minimum 1-hour global buffer so predictions aren't resolved the instant they expire
+    const bufferTime = new Date(now.getTime() - 3600000); // 1 hour ago
+    
     const { data: predictions, error } = await supabase
       .from('predictions')
       .select('*')
       .eq('status', 'active')
-      .lt('end_date', now.toISOString());
+      .lt('end_date', bufferTime.toISOString());
     
     if (error) throw error;
     
@@ -805,13 +808,16 @@ Deno.serve(async (req) => {
         if (hoursSince < 3) continue;
       }
       
-      // Crypto buffer
+      // Crypto buffer — wait at least 6 hours after end_date to allow final price settlement
       const cryptoCoins = ['bitcoin', 'btc', 'ethereum', 'eth', 'solana', 'sol', 'xec', 'xrp', 'doge', 'ada'];
       const isCrypto = pred.category === 'crypto' || cryptoCoins.some(c => titleLower.includes(c));
       
       if (isCrypto) {
         const hoursSince = (now.getTime() - new Date(pred.end_date).getTime()) / 3600000;
-        if (hoursSince < 1) continue;
+        if (hoursSince < 6) {
+          console.log(`⏳ Crypto buffer: ${pred.title.slice(0, 40)} — ${hoursSince.toFixed(1)}h since end, need 6h`);
+          continue;
+        }
       }
       
       // Route to appropriate oracle
