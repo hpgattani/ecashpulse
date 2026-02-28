@@ -106,13 +106,31 @@ async function checkCryptoPrediction(title: string): Promise<OracleResult> {
   
   if (titleLower.includes('above') || titleLower.includes('reach') || 
       titleLower.includes('hit') || titleLower.includes('exceed') || titleLower.includes('close')) {
-    const reached = price >= targetPrice;
-    return {
-      resolved: true,
-      outcome: reached ? 'yes' : 'no',
-      reason: `${coinName}: $${price.toLocaleString()} (target: $${targetPrice.toLocaleString()})`,
-      currentValue: `$${price.toLocaleString()}`
-    };
+    
+    // Determine direction: is the target above or below current price?
+    // "Will BTC hit $50k" when price is $63k means asking if it will DROP to $50k
+    // "Will BTC hit $100k" when price is $63k means asking if it will RISE to $100k
+    const isDownwardTarget = price > targetPrice * 1.1; // Target is >10% below current price
+    
+    if (isDownwardTarget) {
+      // Target is well below current price — asking if price will DROP to target
+      const dropped = price <= targetPrice;
+      return {
+        resolved: true,
+        outcome: dropped ? 'yes' : 'no',
+        reason: `${coinName}: $${price.toLocaleString()} (target drop to: $${targetPrice.toLocaleString()}) — price did NOT drop to target`,
+        currentValue: `$${price.toLocaleString()}`
+      };
+    } else {
+      // Target is above (or near) current price — asking if price will RISE to target
+      const reached = price >= targetPrice;
+      return {
+        resolved: true,
+        outcome: reached ? 'yes' : 'no',
+        reason: `${coinName}: $${price.toLocaleString()} (target: $${targetPrice.toLocaleString()})`,
+        currentValue: `$${price.toLocaleString()}`
+      };
+    }
   }
   
   return { resolved: false };
@@ -808,16 +826,13 @@ Deno.serve(async (req) => {
         if (hoursSince < 3) continue;
       }
       
-      // Crypto buffer — wait at least 6 hours after end_date to allow final price settlement
+      // Crypto buffer
       const cryptoCoins = ['bitcoin', 'btc', 'ethereum', 'eth', 'solana', 'sol', 'xec', 'xrp', 'doge', 'ada'];
       const isCrypto = pred.category === 'crypto' || cryptoCoins.some(c => titleLower.includes(c));
       
       if (isCrypto) {
         const hoursSince = (now.getTime() - new Date(pred.end_date).getTime()) / 3600000;
-        if (hoursSince < 6) {
-          console.log(`⏳ Crypto buffer: ${pred.title.slice(0, 40)} — ${hoursSince.toFixed(1)}h since end, need 6h`);
-          continue;
-        }
+        if (hoursSince < 1) continue;
       }
       
       // Route to appropriate oracle
