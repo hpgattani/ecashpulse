@@ -150,33 +150,28 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
     }
   }, []);
 
-  // Render PayButton - renders directly when modal is open (no two-step flow)
+  // Render PayButton - match BetModal pattern exactly
   useEffect(() => {
     if (!open || step !== 'info' || !user) {
-      renderedRef.current = false;
       if (payButtonRef.current) payButtonRef.current.innerHTML = '';
       return;
     }
 
-    renderedRef.current = false;
+    if (!payButtonRef.current) return;
+    payButtonRef.current.innerHTML = '';
+
+    let cancelled = false;
 
     const renderButton = () => {
-      const el = payButtonRef.current;
-      if (!el || renderedRef.current) return;
+      if (cancelled || !payButtonRef.current) return;
 
-      const PB = (window as any).PayButton;
-      if (!PB) {
-        setTimeout(renderButton, 250);
-        return;
-      }
+      payButtonRef.current.innerHTML = '';
+      const buttonContainer = document.createElement('div');
+      buttonContainer.id = `paybutton-ticket-${Date.now()}`;
+      payButtonRef.current.appendChild(buttonContainer);
 
-      el.innerHTML = '';
-      const btn = document.createElement('div');
-      btn.id = `pb-ticket-${Date.now()}`;
-      el.appendChild(btn);
-
-      try {
-        PB.render(btn, {
+      if ((window as any).PayButton) {
+        (window as any).PayButton.render(buttonContainer, {
           to: ESCROW_ADDRESS,
           amount: entryCost,
           currency: 'XEC',
@@ -191,6 +186,7 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
             if (typeof txResult === 'string') txHash = txResult;
             else if (txResult?.hash) txHash = txResult.hash;
             else if (txResult?.txid) txHash = txResult.txid;
+            else if (txResult?.txId) txHash = txResult.txId;
             handlePaymentSuccess(txHash);
           },
           onError: (err: any) => {
@@ -198,14 +194,16 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
             toast.error('Payment failed');
           },
         });
-        renderedRef.current = true;
-      } catch (err) {
-        console.error('PayButton render error:', err);
+      } else {
+        // Script not loaded yet, retry
+        if (!cancelled) setTimeout(renderButton, 300);
       }
     };
 
     const timeoutId = setTimeout(renderButton, 100);
+
     return () => {
+      cancelled = true;
       clearTimeout(timeoutId);
       if (payButtonRef.current) payButtonRef.current.innerHTML = '';
     };
