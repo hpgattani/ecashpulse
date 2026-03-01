@@ -43,7 +43,7 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
   const renderedRef = useRef(false);
   const retryRef = useRef<ReturnType<typeof setTimeout>>();
 
-  const [step, setStep] = useState<'info' | 'payment' | 'confirming' | 'reveal'>('info');
+  const [step, setStep] = useState<'info' | 'confirming' | 'reveal'>('info');
   const [assignedTeam, setAssignedTeam] = useState<string | null>(null);
   const [shuffling, setShuffling] = useState(false);
   const [displayTeam, setDisplayTeam] = useState('');
@@ -150,35 +150,23 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
     }
   }, []);
 
-  // Render PayButton with retry
+  // Render PayButton - renders directly when modal is open (no two-step flow)
   useEffect(() => {
-    if (!open || step !== 'payment' || !user) {
+    if (!open || step !== 'info' || !user) {
       renderedRef.current = false;
       if (payButtonRef.current) payButtonRef.current.innerHTML = '';
       return;
     }
 
     renderedRef.current = false;
-    let attempts = 0;
-    let cancelled = false;
 
-    const tryRender = () => {
-      if (cancelled) return;
+    const renderButton = () => {
       const el = payButtonRef.current;
+      if (!el || renderedRef.current) return;
+
       const PB = (window as any).PayButton;
-
-      if (!el) {
-        attempts++;
-        if (attempts < 40) retryRef.current = setTimeout(tryRender, 250);
-        return;
-      }
-
-      if (renderedRef.current) return;
-
       if (!PB) {
-        attempts++;
-        if (attempts < 40) retryRef.current = setTimeout(tryRender, 250);
-        else console.error('PayButton script failed to load after 40 attempts');
+        setTimeout(renderButton, 250);
         return;
       }
 
@@ -211,16 +199,14 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
           },
         });
         renderedRef.current = true;
-        console.log('PayButton rendered successfully');
       } catch (err) {
         console.error('PayButton render error:', err);
       }
     };
 
-    retryRef.current = setTimeout(tryRender, 300);
+    const timeoutId = setTimeout(renderButton, 100);
     return () => {
-      cancelled = true;
-      if (retryRef.current) clearTimeout(retryRef.current);
+      clearTimeout(timeoutId);
       if (payButtonRef.current) payButtonRef.current.innerHTML = '';
     };
   }, [open, step, user, entryCost, handlePaymentSuccess]);
@@ -298,29 +284,14 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
                   <p className="text-xs text-muted-foreground">Entry fee is non-refundable. If your team wins, you receive the entire pot (minus 1% fee).</p>
                 </div>
 
-                <Button className="w-full bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-black font-bold" onClick={() => setStep('payment')} disabled={!user}>
-                  <Ticket className="w-4 h-4 mr-2" />
-                  Pay {entryCost.toLocaleString()} XEC to Get Ticket
-                </Button>
-
-                {!user && <p className="text-xs text-center text-muted-foreground">Connect your wallet to get your ticket</p>}
-              </div>
-            )}
-
-            {step === 'payment' && (
-              <div className="space-y-4">
-                <div className="bg-gradient-to-r from-amber-500/10 to-yellow-500/10 border border-amber-500/20 rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-foreground">Entry Fee</span>
-                    <div className="text-right">
-                      <span className="font-mono text-lg font-bold text-amber-400">{entryCost.toLocaleString()} XEC</span>
-                      <div className="text-xs text-muted-foreground">~${entryCostUsd}</div>
-                    </div>
-                  </div>
-                </div>
-                <p className="text-xs text-center text-muted-foreground">Scan the QR code or click to pay with your wallet</p>
-                <div ref={payButtonRef} className="min-h-[60px] flex justify-center" style={{ isolation: 'isolate', zIndex: 60, pointerEvents: 'auto' }} />
-                <Button variant="outline" className="w-full" onClick={() => setStep('info')}>Back</Button>
+                {user ? (
+                  <>
+                    <p className="text-xs text-center text-muted-foreground">Scan QR or click to pay with your wallet</p>
+                    <div ref={payButtonRef} className="min-h-[52px] flex justify-center" style={{ isolation: 'isolate', zIndex: 60, pointerEvents: 'auto' }} />
+                  </>
+                ) : (
+                  <p className="text-xs text-center text-muted-foreground">Connect your wallet to get your ticket</p>
+                )}
               </div>
             )}
 
