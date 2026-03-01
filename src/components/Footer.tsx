@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
-import { Zap, Github, ExternalLink } from 'lucide-react';
+import { Zap, Github, ExternalLink, Send } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const XIcon = ({ className }: { className?: string }) => (
@@ -58,6 +58,14 @@ const Footer = () => {
                 className="text-muted-foreground hover:text-foreground transition-colors"
               >
                 <XIcon className="w-5 h-5" />
+              </a>
+              <a
+                href="https://t.me/eCashPulse"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Send className="w-5 h-5" />
               </a>
               <a
                 href="https://github.com/paybutton"
