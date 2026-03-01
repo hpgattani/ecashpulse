@@ -140,6 +140,16 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
     }
   }, [user, sessionToken, raffle, officialEvent, entryCost, teams, cleanupPayButton, createdRaffleId]);
 
+  // Load PayButton script
+  useEffect(() => {
+    if (!document.querySelector('script[src*="paybutton"]')) {
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/@paybutton/paybutton/dist/paybutton.js';
+      script.async = true;
+      document.head.appendChild(script);
+    }
+  }, []);
+
   // Render PayButton with retry
   useEffect(() => {
     if (!open || step !== 'payment' || !user) {
@@ -150,15 +160,25 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
 
     renderedRef.current = false;
     let attempts = 0;
+    let cancelled = false;
 
     const tryRender = () => {
+      if (cancelled) return;
       const el = payButtonRef.current;
       const PB = (window as any).PayButton;
-      if (!el || renderedRef.current) return;
+
+      if (!el) {
+        attempts++;
+        if (attempts < 40) retryRef.current = setTimeout(tryRender, 250);
+        return;
+      }
+
+      if (renderedRef.current) return;
 
       if (!PB) {
         attempts++;
         if (attempts < 40) retryRef.current = setTimeout(tryRender, 250);
+        else console.error('PayButton script failed to load after 40 attempts');
         return;
       }
 
@@ -167,33 +187,39 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
       btn.id = `pb-ticket-${Date.now()}`;
       el.appendChild(btn);
 
-      PB.render(btn, {
-        to: ESCROW_ADDRESS,
-        amount: entryCost,
-        currency: 'XEC',
-        text: `Pay ${entryCost.toLocaleString()} XEC`,
-        hoverText: 'Confirm',
-        successText: 'Payment Sent!',
-        autoClose: true,
-        hideToasts: true,
-        theme: { palette: { primary: '#f59e0b', secondary: '#1e293b', tertiary: '#000000' } },
-        onSuccess: (txResult: any) => {
-          let txHash: string | undefined;
-          if (typeof txResult === 'string') txHash = txResult;
-          else if (txResult?.hash) txHash = txResult.hash;
-          else if (txResult?.txid) txHash = txResult.txid;
-          handlePaymentSuccess(txHash);
-        },
-        onError: (err: any) => {
-          console.error('PayButton error:', err);
-          toast.error('Payment failed');
-        },
-      });
-      renderedRef.current = true;
+      try {
+        PB.render(btn, {
+          to: ESCROW_ADDRESS,
+          amount: entryCost,
+          currency: 'XEC',
+          text: `Pay ${entryCost.toLocaleString()} XEC`,
+          hoverText: 'Confirm',
+          successText: 'Payment Sent!',
+          autoClose: true,
+          hideToasts: true,
+          theme: { palette: { primary: '#f59e0b', secondary: '#1e293b', tertiary: '#000000' } },
+          onSuccess: (txResult: any) => {
+            let txHash: string | undefined;
+            if (typeof txResult === 'string') txHash = txResult;
+            else if (txResult?.hash) txHash = txResult.hash;
+            else if (txResult?.txid) txHash = txResult.txid;
+            handlePaymentSuccess(txHash);
+          },
+          onError: (err: any) => {
+            console.error('PayButton error:', err);
+            toast.error('Payment failed');
+          },
+        });
+        renderedRef.current = true;
+        console.log('PayButton rendered successfully');
+      } catch (err) {
+        console.error('PayButton render error:', err);
+      }
     };
 
-    retryRef.current = setTimeout(tryRender, 150);
+    retryRef.current = setTimeout(tryRender, 300);
     return () => {
+      cancelled = true;
       if (retryRef.current) clearTimeout(retryRef.current);
       if (payButtonRef.current) payButtonRef.current.innerHTML = '';
     };
