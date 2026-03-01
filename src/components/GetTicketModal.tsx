@@ -40,8 +40,6 @@ const ESCROW_ADDRESS = "ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp";
 export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecPrice, onSuccess }: GetTicketModalProps) {
   const { user, sessionToken } = useAuth();
   const payButtonRef = useRef<HTMLDivElement>(null);
-  const renderedRef = useRef(false);
-  const retryRef = useRef<ReturnType<typeof setTimeout>>();
 
   const [step, setStep] = useState<'info' | 'confirming' | 'reveal'>('info');
   const [assignedTeam, setAssignedTeam] = useState<string | null>(null);
@@ -49,13 +47,13 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
   const [displayTeam, setDisplayTeam] = useState('');
   const [createdRaffleId, setCreatedRaffleId] = useState<string | null>(null);
 
-  const entryCost = raffle 
-    ? raffle.entry_cost 
-    : officialEvent 
+  const entryCost = raffle
+    ? raffle.entry_cost
+    : officialEvent
       ? Math.ceil(officialEvent.entryCostUsd / xecPrice)
       : 0;
-  
-  const entryCostUsd = raffle 
+
+  const entryCostUsd = raffle
     ? (raffle.entry_cost * xecPrice).toFixed(2)
     : officialEvent?.entryCostUsd.toFixed(2) || '0';
 
@@ -64,17 +62,17 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
   const totalSpots = raffle?.total_spots || teams.length;
   const spotsRemaining = raffle?.spots_remaining || teams.length;
 
-  const cleanupPayButton = useCallback(() => {
+  // Close any PayButton modals/overlays
+  const closePayButtonModal = useCallback(() => {
     ['.paybutton-modal', '.paybutton-overlay', '[class*="paybutton"][class*="modal"]',
      '[class*="paybutton"][class*="overlay"]', '.ReactModal__Overlay'].forEach(sel => {
       document.querySelectorAll(sel).forEach(el => el.remove());
     });
+    if (payButtonRef.current) payButtonRef.current.innerHTML = '';
   }, []);
 
   const handleClose = useCallback(() => {
-    cleanupPayButton();
-    renderedRef.current = false;
-    if (retryRef.current) clearTimeout(retryRef.current);
+    closePayButtonModal();
     const hadTeam = assignedTeam;
     setStep('info');
     setAssignedTeam(null);
@@ -82,11 +80,11 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
     setCreatedRaffleId(null);
     onOpenChange(false);
     if (hadTeam) onSuccess();
-  }, [assignedTeam, cleanupPayButton, onOpenChange, onSuccess]);
+  }, [assignedTeam, closePayButtonModal, onOpenChange, onSuccess]);
 
   const handlePaymentSuccess = useCallback(async (txHash?: string) => {
     if (!user || !sessionToken) return;
-    cleanupPayButton();
+    closePayButtonModal();
     setStep('confirming');
 
     try {
@@ -138,7 +136,7 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
       toast.error(error.message || 'Failed to get ticket');
       setStep('info');
     }
-  }, [user, sessionToken, raffle, officialEvent, entryCost, teams, cleanupPayButton, createdRaffleId]);
+  }, [user, sessionToken, raffle, officialEvent, entryCost, teams, closePayButtonModal, createdRaffleId]);
 
   // Load PayButton script
   useEffect(() => {
@@ -146,44 +144,35 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
       const script = document.createElement('script');
       script.src = 'https://unpkg.com/@paybutton/paybutton/dist/paybutton.js';
       script.async = true;
-      document.head.appendChild(script);
+      document.body.appendChild(script);
     }
   }, []);
 
-  // Render PayButton
+  // Render PayButton — matches BetModal pattern exactly
   useEffect(() => {
-    if (!open || step !== 'info' || !user) {
+    if (!open || !payButtonRef.current || !user || step !== 'info') {
       if (payButtonRef.current) payButtonRef.current.innerHTML = '';
       return;
     }
 
-    let cancelled = false;
-    let attempts = 0;
+    if (entryCost <= 0) {
+      payButtonRef.current.innerHTML = '';
+      return;
+    }
+
+    payButtonRef.current.innerHTML = '';
 
     const renderButton = () => {
-      if (cancelled) return;
-      attempts++;
+      if (!payButtonRef.current) return;
 
-      const el = payButtonRef.current;
-      if (!el) {
-        // Ref not attached yet (AnimatePresence), retry
-        if (attempts < 40) setTimeout(renderButton, 150);
-        return;
-      }
+      payButtonRef.current.innerHTML = '';
 
-      const PB = (window as any).PayButton;
-      if (!PB) {
-        if (attempts < 40) setTimeout(renderButton, 250);
-        return;
-      }
-
-      el.innerHTML = '';
       const buttonContainer = document.createElement('div');
       buttonContainer.id = `paybutton-ticket-${Date.now()}`;
-      el.appendChild(buttonContainer);
+      payButtonRef.current.appendChild(buttonContainer);
 
-      try {
-        PB.render(buttonContainer, {
+      if ((window as any).PayButton) {
+        (window as any).PayButton.render(buttonContainer, {
           to: ESCROW_ADDRESS,
           amount: entryCost,
           currency: 'XEC',
@@ -192,7 +181,13 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
           successText: 'Payment Sent!',
           autoClose: true,
           hideToasts: true,
-          theme: { palette: { primary: '#f59e0b', secondary: '#1e293b', tertiary: '#000000' } },
+          theme: {
+            palette: {
+              primary: '#f59e0b',
+              secondary: '#1e293b',
+              tertiary: '#000000',
+            },
+          },
           onSuccess: (txResult: any) => {
             let txHash: string | undefined;
             if (typeof txResult === 'string') txHash = txResult;
@@ -206,16 +201,12 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
             toast.error('Payment failed');
           },
         });
-        console.log('PayButton rendered in GetTicketModal');
-      } catch (err) {
-        console.error('PayButton render error:', err);
       }
     };
 
     const timeoutId = setTimeout(renderButton, 100);
 
     return () => {
-      cancelled = true;
       clearTimeout(timeoutId);
       if (payButtonRef.current) payButtonRef.current.innerHTML = '';
     };
