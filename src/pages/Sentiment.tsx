@@ -295,10 +295,14 @@ const Sentiment = () => {
                               <ThumbsDown className="w-3 h-3" />
                             </span>
                           </div>
-                          <div className="relative h-2 rounded-full overflow-hidden bg-red-500/20">
+                          <div className="relative h-2 rounded-full overflow-hidden bg-muted/30">
                             <div 
                               className="absolute left-0 top-0 h-full bg-gradient-to-r from-green-500 to-green-400 transition-all duration-500"
                               style={{ width: `${agreePercent}%` }}
+                            />
+                            <div 
+                              className="absolute right-0 top-0 h-full bg-gradient-to-l from-red-500 to-red-400 transition-all duration-500"
+                              style={{ width: `${100 - agreePercent}%` }}
                             />
                           </div>
                           <p className="text-xs text-muted-foreground text-center mt-1.5">
