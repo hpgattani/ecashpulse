@@ -148,66 +148,70 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
     }
   }, []);
 
-  // Render PayButton — matches BetModal pattern exactly
+  // Render PayButton with retry loop for mobile AnimatePresence timing
   useEffect(() => {
-    if (!open || !payButtonRef.current || !user || step !== 'info') {
-      if (payButtonRef.current) payButtonRef.current.innerHTML = '';
-      return;
-    }
+    if (!open || !user || step !== 'info' || entryCost <= 0) return;
 
-    if (entryCost <= 0) {
-      payButtonRef.current.innerHTML = '';
-      return;
-    }
+    let cancelled = false;
+    let attempts = 0;
+    let timerId: ReturnType<typeof setTimeout>;
 
-    payButtonRef.current.innerHTML = '';
+    const tryRender = () => {
+      if (cancelled) return;
+      attempts++;
 
-    const renderButton = () => {
-      if (!payButtonRef.current) return;
+      const el = payButtonRef.current;
+      if (!el) {
+        if (attempts < 50) timerId = setTimeout(tryRender, 100);
+        return;
+      }
 
-      payButtonRef.current.innerHTML = '';
+      if (!(window as any).PayButton) {
+        if (attempts < 50) timerId = setTimeout(tryRender, 200);
+        return;
+      }
 
+      el.innerHTML = '';
       const buttonContainer = document.createElement('div');
       buttonContainer.id = `paybutton-ticket-${Date.now()}`;
-      payButtonRef.current.appendChild(buttonContainer);
+      el.appendChild(buttonContainer);
 
-      if ((window as any).PayButton) {
-        (window as any).PayButton.render(buttonContainer, {
-          to: ESCROW_ADDRESS,
-          amount: entryCost,
-          currency: 'XEC',
-          text: `Pay ${entryCost.toLocaleString()} XEC`,
-          hoverText: 'Confirm',
-          successText: 'Payment Sent!',
-          autoClose: true,
-          hideToasts: true,
-          theme: {
-            palette: {
-              primary: '#f59e0b',
-              secondary: '#1e293b',
-              tertiary: '#000000',
-            },
+      (window as any).PayButton.render(buttonContainer, {
+        to: ESCROW_ADDRESS,
+        amount: entryCost,
+        currency: 'XEC',
+        text: `Pay ${entryCost.toLocaleString()} XEC`,
+        hoverText: 'Confirm',
+        successText: 'Payment Sent!',
+        autoClose: true,
+        hideToasts: true,
+        theme: {
+          palette: {
+            primary: '#f59e0b',
+            secondary: '#1e293b',
+            tertiary: '#000000',
           },
-          onSuccess: (txResult: any) => {
-            let txHash: string | undefined;
-            if (typeof txResult === 'string') txHash = txResult;
-            else if (txResult?.hash) txHash = txResult.hash;
-            else if (txResult?.txid) txHash = txResult.txid;
-            else if (txResult?.txId) txHash = txResult.txId;
-            handlePaymentSuccess(txHash);
-          },
-          onError: (err: any) => {
-            console.error('PayButton error:', err);
-            toast.error('Payment failed');
-          },
-        });
-      }
+        },
+        onSuccess: (txResult: any) => {
+          let txHash: string | undefined;
+          if (typeof txResult === 'string') txHash = txResult;
+          else if (txResult?.hash) txHash = txResult.hash;
+          else if (txResult?.txid) txHash = txResult.txid;
+          else if (txResult?.txId) txHash = txResult.txId;
+          handlePaymentSuccess(txHash);
+        },
+        onError: (err: any) => {
+          console.error('PayButton error:', err);
+          toast.error('Payment failed');
+        },
+      });
     };
 
-    const timeoutId = setTimeout(renderButton, 100);
+    timerId = setTimeout(tryRender, 150);
 
     return () => {
-      clearTimeout(timeoutId);
+      cancelled = true;
+      clearTimeout(timerId);
       if (payButtonRef.current) payButtonRef.current.innerHTML = '';
     };
   }, [open, step, user, entryCost, handlePaymentSuccess]);
