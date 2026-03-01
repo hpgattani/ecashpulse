@@ -186,76 +186,72 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
     }
   }, []);
 
-  // Render PayButton - using stable lockedEntryFee
+  // Render PayButton with retry loop for mobile AnimatePresence timing
   useEffect(() => {
-    if (!isOpen || !payButtonRef.current || step !== "payment" || lockedEntryFee <= 0) {
-      if (payButtonRef.current) {
-        payButtonRef.current.innerHTML = "";
+    if (!isOpen || step !== "payment" || lockedEntryFee <= 0) return;
+
+    let cancelled = false;
+    let attempts = 0;
+    let timerId: ReturnType<typeof setTimeout>;
+
+    const tryRender = () => {
+      if (cancelled) return;
+      attempts++;
+
+      const el = payButtonRef.current;
+      if (!el) {
+        if (attempts < 50) timerId = setTimeout(tryRender, 100);
+        return;
       }
-      return;
-    }
 
-    payButtonRef.current.innerHTML = "";
+      if (!(window as any).PayButton) {
+        if (attempts < 50) timerId = setTimeout(tryRender, 200);
+        return;
+      }
 
-    const renderButton = () => {
-      if (!payButtonRef.current) return;
-
-      payButtonRef.current.innerHTML = "";
-
+      el.innerHTML = "";
       const buttonContainer = document.createElement("div");
       buttonContainer.id = `paybutton-game-${game.id}-${Date.now()}`;
-      payButtonRef.current.appendChild(buttonContainer);
+      el.appendChild(buttonContainer);
 
-      if ((window as any).PayButton) {
-        (window as any).PayButton.render(buttonContainer, {
-          to: ESCROW_ADDRESS,
-          amount: lockedEntryFee,
-          currency: "XEC",
-          text: `Pay ${lockedEntryFee.toLocaleString()} XEC`,
-          hoverText: "Confirm",
-          successText: "Payment Sent!",
-          autoClose: true,
-          hideToasts: true,
-          theme: {
-            palette: {
-              primary: mode === "competitive" ? "#f59e0b" : "#3b82f6",
-              secondary: "#1e293b",
-              tertiary: "#ffffff",
-            },
+      (window as any).PayButton.render(buttonContainer, {
+        to: ESCROW_ADDRESS,
+        amount: lockedEntryFee,
+        currency: "XEC",
+        text: `Pay ${lockedEntryFee.toLocaleString()} XEC`,
+        hoverText: "Confirm",
+        successText: "Payment Sent!",
+        autoClose: true,
+        hideToasts: true,
+        theme: {
+          palette: {
+            primary: mode === "competitive" ? "#f59e0b" : "#3b82f6",
+            secondary: "#1e293b",
+            tertiary: "#ffffff",
           },
-          onSuccess: (txResult: any) => {
-            let txHash: string | undefined;
-
-            if (typeof txResult === "string") {
-              txHash = txResult;
-            } else if (txResult?.hash) {
-              txHash = txResult.hash;
-            } else if (txResult?.txid) {
-              txHash = txResult.txid;
-            } else if (txResult?.txId) {
-              txHash = txResult.txId;
-            }
-
-            handlePaymentSuccess(txHash);
-          },
-          onError: (error: any) => {
-            console.error("PayButton error:", error);
-            triggerHaptic('error');
-            toast.error("Payment failed", {
-              description: "Please try again.",
-            });
-          },
-        });
-      }
+        },
+        onSuccess: (txResult: any) => {
+          let txHash: string | undefined;
+          if (typeof txResult === "string") txHash = txResult;
+          else if (txResult?.hash) txHash = txResult.hash;
+          else if (txResult?.txid) txHash = txResult.txid;
+          else if (txResult?.txId) txHash = txResult.txId;
+          handlePaymentSuccess(txHash);
+        },
+        onError: (error: any) => {
+          console.error("PayButton error:", error);
+          triggerHaptic('error');
+          toast.error("Payment failed", { description: "Please try again." });
+        },
+      });
     };
 
-    const timeoutId = setTimeout(renderButton, 150);
+    timerId = setTimeout(tryRender, 150);
 
     return () => {
-      clearTimeout(timeoutId);
-      if (payButtonRef.current) {
-        payButtonRef.current.innerHTML = "";
-      }
+      cancelled = true;
+      clearTimeout(timerId);
+      if (payButtonRef.current) payButtonRef.current.innerHTML = "";
     };
   }, [isOpen, step, lockedEntryFee, game.id, mode, handlePaymentSuccess]);
 
