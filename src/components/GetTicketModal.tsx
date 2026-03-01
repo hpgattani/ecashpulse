@@ -142,7 +142,7 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
 
   // Render PayButton with retry
   useEffect(() => {
-    if (!open || step !== 'info' || !user) {
+    if (!open || step !== 'payment' || !user) {
       renderedRef.current = false;
       if (payButtonRef.current) payButtonRef.current.innerHTML = '';
       return;
@@ -272,11 +272,29 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
                   <p className="text-xs text-muted-foreground">Entry fee is non-refundable. If your team wins, you receive the entire pot (minus 1% fee).</p>
                 </div>
 
-                {user ? (
-                  <div ref={payButtonRef} className="min-h-[52px] flex justify-center" style={{ isolation: 'isolate', zIndex: 60, pointerEvents: 'auto' }} />
-                ) : (
-                  <p className="text-xs text-center text-muted-foreground">Connect your wallet to get your ticket</p>
-                )}
+                <Button className="w-full bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-black font-bold" onClick={() => setStep('payment')} disabled={!user}>
+                  <Ticket className="w-4 h-4 mr-2" />
+                  Pay {entryCost.toLocaleString()} XEC to Get Ticket
+                </Button>
+
+                {!user && <p className="text-xs text-center text-muted-foreground">Connect your wallet to get your ticket</p>}
+              </div>
+            )}
+
+            {step === 'payment' && (
+              <div className="space-y-4">
+                <div className="bg-gradient-to-r from-amber-500/10 to-yellow-500/10 border border-amber-500/20 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-foreground">Entry Fee</span>
+                    <div className="text-right">
+                      <span className="font-mono text-lg font-bold text-amber-400">{entryCost.toLocaleString()} XEC</span>
+                      <div className="text-xs text-muted-foreground">~${entryCostUsd}</div>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-xs text-center text-muted-foreground">Scan the QR code or click to pay with your wallet</p>
+                <div ref={payButtonRef} className="min-h-[60px] flex justify-center" style={{ isolation: 'isolate', zIndex: 60, pointerEvents: 'auto' }} />
+                <Button variant="outline" className="w-full" onClick={() => setStep('info')}>Back</Button>
               </div>
             )}
 
