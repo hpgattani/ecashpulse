@@ -227,12 +227,13 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
             onClick={handleClose}
           />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[calc(100%-2rem)] max-w-md rounded-2xl border border-border/50 bg-card p-6 shadow-2xl max-h-[85vh] overflow-y-auto"
+            className="w-full max-w-md rounded-2xl border border-border/50 bg-card p-6 shadow-2xl max-h-[85vh] overflow-y-auto"
           >
             <button onClick={handleClose} className="absolute top-4 right-4 p-1 rounded-full hover:bg-muted transition-colors text-muted-foreground">
               <X className="w-5 h-5" />
@@ -338,6 +339,7 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
               </div>
             )}
           </motion.div>
+          </div>
         </>
       )}
     </AnimatePresence>
