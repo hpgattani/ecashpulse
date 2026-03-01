@@ -83,29 +83,43 @@ export function SentimentVoteModal({ open, onOpenChange, topic, position, onSucc
     }
   }, [user, sessionToken, topic, position, closePayButtonModal, onSuccess, onOpenChange]);
 
-  // Render PayButton with retry logic
+  // Load PayButton script
   useEffect(() => {
+    if (!document.querySelector('script[src*="paybutton"]')) {
+      const script = document.createElement("script");
+      script.src = "https://unpkg.com/@paybutton/paybutton/dist/paybutton.js";
+      script.async = true;
+      document.body.appendChild(script);
+    }
+  }, []);
+
+  // Render PayButton
+  useEffect(() => {
+    console.log('[SentimentVote] useEffect triggered:', { step, open, hasUser: !!user, hasToken: !!sessionToken, hasTopic: !!topic, hasPosition: !!position, hasRef: !!payButtonRef.current });
+    
     if (step !== 'payment' || !payButtonRef.current || !user || !sessionToken || !topic || !open) {
       if (payButtonRef.current) payButtonRef.current.innerHTML = "";
       return;
     }
 
     const voteCost = topic.vote_cost || 500;
+    payButtonRef.current.innerHTML = "";
     let attempts = 0;
     let timeoutId: ReturnType<typeof setTimeout>;
 
     const renderButton = () => {
-      if (!payButtonRef.current || step !== 'payment') return;
+      if (!payButtonRef.current) return;
       payButtonRef.current.innerHTML = "";
 
       const PB = (window as any).PayButton;
+      console.log('[SentimentVote] renderButton attempt', attempts, 'PayButton available:', !!PB);
+      
       if (!PB) {
         attempts++;
-        if (attempts < 20) {
-          console.log(`PayButton not ready, retry ${attempts}...`);
-          timeoutId = setTimeout(renderButton, 300);
+        if (attempts < 30) {
+          timeoutId = setTimeout(renderButton, 500);
         } else {
-          console.error('PayButton failed to load after 20 attempts');
+          console.error('[SentimentVote] PayButton never loaded');
         }
         return;
       }
@@ -116,39 +130,43 @@ export function SentimentVoteModal({ open, onOpenChange, topic, position, onSucc
 
       const isAgree = position === 'agree';
 
-      PB.render(buttonContainer, {
-        to: ESCROW_ADDRESS,
-        amount: voteCost,
-        currency: "XEC",
-        text: `Vote ${isAgree ? 'Agree' : 'Disagree'} – ${voteCost.toLocaleString()} XEC`,
-        hoverText: "Confirm",
-        successText: "Vote Sent!",
-        autoClose: true,
-        hideToasts: true,
-        theme: {
-          palette: {
-            primary: isAgree ? "#22c55e" : "#ef4444",
-            secondary: "#1e293b",
-            tertiary: "#ffffff",
+      try {
+        PB.render(buttonContainer, {
+          to: ESCROW_ADDRESS,
+          amount: voteCost,
+          currency: "XEC",
+          text: `Vote ${isAgree ? 'Agree' : 'Disagree'} – ${voteCost.toLocaleString()} XEC`,
+          hoverText: "Confirm",
+          successText: "Vote Sent!",
+          autoClose: true,
+          hideToasts: true,
+          theme: {
+            palette: {
+              primary: isAgree ? "#22c55e" : "#ef4444",
+              secondary: "#1e293b",
+              tertiary: "#ffffff",
+            },
           },
-        },
-        onSuccess: (txResult: any) => {
-          let txHash: string | undefined;
-          if (typeof txResult === "string") txHash = txResult;
-          else if (txResult?.hash) txHash = txResult.hash;
-          else if (txResult?.txid) txHash = txResult.txid;
-          else if (txResult?.txId) txHash = txResult.txId;
-          handlePaymentSuccess(txHash);
-        },
-        onError: (error: any) => {
-          console.error("PayButton error:", error);
-          toast.error("Payment failed. Please try again.");
-        },
-      });
+          onSuccess: (txResult: any) => {
+            let txHash: string | undefined;
+            if (typeof txResult === "string") txHash = txResult;
+            else if (txResult?.hash) txHash = txResult.hash;
+            else if (txResult?.txid) txHash = txResult.txid;
+            else if (txResult?.txId) txHash = txResult.txId;
+            handlePaymentSuccess(txHash);
+          },
+          onError: (error: any) => {
+            console.error("PayButton error:", error);
+            toast.error("Payment failed. Please try again.");
+          },
+        });
+        console.log('[SentimentVote] PayButton.render() called successfully');
+      } catch (err) {
+        console.error('[SentimentVote] PayButton.render() threw:', err);
+      }
     };
 
-    // Delay to ensure dialog is fully rendered
-    timeoutId = setTimeout(renderButton, 250);
+    timeoutId = setTimeout(renderButton, 300);
     return () => {
       clearTimeout(timeoutId);
       if (payButtonRef.current) payButtonRef.current.innerHTML = "";
