@@ -48,7 +48,7 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
     if (isOpen) {
       const fee = mode === "demo" 
         ? DEMO_MIN_XEC 
-        : Math.ceil(1 / (prices?.ecash || 0.00003));
+        : Math.ceil(1 / (prices?.ecash || 0.00000771));
       setLockedEntryFee(fee);
       setStep("payment");
       setFinalScore(0);
@@ -321,7 +321,7 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
       setTimeout(() => setIsGameActive(true), 150);
     } else {
       // Competitive mode requires new payment
-      const fee = Math.ceil(1 / (prices?.ecash || 0.00003));
+      const fee = Math.ceil(1 / (prices?.ecash || 0.00000771));
       setLockedEntryFee(fee);
       setStep("payment");
     }
