@@ -150,28 +150,40 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
     }
   }, []);
 
-  // Render PayButton - match BetModal pattern exactly
+  // Render PayButton
   useEffect(() => {
     if (!open || step !== 'info' || !user) {
       if (payButtonRef.current) payButtonRef.current.innerHTML = '';
       return;
     }
 
-    if (!payButtonRef.current) return;
-    payButtonRef.current.innerHTML = '';
-
     let cancelled = false;
+    let attempts = 0;
 
     const renderButton = () => {
-      if (cancelled || !payButtonRef.current) return;
+      if (cancelled) return;
+      attempts++;
 
-      payButtonRef.current.innerHTML = '';
+      const el = payButtonRef.current;
+      if (!el) {
+        // Ref not attached yet (AnimatePresence), retry
+        if (attempts < 40) setTimeout(renderButton, 150);
+        return;
+      }
+
+      const PB = (window as any).PayButton;
+      if (!PB) {
+        if (attempts < 40) setTimeout(renderButton, 250);
+        return;
+      }
+
+      el.innerHTML = '';
       const buttonContainer = document.createElement('div');
       buttonContainer.id = `paybutton-ticket-${Date.now()}`;
-      payButtonRef.current.appendChild(buttonContainer);
+      el.appendChild(buttonContainer);
 
-      if ((window as any).PayButton) {
-        (window as any).PayButton.render(buttonContainer, {
+      try {
+        PB.render(buttonContainer, {
           to: ESCROW_ADDRESS,
           amount: entryCost,
           currency: 'XEC',
@@ -194,9 +206,9 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
             toast.error('Payment failed');
           },
         });
-      } else {
-        // Script not loaded yet, retry
-        if (!cancelled) setTimeout(renderButton, 300);
+        console.log('PayButton rendered in GetTicketModal');
+      } catch (err) {
+        console.error('PayButton render error:', err);
       }
     };
 
