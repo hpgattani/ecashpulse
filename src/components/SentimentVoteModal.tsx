@@ -83,29 +83,32 @@ export function SentimentVoteModal({ open, onOpenChange, topic, position, onSucc
     }
   }, [user, sessionToken, topic, position, closePayButtonModal, onSuccess, onOpenChange]);
 
-  // Load PayButton script
+  // Render PayButton with retry logic
   useEffect(() => {
-    if (!document.querySelector('script[src*="paybutton"]')) {
-      const script = document.createElement("script");
-      script.src = "https://unpkg.com/@paybutton/paybutton/dist/paybutton.js";
-      script.async = true;
-      document.body.appendChild(script);
-    }
-  }, []);
-
-  // Render PayButton
-  useEffect(() => {
-    if (step !== 'payment' || !payButtonRef.current || !user || !sessionToken || !topic) {
+    if (step !== 'payment' || !payButtonRef.current || !user || !sessionToken || !topic || !open) {
       if (payButtonRef.current) payButtonRef.current.innerHTML = "";
       return;
     }
 
     const voteCost = topic.vote_cost || 500;
-    payButtonRef.current.innerHTML = "";
+    let attempts = 0;
+    let timeoutId: ReturnType<typeof setTimeout>;
 
     const renderButton = () => {
-      if (!payButtonRef.current) return;
+      if (!payButtonRef.current || step !== 'payment') return;
       payButtonRef.current.innerHTML = "";
+
+      const PB = (window as any).PayButton;
+      if (!PB) {
+        attempts++;
+        if (attempts < 20) {
+          console.log(`PayButton not ready, retry ${attempts}...`);
+          timeoutId = setTimeout(renderButton, 300);
+        } else {
+          console.error('PayButton failed to load after 20 attempts');
+        }
+        return;
+      }
 
       const buttonContainer = document.createElement("div");
       buttonContainer.id = `paybutton-vote-${Date.now()}`;
@@ -113,45 +116,44 @@ export function SentimentVoteModal({ open, onOpenChange, topic, position, onSucc
 
       const isAgree = position === 'agree';
 
-      if ((window as any).PayButton) {
-        (window as any).PayButton.render(buttonContainer, {
-          to: ESCROW_ADDRESS,
-          amount: voteCost,
-          currency: "XEC",
-          text: `Vote ${isAgree ? 'Agree' : 'Disagree'} – ${voteCost.toLocaleString()} XEC`,
-          hoverText: "Confirm",
-          successText: "Vote Sent!",
-          autoClose: true,
-          hideToasts: true,
-          theme: {
-            palette: {
-              primary: isAgree ? "#22c55e" : "#ef4444",
-              secondary: "#1e293b",
-              tertiary: "#ffffff",
-            },
+      PB.render(buttonContainer, {
+        to: ESCROW_ADDRESS,
+        amount: voteCost,
+        currency: "XEC",
+        text: `Vote ${isAgree ? 'Agree' : 'Disagree'} – ${voteCost.toLocaleString()} XEC`,
+        hoverText: "Confirm",
+        successText: "Vote Sent!",
+        autoClose: true,
+        hideToasts: true,
+        theme: {
+          palette: {
+            primary: isAgree ? "#22c55e" : "#ef4444",
+            secondary: "#1e293b",
+            tertiary: "#ffffff",
           },
-          onSuccess: (txResult: any) => {
-            let txHash: string | undefined;
-            if (typeof txResult === "string") txHash = txResult;
-            else if (txResult?.hash) txHash = txResult.hash;
-            else if (txResult?.txid) txHash = txResult.txid;
-            else if (txResult?.txId) txHash = txResult.txId;
-            handlePaymentSuccess(txHash);
-          },
-          onError: (error: any) => {
-            console.error("PayButton error:", error);
-            toast.error("Payment failed. Please try again.");
-          },
-        });
-      }
+        },
+        onSuccess: (txResult: any) => {
+          let txHash: string | undefined;
+          if (typeof txResult === "string") txHash = txResult;
+          else if (txResult?.hash) txHash = txResult.hash;
+          else if (txResult?.txid) txHash = txResult.txid;
+          else if (txResult?.txId) txHash = txResult.txId;
+          handlePaymentSuccess(txHash);
+        },
+        onError: (error: any) => {
+          console.error("PayButton error:", error);
+          toast.error("Payment failed. Please try again.");
+        },
+      });
     };
 
-    const timeoutId = setTimeout(renderButton, 100);
+    // Delay to ensure dialog is fully rendered
+    timeoutId = setTimeout(renderButton, 250);
     return () => {
       clearTimeout(timeoutId);
       if (payButtonRef.current) payButtonRef.current.innerHTML = "";
     };
-  }, [step, user, sessionToken, topic, position, handlePaymentSuccess]);
+  }, [step, user, sessionToken, topic, position, open, handlePaymentSuccess]);
 
   if (!topic || !position) return null;
 
@@ -192,7 +194,7 @@ export function SentimentVoteModal({ open, onOpenChange, topic, position, onSucc
               </div>
             </div>
 
-            <div ref={payButtonRef} className="min-h-[52px] flex justify-center" />
+            <div ref={payButtonRef} className="min-h-[52px] flex justify-center isolation-isolate z-[60]" style={{ pointerEvents: 'auto' }} />
           </div>
         )}
 
