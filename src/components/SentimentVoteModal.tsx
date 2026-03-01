@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
 import { ThumbsUp, ThumbsDown, Loader2, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -24,31 +23,23 @@ const ESCROW_ADDRESS = "ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp";
 export function SentimentVoteModal({ open, onOpenChange, topic, position, onSuccess }: SentimentVoteModalProps) {
   const { user, sessionToken } = useAuth();
   const { prices } = useCryptoPrices();
-  const payButtonRef = useRef<HTMLDivElement>(null);
-  
-  const [step, setStep] = useState<'payment' | 'confirming' | 'success'>('payment');
-  const [submitting, setSubmitting] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const renderedRef = useRef(false);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
-  const closePayButtonModal = useCallback(() => {
-    const selectors = [
-      '.paybutton-modal', '.paybutton-overlay',
-      '[class*="paybutton"][class*="modal"]', '[class*="paybutton"][class*="overlay"]',
-      '.ReactModal__Overlay', '[data-paybutton-modal]',
-    ];
-    selectors.forEach(selector => {
-      document.querySelectorAll(selector).forEach(el => {
-        (el as HTMLElement).style.display = 'none';
-        el.remove();
-      });
+  const [step, setStep] = useState<'payment' | 'confirming' | 'success'>('payment');
+
+  // Clean up PayButton overlays
+  const cleanupPayButton = useCallback(() => {
+    ['.paybutton-modal', '.paybutton-overlay', '[class*="paybutton"][class*="modal"]',
+     '[class*="paybutton"][class*="overlay"]', '.ReactModal__Overlay'].forEach(sel => {
+      document.querySelectorAll(sel).forEach(el => el.remove());
     });
-    if (payButtonRef.current) payButtonRef.current.innerHTML = '';
   }, []);
 
   const handlePaymentSuccess = useCallback(async (txHash?: string) => {
     if (!user || !sessionToken || !topic || !position) return;
-
-    closePayButtonModal();
-    setSubmitting(true);
+    cleanupPayButton();
     setStep('confirming');
 
     try {
@@ -60,10 +51,8 @@ export function SentimentVoteModal({ open, onOpenChange, topic, position, onSucc
           session_token: sessionToken
         }
       });
-
       if (error) throw error;
-
-      if (data.success) {
+      if (data?.success) {
         setStep('success');
         toast.success('Vote submitted!');
         setTimeout(() => {
@@ -72,106 +61,103 @@ export function SentimentVoteModal({ open, onOpenChange, topic, position, onSucc
           setStep('payment');
         }, 1500);
       } else {
-        throw new Error(data.error || 'Failed to submit vote');
+        throw new Error(data?.error || 'Failed to submit vote');
       }
     } catch (error: any) {
-      console.error('Error submitting vote:', error);
+      console.error('Vote error:', error);
       toast.error(error.message || 'Failed to submit vote');
       setStep('payment');
-    } finally {
-      setSubmitting(false);
     }
-  }, [user, sessionToken, topic, position, closePayButtonModal, onSuccess, onOpenChange]);
+  }, [user, sessionToken, topic, position, cleanupPayButton, onSuccess, onOpenChange]);
 
-  // Load PayButton script
-  useEffect(() => {
-    if (!document.querySelector('script[src*="paybutton"]')) {
-      const script = document.createElement("script");
-      script.src = "https://unpkg.com/@paybutton/paybutton/dist/paybutton.js";
-      script.async = true;
-      document.body.appendChild(script);
-    }
-  }, []);
+  // Core render function
+  const tryRenderPayButton = useCallback(() => {
+    const el = containerRef.current;
+    const PB = (window as any).PayButton;
+    if (!el || !PB || !topic || !position || !user || !sessionToken) return false;
 
-  // Render PayButton
-  useEffect(() => {
-    console.log('[SentimentVote] useEffect triggered:', { step, open, hasUser: !!user, hasToken: !!sessionToken, hasTopic: !!topic, hasPosition: !!position, hasRef: !!payButtonRef.current });
-    
-    if (step !== 'payment' || !payButtonRef.current || !user || !sessionToken || !topic || !open) {
-      if (payButtonRef.current) payButtonRef.current.innerHTML = "";
-      return;
-    }
+    el.innerHTML = '';
+    const btn = document.createElement('div');
+    btn.id = `pb-vote-${Date.now()}`;
+    el.appendChild(btn);
 
+    const isAgree = position === 'agree';
     const voteCost = topic.vote_cost || 500;
-    payButtonRef.current.innerHTML = "";
+
+    PB.render(btn, {
+      to: ESCROW_ADDRESS,
+      amount: voteCost,
+      currency: 'XEC',
+      text: `Vote ${isAgree ? 'Agree' : 'Disagree'} – ${voteCost.toLocaleString()} XEC`,
+      hoverText: 'Confirm',
+      successText: 'Vote Sent!',
+      autoClose: true,
+      hideToasts: true,
+      theme: {
+        palette: {
+          primary: isAgree ? '#22c55e' : '#ef4444',
+          secondary: '#1e293b',
+          tertiary: '#ffffff',
+        },
+      },
+      onSuccess: (txResult: any) => {
+        let txHash: string | undefined;
+        if (typeof txResult === 'string') txHash = txResult;
+        else if (txResult?.hash) txHash = txResult.hash;
+        else if (txResult?.txid) txHash = txResult.txid;
+        else if (txResult?.txId) txHash = txResult.txId;
+        handlePaymentSuccess(txHash);
+      },
+      onError: (err: any) => {
+        console.error('PayButton error:', err);
+        toast.error('Payment failed. Please try again.');
+      },
+    });
+
+    renderedRef.current = true;
+    return true;
+  }, [topic, position, user, sessionToken, handlePaymentSuccess]);
+
+  // Retry loop that keeps trying until PayButton renders
+  const startRetryLoop = useCallback(() => {
+    if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+    renderedRef.current = false;
     let attempts = 0;
-    let timeoutId: ReturnType<typeof setTimeout>;
 
-    const renderButton = () => {
-      if (!payButtonRef.current) return;
-      payButtonRef.current.innerHTML = "";
-
-      const PB = (window as any).PayButton;
-      console.log('[SentimentVote] renderButton attempt', attempts, 'PayButton available:', !!PB);
-      
-      if (!PB) {
-        attempts++;
-        if (attempts < 30) {
-          timeoutId = setTimeout(renderButton, 500);
-        } else {
-          console.error('[SentimentVote] PayButton never loaded');
-        }
-        return;
-      }
-
-      const buttonContainer = document.createElement("div");
-      buttonContainer.id = `paybutton-vote-${Date.now()}`;
-      payButtonRef.current.appendChild(buttonContainer);
-
-      const isAgree = position === 'agree';
-
-      try {
-        PB.render(buttonContainer, {
-          to: ESCROW_ADDRESS,
-          amount: voteCost,
-          currency: "XEC",
-          text: `Vote ${isAgree ? 'Agree' : 'Disagree'} – ${voteCost.toLocaleString()} XEC`,
-          hoverText: "Confirm",
-          successText: "Vote Sent!",
-          autoClose: true,
-          hideToasts: true,
-          theme: {
-            palette: {
-              primary: isAgree ? "#22c55e" : "#ef4444",
-              secondary: "#1e293b",
-              tertiary: "#ffffff",
-            },
-          },
-          onSuccess: (txResult: any) => {
-            let txHash: string | undefined;
-            if (typeof txResult === "string") txHash = txResult;
-            else if (txResult?.hash) txHash = txResult.hash;
-            else if (txResult?.txid) txHash = txResult.txid;
-            else if (txResult?.txId) txHash = txResult.txId;
-            handlePaymentSuccess(txHash);
-          },
-          onError: (error: any) => {
-            console.error("PayButton error:", error);
-            toast.error("Payment failed. Please try again.");
-          },
-        });
-        console.log('[SentimentVote] PayButton.render() called successfully');
-      } catch (err) {
-        console.error('[SentimentVote] PayButton.render() threw:', err);
+    const attempt = () => {
+      if (renderedRef.current) return;
+      if (tryRenderPayButton()) return;
+      attempts++;
+      if (attempts < 40) {
+        retryTimerRef.current = setTimeout(attempt, 250);
       }
     };
+    // First attempt after a short delay for Dialog portal to mount
+    retryTimerRef.current = setTimeout(attempt, 200);
+  }, [tryRenderPayButton]);
 
-    timeoutId = setTimeout(renderButton, 300);
+  // When modal opens/closes or step changes
+  useEffect(() => {
+    if (open && step === 'payment' && topic && position && user && sessionToken) {
+      startRetryLoop();
+    } else {
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+      renderedRef.current = false;
+      if (containerRef.current) containerRef.current.innerHTML = '';
+    }
+
     return () => {
-      clearTimeout(timeoutId);
-      if (payButtonRef.current) payButtonRef.current.innerHTML = "";
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
     };
-  }, [step, user, sessionToken, topic, position, open, handlePaymentSuccess]);
+  }, [open, step, topic, position, user, sessionToken, startRetryLoop]);
+
+  // Reset step on close
+  useEffect(() => {
+    if (!open) {
+      setStep('payment');
+      renderedRef.current = false;
+    }
+  }, [open]);
 
   if (!topic || !position) return null;
 
@@ -181,11 +167,12 @@ export function SentimentVoteModal({ open, onOpenChange, topic, position, onSucc
   const voteCostUsd = (voteCost * xecPrice).toFixed(2);
 
   return (
-    <Dialog open={open} onOpenChange={(o) => {
-      if (!o) setStep('payment');
-      onOpenChange(o);
-    }}>
-      <DialogContent className="max-w-md" onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className="max-w-md"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {isAgree ? (
@@ -212,7 +199,11 @@ export function SentimentVoteModal({ open, onOpenChange, topic, position, onSucc
               </div>
             </div>
 
-            <div ref={payButtonRef} className="min-h-[52px] flex justify-center isolation-isolate z-[60]" style={{ pointerEvents: 'auto' }} />
+            <div
+              ref={containerRef}
+              className="min-h-[52px] flex justify-center"
+              style={{ isolation: 'isolate', zIndex: 60, pointerEvents: 'auto' }}
+            />
           </div>
         )}
 
