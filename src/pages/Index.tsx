@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useLocation } from 'react-router-dom';
 import Header from '@/components/Header';
+import XpulseBanner from '@/components/XpulseBanner';
 import Hero from '@/components/Hero';
 import MarketNav from '@/components/MarketNav';
 import PendingBetsSection from '@/components/PendingBetsSection';
@@ -56,6 +57,7 @@ const Index = () => {
       </Helmet>
       
       <div className="min-h-screen">
+        <XpulseBanner />
         <Header />
           <main>
             <Hero />
