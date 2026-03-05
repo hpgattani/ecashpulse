@@ -115,8 +115,8 @@ export default {
         shimmer: "shimmer 2s linear infinite",
         "slide-up": "slide-up 0.5s ease-out",
         "fade-in": "fade-in 0.5s ease-out",
-        marquee: "marquee 25s linear infinite",
-        marquee2: "marquee2 25s linear infinite",
+        marquee: "marquee 45s linear infinite",
+        marquee2: "marquee2 45s linear infinite",
       },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
