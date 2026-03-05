@@ -57,8 +57,8 @@ const Index = () => {
       </Helmet>
       
       <div className="min-h-screen">
-        <XpulseBanner />
         <Header />
+        <XpulseBanner />
           <main>
             <Hero />
             <MarketNav 
