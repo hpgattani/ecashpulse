@@ -23,8 +23,7 @@ const XpulseBanner = () => {
         initial={{ height: 0 }}
         animate={{ height: 'auto' }}
         exit={{ height: 0 }}
-        className="relative w-full bg-[hsl(160,80%,40%)] text-white overflow-hidden"
-        style={{ zIndex: 40 }}
+        className="fixed top-16 md:top-20 left-0 right-0 z-50 bg-[hsl(160,80%,40%)] text-white overflow-hidden"
       >
         <div className="relative flex items-center py-2.5 text-sm font-medium">
           <div className="flex animate-marquee">
