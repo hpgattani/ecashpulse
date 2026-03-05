@@ -59,7 +59,7 @@ const Index = () => {
       <div className="min-h-screen">
         <Header />
         <XpulseBanner />
-          <main>
+          <main className="pt-8">
             <Hero />
             <MarketNav 
               activeCategory={activeCategory}
