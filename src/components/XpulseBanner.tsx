@@ -1,45 +1,45 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { X, Sparkles, Rocket } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { X } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+
+const MARQUEE_TEXT = '🚀 $XPULSE eToken is LIVE — Fund the platform & earn revenue share — GNC funding = airdrop for all holders! 🪂 — Get yours now at /token';
 
 const XpulseBanner = () => {
   const [dismissed, setDismissed] = useState(false);
 
   if (dismissed) return null;
 
+  const repeated = Array.from({ length: 6 }, (_, i) => (
+    <span key={i} className="mx-8 whitespace-nowrap">
+      🚀 <span className="font-bold">$XPULSE</span> eToken is LIVE — Fund the platform &amp; earn revenue share — GNC funding = airdrop for all holders! 🪂 —{' '}
+      <Link to="/token" className="underline underline-offset-2 font-bold hover:text-white/90">
+        Get $XPULSE →
+      </Link>
+    </span>
+  ));
+
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ height: 0, opacity: 0 }}
-        animate={{ height: 'auto', opacity: 1 }}
-        exit={{ height: 0, opacity: 0 }}
-        transition={{ duration: 0.3 }}
-        className="relative z-50 bg-gradient-to-r from-primary via-accent to-primary overflow-hidden"
+        initial={{ height: 0 }}
+        animate={{ height: 'auto' }}
+        exit={{ height: 0 }}
+        className="relative z-50 bg-gradient-to-r from-primary via-accent to-primary text-primary-foreground overflow-hidden"
       >
-        {/* Shimmer effect */}
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-pulse" />
-
-        <div className="relative flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-primary-foreground">
-          <Sparkles className="h-4 w-4 shrink-0 animate-pulse" />
-          <span className="text-center">
-            <span className="font-bold">$XPULSE</span> eToken is LIVE!
-            {' '}Fund the platform & earn revenue share.
-            {' '}GNC funding = airdrop for holders!
-          </span>
-          <Link
-            to="/token"
-            className="inline-flex items-center gap-1 ml-2 px-3 py-1 rounded-full bg-background/20 hover:bg-background/30 transition-colors text-xs font-bold uppercase tracking-wide whitespace-nowrap"
-          >
-            <Rocket className="h-3 w-3" />
-            Get $XPULSE
-          </Link>
+        <div className="relative flex items-center py-2 text-sm font-medium">
+          <div className="flex animate-marquee">
+            {repeated}
+          </div>
+          <div className="flex animate-marquee2 absolute">
+            {repeated}
+          </div>
           <button
             onClick={() => setDismissed(true)}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-background/20 transition-colors"
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full bg-background/20 hover:bg-background/40 transition-colors z-10"
             aria-label="Dismiss banner"
           >
-            <X className="h-4 w-4" />
+            <X className="h-3.5 w-3.5" />
           </button>
         </div>
       </motion.div>
