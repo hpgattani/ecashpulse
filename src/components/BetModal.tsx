@@ -710,10 +710,6 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                       </div>
                     )}
 
-                    {/* Escrow Verification */}
-                    <EscrowVerifier 
-                      escrowAddress={freshEscrowAddress}
-                    />
 
                     {/* Info */}
                     <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/30">
