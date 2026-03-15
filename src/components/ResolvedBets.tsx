@@ -7,7 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Tables } from '@/integrations/supabase/types';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-type Prediction = Tables<'predictions'>;
+type Prediction = Omit<Tables<'predictions'>, 'escrow_privkey_encrypted' | 'escrow_script_hex'>;
 
 const ResolvedBets = () => {
   const navigate = useNavigate();
