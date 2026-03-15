@@ -158,3 +158,6 @@ verify_jwt = false
 
 [functions.cron-restore-subtitle]
 verify_jwt = false
+
+[functions.batch-create-escrows]
+verify_jwt = false
