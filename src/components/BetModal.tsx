@@ -291,8 +291,9 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
       payButtonRef.current.appendChild(buttonContainer);
 
       if ((window as any).PayButton) {
+        const escrowAddr = prediction.escrowAddress || FALLBACK_ESCROW_ADDRESS;
         (window as any).PayButton.render(buttonContainer, {
-          to: ESCROW_ADDRESS,
+          to: escrowAddr,
           amount: amount,
           currency: "XEC",
           text: "Place Bet",
