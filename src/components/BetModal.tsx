@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { Outcome } from "@/hooks/usePredictions";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { triggerHaptic } from "@/hooks/useHaptic";
-import EscrowVerifier from "@/components/EscrowVerifier";
+
 
 const FALLBACK_ESCROW_ADDRESS = "ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp";
 
@@ -677,7 +677,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                     <div
                       ref={payButtonRef}
                       className="min-h-[56px] flex justify-center"
-                      style={{ isolation: 'isolate', zIndex: 60, pointerEvents: 'auto' }}
+                      style={{ pointerEvents: 'auto' }}
                     />
 
                     {payButtonError && (
@@ -710,10 +710,6 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                       </div>
                     )}
 
-                    {/* Escrow Verification */}
-                    <EscrowVerifier 
-                      escrowAddress={freshEscrowAddress}
-                    />
 
                     {/* Info */}
                     <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/30">
