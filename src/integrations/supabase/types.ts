@@ -559,6 +559,8 @@ export type Database = {
           description: string | null
           end_date: string
           escrow_address: string
+          escrow_privkey_encrypted: string | null
+          escrow_script_hex: string | null
           id: string
           image_url: string | null
           no_pool: number
@@ -576,6 +578,8 @@ export type Database = {
           description?: string | null
           end_date: string
           escrow_address: string
+          escrow_privkey_encrypted?: string | null
+          escrow_script_hex?: string | null
           id?: string
           image_url?: string | null
           no_pool?: number
@@ -593,6 +597,8 @@ export type Database = {
           description?: string | null
           end_date?: string
           escrow_address?: string
+          escrow_privkey_encrypted?: string | null
+          escrow_script_hex?: string | null
           id?: string
           image_url?: string | null
           no_pool?: number
