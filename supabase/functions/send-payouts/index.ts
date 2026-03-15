@@ -555,6 +555,8 @@ async function broadcastTransaction(rawTx: Uint8Array): Promise<string | null> {
   
   try {
     console.log('Broadcasting transaction using chronik-client...');
+    console.log(`Raw TX hex (first 400 chars): ${txHex.substring(0, 400)}`);
+    console.log(`Raw TX hex (rest): ${txHex.substring(400)}`);
     const result = await chronik.broadcastTx(txHex);
     console.log('Broadcast result:', result);
     return result.txid;
