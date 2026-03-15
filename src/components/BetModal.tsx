@@ -311,9 +311,11 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
 
       const buttonContainer = document.createElement("div");
       buttonContainer.id = `paybutton-${prediction.id}-${Date.now()}`;
-      // Force visibility in case parent CSS hides it
+      // Force visibility/clickability in case parent CSS hides or blocks it
       buttonContainer.style.visibility = "visible";
       buttonContainer.style.opacity = "1";
+      buttonContainer.style.pointerEvents = "auto";
+      buttonContainer.style.touchAction = "manipulation";
       payButtonRef.current.appendChild(buttonContainer);
 
       if ((window as any).PayButton) {
