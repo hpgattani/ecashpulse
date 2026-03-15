@@ -770,14 +770,6 @@
   @apply bg-muted-foreground/50;
 }
 
-/* PayButton Theming - Match Liquid Glass Design System */
-
-/* Ensure PayButton containers are visible and not collapsed */
-div[id^="paybutton"],
-div[id^="paybutton"] > div {
-  visibility: visible !important;
-  opacity: 1 !important;
-}
 
 /* Keep PayButton host visible without overriding widget internals */
 div[id^="paybutton"],
