@@ -68,7 +68,12 @@ const Prediction = () => {
   const [activitiesLoading, setActivitiesLoading] = useState(true);
 
   const fetchPrediction = async () => {
-    if (!id) return;
+    if (!id) {
+      setLoading(false);
+      setPrediction(null);
+      navigate('/', { replace: true });
+      return;
+    }
 
     // If this is an outdated link, redirect immediately.
     const redirectId = LEGACY_PREDICTION_ID_REDIRECTS[id];
@@ -251,7 +256,10 @@ const Prediction = () => {
   // Fetch betting activity for this prediction
   useEffect(() => {
     const fetchActivities = async () => {
-      if (!id) return;
+      if (!id) {
+        setActivitiesLoading(false);
+        return;
+      }
       setActivitiesLoading(true);
 
       try {
