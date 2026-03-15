@@ -52,6 +52,9 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
   const [freshEscrowAddress, setFreshEscrowAddress] = useState<string>(
     prediction.escrowAddress || FALLBACK_ESCROW_ADDRESS
   );
+  const [payButtonReady, setPayButtonReady] = useState(false);
+  const [payButtonError, setPayButtonError] = useState<string | null>(null);
+  const [payButtonRenderKey, setPayButtonRenderKey] = useState(0);
 
   // Fetch fresh escrow address from DB when modal opens
   useEffect(() => {
@@ -84,6 +87,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
       setBetSuccess(false);
       setBetProcessing(false);
       setBetError(null);
+      setPayButtonError(null);
       setLastTxHash(null);
       submitLockRef.current = false;
     }
@@ -275,12 +279,36 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
 
   // Load PayButton script
   useEffect(() => {
-    if (!document.querySelector('script[src*="paybutton"]')) {
-      const script = document.createElement("script");
+    if ((window as any).PayButton) {
+      setPayButtonReady(true);
+      return;
+    }
+
+    const existingScript = document.querySelector('script[src*="@paybutton/paybutton"], script[src*="paybutton.js"]') as HTMLScriptElement | null;
+    const script = existingScript ?? document.createElement("script");
+
+    const handleLoad = () => {
+      setPayButtonReady(true);
+      setPayButtonError(null);
+    };
+
+    const handleError = () => {
+      setPayButtonError("Unable to load payment widget. Please check your connection and try again.");
+    };
+
+    script.addEventListener("load", handleLoad);
+    script.addEventListener("error", handleError);
+
+    if (!existingScript) {
       script.src = "https://unpkg.com/@paybutton/paybutton/dist/paybutton.js";
       script.async = true;
       document.body.appendChild(script);
     }
+
+    return () => {
+      script.removeEventListener("load", handleLoad);
+      script.removeEventListener("error", handleError);
+    };
   }, []);
 
   // Render PayButton
@@ -298,18 +326,20 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
       return;
     }
 
+    setPayButtonError(null);
     payButtonRef.current.innerHTML = "";
 
     const renderButton = () => {
-      if (!payButtonRef.current) return;
+      if (!payButtonRef.current || !(window as any).PayButton) return;
 
       payButtonRef.current.innerHTML = "";
 
       const buttonContainer = document.createElement("div");
       buttonContainer.id = `paybutton-${prediction.id}-${Date.now()}`;
+      buttonContainer.style.width = "100%";
       payButtonRef.current.appendChild(buttonContainer);
 
-      if ((window as any).PayButton) {
+      try {
         (window as any).PayButton.render(buttonContainer, {
           to: freshEscrowAddress,
           amount: amount,
@@ -354,17 +384,22 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
           },
           onError: (error: any) => {
             console.error("PayButton error:", error);
+            setPayButtonError("Payment widget failed to open. Please try again.");
             toast.error("Payment failed", {
               description: "Please try again.",
             });
           },
         });
+      } catch (error) {
+        console.error("PayButton render error:", error);
+        const details = error instanceof Error ? error.message : "Unable to initialize payment widget.";
+        setPayButtonError(details);
       }
     };
 
-    // Polling loop: retry until PayButton script is loaded (up to 50 attempts)
+    // Polling loop: retry until PayButton script is loaded
     let attempts = 0;
-    const maxAttempts = 50;
+    const maxAttempts = 60;
     let intervalId: ReturnType<typeof setInterval> | null = null;
 
     const tryRender = () => {
@@ -374,15 +409,15 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
         renderButton();
       } else if (attempts >= maxAttempts) {
         if (intervalId) clearInterval(intervalId);
-        console.warn('PayButton script failed to load after max attempts');
+        setPayButtonError("Payment widget timed out. Please close and reopen the bet modal.");
       }
     };
 
-    // Try immediately, then poll every 200ms
-    if ((window as any).PayButton) {
+    // Try immediately, then poll every 150ms
+    if (payButtonReady || (window as any).PayButton) {
       renderButton();
     } else {
-      intervalId = setInterval(tryRender, 200);
+      intervalId = setInterval(tryRender, 150);
     }
 
     return () => {
@@ -391,7 +426,18 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
         payButtonRef.current.innerHTML = "";
       }
     };
-  }, [isOpen, betAmount, user, sessionToken, prediction.id, betSuccess, recordBet, freshEscrowAddress]);
+  }, [
+    isOpen,
+    betAmount,
+    user,
+    sessionToken,
+    prediction.id,
+    betSuccess,
+    recordBet,
+    freshEscrowAddress,
+    payButtonReady,
+    payButtonRenderKey,
+  ]);
 
   // Unauthenticated state
   if (!user || !sessionToken) {
@@ -628,7 +674,31 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                     )}
 
                     {/* PayButton Container */}
-                    <div ref={payButtonRef} className="min-h-[50px] flex justify-center" />
+                    <div
+                      ref={payButtonRef}
+                      className="min-h-[56px] flex justify-center"
+                      style={{ isolation: 'isolate', zIndex: 60, pointerEvents: 'auto' }}
+                    />
+
+                    {payButtonError && (
+                      <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/30">
+                        <AlertCircle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
+                        <div className="space-y-2">
+                          <p className="text-xs text-destructive">{payButtonError}</p>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setPayButtonError(null);
+                              setPayButtonRenderKey((value) => value + 1);
+                            }}
+                          >
+                            Retry payment widget
+                          </Button>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Crypto buffer notice */}
                     {isCryptoPrediction && (

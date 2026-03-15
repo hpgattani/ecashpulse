@@ -790,9 +790,9 @@ div[id^="paybutton"] > div {
 /* PayButton popup/modal - the actual modal that appears */
 .paybutton-popup,
 [class*="paybutton-widget"],
-[class*="PayButton"] > div:not(:first-child),
-div[class*="modal"][style*="position: fixed"],
-body > div[style*="position: fixed"][style*="z-index"] {
+[class*="paybutton-modal"],
+[class*="paybutton-overlay"],
+body > [class*="paybutton"][style*="position: fixed"] {
   background: hsl(var(--card)) !important;
   border: 1px solid hsl(var(--border)) !important;
   border-radius: var(--radius) !important;
