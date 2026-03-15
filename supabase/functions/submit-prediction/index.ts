@@ -5,11 +5,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Generate a deterministic escrow address for pending predictions
-function generatePendingEscrowAddress(): string {
-  // Use the main platform escrow for pending submissions
-  return 'ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp';
-}
+// Fallback escrow address (used temporarily until per-prediction escrow is generated)
+const FALLBACK_ESCROW_ADDRESS = 'ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp';
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
