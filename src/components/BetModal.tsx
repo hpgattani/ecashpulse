@@ -302,6 +302,8 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
 
     payButtonRef.current.innerHTML = "";
 
+    setPayButtonReady(false);
+
     const renderButton = () => {
       if (!payButtonRef.current) return;
 
@@ -309,58 +311,65 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
 
       const buttonContainer = document.createElement("div");
       buttonContainer.id = `paybutton-${prediction.id}-${Date.now()}`;
+      // Force visibility in case parent CSS hides it
+      buttonContainer.style.visibility = "visible";
+      buttonContainer.style.opacity = "1";
       payButtonRef.current.appendChild(buttonContainer);
 
       if ((window as any).PayButton) {
-        (window as any).PayButton.render(buttonContainer, {
-          to: freshEscrowAddress,
-          amount: amount,
-          currency: "ecash",
-          text: "Place Bet",
-          hoverText: "Confirm",
-          successText: "Payment Sent!",
-          autoClose: true,
-          hideToasts: true,
-          theme: {
-            palette: {
-              primary: "#10b981", // always green for "bet on outcome"
-              secondary: "#1e293b",
-              tertiary: "#ffffff",
+        try {
+          (window as any).PayButton.render(buttonContainer, {
+            to: freshEscrowAddress,
+            amount: amount,
+            currency: "ecash",
+            text: "Place Bet",
+            hoverText: "Confirm",
+            successText: "Payment Sent!",
+            autoClose: true,
+            hideToasts: true,
+            theme: {
+              palette: {
+                primary: "#10b981",
+                secondary: "#1e293b",
+                tertiary: "#ffffff",
+              },
             },
-          },
-           onSuccess: (txResult: any) => {
-             let txHash: string | undefined;
+            onSuccess: (txResult: any) => {
+              let txHash: string | undefined;
 
-            if (typeof txResult === "string") {
-              txHash = txResult;
-            } else if (txResult?.hash) {
-              txHash = txResult.hash;
-            } else if (txResult?.txid) {
-              txHash = txResult.txid;
-            } else if (txResult?.txId) {
-              txHash = txResult.txId;
-            }
+              if (typeof txResult === "string") {
+                txHash = txResult;
+              } else if (txResult?.hash) {
+                txHash = txResult.hash;
+              } else if (txResult?.txid) {
+                txHash = txResult.txid;
+              } else if (txResult?.txId) {
+                txHash = txResult.txId;
+              }
 
-            const isValidTxId =
-              typeof txHash === "string" && /^[a-f0-9]{64}$/i.test(txHash);
+              const isValidTxId =
+                typeof txHash === "string" && /^[a-f0-9]{64}$/i.test(txHash);
 
-            // txid is OPTIONAL: record bet even if the wallet doesn't return it.
-            // (We keep it when available so we can dedupe/reconcile later.)
-            if (isValidTxId) {
-              setLastTxHash(txHash!);
-              recordBet(txHash);
-            } else {
-              setLastTxHash(null);
-              recordBet(undefined);
-            }
-          },
-          onError: (error: any) => {
-            console.error("PayButton error:", error);
-            toast.error("Payment failed", {
-              description: "Please try again.",
-            });
-          },
-        });
+              if (isValidTxId) {
+                setLastTxHash(txHash!);
+                recordBet(txHash);
+              } else {
+                setLastTxHash(null);
+                recordBet(undefined);
+              }
+            },
+            onError: (error: any) => {
+              console.error("PayButton error:", error);
+              toast.error("Payment failed", {
+                description: "Please try again.",
+              });
+            },
+          });
+          setPayButtonReady(true);
+        } catch (err) {
+          console.error("PayButton render error:", err);
+          setPayButtonReady(false);
+        }
       }
     };
 
@@ -377,6 +386,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
       } else if (attempts >= maxAttempts) {
         if (intervalId) clearInterval(intervalId);
         console.warn('PayButton script failed to load after max attempts');
+        setPayButtonReady(false);
       }
     };
 
