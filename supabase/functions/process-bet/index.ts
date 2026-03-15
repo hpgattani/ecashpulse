@@ -228,7 +228,7 @@ Deno.serve(async (req) => {
             amount: existingBet.amount,
             position: existingBet.position,
             status: existingBet.status,
-            escrow_address: ESCROW_ADDRESS,
+            escrow_address: FALLBACK_ESCROW_ADDRESS,
             message: 'Bet already recorded for this transaction'
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
