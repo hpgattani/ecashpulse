@@ -52,9 +52,8 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
   const [freshEscrowAddress, setFreshEscrowAddress] = useState<string>(
     prediction.escrowAddress || FALLBACK_ESCROW_ADDRESS
   );
-  const [payButtonReady, setPayButtonReady] = useState(false);
   const [payButtonError, setPayButtonError] = useState<string | null>(null);
-  const [payButtonRenderKey, setPayButtonRenderKey] = useState(0);
+  const [payButtonRetryKey, setPayButtonRetryKey] = useState(0);
 
   // Fetch fresh escrow address from DB when modal opens
   useEffect(() => {
