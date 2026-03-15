@@ -402,15 +402,18 @@ Deno.serve(async (req) => {
 
     console.log(`Bet created: ${bet.id} for user ${user_id}, ${position} @ ${betAmount} XEC`);
 
+    // Use per-prediction escrow address
+    const predictionEscrowAddress = prediction?.escrow_address || FALLBACK_ESCROW_ADDRESS;
+
     return new Response(
       JSON.stringify({ 
         success: true, 
         bet_id: bet.id,
         amount: betAmount,
         position,
-        escrow_address: ESCROW_ADDRESS,
+        escrow_address: predictionEscrowAddress,
         platform_fee: feeAmount,
-        message: `Send ${betAmount} XEC to ${ESCROW_ADDRESS} to confirm your bet`
+        message: `Send ${betAmount} XEC to ${predictionEscrowAddress} to confirm your bet`
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
