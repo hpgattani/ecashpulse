@@ -700,7 +700,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                             variant="outline"
                             onClick={() => {
                               setPayButtonError(null);
-                              setPayButtonRenderKey((value) => value + 1);
+                              setPayButtonRetryKey((value) => value + 1);
                             }}
                           >
                             Retry payment widget
