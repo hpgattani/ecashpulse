@@ -677,7 +677,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                     <div
                       ref={payButtonRef}
                       className="min-h-[56px] flex justify-center"
-                      style={{ isolation: 'isolate', zIndex: 60, pointerEvents: 'auto' }}
+                      style={{ pointerEvents: 'auto' }}
                     />
 
                     {payButtonError && (
