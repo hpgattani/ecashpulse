@@ -258,11 +258,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Verify prediction exists and is active
+    // Verify prediction exists and is active - include escrow_address
     console.log('Checking prediction...');
     const { data: prediction, error: predError } = await supabase
       .from('predictions')
-      .select('id, status, end_date')
+      .select('id, status, end_date, escrow_address')
       .eq('id', prediction_id)
       .maybeSingle();
 
