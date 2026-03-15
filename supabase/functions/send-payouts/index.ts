@@ -8,7 +8,7 @@ const corsHeaders = {
 
 // Chronik client for eCash - takes array of URLs
 const chronik = new ChronikClient(['https://chronik.e.cash']);
-const ESCROW_ADDRESS = 'ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp';
+const FALLBACK_ESCROW_ADDRESS = 'ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp';
 
 // ==================== Crypto Primitives ====================
 
