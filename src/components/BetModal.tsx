@@ -370,7 +370,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
         payButtonRef.current.innerHTML = "";
       }
     };
-  }, [isOpen, betAmount, user, sessionToken, prediction.id, betSuccess, recordBet]);
+  }, [isOpen, betAmount, user, sessionToken, prediction.id, betSuccess, recordBet, freshEscrowAddress]);
 
   // Unauthenticated state
   if (!user || !sessionToken) {
