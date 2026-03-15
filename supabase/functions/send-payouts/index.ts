@@ -317,29 +317,8 @@ async function getPublicKey(privateKey: Uint8Array, compressed: boolean): Promis
 
 async function signECDSA(messageHash: Uint8Array, privateKey: Uint8Array): Promise<Uint8Array> {
   const signature = await secp.signAsync(messageHash, privateKey, { lowS: true });
-  // Convert to DER format
-  const { r, s } = signature;
-  const rBytes = bigintToBytes(r);
-  const sBytes = bigintToBytes(s);
-  
-  const rLen = rBytes.length + (rBytes[0] >= 0x80 ? 1 : 0);
-  const sLen = sBytes.length + (sBytes[0] >= 0x80 ? 1 : 0);
-  const totalLen = 4 + rLen + sLen;
-  
-  const der = new Uint8Array(2 + totalLen);
-  let pos = 0;
-  der[pos++] = 0x30; // SEQUENCE
-  der[pos++] = totalLen;
-  der[pos++] = 0x02; // INTEGER
-  der[pos++] = rLen;
-  if (rBytes[0] >= 0x80) der[pos++] = 0x00;
-  der.set(rBytes, pos); pos += rBytes.length;
-  der[pos++] = 0x02; // INTEGER
-  der[pos++] = sLen;
-  if (sBytes[0] >= 0x80) der[pos++] = 0x00;
-  der.set(sBytes, pos);
-  
-  return der;
+  // Use library's built-in DER encoding
+  return signature.toDERRawBytes();
 }
 
 function bigintToBytes(n: bigint): Uint8Array {
