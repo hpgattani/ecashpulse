@@ -648,8 +648,8 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                         </div>
                       )}
                       <div ref={payButtonRef} className={`flex justify-center ${!payButtonReady ? 'absolute inset-0 opacity-0' : ''}`} style={{ visibility: payButtonReady ? 'visible' : 'hidden' }} />
+                    </div>
 
-                    {/* Crypto buffer notice */}
                     {isCryptoPrediction && (
                       <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
                         <Clock className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
