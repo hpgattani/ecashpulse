@@ -779,120 +779,18 @@ div[id^="paybutton"] > div {
   opacity: 1 !important;
 }
 
-/* Hide PayButton's default outer wrapper styles */
-.tip-paybutton-container [class*="paybutton"],
-.tip-paybutton-container div[id^="paybutton-tip"] {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
+/* Keep PayButton host visible without overriding widget internals */
+div[id^="paybutton"],
+div[id^="paybutton"] > div {
+  visibility: visible !important;
+  opacity: 1 !important;
+  min-height: 56px;
 }
 
-/* PayButton popup/modal - the actual modal that appears */
-.paybutton-popup,
-[class*="paybutton-widget"],
-[class*="paybutton-modal"],
-[class*="paybutton-overlay"],
-body > [class*="paybutton"][style*="position: fixed"] {
-  background: hsl(var(--card)) !important;
-  border: 1px solid hsl(var(--border)) !important;
-  border-radius: var(--radius) !important;
-  box-shadow: 
-    0 8px 32px hsl(0 0% 0% / 0.5),
-    0 0 0 1px hsl(var(--primary) / 0.2) !important;
-  backdrop-filter: blur(20px) !important;
-  z-index: 9999 !important;
-  pointer-events: auto !important;
-}
-
-/* Ensure PayButton buttons inside dialogs are always clickable */
+/* Keep trigger controls interactive */
 div[id^="paybutton"] button,
 div[id^="paybutton"] a,
-div[id^="paybutton"] [role="button"],
-[class*="paybutton"] button,
-[class*="paybutton"] a {
+div[id^="paybutton"] [role="button"] {
   pointer-events: auto !important;
   cursor: pointer !important;
-  position: relative !important;
-  z-index: 60 !important;
-}
-
-/* Target PayButton's internal wrapper that shows QR */
-div[id^="paybutton"] > div:not(:empty),
-[class*="paybutton"] > div > div {
-  background: hsl(var(--card)) !important;
-  border-radius: var(--radius) !important;
-}
-
-/* PayButton all text elements */
-div[id^="paybutton"] span,
-div[id^="paybutton"] p,
-div[id^="paybutton"] div,
-[class*="paybutton"] span,
-[class*="paybutton"] p {
-  color: hsl(var(--foreground)) !important;
-  font-family: 'Space Grotesk', sans-serif !important;
-}
-
-/* PayButton secondary/footer text */
-div[id^="paybutton"] small,
-div[id^="paybutton"] a,
-[class*="paybutton"] small,
-[class*="paybutton"] a {
-  color: hsl(var(--muted-foreground)) !important;
-}
-
-/* QR code container - keep white background for scanability */
-div[id^="paybutton"] canvas,
-div[id^="paybutton"] svg:not([class]),
-[class*="paybutton"] canvas {
-  background: white !important;
-  border-radius: calc(var(--radius) - 4px) !important;
-  padding: 8px !important;
-}
-
-/* Style PayButton main CTA button - fix the visual glitch */
-div[id^="paybutton"] button,
-[class*="paybutton"] button {
-  background: hsl(var(--primary)) !important;
-  color: hsl(var(--primary-foreground)) !important;
-  border: none !important;
-  border-radius: var(--radius) !important;
-  font-family: 'Space Grotesk', sans-serif !important;
-  font-weight: 500 !important;
-  padding: 0.75rem 1.5rem !important;
-  box-shadow: 
-    0 4px 14px 0 hsl(var(--primary) / 0.3),
-    inset 0 1px 0 hsl(0 0% 100% / 0.1) !important;
-  transition: all 0.2s ease !important;
-  width: auto !important;
-  min-width: 160px !important;
-  /* Remove any weird pseudo-elements or borders */
-  outline: none !important;
-  -webkit-appearance: none !important;
-  appearance: none !important;
-}
-
-/* Remove any ::before or ::after pseudo-elements that might cause the glitch */
-div[id^="paybutton"] button::before,
-div[id^="paybutton"] button::after,
-[class*="paybutton"] button::before,
-[class*="paybutton"] button::after {
-  display: none !important;
-  content: none !important;
-}
-
-div[id^="paybutton"] button:hover,
-[class*="paybutton"] button:hover {
-  background: hsl(var(--primary) / 0.9) !important;
-  box-shadow: 
-    0 6px 20px 0 hsl(var(--primary) / 0.4),
-    inset 0 1px 0 hsl(0 0% 100% / 0.15) !important;
-  transform: translateY(-1px) !important;
-}
-
-/* Light mode - keep button consistent */
-.light div[id^="paybutton"] button,
-.light [class*="paybutton"] button {
-  background: hsl(var(--primary)) !important;
-  color: white !important;
 }
