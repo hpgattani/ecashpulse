@@ -322,8 +322,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
             to: freshEscrowAddress,
             amount: amount,
             currency: "ecash",
-            text: "Place Bet",
-            hoverText: "Confirm",
+            text: `Pay ${amount.toLocaleString()} XEC`,
             successText: "Payment Sent!",
             autoClose: true,
             hideToasts: true,
@@ -647,7 +646,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                           <span className="text-xs text-muted-foreground">Loading payment widget...</span>
                         </div>
                       )}
-                      <div ref={payButtonRef} className={`flex justify-center ${!payButtonReady ? 'absolute inset-0 opacity-0' : ''}`} style={{ visibility: payButtonReady ? 'visible' : 'hidden' }} />
+                      <div ref={payButtonRef} className={`flex justify-center ${!payButtonReady ? 'absolute inset-0 opacity-0' : ''}`} style={{ visibility: payButtonReady ? 'visible' : 'hidden', isolation: 'isolate', zIndex: 60, pointerEvents: 'auto' }} />
                     </div>
 
                     {isCryptoPrediction && (
