@@ -810,11 +810,23 @@ Deno.serve(async (req) => {
       scriptPubKey: createP2PKHScript(cashAddrToHash160(r.address)!),
     }));
 
+    // Add platform fee output to custodial wallet if fees > dust
+    if (totalFees > 546) {
+      const custodialHash = cashAddrToHash160(FALLBACK_ESCROW_ADDRESS);
+      if (custodialHash) {
+        outputs.push({
+          value: BigInt(totalFees),
+          scriptPubKey: createP2PKHScript(custodialHash),
+        });
+        console.log(`Added platform fee output: ${totalFees} XEC to custodial wallet`);
+      }
+    }
+
     // Add OP_RETURN output with Cashtab message
     const congratsMessage = Deno.env.get('PAYOUT_MESSAGE') || 'Congratulations for winning on eCash Pulse!';
     const opReturnScript = createCashtabMessageScript(congratsMessage);
     outputs.push({
-      value: 0n, // OP_RETURN outputs have 0 value
+      value: 0n,
       scriptPubKey: opReturnScript,
     });
     
