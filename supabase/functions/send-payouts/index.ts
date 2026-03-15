@@ -610,6 +610,7 @@ Deno.serve(async (req) => {
         amount,
         payout_amount,
         status,
+        prediction_id,
         users!inner(ecash_address)
       `)
       .in('status', ['won', 'refunded'])
@@ -632,6 +633,44 @@ Deno.serve(async (req) => {
     }
 
     console.log(`Found ${wonBets.length} bets to pay out`);
+
+    // Determine which escrow to use - check if prediction has a per-prediction key
+    let escrowAddress = FALLBACK_ESCROW_ADDRESS;
+    let privateKey: Uint8Array;
+    let compressed: boolean;
+
+    if (prediction_id) {
+      const { data: predData } = await supabase
+        .from('predictions')
+        .select('escrow_address, escrow_privkey_encrypted')
+        .eq('id', prediction_id)
+        .single();
+
+      if (predData?.escrow_privkey_encrypted) {
+        // Use per-prediction escrow key
+        escrowAddress = predData.escrow_address;
+        privateKey = fromHex(predData.escrow_privkey_encrypted);
+        compressed = true;
+        console.log(`Using per-prediction escrow: ${escrowAddress}`);
+      } else {
+        // Fallback to global escrow
+        const escrowWIF = Deno.env.get('ESCROW_PRIVATE_KEY_WIF');
+        if (!escrowWIF) throw new Error('ESCROW_PRIVATE_KEY_WIF not configured');
+        const decoded = decodeWIF(escrowWIF);
+        if (!decoded) throw new Error('Failed to decode escrow private key');
+        privateKey = decoded.privateKey;
+        compressed = decoded.compressed;
+        console.log(`Using global escrow (no per-prediction key): ${escrowAddress}`);
+      }
+    } else {
+      // No specific prediction - use global escrow
+      const escrowWIF = Deno.env.get('ESCROW_PRIVATE_KEY_WIF');
+      if (!escrowWIF) throw new Error('ESCROW_PRIVATE_KEY_WIF not configured');
+      const decoded = decodeWIF(escrowWIF);
+      if (!decoded) throw new Error('Failed to decode escrow private key');
+      privateKey = decoded.privateKey;
+      compressed = decoded.compressed;
+    }
 
     // Group payouts by user address
     const userPayouts = new Map<string, PayoutRecipient>();
@@ -677,22 +716,14 @@ Deno.serve(async (req) => {
     
     console.log(`Total platform fees collected: ${totalFees} XEC`);
 
-    // Load escrow wallet
-    const escrowWIF = Deno.env.get('ESCROW_PRIVATE_KEY_WIF');
-    if (!escrowWIF) throw new Error('ESCROW_PRIVATE_KEY_WIF not configured');
-
-    const decoded = decodeWIF(escrowWIF);
-    if (!decoded) throw new Error('Failed to decode escrow private key');
-
-    const { privateKey, compressed } = decoded;
-    const escrowHash = cashAddrToHash160(ESCROW_ADDRESS);
+    const escrowHash = cashAddrToHash160(escrowAddress);
     if (!escrowHash) throw new Error('Invalid escrow address');
 
     const escrowScript = createP2PKHScript(escrowHash);
     console.log('Escrow wallet loaded');
 
     // Get UTXOs
-    const utxos = await getUTXOs(ESCROW_ADDRESS);
+    const utxos = await getUTXOs(escrowAddress);
     console.log(`Found ${utxos.length} UTXOs in escrow`);
 
     if (utxos.length === 0) throw new Error('No UTXOs available');
