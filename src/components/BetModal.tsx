@@ -362,10 +362,31 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
       }
     };
 
-    const timeoutId = setTimeout(renderButton, 100);
+    // Polling loop: retry until PayButton script is loaded (up to 50 attempts)
+    let attempts = 0;
+    const maxAttempts = 50;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    const tryRender = () => {
+      attempts++;
+      if ((window as any).PayButton && payButtonRef.current) {
+        if (intervalId) clearInterval(intervalId);
+        renderButton();
+      } else if (attempts >= maxAttempts) {
+        if (intervalId) clearInterval(intervalId);
+        console.warn('PayButton script failed to load after max attempts');
+      }
+    };
+
+    // Try immediately, then poll every 200ms
+    if ((window as any).PayButton) {
+      renderButton();
+    } else {
+      intervalId = setInterval(tryRender, 200);
+    }
 
     return () => {
-      clearTimeout(timeoutId);
+      if (intervalId) clearInterval(intervalId);
       if (payButtonRef.current) {
         payButtonRef.current.innerHTML = "";
       }
