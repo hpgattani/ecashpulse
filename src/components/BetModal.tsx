@@ -621,7 +621,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
 
                     {/* Escrow Verification */}
                     <EscrowVerifier 
-                      escrowAddress={prediction.escrowAddress || FALLBACK_ESCROW_ADDRESS}
+                      escrowAddress={freshEscrowAddress}
                     />
 
                     {/* Info */}
