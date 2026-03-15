@@ -276,41 +276,50 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
     [user, sessionToken, betAmount, prediction.id, betPosition, selectedOutcome, onClose, closePayButtonModal, t],
   );
 
-  // Load PayButton script
-  useEffect(() => {
-    if ((window as any).PayButton) {
-      setPayButtonReady(true);
-      return;
-    }
+  const ensurePayButtonLoaded = useCallback(async () => {
+    if ((window as any).PayButton) return;
 
-    const existingScript = document.querySelector('script[src*="@paybutton/paybutton"], script[src*="paybutton.js"]') as HTMLScriptElement | null;
-    const script = existingScript ?? document.createElement("script");
+    await new Promise<void>((resolve, reject) => {
+      const existingScript = document.querySelector(
+        'script[src="https://unpkg.com/@paybutton/paybutton/dist/paybutton.js"]'
+      ) as HTMLScriptElement | null;
 
-    const handleLoad = () => {
-      setPayButtonReady(true);
-      setPayButtonError(null);
-    };
+      const script = existingScript ?? document.createElement("script");
 
-    const handleError = () => {
-      setPayButtonError("Unable to load payment widget. Please check your connection and try again.");
-    };
+      const handleLoad = () => {
+        script.dataset.loaded = "true";
+        cleanup();
+        resolve();
+      };
 
-    script.addEventListener("load", handleLoad);
-    script.addEventListener("error", handleError);
+      const handleError = () => {
+        cleanup();
+        reject(new Error("Unable to load payment widget. Please check your connection and try again."));
+      };
 
-    if (!existingScript) {
-      script.src = "https://unpkg.com/@paybutton/paybutton/dist/paybutton.js";
-      script.async = true;
-      document.body.appendChild(script);
-    }
+      const cleanup = () => {
+        script.removeEventListener("load", handleLoad);
+        script.removeEventListener("error", handleError);
+      };
 
-    return () => {
-      script.removeEventListener("load", handleLoad);
-      script.removeEventListener("error", handleError);
-    };
+      script.addEventListener("load", handleLoad);
+      script.addEventListener("error", handleError);
+
+      if ((window as any).PayButton) {
+        cleanup();
+        resolve();
+        return;
+      }
+
+      if (!existingScript) {
+        script.src = "https://unpkg.com/@paybutton/paybutton/dist/paybutton.js";
+        script.async = true;
+        document.body.appendChild(script);
+      }
+    });
   }, []);
 
-  // Render PayButton
+  // Render PayButton from scratch with deterministic retries
   useEffect(() => {
     if (!isOpen || !payButtonRef.current || !user || !sessionToken || betSuccess) {
       if (payButtonRef.current) {
@@ -325,22 +334,34 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
       return;
     }
 
-    setPayButtonError(null);
-    payButtonRef.current.innerHTML = "";
+    const paymentAddress = freshEscrowAddress.startsWith("ecash:")
+      ? freshEscrowAddress
+      : FALLBACK_ESCROW_ADDRESS;
 
-    const renderButton = () => {
-      if (!payButtonRef.current || !(window as any).PayButton) return;
+    let cancelled = false;
+    let attempts = 0;
+    const maxAttempts = 40;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
-      payButtonRef.current.innerHTML = "";
-
-      const buttonContainer = document.createElement("div");
-      buttonContainer.id = `paybutton-${prediction.id}-${Date.now()}`;
-      buttonContainer.style.width = "100%";
-      payButtonRef.current.appendChild(buttonContainer);
+    const tryRender = async () => {
+      if (cancelled) return;
+      attempts += 1;
 
       try {
+        await ensurePayButtonLoaded();
+
+        if (cancelled || !payButtonRef.current || !(window as any).PayButton) return;
+
+        setPayButtonError(null);
+        payButtonRef.current.innerHTML = "";
+
+        const buttonContainer = document.createElement("div");
+        buttonContainer.id = `paybutton-bet-${prediction.id}-${Date.now()}`;
+        buttonContainer.style.width = "100%";
+        payButtonRef.current.appendChild(buttonContainer);
+
         (window as any).PayButton.render(buttonContainer, {
-          to: freshEscrowAddress,
+          to: paymentAddress,
           amount: amount,
           currency: "ecash",
           text: "Place Bet",
@@ -350,13 +371,13 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
           hideToasts: true,
           theme: {
             palette: {
-              primary: "#10b981", // always green for "bet on outcome"
+              primary: "#10b981",
               secondary: "#1e293b",
               tertiary: "#ffffff",
             },
           },
-           onSuccess: (txResult: any) => {
-             let txHash: string | undefined;
+          onSuccess: (txResult: any) => {
+            let txHash: string | undefined;
 
             if (typeof txResult === "string") {
               txHash = txResult;
@@ -368,11 +389,8 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
               txHash = txResult.txId;
             }
 
-            const isValidTxId =
-              typeof txHash === "string" && /^[a-f0-9]{64}$/i.test(txHash);
+            const isValidTxId = typeof txHash === "string" && /^[a-f0-9]{64}$/i.test(txHash);
 
-            // txid is OPTIONAL: record bet even if the wallet doesn't return it.
-            // (We keep it when available so we can dedupe/reconcile later.)
             if (isValidTxId) {
               setLastTxHash(txHash!);
               recordBet(txHash);
@@ -390,37 +408,29 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
           },
         });
       } catch (error) {
-        console.error("PayButton render error:", error);
-        const details = error instanceof Error ? error.message : "Unable to initialize payment widget.";
+        if (cancelled) return;
+
+        if (attempts < maxAttempts) {
+          retryTimer = window.setTimeout(() => {
+            void tryRender();
+          }, 200);
+          return;
+        }
+
+        const details =
+          error instanceof Error
+            ? error.message
+            : "Payment widget timed out. Please close and reopen the bet modal.";
+
         setPayButtonError(details);
       }
     };
 
-    // Polling loop: retry until PayButton script is loaded
-    let attempts = 0;
-    const maxAttempts = 60;
-    let intervalId: ReturnType<typeof setInterval> | null = null;
-
-    const tryRender = () => {
-      attempts++;
-      if ((window as any).PayButton && payButtonRef.current) {
-        if (intervalId) clearInterval(intervalId);
-        renderButton();
-      } else if (attempts >= maxAttempts) {
-        if (intervalId) clearInterval(intervalId);
-        setPayButtonError("Payment widget timed out. Please close and reopen the bet modal.");
-      }
-    };
-
-    // Try immediately, then poll every 150ms
-    if (payButtonReady || (window as any).PayButton) {
-      renderButton();
-    } else {
-      intervalId = setInterval(tryRender, 150);
-    }
+    void tryRender();
 
     return () => {
-      if (intervalId) clearInterval(intervalId);
+      cancelled = true;
+      if (retryTimer) window.clearTimeout(retryTimer);
       if (payButtonRef.current) {
         payButtonRef.current.innerHTML = "";
       }
@@ -434,8 +444,8 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
     betSuccess,
     recordBet,
     freshEscrowAddress,
-    payButtonReady,
-    payButtonRenderKey,
+    payButtonRetryKey,
+    ensurePayButtonLoaded,
   ]);
 
   // Unauthenticated state
