@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import * as secp from 'https://esm.sh/@noble/secp256k1@2.1.0';
+import { hash160ToCashAddr, hexToBytes, scriptHexToCashAddr } from '../_shared/cashaddr.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -78,52 +79,6 @@ function ripemd160(data: Uint8Array): Uint8Array {
 
 async function hash160(data: Uint8Array): Promise<Uint8Array> {
   return ripemd160(await sha256(data));
-}
-
-function hash160ToCashAddr(hash: Uint8Array): string {
-  const CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
-  const versionByte = 0;
-  const payload8bit = [versionByte, ...Array.from(hash)];
-  
-  let acc = 0;
-  let bits = 0;
-  const payload5bit: number[] = [];
-  
-  for (const byte of payload8bit) {
-    acc = (acc << 8) | byte;
-    bits += 8;
-    while (bits >= 5) {
-      bits -= 5;
-      payload5bit.push((acc >> bits) & 0x1f);
-    }
-  }
-  if (bits > 0) {
-    payload5bit.push((acc << (5 - bits)) & 0x1f);
-  }
-  
-  const prefixData = [2, 3, 0, 19, 8, 0];
-  const checksumInput = [...prefixData, ...payload5bit, 0, 0, 0, 0, 0, 0, 0, 0];
-  
-  let c = 1;
-  const generator = [0x98f2bc8e61, 0x79b76d99e2, 0xf33e5fb3c4, 0xae2eabe2a8, 0x1e4f43e470];
-  for (const d of checksumInput) {
-    const c0 = c >> 35;
-    c = ((c & 0x07ffffffff) << 5) ^ d;
-    for (let i = 0; i < 5; i++) {
-      if ((c0 >> i) & 1) {
-        c ^= generator[i];
-      }
-    }
-  }
-  c ^= 1;
-  
-  const checksum: number[] = [];
-  for (let i = 0; i < 8; i++) {
-    checksum.push((c >> (5 * (7 - i))) & 0x1f);
-  }
-  
-  const fullPayload = [...payload5bit, ...checksum];
-  return 'ecash:q' + fullPayload.slice(1).map(v => CHARSET[v]).join('');
 }
 
 Deno.serve(async (req) => {
