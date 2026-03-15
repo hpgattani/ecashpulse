@@ -674,7 +674,31 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                     )}
 
                     {/* PayButton Container */}
-                    <div ref={payButtonRef} className="min-h-[50px] flex justify-center" />
+                    <div
+                      ref={payButtonRef}
+                      className="min-h-[56px] flex justify-center"
+                      style={{ isolation: 'isolate', zIndex: 60, pointerEvents: 'auto' }}
+                    />
+
+                    {payButtonError && (
+                      <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/30">
+                        <AlertCircle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
+                        <div className="space-y-2">
+                          <p className="text-xs text-destructive">{payButtonError}</p>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setPayButtonError(null);
+                              setPayButtonRenderKey((value) => value + 1);
+                            }}
+                          >
+                            Retry payment widget
+                          </Button>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Crypto buffer notice */}
                     {isCryptoPrediction && (
