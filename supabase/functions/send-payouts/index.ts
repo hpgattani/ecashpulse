@@ -76,11 +76,11 @@ function ripemd160(data: Uint8Array): Uint8Array {
       const jDiv16 = Math.floor(j / 16);
       let f1: number, f2: number;
       
-      if (jDiv16 === 0) { f1 = b1 ^ c1 ^ d1; f2 = (b2 & c2) | (~b2 & d2); }
-      else if (jDiv16 === 1) { f1 = (b1 & c1) | (~b1 & d1); f2 = (b2 | ~c2) ^ d2; }
-      else if (jDiv16 === 2) { f1 = (b1 | ~c1) ^ d1; f2 = (b2 & d2) | (c2 & ~d2); }
-      else if (jDiv16 === 3) { f1 = (b1 & d1) | (c1 & ~d1); f2 = b2 ^ c2 ^ d2; }
-      else { f1 = b1 ^ (c1 | ~d1); f2 = (b2 & c2) | (~b2 & d2); }
+      if (jDiv16 === 0) { f1 = b1 ^ c1 ^ d1; f2 = b2 ^ (c2 | ~d2); }
+      else if (jDiv16 === 1) { f1 = (b1 & c1) | (~b1 & d1); f2 = (b2 & d2) | (c2 & ~d2); }
+      else if (jDiv16 === 2) { f1 = (b1 | ~c1) ^ d1; f2 = (b2 | ~c2) ^ d2; }
+      else if (jDiv16 === 3) { f1 = (b1 & d1) | (c1 & ~d1); f2 = (b2 & c2) | (~b2 & d2); }
+      else { f1 = b1 ^ (c1 | ~d1); f2 = b2 ^ c2 ^ d2; }
 
       const t1 = (rotl((a1 + f1 + X[R1[j]] + K1[jDiv16]) >>> 0, S1[j]) + e1) >>> 0;
       a1 = e1; e1 = d1; d1 = rotl(c1, 10); c1 = b1; b1 = t1;
@@ -317,10 +317,10 @@ async function getPublicKey(privateKey: Uint8Array, compressed: boolean): Promis
 
 async function signECDSA(messageHash: Uint8Array, privateKey: Uint8Array): Promise<Uint8Array> {
   const signature = await secp.signAsync(messageHash, privateKey, { lowS: true });
-  // Convert to DER format
-  const { r, s } = signature;
-  const rBytes = bigintToBytes(r);
-  const sBytes = bigintToBytes(s);
+  // Manual DER encoding (toDERRawBytes was removed in v2)
+  const compact = signature.toCompactRawBytes(); // 64 bytes: r(32) + s(32)
+  const rBytes = trimLeadingZeros(compact.slice(0, 32));
+  const sBytes = trimLeadingZeros(compact.slice(32, 64));
   
   const rLen = rBytes.length + (rBytes[0] >= 0x80 ? 1 : 0);
   const sLen = sBytes.length + (sBytes[0] >= 0x80 ? 1 : 0);
@@ -340,6 +340,12 @@ async function signECDSA(messageHash: Uint8Array, privateKey: Uint8Array): Promi
   der.set(sBytes, pos);
   
   return der;
+}
+
+function trimLeadingZeros(bytes: Uint8Array): Uint8Array {
+  let start = 0;
+  while (start < bytes.length - 1 && bytes[start] === 0) start++;
+  return bytes.slice(start);
 }
 
 function bigintToBytes(n: bigint): Uint8Array {
@@ -576,6 +582,8 @@ async function broadcastTransaction(rawTx: Uint8Array): Promise<string | null> {
   
   try {
     console.log('Broadcasting transaction using chronik-client...');
+    console.log(`Raw TX hex (first 400 chars): ${txHex.substring(0, 400)}`);
+    console.log(`Raw TX hex (rest): ${txHex.substring(400)}`);
     const result = await chronik.broadcastTx(txHex);
     console.log('Broadcast result:', result);
     return result.txid;
@@ -647,11 +655,28 @@ Deno.serve(async (req) => {
         .single();
 
       if (predData?.escrow_privkey_encrypted) {
-        // Use per-prediction escrow key
-        escrowAddress = predData.escrow_address;
-        privateKey = fromHex(predData.escrow_privkey_encrypted);
-        compressed = true;
-        console.log(`Using per-prediction escrow: ${escrowAddress}`);
+        // Verify key matches address with corrected RIPEMD160
+        const testKey = fromHex(predData.escrow_privkey_encrypted);
+        const testPub = await getPublicKey(testKey, true);
+        const testHash = await hash160(testPub);
+        const addrHash = cashAddrToHash160(predData.escrow_address);
+        const keyMatch = addrHash ? toHex(testHash) === toHex(addrHash) : false;
+        
+        if (keyMatch) {
+          escrowAddress = predData.escrow_address;
+          privateKey = testKey;
+          compressed = true;
+          console.log(`Using per-prediction escrow: ${escrowAddress}`);
+        } else {
+          // Key doesn't match (generated with buggy RIPEMD160) - fall back to global
+          console.log(`Per-prediction key MISMATCH (buggy hash) - falling back to global escrow`);
+          const escrowWIF = Deno.env.get('ESCROW_PRIVATE_KEY_WIF');
+          if (!escrowWIF) throw new Error('ESCROW_PRIVATE_KEY_WIF not configured');
+          const decoded = decodeWIF(escrowWIF);
+          if (!decoded) throw new Error('Failed to decode escrow private key');
+          privateKey = decoded.privateKey;
+          compressed = decoded.compressed;
+        }
       } else {
         // Fallback to global escrow
         const escrowWIF = Deno.env.get('ESCROW_PRIVATE_KEY_WIF');
@@ -785,11 +810,23 @@ Deno.serve(async (req) => {
       scriptPubKey: createP2PKHScript(cashAddrToHash160(r.address)!),
     }));
 
+    // Add platform fee output to custodial wallet if fees > dust
+    if (totalFees > 546) {
+      const custodialHash = cashAddrToHash160(FALLBACK_ESCROW_ADDRESS);
+      if (custodialHash) {
+        outputs.push({
+          value: BigInt(totalFees),
+          scriptPubKey: createP2PKHScript(custodialHash),
+        });
+        console.log(`Added platform fee output: ${totalFees} XEC to custodial wallet`);
+      }
+    }
+
     // Add OP_RETURN output with Cashtab message
     const congratsMessage = Deno.env.get('PAYOUT_MESSAGE') || 'Congratulations for winning on eCash Pulse!';
     const opReturnScript = createCashtabMessageScript(congratsMessage);
     outputs.push({
-      value: 0n, // OP_RETURN outputs have 0 value
+      value: 0n,
       scriptPubKey: opReturnScript,
     });
     
