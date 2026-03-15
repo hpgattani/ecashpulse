@@ -341,7 +341,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
     let cancelled = false;
     let attempts = 0;
     const maxAttempts = 40;
-    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let retryTimer: number | null = null;
 
     const tryRender = async () => {
       if (cancelled) return;
