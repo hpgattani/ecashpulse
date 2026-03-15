@@ -91,12 +91,21 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // Find all active predictions without stored private keys
-    const { data: predictions, error: fetchError } = await supabase
+    const requestBody = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
+    const repairExisting = requestBody?.repair_existing === true;
+
+    // Default mode: only generate missing escrows.
+    // Repair mode: validate and repair all active prediction addresses from script/keys.
+    let predictionsQuery = supabase
       .from('predictions')
-      .select('id, title, escrow_address')
-      .eq('status', 'active')
-      .is('escrow_privkey_encrypted', null);
+      .select('id, title, escrow_address, escrow_script_hex, escrow_privkey_encrypted')
+      .eq('status', 'active');
+
+    if (!repairExisting) {
+      predictionsQuery = predictionsQuery.is('escrow_privkey_encrypted', null);
+    }
+
+    const { data: predictions, error: fetchError } = await predictionsQuery;
 
     if (fetchError) {
       return new Response(
@@ -107,22 +116,102 @@ Deno.serve(async (req) => {
 
     if (!predictions || predictions.length === 0) {
       return new Response(
-        JSON.stringify({ success: true, message: 'No predictions need escrow keys', count: 0 }),
+        JSON.stringify({
+          success: true,
+          message: repairExisting ? 'No active predictions to repair' : 'No predictions need escrow keys',
+          count: 0,
+        }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const results: Array<{ id: string; title: string; old_address: string; new_address: string; success: boolean; error?: string }> = [];
+    const results: Array<{
+      id: string;
+      title: string;
+      mode: 'generated' | 'repaired' | 'unchanged';
+      old_address: string | null;
+      new_address: string;
+      success: boolean;
+      error?: string;
+    }> = [];
 
     for (const prediction of predictions) {
       try {
-        // Generate new keypair
+        if (repairExisting && prediction.escrow_privkey_encrypted) {
+          let repairedScript = prediction.escrow_script_hex ?? null;
+          let repairedAddress = repairedScript ? scriptHexToCashAddr(repairedScript) : null;
+
+          // Fallback: derive from stored private key if script is missing/invalid.
+          if (!repairedAddress) {
+            const privateKeyBytes = hexToBytes(prediction.escrow_privkey_encrypted);
+            const publicKeyBytes = secp.getPublicKey(privateKeyBytes, true);
+            const pubkeyHash = await hash160(publicKeyBytes);
+            repairedAddress = hash160ToCashAddr(pubkeyHash);
+            repairedScript = '76a914' + toHex(pubkeyHash) + '88ac';
+          }
+
+          if (!repairedAddress) {
+            throw new Error('Unable to derive escrow address from stored key/script');
+          }
+
+          const needsAddressUpdate = prediction.escrow_address !== repairedAddress;
+          const needsScriptUpdate = !prediction.escrow_script_hex && Boolean(repairedScript);
+
+          if (!needsAddressUpdate && !needsScriptUpdate) {
+            results.push({
+              id: prediction.id,
+              title: prediction.title,
+              mode: 'unchanged',
+              old_address: prediction.escrow_address,
+              new_address: repairedAddress,
+              success: true,
+            });
+            continue;
+          }
+
+          const updatePayload: { escrow_address: string; escrow_script_hex?: string } = {
+            escrow_address: repairedAddress,
+          };
+          if (needsScriptUpdate && repairedScript) {
+            updatePayload.escrow_script_hex = repairedScript;
+          }
+
+          const { error: updateError } = await supabase
+            .from('predictions')
+            .update(updatePayload)
+            .eq('id', prediction.id);
+
+          if (updateError) {
+            results.push({
+              id: prediction.id,
+              title: prediction.title,
+              mode: 'repaired',
+              old_address: prediction.escrow_address,
+              new_address: '',
+              success: false,
+              error: updateError.message,
+            });
+          } else {
+            results.push({
+              id: prediction.id,
+              title: prediction.title,
+              mode: 'repaired',
+              old_address: prediction.escrow_address,
+              new_address: repairedAddress,
+              success: true,
+            });
+          }
+
+          continue;
+        }
+
+        // Generation mode for predictions without private keys.
         const privateKeyBytes = secp.utils.randomPrivateKey();
         const publicKeyBytes = secp.getPublicKey(privateKeyBytes, true);
-        
+
         const pubkeyHash = await hash160(publicKeyBytes);
         const escrowAddress = hash160ToCashAddr(pubkeyHash);
-        
+
         const privkeyHex = toHex(privateKeyBytes);
         const scriptHex = '76a914' + toHex(pubkeyHash) + '88ac';
 
@@ -139,6 +228,7 @@ Deno.serve(async (req) => {
           results.push({
             id: prediction.id,
             title: prediction.title,
+            mode: 'generated',
             old_address: prediction.escrow_address,
             new_address: '',
             success: false,
@@ -148,16 +238,17 @@ Deno.serve(async (req) => {
           results.push({
             id: prediction.id,
             title: prediction.title,
+            mode: 'generated',
             old_address: prediction.escrow_address,
             new_address: escrowAddress,
             success: true,
           });
-          console.log(`✅ ${prediction.title}: ${escrowAddress}`);
         }
       } catch (err) {
         results.push({
           id: prediction.id,
           title: prediction.title,
+          mode: repairExisting ? 'repaired' : 'generated',
           old_address: prediction.escrow_address,
           new_address: '',
           success: false,
@@ -166,15 +257,21 @@ Deno.serve(async (req) => {
       }
     }
 
-    const successCount = results.filter(r => r.success).length;
-    const failCount = results.filter(r => !r.success).length;
+    const successCount = results.filter((r) => r.success).length;
+    const failCount = results.filter((r) => !r.success).length;
+    const repairedCount = results.filter((r) => r.mode === 'repaired' && r.success).length;
+    const generatedCount = results.filter((r) => r.mode === 'generated' && r.success).length;
 
     return new Response(
       JSON.stringify({
         success: true,
         total: predictions.length,
-        generated: successCount,
+        generated: generatedCount,
+        repaired: repairedCount,
+        unchanged: results.filter((r) => r.mode === 'unchanged').length,
         failed: failCount,
+        processed: successCount,
+        repair_mode: repairExisting,
         results,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
