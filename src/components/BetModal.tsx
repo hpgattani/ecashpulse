@@ -313,7 +313,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
         (window as any).PayButton.render(buttonContainer, {
           to: freshEscrowAddress,
           amount: amount,
-          currency: "XEC",
+          currency: "ecash",
           text: "Place Bet",
           hoverText: "Confirm",
           successText: "Payment Sent!",
