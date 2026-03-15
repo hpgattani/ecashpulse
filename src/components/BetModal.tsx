@@ -49,6 +49,25 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
   const [betError, setBetError] = useState<{ title: string; details: string } | null>(null);
   const [lastTxHash, setLastTxHash] = useState<string | null>(null);
   const [betPosition, setBetPosition] = useState<"yes" | "no">(position);
+  const [freshEscrowAddress, setFreshEscrowAddress] = useState<string>(
+    prediction.escrowAddress || FALLBACK_ESCROW_ADDRESS
+  );
+
+  // Fetch fresh escrow address from DB when modal opens
+  useEffect(() => {
+    if (isOpen && prediction.id) {
+      supabase
+        .from('predictions')
+        .select('escrow_address')
+        .eq('id', prediction.id)
+        .single()
+        .then(({ data }) => {
+          if (data?.escrow_address) {
+            setFreshEscrowAddress(data.escrow_address);
+          }
+        });
+    }
+  }, [isOpen, prediction.id]);
 
   // If a specific outcome is selected, always treat it as "bet ON this outcome"
   useEffect(() => {
