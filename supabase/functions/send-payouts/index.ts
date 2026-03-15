@@ -76,11 +76,11 @@ function ripemd160(data: Uint8Array): Uint8Array {
       const jDiv16 = Math.floor(j / 16);
       let f1: number, f2: number;
       
-      if (jDiv16 === 0) { f1 = b1 ^ c1 ^ d1; f2 = (b2 & c2) | (~b2 & d2); }
-      else if (jDiv16 === 1) { f1 = (b1 & c1) | (~b1 & d1); f2 = (b2 | ~c2) ^ d2; }
-      else if (jDiv16 === 2) { f1 = (b1 | ~c1) ^ d1; f2 = (b2 & d2) | (c2 & ~d2); }
-      else if (jDiv16 === 3) { f1 = (b1 & d1) | (c1 & ~d1); f2 = b2 ^ c2 ^ d2; }
-      else { f1 = b1 ^ (c1 | ~d1); f2 = (b2 & c2) | (~b2 & d2); }
+      if (jDiv16 === 0) { f1 = b1 ^ c1 ^ d1; f2 = b2 ^ (c2 | ~d2); }
+      else if (jDiv16 === 1) { f1 = (b1 & c1) | (~b1 & d1); f2 = (b2 & d2) | (c2 & ~d2); }
+      else if (jDiv16 === 2) { f1 = (b1 | ~c1) ^ d1; f2 = (b2 | ~c2) ^ d2; }
+      else if (jDiv16 === 3) { f1 = (b1 & d1) | (c1 & ~d1); f2 = (b2 & c2) | (~b2 & d2); }
+      else { f1 = b1 ^ (c1 | ~d1); f2 = b2 ^ c2 ^ d2; }
 
       const t1 = (rotl((a1 + f1 + X[R1[j]] + K1[jDiv16]) >>> 0, S1[j]) + e1) >>> 0;
       a1 = e1; e1 = d1; d1 = rotl(c1, 10); c1 = b1; b1 = t1;
