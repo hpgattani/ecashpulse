@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { Outcome } from "@/hooks/usePredictions";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { triggerHaptic } from "@/hooks/useHaptic";
-import EscrowVerifier from "@/components/EscrowVerifier";
+
 
 const FALLBACK_ESCROW_ADDRESS = "ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp";
 
