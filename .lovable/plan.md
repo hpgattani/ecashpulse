@@ -1,57 +1,116 @@
 
 
-# Transitioning to Non-Custodial Escrow
+# Integrating Local-eCash P2P Escrow into eCashPulse
 
-## Current Architecture
+## What Local-eCash Does
 
-Your platform is fully **custodial**: all bets are sent to a single escrow address (`ecash:qz6jsg...`), and the server holds the private key (`ESCROW_PRIVATE_KEY_WIF`) to sign payout transactions. This means you have full control over user funds at all times.
+Local-eCash implements **script-based P2SH escrow** on eCash using `ecash-lib`. Each trade creates a unique eCash script (using `OP_CHECKDATASIGVERIFY`) that locks funds to a P2SH address. The script encodes 4 public keys (seller, buyer, arbitrator, moderator) and a nonce. Funds can only be released through specific action paths:
 
-## The Challenge
+- Seller releases to buyer (action 01)
+- Arbitrator releases to buyer (action 02)  
+- Buyer returns to seller (action 03)
+- Arbitrator returns to seller (action 04)
+- Moderator releases/returns (actions 05/06)
 
-eCash (XEC) is a UTXO-based chain with limited smart contract capabilities compared to Ethereum/Solana. There is no EVM, no programmable escrow contracts. This makes true "trustless" escrow significantly harder than on EVM chains.
+Each action requires an oracle signature + the spender's signature. No single party can steal funds.
 
-## Realistic Options
+## Adaptation for Prediction Markets
 
-### Option A: Multi-Signature Escrow (Partially Non-Custodial)
-- Use 2-of-3 multisig: **platform key + user key + neutral arbiter key**
-- Funds require 2 signatures to move, so the platform alone cannot steal funds
-- **Pros**: Meaningful trust reduction, achievable on eCash
-- **Cons**: Complex UX (users must sign payouts), requires an arbiter service, significant rework of the entire bet/payout flow
+The Local-eCash model is designed for **2-party P2P trades** (buyer ↔ seller). Prediction markets are fundamentally different: **many bettors → pooled funds → distributed payouts**. This creates a mismatch:
 
-### Option B: Per-Prediction Escrow Addresses (Transparency, Still Custodial)
-- Generate a unique escrow address per prediction market
-- All keys are still server-held, but funds are isolated and auditable per market
-- **Pros**: Easier to implement, better transparency and auditability
-- **Cons**: Still technically custodial (you hold the keys)
+| Aspect | Local-eCash (P2P) | eCashPulse (Prediction Markets) |
+|--------|-------------------|--------------------------------|
+| Parties | 2 (buyer + seller) | N bettors |
+| Fund flow | 1:1 escrow | Pool → distribute to winners |
+| Resolution | Manual (release/return) | Oracle/automated |
+| Script complexity | Fixed 2-party | Would need N-party or aggregation |
 
-### Option C: eCash Script Covenants (Advanced, Experimental)
-- Use eCash's OP_CHECKDATASIG to create script-based escrow that auto-releases funds based on signed oracle data
-- Oracle signs the outcome, and the script allows winners to claim directly
-- **Pros**: Truly non-custodial, trustless resolution
-- **Cons**: Extremely complex to build, eCash covenant tooling is immature, would essentially be a ground-up rewrite of the payment layer
+## Realistic Integration Strategy
 
-### Option D: Hybrid — Transparent Custodial with Proof-of-Reserves
-- Keep the current architecture but add:
-  - Public escrow address balance verification on every page
-  - Real-time proof-of-reserves showing total deposits vs total liabilities
-  - Automated payout triggers (no manual intervention needed)
-  - Time-locked auto-refunds if predictions aren't resolved within X days
-- **Pros**: Minimal code changes, builds trust without full non-custodial complexity
-- **Cons**: Still custodial in the technical sense
+Creating individual P2SH escrow scripts per bettor is impractical (each bet would need its own script with unique keys). Instead, we adapt the **concept** from Local-eCash:
 
-## Recommendation
+### Phase 1: Per-Prediction Escrow with Platform Oracle (Recommended Start)
 
-**Option D (Hybrid Transparency)** is the most practical near-term improvement. True non-custodial on eCash (Options A or C) would require a fundamental rewrite of the payment infrastructure and months of development. Option D can be implemented in days and meaningfully increases user trust.
+**How it works:**
+1. Each prediction gets a unique keypair generated server-side
+2. Funds for that prediction go to a unique P2SH address derived from a script that requires: **platform oracle signature + resolution proof**
+3. The script uses `OP_CHECKDATASIGVERIFY` where the oracle message encodes the prediction outcome
+4. Payouts are triggered by the oracle signing the outcome, which unlocks the funds to be distributed to winners
 
-If you want to go further, **Option A (Multi-sig)** is the next realistic step, though it requires significant UX changes and a third-party arbiter.
+**What changes:**
 
-## What Would Need to Change (for each option)
+- **New edge function: `create-prediction-escrow`** — generates a keypair per prediction, builds the escrow script using `ecash-lib`, stores the P2SH address
+- **Modified `process-bet`** — directs bets to the prediction-specific P2SH address instead of the single escrow wallet
+- **Modified `send-payouts`** — uses the oracle signature to unlock the P2SH script and distribute to winners
+- **New DB column** on `predictions`: `escrow_script_data` (JSONB) to store the script parameters
+- **Frontend `BetModal`** — displays the prediction-specific escrow address instead of the global one
+- **New component: `EscrowVerifier`** — lets users verify the script on-chain (transparency)
 
-| Component | Option A (Multisig) | Option B (Per-prediction) | Option C (Covenants) | Option D (Transparency) |
-|-----------|-------------------|-------------------------|---------------------|----------------------|
-| `send-payouts` | Full rewrite | Moderate changes | Full rewrite | Minor additions |
-| `process-bet` | New signing flow | New address generation | Full rewrite | Add balance checks |
-| `paybutton-webhook` | Multi-sig validation | Route to correct address | New claim flow | No change |
-| Frontend (BetModal) | User signing UX | Minor | Claim button UX | Add proof-of-reserves widget |
-| New infrastructure | Arbiter service | Key management | Oracle signing service | Balance verification API |
+**Dependencies:**
+- `ecash-lib` must be available in Deno edge functions (via esm.sh)
+- Platform holds the oracle key (stored as a secret), but funds are locked to scripts that enforce payout rules
+
+### Phase 2: Add Arbitrator Key (Future)
+
+Add a trusted third-party arbitrator key to the script, making it a 2-of-3 model where disputed predictions can be resolved by the arbitrator independently.
+
+## Technical Details
+
+### Escrow Script (Adapted from Local-eCash)
+
+```text
+Per-prediction script structure:
+- Oracle PK: Platform's resolution oracle
+- Payout script: Encodes winner determination logic
+- Nonce: Prediction ID (unique per market)
+
+Release path: Oracle signs outcome → funds released to winners
+Refund path: Oracle signs "cancelled" → funds returned to bettors
+```
+
+### Edge Function Changes
+
+1. **`create-prediction-escrow/index.ts`** (new)
+   - Generate prediction-specific keypair
+   - Build P2SH script using adapted Local-eCash `Escrow` class
+   - Store script params + P2SH address in `predictions` table
+
+2. **`process-bet/index.ts`** (modified)
+   - Read prediction's escrow address from DB instead of hardcoded constant
+   - Direct PayButton to prediction-specific address
+
+3. **`send-payouts/index.ts`** (major rewrite)
+   - Fetch UTXOs from prediction-specific P2SH address
+   - Sign with oracle key to unlock the escrow script
+   - Build multi-output payout transaction
+
+### Database Migration
+
+```sql
+ALTER TABLE predictions 
+ADD COLUMN escrow_privkey_encrypted TEXT,
+ADD COLUMN escrow_script_hex TEXT;
+```
+
+The `escrow_address` column already exists on predictions.
+
+### Frontend Changes
+
+- `BetModal.tsx`: Use `prediction.escrowAddress` (already partially supported) instead of hardcoded `ESCROW_ADDRESS`
+- New `EscrowProof` component: Shows script hex, P2SH address, and links to block explorer for verification
+
+## Constraints
+
+- `ecash-lib` is a Node/browser library — needs testing in Deno edge functions via esm.sh
+- The platform still holds oracle keys, so this is "transparent custodial with script enforcement" rather than fully trustless
+- This is a significant rewrite of the payment layer — recommend implementing alongside existing system with a feature flag
+
+## Implementation Order
+
+1. Database migration (add columns)
+2. Create `create-prediction-escrow` edge function
+3. Update `process-bet` to use per-prediction addresses
+4. Rewrite `send-payouts` to use script-based unlocking
+5. Update frontend to show prediction-specific addresses
+6. Add escrow verification UI component
 
