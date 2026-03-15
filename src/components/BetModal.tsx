@@ -87,6 +87,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
       setBetSuccess(false);
       setBetProcessing(false);
       setBetError(null);
+      setPayButtonError(null);
       setLastTxHash(null);
       submitLockRef.current = false;
     }
