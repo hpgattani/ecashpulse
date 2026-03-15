@@ -655,20 +655,28 @@ Deno.serve(async (req) => {
         .single();
 
       if (predData?.escrow_privkey_encrypted) {
-        // Use per-prediction escrow key
-        escrowAddress = predData.escrow_address;
-        privateKey = fromHex(predData.escrow_privkey_encrypted);
-        compressed = true;
-        console.log(`Using per-prediction escrow: ${escrowAddress}`);
+        // Verify key matches address with corrected RIPEMD160
+        const testKey = fromHex(predData.escrow_privkey_encrypted);
+        const testPub = await getPublicKey(testKey, true);
+        const testHash = await hash160(testPub);
+        const addrHash = cashAddrToHash160(predData.escrow_address);
+        const keyMatch = addrHash ? toHex(testHash) === toHex(addrHash) : false;
         
-        // Debug: verify key matches address
-        const derivedPubKey = await getPublicKey(privateKey, compressed);
-        const derivedHash = await hash160(derivedPubKey);
-        const addressHash = cashAddrToHash160(escrowAddress);
-        console.log(`DEBUG derivedPubKey (${derivedPubKey.length}b): ${toHex(derivedPubKey)}`);
-        console.log(`DEBUG derivedHash160: ${toHex(derivedHash)}`);
-        console.log(`DEBUG addressHash160: ${addressHash ? toHex(addressHash) : 'DECODE FAILED'}`);
-        console.log(`DEBUG match: ${addressHash ? toHex(derivedHash) === toHex(addressHash) : false}`);
+        if (keyMatch) {
+          escrowAddress = predData.escrow_address;
+          privateKey = testKey;
+          compressed = true;
+          console.log(`Using per-prediction escrow: ${escrowAddress}`);
+        } else {
+          // Key doesn't match (generated with buggy RIPEMD160) - fall back to global
+          console.log(`Per-prediction key MISMATCH (buggy hash) - falling back to global escrow`);
+          const escrowWIF = Deno.env.get('ESCROW_PRIVATE_KEY_WIF');
+          if (!escrowWIF) throw new Error('ESCROW_PRIVATE_KEY_WIF not configured');
+          const decoded = decodeWIF(escrowWIF);
+          if (!decoded) throw new Error('Failed to decode escrow private key');
+          privateKey = decoded.privateKey;
+          compressed = decoded.compressed;
+        }
       } else {
         // Fallback to global escrow
         const escrowWIF = Deno.env.get('ESCROW_PRIVATE_KEY_WIF');
