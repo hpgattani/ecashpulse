@@ -279,12 +279,36 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
 
   // Load PayButton script
   useEffect(() => {
-    if (!document.querySelector('script[src*="paybutton"]')) {
-      const script = document.createElement("script");
+    if ((window as any).PayButton) {
+      setPayButtonReady(true);
+      return;
+    }
+
+    const existingScript = document.querySelector('script[src*="@paybutton/paybutton"], script[src*="paybutton.js"]') as HTMLScriptElement | null;
+    const script = existingScript ?? document.createElement("script");
+
+    const handleLoad = () => {
+      setPayButtonReady(true);
+      setPayButtonError(null);
+    };
+
+    const handleError = () => {
+      setPayButtonError("Unable to load payment widget. Please check your connection and try again.");
+    };
+
+    script.addEventListener("load", handleLoad);
+    script.addEventListener("error", handleError);
+
+    if (!existingScript) {
       script.src = "https://unpkg.com/@paybutton/paybutton/dist/paybutton.js";
       script.async = true;
       document.body.appendChild(script);
     }
+
+    return () => {
+      script.removeEventListener("load", handleLoad);
+      script.removeEventListener("error", handleError);
+    };
   }, []);
 
   // Render PayButton
