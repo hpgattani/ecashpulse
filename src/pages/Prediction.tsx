@@ -256,7 +256,10 @@ const Prediction = () => {
   // Fetch betting activity for this prediction
   useEffect(() => {
     const fetchActivities = async () => {
-      if (!id) return;
+      if (!id) {
+        setActivitiesLoading(false);
+        return;
+      }
       setActivitiesLoading(true);
 
       try {
