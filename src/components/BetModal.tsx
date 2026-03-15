@@ -363,7 +363,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
         (window as any).PayButton.render(buttonContainer, {
           to: paymentAddress,
           amount: amount,
-          currency: "ecash",
+          currency: "XEC",
           text: "Place Bet",
           hoverText: "Confirm",
           successText: "Payment Sent!",
@@ -685,8 +685,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                     {/* PayButton Container */}
                     <div
                       ref={payButtonRef}
-                      className="min-h-[56px] flex justify-center"
-                      style={{ pointerEvents: 'auto' }}
+                      className="min-h-[56px] w-full"
                     />
 
                     {payButtonError && (

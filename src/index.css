@@ -779,6 +779,15 @@ div[id^="paybutton"] > div {
   min-height: 56px;
 }
 
+/* PayButton popup/modal must float above all app modals */
+body > div[class*="MuiModal"],
+body > div[class*="MuiBackdrop"],
+body > div[style*="position: fixed"][style*="z-index"],
+body > .ReactModal__Overlay {
+  z-index: 99999 !important;
+  pointer-events: auto !important;
+}
+
 /* Keep trigger controls interactive */
 div[id^="paybutton"] button,
 div[id^="paybutton"] a,
