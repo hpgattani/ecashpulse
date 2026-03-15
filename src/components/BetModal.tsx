@@ -49,6 +49,25 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
   const [betError, setBetError] = useState<{ title: string; details: string } | null>(null);
   const [lastTxHash, setLastTxHash] = useState<string | null>(null);
   const [betPosition, setBetPosition] = useState<"yes" | "no">(position);
+  const [freshEscrowAddress, setFreshEscrowAddress] = useState<string>(
+    prediction.escrowAddress || FALLBACK_ESCROW_ADDRESS
+  );
+
+  // Fetch fresh escrow address from DB when modal opens
+  useEffect(() => {
+    if (isOpen && prediction.id) {
+      supabase
+        .from('predictions')
+        .select('escrow_address')
+        .eq('id', prediction.id)
+        .single()
+        .then(({ data }) => {
+          if (data?.escrow_address) {
+            setFreshEscrowAddress(data.escrow_address);
+          }
+        });
+    }
+  }, [isOpen, prediction.id]);
 
   // If a specific outcome is selected, always treat it as "bet ON this outcome"
   useEffect(() => {
@@ -291,9 +310,8 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
       payButtonRef.current.appendChild(buttonContainer);
 
       if ((window as any).PayButton) {
-        const escrowAddr = prediction.escrowAddress || FALLBACK_ESCROW_ADDRESS;
         (window as any).PayButton.render(buttonContainer, {
-          to: escrowAddr,
+          to: freshEscrowAddress,
           amount: amount,
           currency: "XEC",
           text: "Place Bet",
@@ -352,7 +370,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
         payButtonRef.current.innerHTML = "";
       }
     };
-  }, [isOpen, betAmount, user, sessionToken, prediction.id, betSuccess, recordBet]);
+  }, [isOpen, betAmount, user, sessionToken, prediction.id, betSuccess, recordBet, freshEscrowAddress]);
 
   // Unauthenticated state
   if (!user || !sessionToken) {
@@ -603,7 +621,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
 
                     {/* Escrow Verification */}
                     <EscrowVerifier 
-                      escrowAddress={prediction.escrowAddress || FALLBACK_ESCROW_ADDRESS}
+                      escrowAddress={freshEscrowAddress}
                     />
 
                     {/* Info */}
