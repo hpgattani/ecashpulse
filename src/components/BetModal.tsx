@@ -641,14 +641,18 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                     )}
 
                     {/* PayButton Container */}
-                    <div className="relative min-h-[50px]">
+                    <div className="relative min-h-[52px]">
                       {!payButtonReady && betAmount && parseFloat(betAmount) > 0 && (
                         <div className="flex flex-col items-center justify-center py-3 gap-2">
                           <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                           <span className="text-xs text-muted-foreground">Loading payment widget...</span>
                         </div>
                       )}
-                      <div ref={payButtonRef} className={`flex justify-center ${!payButtonReady ? 'absolute inset-0 opacity-0' : ''}`} style={{ visibility: payButtonReady ? 'visible' : 'hidden', isolation: 'isolate', zIndex: 60, pointerEvents: 'auto' }} />
+                      <div
+                        ref={payButtonRef}
+                        className="min-h-[52px] flex justify-center"
+                        style={{ isolation: 'isolate', zIndex: 60, pointerEvents: 'auto' }}
+                      />
                     </div>
 
                     {isCryptoPrediction && (
