@@ -10,8 +10,9 @@ import { toast } from "sonner";
 import { Outcome } from "@/hooks/usePredictions";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { triggerHaptic } from "@/hooks/useHaptic";
+import EscrowVerifier from "@/components/EscrowVerifier";
 
-const ESCROW_ADDRESS = "ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp";
+const FALLBACK_ESCROW_ADDRESS = "ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp";
 
 interface Prediction {
   id: string;
@@ -290,8 +291,9 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
       payButtonRef.current.appendChild(buttonContainer);
 
       if ((window as any).PayButton) {
+        const escrowAddr = prediction.escrowAddress || FALLBACK_ESCROW_ADDRESS;
         (window as any).PayButton.render(buttonContainer, {
-          to: ESCROW_ADDRESS,
+          to: escrowAddr,
           amount: amount,
           currency: "XEC",
           text: "Place Bet",
@@ -598,6 +600,11 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                         </p>
                       </div>
                     )}
+
+                    {/* Escrow Verification */}
+                    <EscrowVerifier 
+                      escrowAddress={prediction.escrowAddress || FALLBACK_ESCROW_ADDRESS}
+                    />
 
                     {/* Info */}
                     <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/30">

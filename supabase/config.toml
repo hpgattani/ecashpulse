@@ -149,3 +149,12 @@ verify_jwt = false
 
 [functions.get-cricket-score]
 verify_jwt = false
+
+[functions.create-prediction-escrow]
+verify_jwt = false
+
+[functions.send-refund]
+verify_jwt = false
+
+[functions.cron-restore-subtitle]
+verify_jwt = false

@@ -5,11 +5,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Generate a deterministic escrow address for pending predictions
-function generatePendingEscrowAddress(): string {
-  // Use the main platform escrow for pending submissions
-  return 'ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp';
-}
+// Fallback escrow address (used temporarily until per-prediction escrow is generated)
+const FALLBACK_ESCROW_ADDRESS = 'ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp';
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
@@ -107,7 +104,7 @@ Deno.serve(async (req) => {
       console.log(`Warning: Similar prediction may exist: ${existingPredictions[0].title}`);
     }
 
-    // Insert the prediction
+    // Insert the prediction with fallback escrow address
     const { data: prediction, error: insertError } = await supabase
       .from('predictions')
       .insert({
@@ -115,7 +112,7 @@ Deno.serve(async (req) => {
         description: description?.trim() || null,
         category: category || 'crypto',
         end_date: endDateParsed.toISOString(),
-        escrow_address: generatePendingEscrowAddress(),
+        escrow_address: FALLBACK_ESCROW_ADDRESS,
         status: 'active',
         yes_pool: 0,
         no_pool: 0,
@@ -130,6 +127,29 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: 'Failed to create prediction' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Generate per-prediction escrow address
+    try {
+      const escrowResponse = await fetch(`${supabaseUrl}/functions/v1/create-prediction-escrow`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${serviceRoleKey}`,
+        },
+        body: JSON.stringify({ prediction_id: prediction.id }),
+      });
+      
+      const escrowResult = await escrowResponse.json();
+      if (escrowResult.success) {
+        console.log(`Per-prediction escrow created: ${escrowResult.escrow_address}`);
+      } else {
+        console.error('Failed to create per-prediction escrow:', escrowResult.error);
+        // Not fatal - prediction still works with fallback address
+      }
+    } catch (escrowError) {
+      console.error('Escrow generation error:', escrowError);
+      // Not fatal - prediction still works with fallback address
     }
     
     // Insert outcomes for multi-option predictions

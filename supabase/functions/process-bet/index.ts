@@ -5,7 +5,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const ESCROW_ADDRESS = 'ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp';
+const FALLBACK_ESCROW_ADDRESS = 'ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp';
 const PLATFORM_FEE_PERCENT = 0.01;
 
 function isValidUUID(str: string): boolean {
@@ -228,7 +228,7 @@ Deno.serve(async (req) => {
             amount: existingBet.amount,
             position: existingBet.position,
             status: existingBet.status,
-            escrow_address: ESCROW_ADDRESS,
+            escrow_address: FALLBACK_ESCROW_ADDRESS,
             message: 'Bet already recorded for this transaction'
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -258,11 +258,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Verify prediction exists and is active
+    // Verify prediction exists and is active - include escrow_address
     console.log('Checking prediction...');
     const { data: prediction, error: predError } = await supabase
       .from('predictions')
-      .select('id, status, end_date')
+      .select('id, status, end_date, escrow_address')
       .eq('id', prediction_id)
       .maybeSingle();
 
@@ -402,15 +402,18 @@ Deno.serve(async (req) => {
 
     console.log(`Bet created: ${bet.id} for user ${user_id}, ${position} @ ${betAmount} XEC`);
 
+    // Use per-prediction escrow address
+    const predictionEscrowAddress = prediction?.escrow_address || FALLBACK_ESCROW_ADDRESS;
+
     return new Response(
       JSON.stringify({ 
         success: true, 
         bet_id: bet.id,
         amount: betAmount,
         position,
-        escrow_address: ESCROW_ADDRESS,
+        escrow_address: predictionEscrowAddress,
         platform_fee: feeAmount,
-        message: `Send ${betAmount} XEC to ${ESCROW_ADDRESS} to confirm your bet`
+        message: `Send ${betAmount} XEC to ${predictionEscrowAddress} to confirm your bet`
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
