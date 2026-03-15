@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { Outcome } from "@/hooks/usePredictions";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { triggerHaptic } from "@/hooks/useHaptic";
-import EscrowVerifier from "@/components/EscrowVerifier";
+
 
 const FALLBACK_ESCROW_ADDRESS = "ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp";
 
@@ -49,6 +49,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
   const [betError, setBetError] = useState<{ title: string; details: string } | null>(null);
   const [lastTxHash, setLastTxHash] = useState<string | null>(null);
   const [betPosition, setBetPosition] = useState<"yes" | "no">(position);
+  const [payButtonReady, setPayButtonReady] = useState(false);
   const [freshEscrowAddress, setFreshEscrowAddress] = useState<string>(
     prediction.escrowAddress || FALLBACK_ESCROW_ADDRESS
   );
@@ -85,6 +86,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
       setBetProcessing(false);
       setBetError(null);
       setLastTxHash(null);
+      setPayButtonReady(false);
       submitLockRef.current = false;
     }
   }, [isOpen]);
@@ -300,6 +302,8 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
 
     payButtonRef.current.innerHTML = "";
 
+    setPayButtonReady(false);
+
     const renderButton = () => {
       if (!payButtonRef.current) return;
 
@@ -307,58 +311,65 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
 
       const buttonContainer = document.createElement("div");
       buttonContainer.id = `paybutton-${prediction.id}-${Date.now()}`;
+      // Force visibility in case parent CSS hides it
+      buttonContainer.style.visibility = "visible";
+      buttonContainer.style.opacity = "1";
       payButtonRef.current.appendChild(buttonContainer);
 
       if ((window as any).PayButton) {
-        (window as any).PayButton.render(buttonContainer, {
-          to: freshEscrowAddress,
-          amount: amount,
-          currency: "ecash",
-          text: "Place Bet",
-          hoverText: "Confirm",
-          successText: "Payment Sent!",
-          autoClose: true,
-          hideToasts: true,
-          theme: {
-            palette: {
-              primary: "#10b981", // always green for "bet on outcome"
-              secondary: "#1e293b",
-              tertiary: "#ffffff",
+        try {
+          (window as any).PayButton.render(buttonContainer, {
+            to: freshEscrowAddress,
+            amount: amount,
+            currency: "ecash",
+            text: "Place Bet",
+            hoverText: "Confirm",
+            successText: "Payment Sent!",
+            autoClose: true,
+            hideToasts: true,
+            theme: {
+              palette: {
+                primary: "#10b981",
+                secondary: "#1e293b",
+                tertiary: "#ffffff",
+              },
             },
-          },
-           onSuccess: (txResult: any) => {
-             let txHash: string | undefined;
+            onSuccess: (txResult: any) => {
+              let txHash: string | undefined;
 
-            if (typeof txResult === "string") {
-              txHash = txResult;
-            } else if (txResult?.hash) {
-              txHash = txResult.hash;
-            } else if (txResult?.txid) {
-              txHash = txResult.txid;
-            } else if (txResult?.txId) {
-              txHash = txResult.txId;
-            }
+              if (typeof txResult === "string") {
+                txHash = txResult;
+              } else if (txResult?.hash) {
+                txHash = txResult.hash;
+              } else if (txResult?.txid) {
+                txHash = txResult.txid;
+              } else if (txResult?.txId) {
+                txHash = txResult.txId;
+              }
 
-            const isValidTxId =
-              typeof txHash === "string" && /^[a-f0-9]{64}$/i.test(txHash);
+              const isValidTxId =
+                typeof txHash === "string" && /^[a-f0-9]{64}$/i.test(txHash);
 
-            // txid is OPTIONAL: record bet even if the wallet doesn't return it.
-            // (We keep it when available so we can dedupe/reconcile later.)
-            if (isValidTxId) {
-              setLastTxHash(txHash!);
-              recordBet(txHash);
-            } else {
-              setLastTxHash(null);
-              recordBet(undefined);
-            }
-          },
-          onError: (error: any) => {
-            console.error("PayButton error:", error);
-            toast.error("Payment failed", {
-              description: "Please try again.",
-            });
-          },
-        });
+              if (isValidTxId) {
+                setLastTxHash(txHash!);
+                recordBet(txHash);
+              } else {
+                setLastTxHash(null);
+                recordBet(undefined);
+              }
+            },
+            onError: (error: any) => {
+              console.error("PayButton error:", error);
+              toast.error("Payment failed", {
+                description: "Please try again.",
+              });
+            },
+          });
+          setPayButtonReady(true);
+        } catch (err) {
+          console.error("PayButton render error:", err);
+          setPayButtonReady(false);
+        }
       }
     };
 
@@ -375,6 +386,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
       } else if (attempts >= maxAttempts) {
         if (intervalId) clearInterval(intervalId);
         console.warn('PayButton script failed to load after max attempts');
+        setPayButtonReady(false);
       }
     };
 
@@ -628,9 +640,16 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                     )}
 
                     {/* PayButton Container */}
-                    <div ref={payButtonRef} className="min-h-[50px] flex justify-center" />
+                    <div className="relative min-h-[50px]">
+                      {!payButtonReady && betAmount && parseFloat(betAmount) > 0 && (
+                        <div className="flex flex-col items-center justify-center py-3 gap-2">
+                          <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                          <span className="text-xs text-muted-foreground">Loading payment widget...</span>
+                        </div>
+                      )}
+                      <div ref={payButtonRef} className={`flex justify-center ${!payButtonReady ? 'absolute inset-0 opacity-0' : ''}`} style={{ visibility: payButtonReady ? 'visible' : 'hidden' }} />
+                    </div>
 
-                    {/* Crypto buffer notice */}
                     {isCryptoPrediction && (
                       <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
                         <Clock className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
