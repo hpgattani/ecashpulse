@@ -84,7 +84,7 @@ const Prediction = () => {
     // depending on client headers. Make this robust by always taking the first row.
     const { data: predRows, error: predError } = await supabase
       .from("predictions")
-      .select("*")
+      .select("id, title, description, category, image_url, end_date, status, yes_pool, no_pool, escrow_address, created_at, updated_at, resolution_date, resolved_at, creator_id, escrow_script_hex")
       .eq("id", id)
       .limit(1);
 

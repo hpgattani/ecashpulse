@@ -43,7 +43,7 @@ const ResolvedBets = () => {
   const fetchResolved = async () => {
     const { data } = await supabase
       .from('predictions')
-      .select('*')
+      .select('id, title, description, category, image_url, end_date, status, yes_pool, no_pool, escrow_address, created_at, updated_at, resolution_date, resolved_at, creator_id')
       .or('status.eq.resolved_yes,status.eq.resolved_no')
       .order('resolved_at', { ascending: false })
       .limit(6);
