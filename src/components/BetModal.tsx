@@ -326,18 +326,20 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
       return;
     }
 
+    setPayButtonError(null);
     payButtonRef.current.innerHTML = "";
 
     const renderButton = () => {
-      if (!payButtonRef.current) return;
+      if (!payButtonRef.current || !(window as any).PayButton) return;
 
       payButtonRef.current.innerHTML = "";
 
       const buttonContainer = document.createElement("div");
       buttonContainer.id = `paybutton-${prediction.id}-${Date.now()}`;
+      buttonContainer.style.width = "100%";
       payButtonRef.current.appendChild(buttonContainer);
 
-      if ((window as any).PayButton) {
+      try {
         (window as any).PayButton.render(buttonContainer, {
           to: freshEscrowAddress,
           amount: amount,
@@ -382,17 +384,22 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
           },
           onError: (error: any) => {
             console.error("PayButton error:", error);
+            setPayButtonError("Payment widget failed to open. Please try again.");
             toast.error("Payment failed", {
               description: "Please try again.",
             });
           },
         });
+      } catch (error) {
+        console.error("PayButton render error:", error);
+        const details = error instanceof Error ? error.message : "Unable to initialize payment widget.";
+        setPayButtonError(details);
       }
     };
 
-    // Polling loop: retry until PayButton script is loaded (up to 50 attempts)
+    // Polling loop: retry until PayButton script is loaded
     let attempts = 0;
-    const maxAttempts = 50;
+    const maxAttempts = 60;
     let intervalId: ReturnType<typeof setInterval> | null = null;
 
     const tryRender = () => {
@@ -402,15 +409,15 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
         renderButton();
       } else if (attempts >= maxAttempts) {
         if (intervalId) clearInterval(intervalId);
-        console.warn('PayButton script failed to load after max attempts');
+        setPayButtonError("Payment widget timed out. Please close and reopen the bet modal.");
       }
     };
 
-    // Try immediately, then poll every 200ms
-    if ((window as any).PayButton) {
+    // Try immediately, then poll every 150ms
+    if (payButtonReady || (window as any).PayButton) {
       renderButton();
     } else {
-      intervalId = setInterval(tryRender, 200);
+      intervalId = setInterval(tryRender, 150);
     }
 
     return () => {
@@ -419,7 +426,18 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
         payButtonRef.current.innerHTML = "";
       }
     };
-  }, [isOpen, betAmount, user, sessionToken, prediction.id, betSuccess, recordBet, freshEscrowAddress]);
+  }, [
+    isOpen,
+    betAmount,
+    user,
+    sessionToken,
+    prediction.id,
+    betSuccess,
+    recordBet,
+    freshEscrowAddress,
+    payButtonReady,
+    payButtonRenderKey,
+  ]);
 
   // Unauthenticated state
   if (!user || !sessionToken) {
