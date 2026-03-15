@@ -49,6 +49,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
   const [betError, setBetError] = useState<{ title: string; details: string } | null>(null);
   const [lastTxHash, setLastTxHash] = useState<string | null>(null);
   const [betPosition, setBetPosition] = useState<"yes" | "no">(position);
+  const [payButtonReady, setPayButtonReady] = useState(false);
   const [freshEscrowAddress, setFreshEscrowAddress] = useState<string>(
     prediction.escrowAddress || FALLBACK_ESCROW_ADDRESS
   );
