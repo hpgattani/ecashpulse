@@ -735,15 +735,32 @@ Deno.serve(async (req) => {
       totalAvailable += parseInt(utxo.value);
     }
 
-    const totalPayout = recipients.reduce((sum, r) => sum + r.amount, 0);
+    let totalPayout = recipients.reduce((sum, r) => sum + r.amount, 0);
     
     // Calculate fee: base + (outputs * 34) + (inputs * 180) + OP_RETURN (~50 bytes)
     const estimatedFee = 500 + (recipients.length * 34) + (validUtxos.length * 180) + 50;
     
     console.log(`Total to pay: ${totalPayout}, Fee: ~${estimatedFee}, Available: ${totalAvailable}`);
 
+    // If escrow doesn't have enough to cover payouts + TX fee, deduct TX fee from payouts proportionally
     if (totalAvailable < totalPayout + estimatedFee) {
-      throw new Error(`Insufficient funds: need ${totalPayout + estimatedFee}, have ${totalAvailable}`);
+      const shortfall = (totalPayout + estimatedFee) - totalAvailable;
+      console.log(`Shortfall of ${shortfall} sats - deducting TX fee from payouts proportionally`);
+      
+      // Deduct the TX fee proportionally from each recipient
+      const totalBeforeDeduction = totalPayout;
+      for (const recipient of recipients) {
+        const share = recipient.amount / totalBeforeDeduction;
+        const deduction = Math.ceil(shortfall * share);
+        recipient.amount = Math.max(546, recipient.amount - deduction); // Never go below dust limit
+        console.log(`Adjusted ${recipient.userId}: deducted ${deduction}, new amount ${recipient.amount}`);
+      }
+      totalPayout = recipients.reduce((sum, r) => sum + r.amount, 0);
+      
+      // Final check - if still not enough even after deduction, fail
+      if (totalAvailable < totalPayout + estimatedFee) {
+        throw new Error(`Insufficient funds even after fee deduction: need ${totalPayout + estimatedFee}, have ${totalAvailable}`);
+      }
     }
 
     // Build inputs
