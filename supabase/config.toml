@@ -161,3 +161,6 @@ verify_jwt = false
 
 [functions.batch-create-escrows]
 verify_jwt = false
+
+[functions.fix-escrow-addresses]
+verify_jwt = false
