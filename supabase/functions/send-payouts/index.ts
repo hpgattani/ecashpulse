@@ -652,6 +652,15 @@ Deno.serve(async (req) => {
         privateKey = fromHex(predData.escrow_privkey_encrypted);
         compressed = true;
         console.log(`Using per-prediction escrow: ${escrowAddress}`);
+        
+        // Debug: verify key matches address
+        const derivedPubKey = await getPublicKey(privateKey, compressed);
+        const derivedHash = await hash160(derivedPubKey);
+        const addressHash = cashAddrToHash160(escrowAddress);
+        console.log(`DEBUG derivedPubKey (${derivedPubKey.length}b): ${toHex(derivedPubKey)}`);
+        console.log(`DEBUG derivedHash160: ${toHex(derivedHash)}`);
+        console.log(`DEBUG addressHash160: ${addressHash ? toHex(addressHash) : 'DECODE FAILED'}`);
+        console.log(`DEBUG match: ${addressHash ? toHex(derivedHash) === toHex(addressHash) : false}`);
       } else {
         // Fallback to global escrow
         const escrowWIF = Deno.env.get('ESCROW_PRIVATE_KEY_WIF');
