@@ -482,7 +482,7 @@ const translations: Record<Language, Translations> = {
     // Hero
     heroTitle1: 'Preveja o Futuro,',
     heroTitle2: 'Aposte com Confiança',
-    heroSubtitle: 'O primeiro mercado de previsões construído em eCash. Negocie eventos do mundo real com liquidações instantâneas e taxas quase zero.',
+    heroSubtitle: 'O mercado de previsões descentralizado construído em eCash. Negocie eventos do mundo real com liquidações instantâneas e taxas quase zero.',
     poweredBy: 'Desenvolvido por',
     startTrading: 'Começar a Negociar',
     exploreMarkets: 'Explorar Mercados',
