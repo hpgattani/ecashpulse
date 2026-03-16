@@ -758,7 +758,7 @@ const translations: Record<Language, Translations> = {
     aboutEcash: 'eCash 소개',
     getWallet: '지갑 받기',
     payButtonDocs: 'PayButton 문서',
-    footerDesc: 'eCash 기반 최초의 예측 마켓. 즉시 정산과 거의 제로에 가까운 수수료로 실제 이벤트에 거래하세요.',
+    footerDesc: 'eCash 기반 탈중앙화 예측 마켓. 즉시 정산과 거의 제로에 가까운 수수료로 실제 이벤트에 거래하세요.',
     copyright: '© 2026 eCash Pulse. Powered by eCash (XEC).',
     disclaimer: '예측 마켓은 정보 제공 목적입니다. 책임감 있게 거래하세요.',
     
