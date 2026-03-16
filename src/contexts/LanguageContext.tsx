@@ -672,7 +672,7 @@ const translations: Record<Language, Translations> = {
     // Hero
     heroTitle1: '미래를 예측하고,',
     heroTitle2: '자신있게 베팅하세요',
-    heroSubtitle: 'eCash 기반 최초의 예측 마켓. 즉시 정산과 거의 제로에 가까운 수수료로 실제 이벤트에 거래하세요.',
+    heroSubtitle: 'eCash 기반 탈중앙화 예측 마켓. 즉시 정산과 거의 제로에 가까운 수수료로 실제 이벤트에 거래하세요.',
     poweredBy: 'Powered by',
     startTrading: '거래 시작',
     exploreMarkets: '마켓 탐색',
