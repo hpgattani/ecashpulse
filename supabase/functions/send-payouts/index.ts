@@ -820,6 +820,27 @@ Deno.serve(async (req) => {
         });
         console.log(`Added platform fee output: ${totalFees} XEC to custodial wallet`);
       }
+    } else if (totalFees > 0) {
+      // Fee is below dust limit - redistribute back to recipients so it's not lost as change
+      console.log(`Platform fee ${totalFees} XEC is below dust limit (546) - redistributing to recipients`);
+      const extraPerRecipient = Math.floor(totalFees / recipients.length);
+      let remainder = totalFees - (extraPerRecipient * recipients.length);
+      for (let i = 0; i < recipients.length; i++) {
+        const extra = extraPerRecipient + (i === 0 ? remainder : 0);
+        recipients[i].amount += extra;
+        // Update the output value too
+        outputs[i] = {
+          value: BigInt(recipients[i].amount),
+          scriptPubKey: outputs[i].scriptPubKey,
+        };
+      }
+      // Reset fees since they weren't collected
+      for (const recipient of recipients) {
+        feesPerRecipient.set(recipient.userId, 0);
+      }
+      totalFees = 0;
+      totalPayout = recipients.reduce((sum, r) => sum + r.amount, 0);
+      console.log(`Adjusted total payout after fee redistribution: ${totalPayout} XEC`);
     }
 
     // Add OP_RETURN output with Cashtab message
