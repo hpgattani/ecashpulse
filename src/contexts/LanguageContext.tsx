@@ -378,7 +378,7 @@ const translations: Record<Language, Translations> = {
     aboutEcash: 'About eCash',
     getWallet: 'Get a Wallet',
     payButtonDocs: 'PayButton Docs',
-    footerDesc: 'The first prediction market built on eCash. Trade on real-world events with instant settlements and near-zero fees.',
+    footerDesc: 'The decentralized prediction market built on eCash. Trade on real-world events with instant settlements and near-zero fees.',
     copyright: '© 2026 eCash Pulse. Powered by eCash (XEC).',
     disclaimer: 'Prediction markets are for informational purposes only. Trade responsibly.',
     
