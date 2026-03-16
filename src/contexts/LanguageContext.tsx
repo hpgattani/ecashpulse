@@ -292,7 +292,7 @@ const translations: Record<Language, Translations> = {
     // Hero
     heroTitle1: 'Predict the Future,',
     heroTitle2: 'Bet with Confidence',
-    heroSubtitle: 'The first prediction market built on eCash. Trade on real-world events with instant settlements and near-zero fees.',
+    heroSubtitle: 'The decentralized prediction market built on eCash. Trade on real-world events with instant settlements and near-zero fees.',
     poweredBy: 'Powered by',
     startTrading: 'Start Trading',
     exploreMarkets: 'Explore Markets',
