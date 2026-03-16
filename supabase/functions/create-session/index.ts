@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 const CHRONIK_URLS = [
-  'https://chronik.fabien.cash',
+  'https://chronik.be.cash/xec',
   'https://chronik.e.cash',
 ];
 
