@@ -568,7 +568,7 @@ const translations: Record<Language, Translations> = {
     aboutEcash: 'Sobre o eCash',
     getWallet: 'Obter uma Carteira',
     payButtonDocs: 'Documentação PayButton',
-    footerDesc: 'O primeiro mercado de previsões construído em eCash. Negocie eventos do mundo real com liquidações instantâneas e taxas quase zero.',
+    footerDesc: 'O mercado de previsões descentralizado construído em eCash. Negocie eventos do mundo real com liquidações instantâneas e taxas quase zero.',
     copyright: '© 2026 eCash Pulse. Desenvolvido por eCash (XEC).',
     disclaimer: 'Os mercados de previsão são apenas para fins informativos. Negocie com responsabilidade.',
     
