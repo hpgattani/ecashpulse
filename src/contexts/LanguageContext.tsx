@@ -862,7 +862,7 @@ const translations: Record<Language, Translations> = {
     // Hero
     heroTitle1: '未来を予測し、',
     heroTitle2: '自信を持ってベット',
-    heroSubtitle: 'eCash上に構築された初の予測マーケット。即時決済とほぼゼロの手数料で実世界のイベントに取引。',
+    heroSubtitle: 'eCash上に構築された分散型予測マーケット。即時決済とほぼゼロの手数料で実世界のイベントに取引。',
     poweredBy: 'Powered by',
     startTrading: '取引開始',
     exploreMarkets: 'マーケットを探索',
