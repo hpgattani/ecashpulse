@@ -948,7 +948,7 @@ const translations: Record<Language, Translations> = {
     aboutEcash: 'eCashについて',
     getWallet: 'ウォレットを取得',
     payButtonDocs: 'PayButtonドキュメント',
-    footerDesc: 'eCash上に構築された初の予測マーケット。即時決済とほぼゼロの手数料で実世界のイベントに取引。',
+    footerDesc: 'eCash上に構築された分散型予測マーケット。即時決済とほぼゼロの手数料で実世界のイベントに取引。',
     copyright: '© 2026 eCash Pulse. Powered by eCash (XEC).',
     disclaimer: '予測マーケットは情報提供目的のみです。責任を持って取引してください。',
     
