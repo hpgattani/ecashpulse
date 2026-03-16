@@ -720,23 +720,30 @@ Deno.serve(async (req) => {
     const recipients = Array.from(userPayouts.values());
     console.log(`Batched into ${recipients.length} recipients`);
 
-    // Apply platform fee to payouts
+    // Apply variable platform fee - ensures platform always earns
+    // Fee = max(DUST_LIMIT, percentage of payout) so fee is always spendable on-chain
+    const DUST_LIMIT = 546;
     const platformFeePercent = parseFloat(Deno.env.get('PLATFORM_FEE_PERCENT') || '1.0');
-    console.log(`Platform fee: ${platformFeePercent}%`);
+    console.log(`Platform fee: ${platformFeePercent}% (min ${DUST_LIMIT} sats per recipient)`);
     
     let totalFees = 0;
     const feesPerRecipient: Map<string, number> = new Map();
     
     for (const recipient of recipients) {
       const originalAmount = recipient.amount;
-      const fee = Math.floor(originalAmount * (platformFeePercent / 100));
-      const netAmount = originalAmount - fee;
+      const percentFee = Math.floor(originalAmount * (platformFeePercent / 100));
+      // Use the higher of: percentage-based fee OR dust limit, to guarantee collectability
+      const fee = Math.max(DUST_LIMIT, percentFee);
+      // Ensure fee doesn't consume more than 50% of the payout (safety cap)
+      const cappedFee = Math.min(fee, Math.floor(originalAmount * 0.5));
+      const netAmount = originalAmount - cappedFee;
       
+      const effectivePercent = ((cappedFee / originalAmount) * 100).toFixed(2);
       recipient.amount = netAmount;
-      feesPerRecipient.set(recipient.userId, fee);
-      totalFees += fee;
+      feesPerRecipient.set(recipient.userId, cappedFee);
+      totalFees += cappedFee;
       
-      console.log(`User ${recipient.userId}: Original ${originalAmount} XEC, Fee ${fee} XEC (${platformFeePercent}%), Net ${netAmount} XEC`);
+      console.log(`User ${recipient.userId}: Original ${originalAmount} XEC, Fee ${cappedFee} XEC (${effectivePercent}%), Net ${netAmount} XEC`);
     }
     
     console.log(`Total platform fees collected: ${totalFees} XEC`);
