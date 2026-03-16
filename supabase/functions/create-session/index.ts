@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 const CHRONIK_URLS = [
-  'https://chronik.fabien.cash',
+  'https://chronik.be.cash/xec',
   'https://chronik.e.cash',
 ];
 
@@ -314,6 +314,32 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (existingAudit) {
+      // Tx already used — but if user has a valid session, return it (handles retry scenario)
+      if (existingUser) {
+        const { data: retrySession } = await supabase
+          .from('sessions')
+          .select('*')
+          .eq('user_id', existingUser.id)
+          .gt('expires_at', new Date().toISOString())
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (retrySession) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('user_id', existingUser.id)
+            .maybeSingle();
+
+          console.log(`Tx already used but returning existing session for user: ${existingUser.id}`);
+          return new Response(
+            JSON.stringify({ success: true, user: existingUser, profile, session_token: retrySession.token }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+
       return new Response(
         JSON.stringify({ error: 'This transaction was already used for authentication' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
