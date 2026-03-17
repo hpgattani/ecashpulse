@@ -151,13 +151,8 @@ interface VerificationResult {
 
 async function verifyTransaction(txHash: string, expectedAmount: number, escrowScript: string): Promise<VerificationResult> {
   try {
-    const response = await fetch(`${CHRONIK_URL}/tx/${txHash}`);
-    
-    if (!response.ok) {
-      return { verified: false, error: 'Transaction not found on blockchain' };
-    }
-    
-    const tx: ChronikTx = await response.json();
+    const client = await getChronikClient();
+    const tx = await client.tx(txHash);
     
     // Extract sender address from first input
     let senderAddress: string | null = null;
