@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { ChronikClient } from 'npm:chronik-client@3.6.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -6,75 +7,106 @@ const corsHeaders = {
 };
 
 const CHRONIK_URLS = [
+  'https://chronik.e.cash',
   'https://chronik.be.cash/xec',
-  'https://chronik2.fabien.cash',
 ];
 
 // Platform auth wallet
 const AUTH_WALLET = 'ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp';
 
 /**
- * Verify a transaction on-chain using Chronik.
- * Checks the tx exists, was sent FROM the claimed address, and TO the auth wallet.
+ * Get a working Chronik client instance.
+ */
+async function getChronikClient(): Promise<ChronikClient | null> {
+  for (const url of CHRONIK_URLS) {
+    try {
+      const client = new ChronikClient([url]);
+      await client.blockchainInfo();
+      return client;
+    } catch (err) {
+      console.warn(`Chronik ${url} not available:`, err?.message || err);
+    }
+  }
+  return null;
+}
+
+/**
+ * Verify a transaction on-chain using Chronik client (protobuf).
  */
 async function verifyTransactionOnChain(
   txHash: string,
   claimedSenderAddress: string
 ): Promise<{ valid: boolean; error?: string }> {
-  for (const baseUrl of CHRONIK_URLS) {
-    try {
-      const resp = await fetch(`${baseUrl}/tx/${txHash}`);
-      if (!resp.ok) {
-        await resp.text();
-        continue;
-      }
-
-      const tx = await resp.json();
-
-      // Verify sender: check that at least one input address matches claimed address
-      const inputAddresses: string[] = [];
-      for (const input of tx.inputs || []) {
-        const addr = input?.outputScript
-          ? scriptToAddress(input.outputScript)
-          : null;
-        if (addr) inputAddresses.push(addr);
-      }
-
-      const normalizedClaimed = claimedSenderAddress.trim().toLowerCase().replace('ecash:', '');
-      const senderMatch = inputAddresses.some(
-        (a) => a.toLowerCase().replace('ecash:', '') === normalizedClaimed
-      );
-
-      if (!senderMatch) {
-        return { valid: false, error: 'Transaction sender does not match claimed address' };
-      }
-
-      // Verify recipient: check that at least one output goes to the auth wallet
-      const authHash = AUTH_WALLET.replace('ecash:', '').toLowerCase();
-      const outputAddresses: string[] = [];
-      for (const output of tx.outputs || []) {
-        const addr = output?.outputScript
-          ? scriptToAddress(output.outputScript)
-          : null;
-        if (addr) outputAddresses.push(addr);
-      }
-
-      const recipientMatch = outputAddresses.some(
-        (a) => a.toLowerCase().replace('ecash:', '') === authHash
-      );
-
-      if (!recipientMatch) {
-        return { valid: false, error: 'Transaction recipient is not the auth wallet' };
-      }
-
-      return { valid: true };
-    } catch (err) {
-      console.warn(`Chronik ${baseUrl} failed:`, err);
-      continue;
-    }
+  const client = await getChronikClient();
+  if (!client) {
+    return { valid: false, error: 'Could not connect to any Chronik server' };
   }
 
-  return { valid: false, error: 'Could not verify transaction on-chain' };
+  try {
+    const tx = await client.tx(txHash);
+
+    // Verify sender: check that at least one input address matches claimed address
+    const inputAddresses: string[] = [];
+    for (const input of tx.inputs || []) {
+      const scriptHex = input?.outputScript;
+      if (scriptHex) {
+        const addr = scriptToAddress(scriptHex);
+        if (addr) inputAddresses.push(addr);
+      }
+    }
+
+    const normalizedClaimed = claimedSenderAddress.trim().toLowerCase().replace('ecash:', '');
+    const senderMatch = inputAddresses.some(
+      (a) => a.toLowerCase().replace('ecash:', '') === normalizedClaimed
+    );
+
+    if (!senderMatch) {
+      return { valid: false, error: 'Transaction sender does not match claimed address' };
+    }
+
+    // Verify recipient: check that at least one output goes to the auth wallet
+    const authHash = AUTH_WALLET.replace('ecash:', '').toLowerCase();
+    const outputAddresses: string[] = [];
+    for (const output of tx.outputs || []) {
+      const scriptHex = output?.outputScript;
+      if (scriptHex) {
+        const addr = scriptToAddress(scriptHex);
+        if (addr) outputAddresses.push(addr);
+      }
+    }
+
+    const recipientMatch = outputAddresses.some(
+      (a) => a.toLowerCase().replace('ecash:', '') === authHash
+    );
+
+    if (!recipientMatch) {
+      return { valid: false, error: 'Transaction recipient is not the auth wallet' };
+    }
+
+    return { valid: true };
+  } catch (err) {
+    console.error('Chronik tx verification failed:', err);
+    return { valid: false, error: 'Could not verify transaction on-chain' };
+  }
+}
+
+/**
+ * Extract sender address from a tx using Chronik client.
+ */
+async function extractSenderFromTx(txHash: string): Promise<string | null> {
+  const client = await getChronikClient();
+  if (!client) return null;
+
+  try {
+    const tx = await client.tx(txHash);
+    const firstInput = tx.inputs?.[0];
+    if (firstInput?.outputScript) {
+      return scriptToAddress(firstInput.outputScript);
+    }
+  } catch (err) {
+    console.error('Failed to extract sender from tx:', err);
+  }
+  return null;
 }
 
 /**
