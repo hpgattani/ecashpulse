@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { ChronikClient } from 'npm:chronik-client@3.6.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -6,7 +7,18 @@ const corsHeaders = {
 };
 
 const ESCROW_ADDRESS = 'ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp';
-const CHRONIK_URL = 'https://chronik.be.cash/xec';
+const CHRONIK_URLS = ['https://chronik.e.cash', 'https://chronik.be.cash/xec'];
+
+async function getChronikClient(): Promise<ChronikClient> {
+  for (const url of CHRONIK_URLS) {
+    try {
+      const client = new ChronikClient([url]);
+      await client.blockchainInfo();
+      return client;
+    } catch { /* try next */ }
+  }
+  throw new Error('Could not connect to any Chronik server');
+}
 
 // Convert eCash cashaddr to P2PKH outputScript hex
 function addressToOutputScript(address: string): string | null {
@@ -139,13 +151,8 @@ interface VerificationResult {
 
 async function verifyTransaction(txHash: string, expectedAmount: number, escrowScript: string): Promise<VerificationResult> {
   try {
-    const response = await fetch(`${CHRONIK_URL}/tx/${txHash}`);
-    
-    if (!response.ok) {
-      return { verified: false, error: 'Transaction not found on blockchain' };
-    }
-    
-    const tx: ChronikTx = await response.json();
+    const client = await getChronikClient();
+    const tx = await client.tx(txHash);
     
     // Extract sender address from first input
     let senderAddress: string | null = null;
