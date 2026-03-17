@@ -7,7 +7,7 @@ const corsHeaders = {
 
 const CHRONIK_URLS = [
   'https://chronik.be.cash/xec',
-  'https://chronik.e.cash',
+  'https://chronik2.fabien.cash',
 ];
 
 // Platform auth wallet
