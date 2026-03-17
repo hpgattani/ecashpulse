@@ -260,23 +260,10 @@ Deno.serve(async (req) => {
     // If client couldn't detect sender address, extract from tx via Chronik
     if (!ecash_address || ecash_address === '__from_tx__') {
       console.log(`Extracting sender address from tx ${tx_hash} via Chronik...`);
-      for (const baseUrl of CHRONIK_URLS) {
-        try {
-          const resp = await fetch(`${baseUrl}/tx/${tx_hash}`);
-          if (!resp.ok) continue;
-          const txData = await resp.json();
-          const firstInput = txData.inputs?.[0];
-          if (firstInput?.outputScript) {
-            const addr = scriptToAddress(firstInput.outputScript);
-            if (addr) {
-              ecash_address = addr;
-              console.log(`Extracted sender address: ${ecash_address}`);
-              break;
-            }
-          }
-        } catch (err) {
-          console.warn(`Chronik ${baseUrl} failed for sender extraction:`, err);
-        }
+      const extracted = await extractSenderFromTx(tx_hash);
+      if (extracted) {
+        ecash_address = extracted;
+        console.log(`Extracted sender address: ${ecash_address}`);
       }
     }
 
