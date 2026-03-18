@@ -357,7 +357,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
 
         const buttonContainer = document.createElement("div");
         buttonContainer.id = `paybutton-bet-${prediction.id}-${Date.now()}`;
-        buttonContainer.style.width = "100%";
+        buttonContainer.dataset.paybuttonVariant = "bet";
         payButtonRef.current.appendChild(buttonContainer);
 
         (window as any).PayButton.render(buttonContainer, {
@@ -685,8 +685,8 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                     {/* PayButton Container */}
                     <div
                       ref={payButtonRef}
-                      className="min-h-[56px] w-full flex justify-center"
-                      style={{ isolation: 'isolate' }}
+                      className="min-h-[56px] w-full"
+                      style={{ isolation: 'isolate', zIndex: 60, pointerEvents: 'auto' }}
                     ></div>
 
                     {payButtonError && (
