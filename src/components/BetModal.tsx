@@ -648,7 +648,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                           type="number"
                           placeholder={t.enterAmount}
                           value={betAmount}
-                          onChange={(e) => setBetAmount(e.target.value)}
+                          onChange={(e) => { setBetAmount(e.target.value); triggerHaptic('light'); }}
                           min="1"
                           step="1"
                           className="text-lg font-semibold h-12 pr-14"
