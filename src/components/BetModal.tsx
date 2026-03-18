@@ -377,6 +377,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
             },
           },
           onSuccess: (txResult: any) => {
+            triggerHaptic('success');
             let txHash: string | undefined;
 
             if (typeof txResult === "string") {
