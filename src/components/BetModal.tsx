@@ -685,7 +685,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                     {/* PayButton Container */}
                     <div
                       ref={payButtonRef}
-                      className="min-h-[56px] w-full"
+                      className="min-h-[56px] w-full flex justify-center"
                     />
 
                     {payButtonError && (
