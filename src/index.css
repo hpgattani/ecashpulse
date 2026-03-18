@@ -779,52 +779,6 @@ div[id^="paybutton"] > div {
   min-height: 56px;
 }
 
-/* Bet modal PayButton gets a shaded 3D treatment without changing integration behavior */
-div[data-paybutton-variant="bet"] {
-  width: 100%;
-}
-
-div[data-paybutton-variant="bet"] button,
-div[data-paybutton-variant="bet"] a,
-div[data-paybutton-variant="bet"] [role="button"] {
-  width: 100% !important;
-  min-height: 60px !important;
-  border-radius: 1rem !important;
-  border: 1px solid hsl(160 84% 39% / 0.5) !important;
-  background:
-    linear-gradient(180deg, hsl(160 84% 39% / 0.95) 0%, hsl(160 84% 32% / 0.95) 52%, hsl(160 84% 26% / 0.95) 100%) !important;
-  box-shadow:
-    inset 0 1px 0 hsl(160 84% 60% / 0.3),
-    inset 0 -4px 12px hsl(160 84% 20% / 0.4),
-    0 4px 14px hsl(160 84% 20% / 0.35),
-    0 2px 0 hsl(160 84% 22% / 0.7) !important;
-  color: #ffffff !important;
-  font-size: 1.05rem !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.02em !important;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.3) !important;
-  justify-content: center !important;
-  transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease !important;
-}
-
-div[data-paybutton-variant="bet"] button:hover,
-div[data-paybutton-variant="bet"] a:hover,
-div[data-paybutton-variant="bet"] [role="button"]:hover {
-  filter: brightness(1.03) !important;
-  transform: translateY(-1px) !important;
-}
-
-div[data-paybutton-variant="bet"] button:active,
-div[data-paybutton-variant="bet"] a:active,
-div[data-paybutton-variant="bet"] [role="button"]:active {
-  transform: translateY(1px) !important;
-  box-shadow:
-    inset 0 1px 0 hsl(var(--background) / 0.25),
-    inset 0 -6px 12px hsl(var(--primary) / 0.08),
-    0 4px 10px hsl(var(--primary) / 0.14),
-    0 1px 0 hsl(var(--primary) / 0.38) !important;
-}
-
 /* PayButton popup/modal must float above all app modals */
 body > div[class*="MuiModal"],
 body > div[class*="MuiBackdrop"],
