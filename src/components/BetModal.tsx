@@ -377,6 +377,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
             },
           },
           onSuccess: (txResult: any) => {
+            triggerHaptic('success');
             let txHash: string | undefined;
 
             if (typeof txResult === "string") {
@@ -400,6 +401,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
             }
           },
           onError: (error: any) => {
+            triggerHaptic('error');
             console.error("PayButton error:", error);
             setPayButtonError("Payment widget failed to open. Please try again.");
             toast.error("Payment failed", {
@@ -646,7 +648,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                           type="number"
                           placeholder={t.enterAmount}
                           value={betAmount}
-                          onChange={(e) => setBetAmount(e.target.value)}
+                          onChange={(e) => { setBetAmount(e.target.value); triggerHaptic('light'); }}
                           min="1"
                           step="1"
                           className="text-lg font-semibold h-12 pr-14"
