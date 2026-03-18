@@ -357,7 +357,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
 
         const buttonContainer = document.createElement("div");
         buttonContainer.id = `paybutton-bet-${prediction.id}-${Date.now()}`;
-        buttonContainer.style.width = "100%";
+        buttonContainer.dataset.paybuttonVariant = "bet";
         payButtonRef.current.appendChild(buttonContainer);
 
         (window as any).PayButton.render(buttonContainer, {
