@@ -401,6 +401,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
             }
           },
           onError: (error: any) => {
+            triggerHaptic('error');
             console.error("PayButton error:", error);
             setPayButtonError("Payment widget failed to open. Please try again.");
             toast.error("Payment failed", {
