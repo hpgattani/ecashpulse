@@ -78,6 +78,11 @@ const AUTO_BLOCKED_TITLE_KEYWORDS = [
 const TRIVIALLY_TRUE_PATTERNS: RegExp[] = [
   /american team.*(win|super bowl)/i,
   /nfl team.*(win|super bowl)/i,
+  // Block social media post/tweet counting markets (e.g. "Zelenskyy # posts March 20 - March 27")
+  /# ?(posts|tweets|times|retweets)/i,
+  /\d+\s*-\s*\d+.*(tweets|posts)/i,
+  /how many.*(tweets?|posts?|times?)/i,
+  /total (tweets?|posts?|views?|likes?)/i,
 ];
 
 // Keywords that belong to a specific category - reject if detected category doesn't match
