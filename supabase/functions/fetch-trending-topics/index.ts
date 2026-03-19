@@ -618,10 +618,18 @@ async function syncPredictions(supabase: any): Promise<{ created: number; resolv
     // Skip non-Yes/No style predictions (multi-option, open-ended, vague)
     const invalidPatterns = [
       'which ', 'who will', 'what will', 'how many', 'how much',
-      '# tweets', 'number of tweets', 'highest temperature', 'top performing',
+      '# tweets', '# posts', '# times', '# of tweets', '# of posts',
+      'number of tweets', 'number of posts', 'number of times',
+      'tweet count', 'post count', 'how often will',
+      'highest temperature', 'top performing',
       '#1 song', 'vs.', ' vs ', 'announced by', 'price on ',
       '___', '...',
-      // Block vague/incomplete "Xth largest company" style predictions - they should be multi-option
+      // Block social media counting / engagement metrics
+      'tweets between', 'posts between', 'retweets', 'likes on',
+      'followers by', 'views on', 'views between',
+      'say the word', "say '", 'say "', 'say the phrase',
+      'total views',
+      // Block vague/incomplete "Xth largest company" style predictions
       'largest company end of', 'largest company by market', '2nd largest', '3rd largest',
       'second largest', 'third largest', 'fourth largest'
     ];
