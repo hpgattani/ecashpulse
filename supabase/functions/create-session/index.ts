@@ -1,5 +1,4 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { ChronikClient } from 'npm:chronik-client@3.6.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -20,16 +19,18 @@ const CHRONIK_URLS = [
 const AUTH_WALLET = 'ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp';
 
 /**
- * Get a working Chronik client instance.
+ * Fetch tx data from Chronik REST API (no npm dependency needed).
  */
-async function getChronikClient(): Promise<ChronikClient | null> {
-  for (const url of CHRONIK_URLS) {
+async function chronikFetchTx(txHash: string): Promise<any> {
+  for (const baseUrl of CHRONIK_URLS) {
     try {
-      const client = new ChronikClient([url]);
-      await client.blockchainInfo();
-      return client;
-    } catch (err) {
-      console.warn(`Chronik ${url} not available:`, err?.message || err);
+      const url = `${baseUrl}/tx/${txHash}`;
+      const resp = await fetch(url, { headers: { Accept: 'application/json' } });
+      if (resp.ok) {
+        return await resp.json();
+      }
+    } catch {
+      // try next
     }
   }
   return null;

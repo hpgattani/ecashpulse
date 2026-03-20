@@ -1,5 +1,4 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { ChronikClient } from 'npm:chronik-client@3.6.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,15 +16,19 @@ const CHRONIK_URLS = [
   'https://chronik2.alitayin.com',
 ];
 
-async function getChronikClient(): Promise<ChronikClient> {
-  for (const url of CHRONIK_URLS) {
+async function chronikFetchTx(txHash: string): Promise<any> {
+  for (const baseUrl of CHRONIK_URLS) {
     try {
-      const client = new ChronikClient([url]);
-      await client.blockchainInfo();
-      return client;
-    } catch { /* try next */ }
+      const url = `${baseUrl}/tx/${txHash}`;
+      const resp = await fetch(url, { headers: { Accept: 'application/json' } });
+      if (resp.ok) {
+        return await resp.json();
+      }
+    } catch {
+      // try next
+    }
   }
-  throw new Error('Could not connect to any Chronik server');
+  return null;
 }
 
 // Convert eCash cashaddr to P2PKH outputScript hex
