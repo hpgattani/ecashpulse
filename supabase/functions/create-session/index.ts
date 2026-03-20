@@ -43,13 +43,11 @@ async function verifyTransactionOnChain(
   txHash: string,
   claimedSenderAddress: string
 ): Promise<{ valid: boolean; error?: string }> {
-  const client = await getChronikClient();
-  if (!client) {
-    return { valid: false, error: 'Could not connect to any Chronik server' };
-  }
-
   try {
-    const tx = await client.tx(txHash);
+    const tx = await chronikFetchTx(txHash);
+    if (!tx) {
+      return { valid: false, error: 'Could not verify transaction on-chain' };
+    }
 
     // Verify sender: check that at least one input address matches claimed address
     const inputAddresses: string[] = [];
