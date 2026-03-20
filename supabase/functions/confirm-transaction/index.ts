@@ -162,8 +162,8 @@ interface VerificationResult {
 
 async function verifyTransaction(txHash: string, expectedAmount: number, escrowScript: string): Promise<VerificationResult> {
   try {
-    const client = await getChronikClient();
-    const tx = await client.tx(txHash);
+    const tx = await chronikFetchTx(txHash);
+    if (!tx) return { verified: false, error: 'Could not fetch transaction from any Chronik server' };
     
     // Extract sender address from first input
     let senderAddress: string | null = null;
