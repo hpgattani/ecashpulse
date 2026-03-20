@@ -98,11 +98,9 @@ async function verifyTransactionOnChain(
  * Extract sender address from a tx using Chronik client.
  */
 async function extractSenderFromTx(txHash: string): Promise<string | null> {
-  const client = await getChronikClient();
-  if (!client) return null;
-
   try {
-    const tx = await client.tx(txHash);
+    const tx = await chronikFetchTx(txHash);
+    if (!tx) return null;
     const firstInput = tx.inputs?.[0];
     if (firstInput?.outputScript) {
       return scriptToAddress(firstInput.outputScript);
