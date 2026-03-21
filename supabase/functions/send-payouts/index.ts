@@ -464,14 +464,18 @@ async function buildSignedTransaction(
   perInputKeys?: { privateKey: Uint8Array; compressed: boolean }[]
 ): Promise<Uint8Array> {
   const publicKey = await getPublicKey(privateKey, compressed);
-  const SIGHASH_ALL_FORKID = 0x41; // SIGHASH_ALL | SIGHASH_FORKID
+  const SIGHASH_ALL_FORKID = 0x41;
   
-  // Sign each input
+  // Sign each input (supports per-input keys for multi-wallet transactions)
   const signatures: Uint8Array[] = [];
+  const publicKeys: Uint8Array[] = [];
   for (let i = 0; i < inputs.length; i++) {
+    const inputKey = perInputKeys?.[i]?.privateKey ?? privateKey;
+    const inputCompressed = perInputKeys?.[i]?.compressed ?? compressed;
+    const pubKey = await getPublicKey(inputKey, inputCompressed);
+    publicKeys.push(pubKey);
     const sighash = await bip143Sighash(inputs, outputs, i, SIGHASH_ALL_FORKID);
-    const sig = await signECDSA(sighash, privateKey);
-    // Append sighash type byte
+    const sig = await signECDSA(sighash, inputKey);
     const sigWithType = new Uint8Array(sig.length + 1);
     sigWithType.set(sig);
     sigWithType[sig.length] = SIGHASH_ALL_FORKID;
