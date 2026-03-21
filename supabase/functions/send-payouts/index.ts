@@ -760,18 +760,40 @@ Deno.serve(async (req) => {
     const escrowScript = createP2PKHScript(escrowHash);
     console.log('Escrow wallet loaded');
 
-    // Get UTXOs
+    // Get UTXOs from primary escrow
     const utxos = await getUTXOs(escrowAddress);
     console.log(`Found ${utxos.length} UTXOs in escrow`);
 
-    if (utxos.length === 0) throw new Error('No UTXOs available');
+    // Also try custodial wallet if different, to combine funds
+    let custodialKey: Uint8Array | null = null;
+    let custodialCompressed = true;
+    let custodialUtxos: UTXO[] = [];
+    
+    if (escrowAddress !== FALLBACK_ESCROW_ADDRESS) {
+      const escrowWIF = Deno.env.get('ESCROW_PRIVATE_KEY_WIF');
+      if (escrowWIF) {
+        const decoded = decodeWIF(escrowWIF);
+        if (decoded) {
+          custodialKey = decoded.privateKey;
+          custodialCompressed = decoded.compressed;
+          custodialUtxos = await getUTXOs(FALLBACK_ESCROW_ADDRESS);
+          console.log(`Found ${custodialUtxos.length} UTXOs in custodial wallet`);
+        }
+      }
+    }
+
+    const allUtxos = [...utxos, ...custodialUtxos];
+    if (allUtxos.length === 0) throw new Error('No UTXOs available');
 
     // Calculate totals
     let totalAvailable = 0;
-    const validUtxos = utxos.filter(u => !u.token);
+    const validUtxos = allUtxos.filter(u => !u.token);
     for (const utxo of validUtxos) {
       totalAvailable += parseInt(utxo.value);
     }
+    
+    // Track which UTXOs are from escrow vs custodial for per-input signing
+    const escrowUtxoCount = utxos.filter(u => !u.token).length;
 
     let totalPayout = recipients.reduce((sum, r) => sum + r.amount, 0);
     
@@ -785,36 +807,56 @@ Deno.serve(async (req) => {
       const shortfall = (totalPayout + estimatedFee) - totalAvailable;
       console.log(`Shortfall of ${shortfall} sats - deducting TX fee from payouts proportionally`);
       
-      // Deduct the TX fee proportionally from each recipient
       const totalBeforeDeduction = totalPayout;
       for (const recipient of recipients) {
         const share = recipient.amount / totalBeforeDeduction;
         const deduction = Math.ceil(shortfall * share);
-        recipient.amount = Math.max(546, recipient.amount - deduction); // Never go below dust limit
+        recipient.amount = Math.max(546, recipient.amount - deduction);
         console.log(`Adjusted ${recipient.userId}: deducted ${deduction}, new amount ${recipient.amount}`);
       }
       totalPayout = recipients.reduce((sum, r) => sum + r.amount, 0);
       
-      // Final check - if still not enough even after deduction, fail
       if (totalAvailable < totalPayout + estimatedFee) {
         throw new Error(`Insufficient funds even after fee deduction: need ${totalPayout + estimatedFee}, have ${totalAvailable}`);
       }
     }
 
-    // Build inputs
+    // Build inputs - track per-input keys for multi-wallet signing
     const inputs: TxInput[] = [];
+    const perInputKeys: { privateKey: Uint8Array; compressed: boolean }[] = [];
     let inputTotal = 0n;
     const needed = BigInt(totalPayout + estimatedFee);
     
-    for (const utxo of validUtxos) {
+    // First add escrow UTXOs
+    const escrowValidUtxos = utxos.filter(u => !u.token);
+    for (const utxo of escrowValidUtxos) {
       inputs.push({
         txid: utxo.outpoint.txid,
         vout: utxo.outpoint.outIdx,
         value: BigInt(utxo.value),
         scriptPubKey: escrowScript,
       });
+      perInputKeys.push({ privateKey, compressed });
       inputTotal += BigInt(utxo.value);
       if (inputTotal >= needed) break;
+    }
+
+    // If still not enough, add custodial UTXOs
+    if (inputTotal < needed && custodialKey && custodialUtxos.length > 0) {
+      const custodialScript = createP2PKHScript(cashAddrToHash160(FALLBACK_ESCROW_ADDRESS)!);
+      const custodialValidUtxos = custodialUtxos.filter(u => !u.token);
+      for (const utxo of custodialValidUtxos) {
+        inputs.push({
+          txid: utxo.outpoint.txid,
+          vout: utxo.outpoint.outIdx,
+          value: BigInt(utxo.value),
+          scriptPubKey: custodialScript,
+        });
+        perInputKeys.push({ privateKey: custodialKey, compressed: custodialCompressed });
+        inputTotal += BigInt(utxo.value);
+        if (inputTotal >= needed) break;
+      }
+      console.log(`Combined inputs from both wallets: ${inputs.length} total inputs, ${inputTotal} sats`);
     }
 
     // Build outputs - payout outputs for winners
