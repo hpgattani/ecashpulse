@@ -861,14 +861,32 @@ Deno.serve(async (req) => {
     console.log(`Added Cashtab message: "${congratsMessage}"`);
 
     // Calculate change (OP_RETURN already included in outputs)
-    const outputTotal = outputs.reduce((a, b) => a + b.value, 0n);
-    const change = inputTotal - outputTotal - BigInt(estimatedFee);
+    let outputTotal = outputs.reduce((a, b) => a + b.value, 0n);
+    let change = inputTotal - outputTotal - BigInt(estimatedFee);
     
     if (change > 546n) {
       outputs.push({
         value: change,
         scriptPubKey: escrowScript,
       });
+    } else {
+      // Change is dust or negative — it becomes the implicit miner fee.
+      // Ensure the ACTUAL fee (inputTotal - sum of outputs) meets the minimum relay fee.
+      // Min relay fee = 1 sat/byte; estimate ~250-400 bytes for typical tx.
+      const actualFee = inputTotal - outputTotal; // change is absorbed as fee
+      const minRelayFee = BigInt(Math.max(300, estimatedFee)); // at least 300 sats or estimated
+      if (actualFee < minRelayFee && outputTotal > 0n) {
+        // Need to shave some sats from payout outputs to meet minimum fee
+        const deficit = minRelayFee - actualFee;
+        console.log(`Actual fee ${actualFee} below min relay fee ${minRelayFee}, reducing payouts by ${deficit}`);
+        // Reduce from the first (largest) payout output
+        for (let i = 0; i < outputs.length; i++) {
+          if (outputs[i].value > 546n + deficit) {
+            outputs[i] = { ...outputs[i], value: outputs[i].value - deficit };
+            break;
+          }
+        }
+      }
     }
 
     console.log(`Building tx: ${inputs.length} inputs, ${outputs.length} outputs`);
