@@ -460,17 +460,22 @@ async function buildSignedTransaction(
   inputs: TxInput[],
   outputs: TxOutput[],
   privateKey: Uint8Array,
-  compressed: boolean
+  compressed: boolean,
+  perInputKeys?: { privateKey: Uint8Array; compressed: boolean }[]
 ): Promise<Uint8Array> {
   const publicKey = await getPublicKey(privateKey, compressed);
-  const SIGHASH_ALL_FORKID = 0x41; // SIGHASH_ALL | SIGHASH_FORKID
+  const SIGHASH_ALL_FORKID = 0x41;
   
-  // Sign each input
+  // Sign each input (supports per-input keys for multi-wallet transactions)
   const signatures: Uint8Array[] = [];
+  const publicKeys: Uint8Array[] = [];
   for (let i = 0; i < inputs.length; i++) {
+    const inputKey = perInputKeys?.[i]?.privateKey ?? privateKey;
+    const inputCompressed = perInputKeys?.[i]?.compressed ?? compressed;
+    const pubKey = await getPublicKey(inputKey, inputCompressed);
+    publicKeys.push(pubKey);
     const sighash = await bip143Sighash(inputs, outputs, i, SIGHASH_ALL_FORKID);
-    const sig = await signECDSA(sighash, privateKey);
-    // Append sighash type byte
+    const sig = await signECDSA(sighash, inputKey);
     const sigWithType = new Uint8Array(sig.length + 1);
     sigWithType.set(sig);
     sigWithType[sig.length] = SIGHASH_ALL_FORKID;
@@ -493,12 +498,13 @@ async function buildSignedTransaction(
     txParts.push(writeUint32LE(inputs[i].vout));
     
     // ScriptSig: <sig> <pubkey>
-    const scriptSig = new Uint8Array(1 + signatures[i].length + 1 + publicKey.length);
+    const pubKey = publicKeys[i];
+    const scriptSig = new Uint8Array(1 + signatures[i].length + 1 + pubKey.length);
     let pos = 0;
     scriptSig[pos++] = signatures[i].length;
     scriptSig.set(signatures[i], pos); pos += signatures[i].length;
-    scriptSig[pos++] = publicKey.length;
-    scriptSig.set(publicKey, pos);
+    scriptSig[pos++] = pubKey.length;
+    scriptSig.set(pubKey, pos);
     
     txParts.push(encodeVarInt(scriptSig.length));
     txParts.push(scriptSig);
@@ -754,18 +760,40 @@ Deno.serve(async (req) => {
     const escrowScript = createP2PKHScript(escrowHash);
     console.log('Escrow wallet loaded');
 
-    // Get UTXOs
+    // Get UTXOs from primary escrow
     const utxos = await getUTXOs(escrowAddress);
     console.log(`Found ${utxos.length} UTXOs in escrow`);
 
-    if (utxos.length === 0) throw new Error('No UTXOs available');
+    // Also try custodial wallet if different, to combine funds
+    let custodialKey: Uint8Array | null = null;
+    let custodialCompressed = true;
+    let custodialUtxos: UTXO[] = [];
+    
+    if (escrowAddress !== FALLBACK_ESCROW_ADDRESS) {
+      const escrowWIF = Deno.env.get('ESCROW_PRIVATE_KEY_WIF');
+      if (escrowWIF) {
+        const decoded = decodeWIF(escrowWIF);
+        if (decoded) {
+          custodialKey = decoded.privateKey;
+          custodialCompressed = decoded.compressed;
+          custodialUtxos = await getUTXOs(FALLBACK_ESCROW_ADDRESS);
+          console.log(`Found ${custodialUtxos.length} UTXOs in custodial wallet`);
+        }
+      }
+    }
+
+    const allUtxos = [...utxos, ...custodialUtxos];
+    if (allUtxos.length === 0) throw new Error('No UTXOs available');
 
     // Calculate totals
     let totalAvailable = 0;
-    const validUtxos = utxos.filter(u => !u.token);
+    const validUtxos = allUtxos.filter(u => !u.token);
     for (const utxo of validUtxos) {
       totalAvailable += parseInt(utxo.value);
     }
+    
+    // Track which UTXOs are from escrow vs custodial for per-input signing
+    const escrowUtxoCount = utxos.filter(u => !u.token).length;
 
     let totalPayout = recipients.reduce((sum, r) => sum + r.amount, 0);
     
@@ -779,36 +807,56 @@ Deno.serve(async (req) => {
       const shortfall = (totalPayout + estimatedFee) - totalAvailable;
       console.log(`Shortfall of ${shortfall} sats - deducting TX fee from payouts proportionally`);
       
-      // Deduct the TX fee proportionally from each recipient
       const totalBeforeDeduction = totalPayout;
       for (const recipient of recipients) {
         const share = recipient.amount / totalBeforeDeduction;
         const deduction = Math.ceil(shortfall * share);
-        recipient.amount = Math.max(546, recipient.amount - deduction); // Never go below dust limit
+        recipient.amount = Math.max(546, recipient.amount - deduction);
         console.log(`Adjusted ${recipient.userId}: deducted ${deduction}, new amount ${recipient.amount}`);
       }
       totalPayout = recipients.reduce((sum, r) => sum + r.amount, 0);
       
-      // Final check - if still not enough even after deduction, fail
       if (totalAvailable < totalPayout + estimatedFee) {
         throw new Error(`Insufficient funds even after fee deduction: need ${totalPayout + estimatedFee}, have ${totalAvailable}`);
       }
     }
 
-    // Build inputs
+    // Build inputs - track per-input keys for multi-wallet signing
     const inputs: TxInput[] = [];
+    const perInputKeys: { privateKey: Uint8Array; compressed: boolean }[] = [];
     let inputTotal = 0n;
     const needed = BigInt(totalPayout + estimatedFee);
     
-    for (const utxo of validUtxos) {
+    // First add escrow UTXOs
+    const escrowValidUtxos = utxos.filter(u => !u.token);
+    for (const utxo of escrowValidUtxos) {
       inputs.push({
         txid: utxo.outpoint.txid,
         vout: utxo.outpoint.outIdx,
         value: BigInt(utxo.value),
         scriptPubKey: escrowScript,
       });
+      perInputKeys.push({ privateKey, compressed });
       inputTotal += BigInt(utxo.value);
       if (inputTotal >= needed) break;
+    }
+
+    // If still not enough, add custodial UTXOs
+    if (inputTotal < needed && custodialKey && custodialUtxos.length > 0) {
+      const custodialScript = createP2PKHScript(cashAddrToHash160(FALLBACK_ESCROW_ADDRESS)!);
+      const custodialValidUtxos = custodialUtxos.filter(u => !u.token);
+      for (const utxo of custodialValidUtxos) {
+        inputs.push({
+          txid: utxo.outpoint.txid,
+          vout: utxo.outpoint.outIdx,
+          value: BigInt(utxo.value),
+          scriptPubKey: custodialScript,
+        });
+        perInputKeys.push({ privateKey: custodialKey, compressed: custodialCompressed });
+        inputTotal += BigInt(utxo.value);
+        if (inputTotal >= needed) break;
+      }
+      console.log(`Combined inputs from both wallets: ${inputs.length} total inputs, ${inputTotal} sats`);
     }
 
     // Build outputs - payout outputs for winners
@@ -892,7 +940,7 @@ Deno.serve(async (req) => {
     console.log(`Building tx: ${inputs.length} inputs, ${outputs.length} outputs`);
 
     // Build and sign transaction
-    const rawTx = await buildSignedTransaction(inputs, outputs, privateKey, compressed);
+    const rawTx = await buildSignedTransaction(inputs, outputs, privateKey, compressed, perInputKeys.length > 0 ? perInputKeys : undefined);
     console.log(`Transaction built: ${rawTx.length} bytes`);
 
     // Broadcast
