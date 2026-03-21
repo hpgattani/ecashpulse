@@ -498,12 +498,13 @@ async function buildSignedTransaction(
     txParts.push(writeUint32LE(inputs[i].vout));
     
     // ScriptSig: <sig> <pubkey>
-    const scriptSig = new Uint8Array(1 + signatures[i].length + 1 + publicKey.length);
+    const pubKey = publicKeys[i];
+    const scriptSig = new Uint8Array(1 + signatures[i].length + 1 + pubKey.length);
     let pos = 0;
     scriptSig[pos++] = signatures[i].length;
     scriptSig.set(signatures[i], pos); pos += signatures[i].length;
-    scriptSig[pos++] = publicKey.length;
-    scriptSig.set(publicKey, pos);
+    scriptSig[pos++] = pubKey.length;
+    scriptSig.set(pubKey, pos);
     
     txParts.push(encodeVarInt(scriptSig.length));
     txParts.push(scriptSig);
