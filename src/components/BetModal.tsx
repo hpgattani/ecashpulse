@@ -332,7 +332,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
     }
 
     const amount = parseFloat(betAmount) || 0;
-    if (amount <= 0) {
+    if (amount <= 0 || escrowLoading || !freshEscrowAddress) {
       payButtonRef.current.innerHTML = "";
       return;
     }
