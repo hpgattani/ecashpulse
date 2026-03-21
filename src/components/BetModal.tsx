@@ -447,6 +447,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
     betSuccess,
     recordBet,
     freshEscrowAddress,
+    escrowLoading,
     payButtonRetryKey,
     ensurePayButtonLoaded,
   ]);
