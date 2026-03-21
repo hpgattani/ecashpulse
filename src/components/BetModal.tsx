@@ -50,14 +50,16 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
   const [lastTxHash, setLastTxHash] = useState<string | null>(null);
   const [betPosition, setBetPosition] = useState<"yes" | "no">(position);
   const [freshEscrowAddress, setFreshEscrowAddress] = useState<string>(
-    prediction.escrowAddress || FALLBACK_ESCROW_ADDRESS
+    prediction.escrowAddress || ""
   );
+  const [escrowLoading, setEscrowLoading] = useState(!prediction.escrowAddress);
   const [payButtonError, setPayButtonError] = useState<string | null>(null);
   const [payButtonRetryKey, setPayButtonRetryKey] = useState(0);
 
   // Fetch fresh escrow address from DB when modal opens
   useEffect(() => {
     if (isOpen && prediction.id) {
+      setEscrowLoading(true);
       supabase
         .from('predictions')
         .select('escrow_address')
@@ -67,6 +69,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
           if (data?.escrow_address) {
             setFreshEscrowAddress(data.escrow_address);
           }
+          setEscrowLoading(false);
         });
     }
   }, [isOpen, prediction.id]);
