@@ -940,7 +940,7 @@ Deno.serve(async (req) => {
     console.log(`Building tx: ${inputs.length} inputs, ${outputs.length} outputs`);
 
     // Build and sign transaction
-    const rawTx = await buildSignedTransaction(inputs, outputs, privateKey, compressed);
+    const rawTx = await buildSignedTransaction(inputs, outputs, privateKey, compressed, perInputKeys.length > 0 ? perInputKeys : undefined);
     console.log(`Transaction built: ${rawTx.length} bytes`);
 
     // Broadcast
