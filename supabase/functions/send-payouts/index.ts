@@ -460,7 +460,8 @@ async function buildSignedTransaction(
   inputs: TxInput[],
   outputs: TxOutput[],
   privateKey: Uint8Array,
-  compressed: boolean
+  compressed: boolean,
+  perInputKeys?: { privateKey: Uint8Array; compressed: boolean }[]
 ): Promise<Uint8Array> {
   const publicKey = await getPublicKey(privateKey, compressed);
   const SIGHASH_ALL_FORKID = 0x41; // SIGHASH_ALL | SIGHASH_FORKID
