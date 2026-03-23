@@ -27,6 +27,7 @@ export const Leaderboard = () => {
   const [leaders, setLeaders] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<LeaderboardEntry | null>(null);
+  const [showRankingInfo, setShowRankingInfo] = useState(false);
   const { t } = useLanguage();
   const sectionRef = useRef<HTMLElement>(null);
 
