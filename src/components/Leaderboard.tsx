@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { Trophy, Medal, TrendingUp, Wallet, Crown, ChevronRight } from 'lucide-react';
+import { Trophy, Medal, TrendingUp, Wallet, Crown, ChevronRight, Info, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { UserBetHistoryModal } from './UserBetHistoryModal';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface LeaderboardEntry {
   user_id: string;
