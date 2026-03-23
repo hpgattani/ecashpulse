@@ -126,10 +126,14 @@ export const Leaderboard = () => {
             viewport={{ once: true }}
             className="text-center mb-12"
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-gray-400/30 via-white/20 to-gray-400/30 border border-gray-300/50 mb-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.4),inset_0_-1px_0_rgba(0,0,0,0.2)] backdrop-blur-sm">
+            <button 
+              onClick={() => setShowRankingInfo(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-gray-400/30 via-white/20 to-gray-400/30 border border-gray-300/50 mb-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.4),inset_0_-1px_0_rgba(0,0,0,0.2)] backdrop-blur-sm hover:scale-105 transition-transform cursor-pointer group/badge"
+            >
               <Crown className="w-4 h-4 text-yellow-400" />
               <span className="text-sm font-medium bg-gradient-to-b from-white via-gray-200 to-gray-400 bg-clip-text text-transparent">{t.winnersCircle}</span>
-            </div>
+              <Info className="w-3.5 h-3.5 text-muted-foreground opacity-60 group-hover/badge:opacity-100 transition-opacity" />
+            </button>
             <h2 className="text-3xl md:text-4xl font-bold mb-4">{t.topWinners}</h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
               {t.leaderboardSubtitle}
