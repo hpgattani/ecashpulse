@@ -272,8 +272,8 @@ export const Leaderboard = () => {
         </Dialog>
       </>
     );
+  };
 
-  return (
     <section ref={sectionRef} className="py-8 sm:py-16 relative overflow-hidden">
       {renderContent()}
     </section>
