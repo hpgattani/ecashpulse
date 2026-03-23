@@ -217,8 +217,59 @@ export const Leaderboard = () => {
           displayName={selectedUser?.display_name || null}
           ecashAddress={formatAddress(selectedUser?.ecash_address || '')}
         />
-      </>
-    );
+
+        {/* Ranking Explanation Dialog */}
+        <Dialog open={showRankingInfo} onOpenChange={setShowRankingInfo}>
+          <DialogContent className="max-w-md bg-card border-border">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-lg">
+                <Crown className="w-5 h-5 text-yellow-400" />
+                How Rankings Work
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 text-sm">
+              <p className="text-muted-foreground">
+                The leaderboard uses a <span className="text-foreground font-medium">weighted combo score</span> that balances consistency, profitability, and accuracy:
+              </p>
+              
+              <div className="space-y-3">
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                  <Trophy className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="font-semibold text-foreground">Total Wins — 40%</p>
+                    <p className="text-muted-foreground text-xs">Raw win count. More wins = higher score.</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                  <Wallet className="w-5 h-5 text-yellow-400 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="font-semibold text-foreground">Total Winnings — 35%</p>
+                    <p className="text-muted-foreground text-xs">Log-scaled (log₁₀) to prevent outliers from dominating. Someone who won 3M XEC scores higher than 67K XEC, but not 50× higher.</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-primary/10 border border-primary/20">
+                  <TrendingUp className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="font-semibold text-foreground">Win Rate — 25%</p>
+                    <p className="text-muted-foreground text-xs">Percentage of bets won. Rewards accuracy and smart betting.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-lg bg-muted/50 border border-border">
+                <p className="text-xs font-mono text-muted-foreground">
+                  Score = (wins × 0.4) + (log₁₀(winnings) × 3.5) + (winRate × 2.5)
+                </p>
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">Minimum requirement:</span> 2+ wins and 2+ total bets to qualify for the leaderboard.
+              </p>
+            </div>
+          </DialogContent>
+        </Dialog>
   };
 
   return (
