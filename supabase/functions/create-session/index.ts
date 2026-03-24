@@ -22,17 +22,21 @@ const AUTH_WALLET = 'ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp';
  * Fetch tx data from Chronik REST API (no npm dependency needed).
  */
 async function chronikFetchTx(txHash: string): Promise<any> {
+  const errors: string[] = [];
   for (const baseUrl of CHRONIK_URLS) {
     try {
       const url = `${baseUrl}/tx/${txHash}`;
       const resp = await fetch(url, { headers: { Accept: 'application/json' } });
       if (resp.ok) {
+        console.log(`Chronik: Found tx via ${baseUrl}`);
         return await resp.json();
       }
-    } catch {
-      // try next
+      errors.push(`${baseUrl}: HTTP ${resp.status}`);
+    } catch (e) {
+      errors.push(`${baseUrl}: ${(e as Error).message}`);
     }
   }
+  console.warn(`Chronik: All endpoints failed for tx ${txHash}: ${errors.join(', ')}`);
   return null;
 }
 
