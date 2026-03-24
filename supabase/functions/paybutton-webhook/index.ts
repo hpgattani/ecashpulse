@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-paybutton-signature",
 };
 
-// PayButton public key
+// PayButton public key (DER-encoded Ed25519)
 const PAYBUTTON_PUBLIC_KEY = "302a300506032b6570032100bc0ff6268e2edb1232563603904e40af377243cd806372e427bd05f70bd1759a";
 
 function extractEd25519PublicKey(derHex: string): Uint8Array {
@@ -56,6 +56,7 @@ Deno.serve(async (req) => {
     const signature = req.headers.get("x-paybutton-signature") || req.headers.get("X-PayButton-Signature");
 
     if (!signature) {
+      console.warn("PayButton webhook: Missing signature header");
       return new Response("Missing signature", { status: 401 });
     }
 
@@ -63,8 +64,11 @@ Deno.serve(async (req) => {
     const valid = await verifySignature(rawBody, signature, publicKey);
 
     if (!valid) {
+      console.warn("PayButton webhook: Invalid signature");
       return new Response("Invalid signature", { status: 401 });
     }
+
+    console.log("PayButton webhook: Signature verified ✓");
 
     const payload: PayButtonWebhook = JSON.parse(rawBody);
     const { txid, inputAddresses } = payload;
@@ -74,16 +78,24 @@ Deno.serve(async (req) => {
     }
 
     const ecashAddress = inputAddresses[0].trim().toLowerCase();
+    console.log(`PayButton webhook: tx=${txid}, sender=${ecashAddress}`);
 
+    // Find or create user
     let { data: user } = await supabase.from("users").select("*").eq("ecash_address", ecashAddress).maybeSingle();
 
     if (!user) {
       const { data } = await supabase.from("users").insert({ ecash_address: ecashAddress }).select().single();
       user = data;
+      console.log(`PayButton webhook: Created new user ${user?.id}`);
     }
 
+    // Update last login
+    await supabase.from("users").update({ last_login_at: new Date().toISOString() }).eq("id", user.id);
+
+    // Delete old sessions
     await supabase.from("sessions").delete().eq("user_id", user.id);
 
+    // Create new session
     const token = generateSessionToken();
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
@@ -93,10 +105,21 @@ Deno.serve(async (req) => {
       expires_at: expiresAt.toISOString(),
     });
 
+    // Log the tx as used for auth (replay protection + traceability)
+    await supabase.from("bet_audit_log").insert({
+      event_type: "auth_tx_used",
+      tx_hash: txid,
+      user_id: user.id,
+      metadata: { address: ecashAddress, source: "paybutton_webhook" },
+    });
+
+    console.log(`PayButton webhook: Session created for user ${user.id} (signature-verified)`);
+
     return new Response(JSON.stringify({ success: true }), {
-      headers: corsHeaders,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
+    console.error("PayButton webhook error:", err);
     return new Response("Server error", { status: 500 });
   }
 });

@@ -283,52 +283,63 @@ Deno.serve(async (req) => {
     const trimmedAddress = ecash_address.trim().toLowerCase();
     console.log(`Creating session for address: ${trimmedAddress}, tx: ${tx_hash}`);
 
-    // ── Step 1: Check if webhook already created a session for this address ──
-    const { data: existingUser } = await supabase
-      .from('users')
-      .select('*')
-      .eq('ecash_address', trimmedAddress)
-      .maybeSingle();
+    // ── Step 1: Poll for webhook-created session (PayButton signature-verified) ──
+    // The PayButton webhook verifies tx authenticity via Ed25519 signature from PayButton's
+    // public key, which is more reliable than Chronik. Poll a few times to give it time to arrive.
+    const MAX_WEBHOOK_POLLS = 6;
+    const POLL_DELAY_MS = 2000;
 
-    if (existingUser) {
-      const { data: existingSession } = await supabase
-        .from('sessions')
+    for (let attempt = 1; attempt <= MAX_WEBHOOK_POLLS; attempt++) {
+      const { data: existingUser } = await supabase
+        .from('users')
         .select('*')
-        .eq('user_id', existingUser.id)
-        .gt('expires_at', new Date().toISOString())
-        .order('created_at', { ascending: false })
-        .limit(1)
+        .eq('ecash_address', trimmedAddress)
         .maybeSingle();
 
-      if (existingSession) {
-        // Webhook already created a valid session - return it
-        const { data: profile } = await supabase
-          .from('profiles')
+      if (existingUser) {
+        const { data: existingSession } = await supabase
+          .from('sessions')
           .select('*')
           .eq('user_id', existingUser.id)
+          .gt('expires_at', new Date().toISOString())
+          .order('created_at', { ascending: false })
+          .limit(1)
           .maybeSingle();
 
-        console.log(`Returning existing webhook-created session for user: ${existingUser.id}`);
-        return new Response(
-          JSON.stringify({ success: true, user: existingUser, profile, session_token: existingSession.token }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        if (existingSession) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('user_id', existingUser.id)
+            .maybeSingle();
+
+          console.log(`[Attempt ${attempt}] Returning webhook-created session for user: ${existingUser.id}`);
+          return new Response(
+            JSON.stringify({ success: true, user: existingUser, profile, session_token: existingSession.token }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+
+      if (attempt < MAX_WEBHOOK_POLLS) {
+        console.log(`[Attempt ${attempt}] No webhook session yet, waiting ${POLL_DELAY_MS}ms...`);
+        await new Promise(r => setTimeout(r, POLL_DELAY_MS));
       }
     }
 
-    // ── Step 2: Server-side transaction verification via Chronik ──
-    console.log(`No existing session found, verifying tx ${tx_hash} on-chain...`);
+    // ── Step 2: Fallback — Server-side transaction verification via Chronik ──
+    console.log(`No webhook session found after ${MAX_WEBHOOK_POLLS} polls. Falling back to Chronik verification for tx ${tx_hash}...`);
     const verification = await verifyTransactionOnChain(tx_hash, trimmedAddress);
 
     if (!verification.valid) {
-      console.warn(`Tx verification failed: ${verification.error}`);
+      console.warn(`Chronik verification also failed: ${verification.error}`);
       return new Response(
         JSON.stringify({ error: verification.error || 'Transaction verification failed' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Tx ${tx_hash} verified on-chain. Creating session...`);
+    console.log(`Tx ${tx_hash} verified via Chronik fallback. Creating session...`);
 
     // ── Step 3: Check if this tx was already used for a session (replay protection) ──
     const { data: existingAudit } = await supabase
