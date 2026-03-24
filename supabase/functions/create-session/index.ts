@@ -349,13 +349,20 @@ Deno.serve(async (req) => {
       .eq('tx_hash', tx_hash)
       .maybeSingle();
 
+    // Re-fetch user for Chronik fallback path
+    const { data: fallbackUser } = await supabase
+      .from('users')
+      .select('*')
+      .eq('ecash_address', trimmedAddress)
+      .maybeSingle();
+
     if (existingAudit) {
       // Tx already used — but if user has a valid session, return it (handles retry scenario)
-      if (existingUser) {
+      if (fallbackUser) {
         const { data: retrySession } = await supabase
           .from('sessions')
           .select('*')
-          .eq('user_id', existingUser.id)
+          .eq('user_id', fallbackUser.id)
           .gt('expires_at', new Date().toISOString())
           .order('created_at', { ascending: false })
           .limit(1)
@@ -365,12 +372,12 @@ Deno.serve(async (req) => {
           const { data: profile } = await supabase
             .from('profiles')
             .select('*')
-            .eq('user_id', existingUser.id)
+            .eq('user_id', fallbackUser.id)
             .maybeSingle();
 
-          console.log(`Tx already used but returning existing session for user: ${existingUser.id}`);
+          console.log(`Tx already used but returning existing session for user: ${fallbackUser.id}`);
           return new Response(
-            JSON.stringify({ success: true, user: existingUser, profile, session_token: retrySession.token }),
+            JSON.stringify({ success: true, user: fallbackUser, profile, session_token: retrySession.token }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
@@ -383,7 +390,7 @@ Deno.serve(async (req) => {
     }
 
     // ── Step 4: Find or create user ──
-    let user = existingUser;
+    let user = fallbackUser;
     if (!user) {
       console.log('Creating new user for address:', trimmedAddress);
       const { data: newUser, error: createError } = await supabase
