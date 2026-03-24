@@ -20,6 +20,7 @@ const Auth = () => {
   const [authSuccess, setAuthSuccess] = useState(false);
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [pendingTxHash, setPendingTxHash] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const payButtonRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -67,13 +68,15 @@ const Auth = () => {
     setIsLoading(true);
     setPendingTxHash(txHash);
     setError(null);
+    setRetryCount(0);
 
     try {
       let attempts = 0;
-      const maxAttempts = 12;
+      const maxAttempts = 15;
       const baseDelay = 2000;
 
       while (attempts < maxAttempts) {
+        setRetryCount(attempts);
         try {
           const { data, error: sessionError } = await supabase.functions.invoke('create-session', {
             body: {
@@ -82,8 +85,8 @@ const Auth = () => {
             },
           });
 
+          // Success path
           if (!sessionError && data?.success) {
-            // Session created/found - store locally
             localStorage.setItem('ecash_user', JSON.stringify(data.user));
             localStorage.setItem('ecash_session_token', data.session_token);
             if (data.profile) {
@@ -101,18 +104,49 @@ const Auth = () => {
             return;
           }
 
-          // If tx verification failed (not just "not found yet"), stop retrying
-          if (data?.error && !data.error.includes('Could not verify')) {
-            throw new Error(data.error);
+          // Parse error from non-2xx responses
+          // supabase.functions.invoke puts non-2xx response errors in sessionError,
+          // NOT in data — so we need to extract the response body from the error context
+          let errorMsg = '';
+          if (sessionError) {
+            try {
+              // FunctionsHttpError wraps the response — extract JSON body
+              const errBody = await (sessionError as any)?.context?.json?.();
+              errorMsg = errBody?.error || '';
+            } catch {
+              // Fallback to message string
+              errorMsg = sessionError.message || '';
+            }
+            console.log(`Attempt ${attempts + 1}/${maxAttempts}: Server responded with error: ${errorMsg}`);
+          } else if (data?.error) {
+            errorMsg = data.error;
+            console.log(`Attempt ${attempts + 1}/${maxAttempts}: ${errorMsg}`);
+          }
+
+          // Determine if error is retryable (tx not propagated yet) or fatal
+          const isRetryable = !errorMsg ||
+            errorMsg.includes('Could not verify') ||
+            errorMsg.includes('Could not detect') ||
+            errorMsg.includes('Internal server error');
+
+          if (errorMsg && !isRetryable) {
+            // Fatal error — stop retrying immediately
+            throw new Error(errorMsg);
           }
         } catch (invokeErr: any) {
-          // Network error — use shorter retry
-          console.log(`Attempt ${attempts + 1}/${maxAttempts}: Server verifying transaction...`);
+          // Re-throw intentional fatal errors from above
+          if (invokeErr.message &&
+            !invokeErr.message.includes('Failed to fetch') &&
+            !invokeErr.message.includes('NetworkError') &&
+            !invokeErr.message.includes('TypeError')) {
+            throw invokeErr;
+          }
+          console.log(`Attempt ${attempts + 1}/${maxAttempts}: Network error, retrying...`);
         }
 
         attempts++;
-        // Shorter delay: 2s, 2s, 3s, 3s, then 4s
-        const delay = attempts <= 2 ? baseDelay : attempts <= 4 ? 3000 : 4000;
+        // Progressive delay: 2s x4, 3s x4, 4s for the rest
+        const delay = attempts <= 4 ? baseDelay : attempts <= 8 ? 3000 : 4000;
         await new Promise((r) => setTimeout(r, delay));
       }
 
@@ -273,6 +307,11 @@ const Auth = () => {
                 {pendingTxHash && (
                   <p className="text-xs text-muted-foreground/60 mt-2 font-mono">
                     TX: {pendingTxHash.slice(0, 12)}...
+                  </p>
+                )}
+                {retryCount > 2 && (
+                  <p className="text-xs text-muted-foreground/40 mt-1">
+                    Waiting for blockchain confirmation... (attempt {retryCount + 1}/15)
                   </p>
                 )}
               </div>
