@@ -98,7 +98,11 @@ const Auth = () => {
           const errBody = await (sessionError as any)?.context?.json?.();
           return errBody?.error || (sessionError as any)?.message || '';
         } catch {
-          return (sessionError as any)?.message || '';
+          const rawMessage = (sessionError as any)?.message || '';
+          if (rawMessage.includes('Failed to send a request to the Edge Function')) {
+            return 'Login request failed before reaching the server. Please try again.';
+          }
+          return rawMessage;
         }
       };
 
