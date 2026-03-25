@@ -286,8 +286,8 @@ Deno.serve(async (req) => {
     // ── Step 1: Poll for webhook-created session (PayButton signature-verified) ──
     // The PayButton webhook verifies tx authenticity via Ed25519 signature from PayButton's
     // public key, which is more reliable than Chronik. Poll a few times to give it time to arrive.
-    const MAX_WEBHOOK_POLLS = 6;
-    const POLL_DELAY_MS = 2000;
+    const MAX_WEBHOOK_POLLS = 2;
+    const POLL_DELAY_MS = 1000;
 
     for (let attempt = 1; attempt <= MAX_WEBHOOK_POLLS; attempt++) {
       const { data: existingUser } = await supabase
@@ -328,7 +328,7 @@ Deno.serve(async (req) => {
     }
 
     // ── Step 2: Fallback — Server-side transaction verification via Chronik ──
-    console.log(`No webhook session found after ${MAX_WEBHOOK_POLLS} polls. Falling back to Chronik verification for tx ${tx_hash}...`);
+    console.log(`No webhook session found after ${MAX_WEBHOOK_POLLS} quick polls. Falling back to Chronik verification for tx ${tx_hash}...`);
     const verification = await verifyTransactionOnChain(tx_hash, trimmedAddress);
 
     if (!verification.valid) {

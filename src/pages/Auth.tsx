@@ -71,86 +71,90 @@ const Auth = () => {
     setRetryCount(0);
 
     try {
-      let attempts = 0;
-      const maxAttempts = 15;
-      const baseDelay = 2000;
-
-      while (attempts < maxAttempts) {
-        setRetryCount(attempts);
-        try {
-          const { data, error: sessionError } = await supabase.functions.invoke('create-session', {
-            body: {
-              ecash_address: senderAddress,
-              tx_hash: txHash,
-            },
-          });
-
-          // Success path
-          if (!sessionError && data?.success) {
-            localStorage.setItem('ecash_user', JSON.stringify(data.user));
-            localStorage.setItem('ecash_session_token', data.session_token);
-            if (data.profile) {
-              localStorage.setItem('ecash_profile', JSON.stringify(data.profile));
-            }
-
-            setAuthSuccess(true);
-            toast.success('Payment Sent!', {
-              description: `Paid ${AUTH_AMOUNT} XEC — wallet verified`,
-            });
-
-            const returnUrl = sessionStorage.getItem('auth_return_url');
-            sessionStorage.removeItem('auth_return_url');
-            setTimeout(() => (window.location.href = returnUrl || '/'), 1500);
-            return;
-          }
-
-          // Parse error from non-2xx responses
-          // supabase.functions.invoke puts non-2xx response errors in sessionError,
-          // NOT in data — so we need to extract the response body from the error context
-          let errorMsg = '';
-          if (sessionError) {
-            try {
-              // FunctionsHttpError wraps the response — extract JSON body
-              const errBody = await (sessionError as any)?.context?.json?.();
-              errorMsg = errBody?.error || '';
-            } catch {
-              // Fallback to message string
-              errorMsg = sessionError.message || '';
-            }
-            console.log(`Attempt ${attempts + 1}/${maxAttempts}: Server responded with error: ${errorMsg}`);
-          } else if (data?.error) {
-            errorMsg = data.error;
-            console.log(`Attempt ${attempts + 1}/${maxAttempts}: ${errorMsg}`);
-          }
-
-          // Determine if error is retryable (tx not propagated yet) or fatal
-          const isRetryable = !errorMsg ||
-            errorMsg.includes('Could not verify') ||
-            errorMsg.includes('Could not detect') ||
-            errorMsg.includes('Internal server error');
-
-          if (errorMsg && !isRetryable) {
-            // Fatal error — stop retrying immediately
-            throw new Error(errorMsg);
-          }
-        } catch (invokeErr: any) {
-          // Re-throw intentional fatal errors from above
-          if (invokeErr.message &&
-            !invokeErr.message.includes('Failed to fetch') &&
-            !invokeErr.message.includes('NetworkError') &&
-            !invokeErr.message.includes('TypeError')) {
-            throw invokeErr;
-          }
-          console.log(`Attempt ${attempts + 1}/${maxAttempts}: Network error, retrying...`);
+      const persistSession = (data: any) => {
+        localStorage.setItem('ecash_user', JSON.stringify(data.user));
+        localStorage.setItem('ecash_session_token', data.session_token);
+        if (data.profile) {
+          localStorage.setItem('ecash_profile', JSON.stringify(data.profile));
+        } else {
+          localStorage.removeItem('ecash_profile');
         }
 
-        attempts++;
-        // Progressive delay: 2s x4, 3s x4, 4s for the rest
-        const delay = attempts <= 4 ? baseDelay : attempts <= 8 ? 3000 : 4000;
-        await new Promise((r) => setTimeout(r, delay));
+        setAuthSuccess(true);
+        toast.success('Payment Sent!', {
+          description: `Paid ${AUTH_AMOUNT} XEC — wallet verified`,
+        });
+
+        const returnUrl = sessionStorage.getItem('auth_return_url');
+        sessionStorage.removeItem('auth_return_url');
+        setTimeout(() => (window.location.href = returnUrl || '/'), 1500);
+      };
+
+      const extractErrorMessage = async (sessionError: unknown, data?: any) => {
+        if (data?.error) return data.error as string;
+        if (!sessionError) return '';
+
+        try {
+          const errBody = await (sessionError as any)?.context?.json?.();
+          return errBody?.error || (sessionError as any)?.message || '';
+        } catch {
+          return (sessionError as any)?.message || '';
+        }
+      };
+
+      const sessionPollAttempts = 6;
+
+      for (let attempt = 0; attempt < sessionPollAttempts; attempt++) {
+        setRetryCount(attempt);
+
+        const { data, error: validateError } = await supabase.functions.invoke('validate-session', {
+          body: {
+            ecash_address: senderAddress,
+            tx_hash: txHash,
+          },
+        });
+
+        if (!validateError && data?.valid && data?.session_token) {
+          persistSession(data);
+          return;
+        }
+
+        if (attempt < sessionPollAttempts - 1) {
+          await new Promise((r) => setTimeout(r, 1500));
+        }
       }
 
-      throw new Error('Transaction verification timeout. Please try again.');
+      setRetryCount(sessionPollAttempts);
+
+      const { data, error: sessionError } = await supabase.functions.invoke('create-session', {
+        body: {
+          ecash_address: senderAddress,
+          tx_hash: txHash,
+        },
+      });
+
+      if (!sessionError && data?.success) {
+        persistSession(data);
+        return;
+      }
+
+      const errorMsg = await extractErrorMessage(sessionError, data);
+
+      if (errorMsg.includes('already used')) {
+        const { data: existingSession } = await supabase.functions.invoke('validate-session', {
+          body: {
+            ecash_address: senderAddress,
+            tx_hash: txHash,
+          },
+        });
+
+        if (existingSession?.valid && existingSession?.session_token) {
+          persistSession(existingSession);
+          return;
+        }
+      }
+
+      throw new Error(errorMsg || 'Transaction verification timeout. Please try again.');
     } catch (err) {
       console.error('Verification error:', err);
       setError(err instanceof Error ? err.message : 'Verification failed');
@@ -179,7 +183,7 @@ const Auth = () => {
       console.log('Auth payment detected:', transaction);
       
       let senderAddress = transaction.inputAddresses?.[0];
-      const txHash = transaction.hash;
+      const txHash = transaction.hash || transaction.txid;
       
       if (!txHash) {
         setError('No transaction hash received. Please try again.');
@@ -233,8 +237,8 @@ const Auth = () => {
           animate={{ scale: 1 }}
           className="text-center"
         >
-          <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-4">
-            <CheckCircle className="w-10 h-10 text-green-500" />
+          <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-4">
+            <CheckCircle className="w-10 h-10 text-primary" />
           </div>
           <h2 className="font-display text-xl font-bold text-foreground">
             Wallet Verified!
@@ -311,7 +315,7 @@ const Auth = () => {
                 )}
                 {retryCount > 2 && (
                   <p className="text-xs text-muted-foreground/40 mt-1">
-                    Waiting for blockchain confirmation... (attempt {retryCount + 1}/15)
+                     Waiting for secure verification... (step {retryCount + 1}/7)
                   </p>
                 )}
               </div>
