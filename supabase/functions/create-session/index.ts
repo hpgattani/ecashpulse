@@ -1,8 +1,9 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { ChronikClient } from 'https://esm.sh/chronik-client@3.6.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 const CHRONIK_URLS = [
@@ -19,19 +20,16 @@ const CHRONIK_URLS = [
 const AUTH_WALLET = 'ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp';
 
 /**
- * Fetch tx data from Chronik REST API (no npm dependency needed).
+ * Fetch tx data from Chronik using the official client.
  */
 async function chronikFetchTx(txHash: string): Promise<any> {
   const errors: string[] = [];
   for (const baseUrl of CHRONIK_URLS) {
     try {
-      const url = `${baseUrl}/tx/${txHash}`;
-      const resp = await fetch(url, { headers: { Accept: 'application/json' } });
-      if (resp.ok) {
-        console.log(`Chronik: Found tx via ${baseUrl}`);
-        return await resp.json();
-      }
-      errors.push(`${baseUrl}: HTTP ${resp.status}`);
+      const chronik = new ChronikClient([baseUrl]);
+      const tx = await chronik.tx(txHash);
+      console.log(`Chronik: Found tx via ${baseUrl}`);
+      return tx;
     } catch (e) {
       errors.push(`${baseUrl}: ${(e as Error).message}`);
     }
