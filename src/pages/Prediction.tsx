@@ -691,6 +691,9 @@ const Prediction = () => {
               </div>
             </motion.div>
 
+            {/* AI Stats Panel */}
+            <PredictionStats predictionId={prediction.id} category={prediction.category} />
+
             {/* Activity Section */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
