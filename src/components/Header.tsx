@@ -183,7 +183,10 @@ const Header = () => {
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
-                <Button size="sm" onClick={() => navigate("/auth")}>
+                <Button size="sm" onClick={() => {
+                  sessionStorage.setItem('auth_return_url', window.location.pathname + window.location.search);
+                  navigate("/auth");
+                }}>
                   <Wallet className="w-4 h-4 mr-2" />
                   {t.connect}
                 </Button>
@@ -325,6 +328,7 @@ const Header = () => {
                       size="sm"
                       className="w-full gap-2"
                       onClick={() => {
+                        sessionStorage.setItem('auth_return_url', window.location.pathname + window.location.search);
                         navigate("/auth");
                         setIsMenuOpen(false);
                       }}
