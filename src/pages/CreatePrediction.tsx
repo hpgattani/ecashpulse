@@ -267,7 +267,10 @@ const CreatePrediction = () => {
               <div className="text-center py-12">
                 <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-muted-foreground mb-4">{t.connectWalletDesc}</p>
-                <Button onClick={() => navigate("/auth")}>Connect Wallet</Button>
+<Button onClick={() => {
+                  sessionStorage.setItem('auth_return_url', window.location.pathname);
+                  navigate("/auth");
+                }}>Connect Wallet</Button>
               </div>
             ) : (
               <div className="space-y-6">

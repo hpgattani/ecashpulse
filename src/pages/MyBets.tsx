@@ -108,6 +108,7 @@ const MyBets = () => {
 
   useEffect(() => {
     if (!authLoading && !user) {
+      sessionStorage.setItem('auth_return_url', window.location.pathname);
       navigate("/auth");
     }
   }, [authLoading, user, navigate]);

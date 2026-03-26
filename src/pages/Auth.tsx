@@ -229,7 +229,9 @@ const Auth = () => {
 
   useEffect(() => {
     if (user) {
-      navigate('/');
+      const returnUrl = sessionStorage.getItem('auth_return_url');
+      sessionStorage.removeItem('auth_return_url');
+      navigate(returnUrl || '/');
     }
   }, [user, navigate]);
 
