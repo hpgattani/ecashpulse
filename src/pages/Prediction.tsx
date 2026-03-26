@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import BetModal from "@/components/BetModal";
+import PredictionStats from "@/components/PredictionStats";
 import { Outcome } from "@/hooks/usePredictions";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -689,6 +690,9 @@ const Prediction = () => {
                 )}
               </div>
             </motion.div>
+
+            {/* AI Stats Panel */}
+            <PredictionStats predictionId={prediction.id} category={prediction.category} />
 
             {/* Activity Section */}
             <motion.div
