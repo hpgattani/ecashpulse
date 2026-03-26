@@ -551,6 +551,30 @@ export type Database = {
           },
         ]
       }
+      prediction_stats: {
+        Row: {
+          expires_at: string
+          generated_at: string
+          id: string
+          prediction_id: string
+          stats_json: Json
+        }
+        Insert: {
+          expires_at?: string
+          generated_at?: string
+          id?: string
+          prediction_id: string
+          stats_json?: Json
+        }
+        Update: {
+          expires_at?: string
+          generated_at?: string
+          id?: string
+          prediction_id?: string
+          stats_json?: Json
+        }
+        Relationships: []
+      }
       predictions: {
         Row: {
           category: string
