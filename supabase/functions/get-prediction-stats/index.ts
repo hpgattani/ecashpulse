@@ -7,6 +7,341 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const ANALYSIS_VERSION = "grounded-v5";
+
+type PredictionRow = {
+  title: string;
+  category: string;
+  description: string | null;
+};
+
+const hasAnyKeyword = (value: string, keywords: string[]) => {
+  const normalized = value.toLowerCase();
+  return keywords.some((keyword) => normalized.includes(keyword));
+};
+
+const getAnalysisType = (prediction: PredictionRow) => {
+  const combined = `${prediction.title} ${prediction.description ?? ""}`.toLowerCase();
+
+  if (prediction.category === "sports") return "sports";
+  if (prediction.category === "crypto") return "crypto";
+  if (hasAnyKeyword(combined, ["spacex", "launch", "starship", "falcon 9", "rocket"])) return "space";
+  return "default";
+};
+
+const buildSearchConfig = (prediction: PredictionRow) => {
+  const analysisType = getAnalysisType(prediction);
+
+  switch (analysisType) {
+    case "sports":
+      return {
+        analysisType,
+        model: "sonar-pro",
+        recency: "month",
+        domainFilter: undefined,
+        query: [
+          `Prediction market: ${prediction.title}`,
+          "Return only verified team form, recent results with dates, head-to-head records, and key matchup statistics.",
+          "If a stat cannot be verified from current sources, omit it instead of estimating.",
+        ].join("\n"),
+      };
+    case "crypto":
+      return {
+        analysisType,
+        model: "sonar-pro",
+        recency: "week",
+        domainFilter: ["coingecko.com", "coinmarketcap.com", "binance.com", "kraken.com", "investing.com"],
+        query: [
+          `Prediction market: ${prediction.title}`,
+          "Return only verified current price context, 7d change, 30d change, and notable market drivers.",
+          "Use live market sources and omit any figure that is not directly supported.",
+        ].join("\n"),
+      };
+    case "space":
+      return {
+        analysisType,
+        model: "sonar-reasoning-pro",
+        recency: "year",
+        domainFilter: ["spacex.com", "nextspaceflight.com", "spaceflightnow.com", "wikipedia.org"],
+        query: [
+          `Prediction market: ${prediction.title}`,
+          `Description: ${prediction.description ?? "N/A"}`,
+          "Enumerate every verified SpaceX launch in the exact market window and compute the count from that list.",
+          "Separate completed launches from upcoming launches later in the window.",
+          "Never summarize the count without listing the underlying dated launch events.",
+        ].join("\n"),
+      };
+    default:
+      return {
+        analysisType,
+        model: "sonar-pro",
+        recency: "month",
+        domainFilter: undefined,
+        query: [
+          `Prediction market: ${prediction.title}`,
+          `Description: ${prediction.description ?? "N/A"}`,
+          "Return only current, verifiable context and key factors directly supported by live sources.",
+          "If evidence is weak or conflicting, say so clearly instead of guessing.",
+        ].join("\n"),
+      };
+  }
+};
+
+const buildResponseSchema = (analysisType: string) => {
+  if (analysisType === "space") {
+    return {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        verified_count: { type: "number" },
+        verified_events: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              date: { type: "string" },
+              mission: { type: "string" },
+              status: { type: "string", enum: ["completed", "scheduled"] },
+            },
+            required: ["date", "mission", "status"],
+          },
+        },
+        context_summary: { type: "string" },
+        timeline_note: { type: "string" },
+        insight: { type: "string" },
+      },
+      required: ["verified_count", "verified_events", "context_summary", "timeline_note", "insight"],
+    };
+  }
+
+  if (analysisType === "sports") {
+    return {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        head_to_head: {
+          type: ["object", "null"],
+          additionalProperties: false,
+          properties: {
+            summary: { type: "string" },
+            records: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                  label: { type: "string" },
+                  value: { type: "string" },
+                },
+                required: ["label", "value"],
+              },
+            },
+          },
+          required: ["summary", "records"],
+        },
+        form_guide: {
+          type: ["object", "null"],
+          additionalProperties: false,
+          properties: {
+            team_a: {
+              type: ["object", "null"],
+              additionalProperties: false,
+              properties: {
+                name: { type: "string" },
+                recent: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    additionalProperties: false,
+                    properties: {
+                      opponent: { type: "string" },
+                      result: { type: "string" },
+                      date: { type: "string" },
+                    },
+                    required: ["opponent", "result", "date"],
+                  },
+                },
+              },
+              required: ["name", "recent"],
+            },
+            team_b: {
+              type: ["object", "null"],
+              additionalProperties: false,
+              properties: {
+                name: { type: "string" },
+                recent: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    additionalProperties: false,
+                    properties: {
+                      opponent: { type: "string" },
+                      result: { type: "string" },
+                      date: { type: "string" },
+                    },
+                    required: ["opponent", "result", "date"],
+                  },
+                },
+              },
+              required: ["name", "recent"],
+            },
+          },
+          required: ["team_a", "team_b"],
+        },
+        key_stats: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              label: { type: "string" },
+              team_a: { type: "string" },
+              team_b: { type: "string" },
+            },
+            required: ["label", "team_a", "team_b"],
+          },
+        },
+        insight: { type: "string" },
+      },
+      required: ["head_to_head", "form_guide", "key_stats", "insight"],
+    };
+  }
+
+  if (analysisType === "crypto") {
+    return {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        price_context: {
+          type: ["object", "null"],
+          additionalProperties: false,
+          properties: {
+            current_price: { type: "string" },
+            price_30d_change: { type: "string" },
+            price_7d_change: { type: "string" },
+          },
+          required: ["current_price", "price_30d_change", "price_7d_change"],
+        },
+        key_metrics: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              label: { type: "string" },
+              value: { type: "string" },
+            },
+            required: ["label", "value"],
+          },
+        },
+        market_sentiment: {
+          type: ["object", "null"],
+          additionalProperties: false,
+          properties: {
+            summary: { type: "string" },
+            signals: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                  label: { type: "string" },
+                  direction: { type: "string", enum: ["bullish", "bearish", "neutral"] },
+                },
+                required: ["label", "direction"],
+              },
+            },
+          },
+          required: ["summary", "signals"],
+        },
+        insight: { type: "string" },
+      },
+      required: ["price_context", "key_metrics", "market_sentiment", "insight"],
+    };
+  }
+
+  return {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      context: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          summary: { type: "string" },
+        },
+        required: ["summary"],
+      },
+      key_factors: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            label: { type: "string" },
+            detail: { type: "string" },
+            direction: { type: "string", enum: ["for", "against", "neutral"] },
+          },
+          required: ["label", "detail", "direction"],
+        },
+      },
+      historical_precedent: {
+        type: ["object", "null"],
+        additionalProperties: false,
+        properties: {
+          summary: { type: "string" },
+        },
+        required: ["summary"],
+      },
+      insight: { type: "string" },
+    },
+    required: ["context", "key_factors", "historical_precedent", "insight"],
+  };
+};
+
+const buildPerplexityPrompt = (prediction: PredictionRow, analysisType: string) => {
+  if (analysisType === "sports") {
+    return [
+      `Market: ${prediction.title}`,
+      `Description: ${prediction.description ?? "N/A"}`,
+      "Return sports data only if it is currently verifiable.",
+      "For head-to-head and form guide, include dates inside the values and omit unsupported claims.",
+      "If some sections cannot be verified, return null for those sections and keep the insight cautious.",
+    ].join("\n");
+  }
+
+  if (analysisType === "crypto") {
+    return [
+      `Market: ${prediction.title}`,
+      `Description: ${prediction.description ?? "N/A"}`,
+      "Return only live or recent market figures supported by current sources.",
+      "Do not infer percentage changes from memory.",
+      "If a figure is unavailable, use null for the whole section instead of guessing.",
+    ].join("\n");
+  }
+
+  if (analysisType === "space") {
+    return [
+      `Market: ${prediction.title}`,
+      `Description: ${prediction.description ?? "N/A"}`,
+      "This is a count-sensitive aerospace market.",
+      "Return JSON with verified_count, verified_events, context_summary, timeline_note, and insight.",
+      "verified_events must contain one row per launch you are counting, with exact date, mission, and status.",
+      "Only include an event if it is directly supported by current launch sources.",
+      "Prefer SpaceX's own launches page when available; if not, use the best current manifest source and be explicit.",
+      "If sources disagree, choose the more authoritative source and reflect uncertainty in the text instead of guessing.",
+    ].join("\n");
+  }
+
+  return [
+    `Market: ${prediction.title}`,
+    `Description: ${prediction.description ?? "N/A"}`,
+    "Return only verified context and factors from current sources.",
+    "Avoid speculation. If evidence is weak, say that directly.",
+  ].join("\n");
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -33,7 +368,15 @@ serve(async (req) => {
         .eq("prediction_id", prediction_id)
         .single();
 
-      if (cached && new Date(cached.expires_at) > new Date()) {
+      const cachedVersion = cached?.stats_json && typeof cached.stats_json === "object"
+        ? (cached.stats_json as Record<string, unknown>)._analysis_version
+        : null;
+
+      if (
+        cached &&
+        cachedVersion === ANALYSIS_VERSION &&
+        new Date(cached.expires_at) > new Date()
+      ) {
         return new Response(JSON.stringify({ stats: cached.stats_json, cached: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -54,151 +397,142 @@ serve(async (req) => {
       });
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY_1") || Deno.env.get("PERPLEXITY_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      return new Response(JSON.stringify({ error: "AI not configured" }), {
+    if (!PERPLEXITY_API_KEY) {
+      return new Response(JSON.stringify({ error: "Live analysis is not configured" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Step 1: Use Perplexity to get real-time grounded data
-    let searchContext = "";
-    if (PERPLEXITY_API_KEY) {
-      try {
-        const searchQuery = prediction.category === "sports"
-          ? `${prediction.title} latest results stats standings form guide ${new Date().getFullYear()}`
-          : prediction.category === "crypto"
-          ? `${prediction.title} current price market data today`
-          : `${prediction.title} latest news facts data ${new Date().getFullYear()}`;
-
-        const perplexityRes = await fetch("https://api.perplexity.ai/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${PERPLEXITY_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "sonar",
-            messages: [
-              { role: "system", content: "Provide factual, up-to-date data with specific numbers, dates, and results. Be precise and cite sources." },
-              { role: "user", content: searchQuery },
-            ],
-            search_recency_filter: "week",
-          }),
-        });
-
-        if (perplexityRes.ok) {
-          const perplexityData = await perplexityRes.json();
-          searchContext = perplexityData.choices?.[0]?.message?.content || "";
-          const citations = perplexityData.citations || [];
-          if (citations.length > 0) {
-            searchContext += "\n\nSources: " + citations.slice(0, 5).join(", ");
-          }
-          console.log("Perplexity search successful, got", searchContext.length, "chars");
-        } else {
-          console.error("Perplexity search failed:", perplexityRes.status);
-        }
-      } catch (e) {
-        console.error("Perplexity search error:", e);
-      }
-    }
-
-    // Step 2: Build category-specific prompt with real data context
-    const realDataBlock = searchContext
-      ? `\n\nREAL-TIME DATA (use ONLY this data for facts, numbers, and results — do NOT invent or estimate any data):\n${searchContext}`
-      : "\n\nIMPORTANT: No real-time data available. For every stat, clearly label it as 'estimated' or 'unverified'. Do NOT present any number as factual.";
-
-    const categoryPrompts: Record<string, string> = {
-      sports: `Analyze this sports prediction market: "${prediction.title}"${realDataBlock}
-
-Return a JSON object with these sections (use null for any section where you lack verified data):
-{
-  "head_to_head": { "summary": "Brief h2h summary", "records": [{"label": "Last 5 meetings", "value": "e.g. Team A: 3W, Team B: 1W, 1D"}] },
-  "form_guide": { "team_a": {"name": "Team name", "recent": [{"opponent": "vs X", "result": "W 3-1", "date": "Mar 2026"}]}, "team_b": {"name": "Team name", "recent": [{"opponent": "vs Y", "result": "L 0-2", "date": "Mar 2026"}]} },
-  "key_stats": [{"label": "stat name", "team_a": "value", "team_b": "value"}],
-  "insight": "One-line analytical insight for bettors"
-}`,
-      crypto: `Analyze this crypto prediction market: "${prediction.title}"${realDataBlock}
-
-Return a JSON object with these sections (use null for any section where you lack verified data):
-{
-  "price_context": { "current_price": "latest known price", "price_30d_change": "% change", "price_7d_change": "% change" },
-  "key_metrics": [{"label": "metric name", "value": "metric value"}],
-  "market_sentiment": { "summary": "brief sentiment analysis", "signals": [{"label": "signal name", "direction": "bullish|bearish|neutral"}] },
-  "insight": "One-line analytical insight for bettors"
-}`,
-      default: `Analyze this prediction market: "${prediction.title}" (category: ${prediction.category})${realDataBlock}
-
-Return a JSON object with these sections (use null for any section where you lack verified data):
-{
-  "context": { "summary": "2-3 sentence background context" },
-  "key_factors": [{"label": "factor name", "detail": "brief explanation", "direction": "for|against|neutral"}],
-  "historical_precedent": { "summary": "relevant historical comparison if any" },
-  "insight": "One-line analytical insight for bettors"
-}`
-    };
-
-    const prompt = categoryPrompts[prediction.category] || categoryPrompts.default;
-
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const { analysisType, query, recency, domainFilter, model } = buildSearchConfig(prediction);
+    const perplexityResponse = await fetch("https://api.perplexity.ai/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${PERPLEXITY_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model,
+        temperature: 0.1,
         messages: [
           {
             role: "system",
-            content: "You are a sports and market analytics expert. Return ONLY valid JSON, no markdown fences. Be concise and data-driven. ONLY use facts from the provided real-time data. If no real-time data is provided, clearly label everything as estimated. NEVER invent specific scores, dates, or statistics. Current date: " + new Date().toISOString().split("T")[0],
+            content: [
+              "You are a strict fact-checking analyst for a prediction market UI.",
+              "Return ONLY valid JSON matching the provided schema.",
+              "Use only live, source-supported facts.",
+              "If data cannot be verified, return null for that section or write a cautious statement instead of guessing.",
+              "Never invent counts, scores, dates, prices, percentages, launches, or records.",
+              `Current date: ${new Date().toISOString().split("T")[0]}`,
+            ].join(" "),
           },
-          { role: "user", content: prompt },
+          { role: "user", content: buildPerplexityPrompt(prediction, analysisType) },
         ],
+        search_recency_filter: recency,
+        ...(domainFilter ? { search_domain_filter: domainFilter } : {}),
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: `prediction_analysis_${analysisType}`,
+            schema: buildResponseSchema(analysisType),
+          },
+        },
       }),
     });
 
-    if (!aiResponse.ok) {
-      const status = aiResponse.status;
+    if (!perplexityResponse.ok) {
+      const status = perplexityResponse.status;
       if (status === 429) {
         return new Response(JSON.stringify({ error: "Rate limited, try again later" }), {
           status: 429,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      if (status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted" }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      console.error("AI gateway error:", status, await aiResponse.text());
-      return new Response(JSON.stringify({ error: "Failed to generate stats" }), {
+      console.error("Perplexity error:", status, await perplexityResponse.text());
+      return new Response(JSON.stringify({ error: "Failed to generate live stats" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const aiData = await aiResponse.json();
+    const aiData = await perplexityResponse.json();
     const rawContent = aiData.choices?.[0]?.message?.content || "{}";
 
-    // Parse JSON - strip markdown fences if present
     let statsJson: Record<string, unknown>;
     try {
-      const cleaned = rawContent.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
-      statsJson = JSON.parse(cleaned);
+      statsJson = JSON.parse(rawContent);
     } catch {
-      console.error("Failed to parse AI response:", rawContent);
-      statsJson = { insight: rawContent, parse_error: true };
+      console.error("Failed to parse Perplexity response:", rawContent);
+      return new Response(JSON.stringify({ error: "Live stats returned invalid data" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // Add metadata
-    statsJson._category = prediction.category;
-    statsJson._generated_at = new Date().toISOString();
+    if (analysisType === "space") {
+      const citations = Array.isArray(aiData.citations) ? aiData.citations : [];
+      const hasPrimaryCitation = citations.some((citation: string) => citation.includes("spacex.com"));
+      const verifiedEvents = Array.isArray(statsJson.verified_events) ? statsJson.verified_events : [];
+      const completedEvents = verifiedEvents.filter((event: unknown) => {
+        return typeof event === "object" && event !== null && (event as Record<string, unknown>).status === "completed";
+      });
 
-    // Upsert cache (24h expiry)
+      if (!hasPrimaryCitation || verifiedEvents.length === 0 || Number(statsJson.verified_count) !== completedEvents.length) {
+        statsJson = {
+          context: {
+            summary: "Live launch-count analysis is temporarily withheld because the current source set could not be verified strictly enough for this market.",
+          },
+          key_factors: [
+            {
+              label: "Verification Guardrail",
+              detail: "This market now requires a source-backed launch list and an exact count match before any analysis is shown.",
+              direction: "neutral",
+            },
+          ],
+          historical_precedent: {
+            summary: "No fallback estimate is shown for count-sensitive aerospace markets.",
+          },
+          insight: "Analysis hidden until the launch list can be verified exactly.",
+        };
+      } else {
+        const eventSummary = completedEvents
+          .map((event) => {
+            const row = event as Record<string, unknown>;
+            return `${String(row.date)} — ${String(row.mission)}`;
+          })
+          .join("; ");
+
+        statsJson = {
+          context: {
+            summary: String(statsJson.context_summary ?? ""),
+          },
+          key_factors: [
+            {
+              label: "Verified Launch Count",
+              detail: `${completedEvents.length} completed launches counted: ${eventSummary}`,
+              direction: "against",
+            },
+            {
+              label: "Timeline",
+              detail: String(statsJson.timeline_note ?? ""),
+              direction: "against",
+            },
+          ],
+          historical_precedent: {
+            summary: hasPrimaryCitation ? "Count verified against live launch sources including SpaceX's launches page." : "Count verified against live launch sources.",
+          },
+          insight: String(statsJson.insight ?? ""),
+        };
+      }
+    }
+
+    statsJson._category = prediction.category;
+    statsJson._analysis_type = analysisType;
+    statsJson._analysis_version = ANALYSIS_VERSION;
+    statsJson._generated_at = new Date().toISOString();
+    statsJson._citations = Array.isArray(aiData.citations) ? aiData.citations.slice(0, 8) : [];
+
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
     await supabase.from("prediction_stats").upsert(
       {
