@@ -43,7 +43,7 @@ const PredictionStats = ({ predictionId, category }: PredictionStatsProps) => {
     setError(null);
     try {
       const { data, error: fnError } = await supabase.functions.invoke('get-prediction-stats', {
-        body: { prediction_id: predictionId },
+        body: { prediction_id: predictionId, force_refresh: true },
       });
       if (fnError) throw new Error(fnError.message);
       if (data?.error) throw new Error(data.error);
