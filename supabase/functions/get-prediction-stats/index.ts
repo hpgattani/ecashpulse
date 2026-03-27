@@ -7,7 +7,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const ANALYSIS_VERSION = "grounded-v3";
+const ANALYSIS_VERSION = "grounded-v5";
 
 type PredictionRow = {
   title: string;
@@ -36,6 +36,7 @@ const buildSearchConfig = (prediction: PredictionRow) => {
     case "sports":
       return {
         analysisType,
+        model: "sonar-pro",
         recency: "month",
         domainFilter: undefined,
         query: [
@@ -47,6 +48,7 @@ const buildSearchConfig = (prediction: PredictionRow) => {
     case "crypto":
       return {
         analysisType,
+        model: "sonar-pro",
         recency: "week",
         domainFilter: ["coingecko.com", "coinmarketcap.com", "binance.com", "kraken.com", "investing.com"],
         query: [
@@ -58,19 +60,21 @@ const buildSearchConfig = (prediction: PredictionRow) => {
     case "space":
       return {
         analysisType,
-        recency: "month",
+        model: "sonar-reasoning-pro",
+        recency: "year",
         domainFilter: ["spacex.com", "nextspaceflight.com", "spaceflightnow.com", "wikipedia.org"],
         query: [
           `Prediction market: ${prediction.title}`,
           `Description: ${prediction.description ?? "N/A"}`,
-          "Verify the exact count with a dated list of launches or mission events relevant to this market.",
-          "Be extremely strict: if the market is count-based, provide the verified total as of today and the evidence behind it.",
-          "Never estimate or compress multiple dates into an incorrect total.",
+          "Enumerate every verified SpaceX launch in the exact market window and compute the count from that list.",
+          "Separate completed launches from upcoming launches later in the window.",
+          "Never summarize the count without listing the underlying dated launch events.",
         ].join("\n"),
       };
     default:
       return {
         analysisType,
+        model: "sonar-pro",
         recency: "month",
         domainFilter: undefined,
         query: [
@@ -84,6 +88,33 @@ const buildSearchConfig = (prediction: PredictionRow) => {
 };
 
 const buildResponseSchema = (analysisType: string) => {
+  if (analysisType === "space") {
+    return {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        verified_count: { type: "number" },
+        verified_events: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              date: { type: "string" },
+              mission: { type: "string" },
+              status: { type: "string", enum: ["completed", "scheduled"] },
+            },
+            required: ["date", "mission", "status"],
+          },
+        },
+        context_summary: { type: "string" },
+        timeline_note: { type: "string" },
+        insight: { type: "string" },
+      },
+      required: ["verified_count", "verified_events", "context_summary", "timeline_note", "insight"],
+    };
+  }
+
   if (analysisType === "sports") {
     return {
       type: "object",
@@ -295,10 +326,11 @@ const buildPerplexityPrompt = (prediction: PredictionRow, analysisType: string) 
       `Market: ${prediction.title}`,
       `Description: ${prediction.description ?? "N/A"}`,
       "This is a count-sensitive aerospace market.",
-      "In context.summary, state the verified current count as of today.",
-      "In key_factors, include a dated count verification factor and at least one timeline factor.",
-      "If sources disagree, explicitly mention the conflict and choose the more authoritative source only when justified.",
-      "Never reduce or rewrite the count incorrectly.",
+      "Return JSON with verified_count, verified_events, context_summary, timeline_note, and insight.",
+      "verified_events must contain one row per launch you are counting, with exact date, mission, and status.",
+      "Only include an event if it is directly supported by current launch sources.",
+      "Prefer SpaceX's own launches page when available; if not, use the best current manifest source and be explicit.",
+      "If sources disagree, choose the more authoritative source and reflect uncertainty in the text instead of guessing.",
     ].join("\n");
   }
 
@@ -373,7 +405,7 @@ serve(async (req) => {
       });
     }
 
-    const { analysisType, query, recency, domainFilter } = buildSearchConfig(prediction);
+    const { analysisType, query, recency, domainFilter, model } = buildSearchConfig(prediction);
     const perplexityResponse = await fetch("https://api.perplexity.ai/chat/completions", {
       method: "POST",
       headers: {
@@ -381,7 +413,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "sonar-pro",
+        model,
         temperature: 0.1,
         messages: [
           {
@@ -436,6 +468,63 @@ serve(async (req) => {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    if (analysisType === "space") {
+      const citations = Array.isArray(aiData.citations) ? aiData.citations : [];
+      const hasPrimaryCitation = citations.some((citation: string) => citation.includes("spacex.com"));
+      const verifiedEvents = Array.isArray(statsJson.verified_events) ? statsJson.verified_events : [];
+      const completedEvents = verifiedEvents.filter((event: unknown) => {
+        return typeof event === "object" && event !== null && (event as Record<string, unknown>).status === "completed";
+      });
+
+      if (!hasPrimaryCitation || verifiedEvents.length === 0 || Number(statsJson.verified_count) !== completedEvents.length) {
+        statsJson = {
+          context: {
+            summary: "Live launch-count analysis is temporarily withheld because the current source set could not be verified strictly enough for this market.",
+          },
+          key_factors: [
+            {
+              label: "Verification Guardrail",
+              detail: "This market now requires a source-backed launch list and an exact count match before any analysis is shown.",
+              direction: "neutral",
+            },
+          ],
+          historical_precedent: {
+            summary: "No fallback estimate is shown for count-sensitive aerospace markets.",
+          },
+          insight: "Analysis hidden until the launch list can be verified exactly.",
+        };
+      } else {
+        const eventSummary = completedEvents
+          .map((event) => {
+            const row = event as Record<string, unknown>;
+            return `${String(row.date)} — ${String(row.mission)}`;
+          })
+          .join("; ");
+
+        statsJson = {
+          context: {
+            summary: String(statsJson.context_summary ?? ""),
+          },
+          key_factors: [
+            {
+              label: "Verified Launch Count",
+              detail: `${completedEvents.length} completed launches counted: ${eventSummary}`,
+              direction: "against",
+            },
+            {
+              label: "Timeline",
+              detail: String(statsJson.timeline_note ?? ""),
+              direction: "against",
+            },
+          ],
+          historical_precedent: {
+            summary: hasPrimaryCitation ? "Count verified against live launch sources including SpaceX's launches page." : "Count verified against live launch sources.",
+          },
+          insight: String(statsJson.insight ?? ""),
+        };
+      }
     }
 
     statsJson._category = prediction.category;
