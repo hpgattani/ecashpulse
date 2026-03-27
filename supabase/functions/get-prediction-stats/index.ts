@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { prediction_id } = await req.json();
+    const { prediction_id, force_refresh } = await req.json();
     if (!prediction_id) {
       return new Response(JSON.stringify({ error: "prediction_id required" }), {
         status: 400,
@@ -25,17 +25,19 @@ serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Check cache first
-    const { data: cached } = await supabase
-      .from("prediction_stats")
-      .select("stats_json, expires_at")
-      .eq("prediction_id", prediction_id)
-      .single();
+    // Check cache first (skip if force_refresh)
+    if (!force_refresh) {
+      const { data: cached } = await supabase
+        .from("prediction_stats")
+        .select("stats_json, expires_at")
+        .eq("prediction_id", prediction_id)
+        .single();
 
-    if (cached && new Date(cached.expires_at) > new Date()) {
-      return new Response(JSON.stringify({ stats: cached.stats_json, cached: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      if (cached && new Date(cached.expires_at) > new Date()) {
+        return new Response(JSON.stringify({ stats: cached.stats_json, cached: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     // Fetch prediction details
@@ -53,7 +55,7 @@ serve(async (req) => {
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
+    const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY_1") || Deno.env.get("PERPLEXITY_API_KEY");
     if (!LOVABLE_API_KEY) {
       return new Response(JSON.stringify({ error: "AI not configured" }), {
         status: 500,
