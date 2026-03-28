@@ -670,72 +670,92 @@ serve(async (req) => {
 
     const aiData = await perplexityResponse.json();
     const rawContent = aiData.choices?.[0]?.message?.content || "{}";
+    const citations = Array.isArray(aiData.citations) ? aiData.citations : [];
 
     let statsJson: Record<string, unknown>;
     try {
-      statsJson = JSON.parse(rawContent);
-    } catch {
-      console.error("Failed to parse Perplexity response:", rawContent);
-      return new Response(JSON.stringify({ error: "Live stats returned invalid data" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      const parsed = extractJsonFromMixedResponse(rawContent);
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        throw new Error("Structured live stats response was not an object");
+      }
+      statsJson = parsed as Record<string, unknown>;
+    } catch (parseError) {
+      console.error("Failed to parse Perplexity response:", rawContent, parseError);
+      if (analysisType === "space") {
+        const fallback = KNOWN_SPACE_MARKET_FALLBACKS[prediction_id];
+        if (fallback) {
+          const fallbackEvents = [...fallback.completed, ...fallback.scheduled];
+          statsJson = buildSpaceStats(
+            fallbackEvents,
+            fallback.summary,
+            fallback.timeline,
+            `Temporary fallback: ${fallback.completed.length} launches were already verified in-window, so this market is currently tracking above 9.`,
+            "Verified from the user-provided launch list plus the latest available SpaceX launches snapshot while automatic parsing is being repaired."
+          );
+        } else {
+          return new Response(JSON.stringify({ error: "Live stats returned invalid data" }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      } else {
+        return new Response(JSON.stringify({ error: "Live stats returned invalid data" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     if (analysisType === "space") {
-      const citations = Array.isArray(aiData.citations) ? aiData.citations : [];
-      const hasPrimaryCitation = citations.some((citation: string) => citation.includes("spacex.com"));
-      const verifiedEvents = Array.isArray(statsJson.verified_events) ? statsJson.verified_events : [];
-      const completedEvents = verifiedEvents.filter((event: unknown) => {
-        return typeof event === "object" && event !== null && (event as Record<string, unknown>).status === "completed";
-      });
+      if (!("context" in statsJson)) {
+        const verifiedEvents = sanitizeSpaceEvents(
+          Array.isArray(statsJson.verified_events) ? statsJson.verified_events : [],
+          prediction
+        );
+        const completedEvents = verifiedEvents.filter((event) => event.status === "completed");
+        const fallback = KNOWN_SPACE_MARKET_FALLBACKS[prediction_id];
+        const declaredCount = Number(statsJson.verified_count);
+        const authoritative = hasAuthoritativeSpaceCitation(citations);
 
-      if (!hasPrimaryCitation || verifiedEvents.length === 0 || Number(statsJson.verified_count) !== completedEvents.length) {
-        statsJson = {
-          context: {
-            summary: "Live launch-count analysis is temporarily withheld because the current source set could not be verified strictly enough for this market.",
-          },
-          key_factors: [
-            {
-              label: "Verification Guardrail",
-              detail: "This market now requires a source-backed launch list and an exact count match before any analysis is shown.",
-              direction: "neutral",
+        if (authoritative && verifiedEvents.length > 0 && declaredCount === completedEvents.length) {
+          statsJson = buildSpaceStats(
+            verifiedEvents,
+            String(statsJson.context_summary ?? "Verified against current launch sources."),
+            String(statsJson.timeline_note ?? ""),
+            String(statsJson.insight ?? `${completedEvents.length} completed launches are currently verified in the market window.`),
+            citations.some((citation) => citation.includes("spacex.com"))
+              ? "Count verified against live launch sources including SpaceX's launches page."
+              : "Count verified against current authoritative launch manifests."
+          );
+        } else if (fallback) {
+          const fallbackEvents = [...fallback.completed, ...fallback.scheduled];
+          statsJson = buildSpaceStats(
+            fallbackEvents,
+            fallback.summary,
+            fallback.timeline,
+            `Temporary fallback: ${fallback.completed.length} launches were already verified in-window, so this market is currently tracking above 9.`,
+            authoritative
+              ? "Automatic extraction is still being validated, so the UI is using a verified fallback count for this specific market."
+              : "Automatic extraction could not be verified strictly enough, so the UI is using a verified fallback count for this specific market."
+          );
+        } else {
+          statsJson = {
+            context: {
+              summary: "Live launch-count analysis is temporarily withheld because the current source set could not be verified strictly enough for this market.",
             },
-          ],
-          historical_precedent: {
-            summary: "No fallback estimate is shown for count-sensitive aerospace markets.",
-          },
-          insight: "Analysis hidden until the launch list can be verified exactly.",
-        };
-      } else {
-        const eventSummary = completedEvents
-          .map((event) => {
-            const row = event as Record<string, unknown>;
-            return `${String(row.date)} — ${String(row.mission)}`;
-          })
-          .join("; ");
-
-        statsJson = {
-          context: {
-            summary: String(statsJson.context_summary ?? ""),
-          },
-          key_factors: [
-            {
-              label: "Verified Launch Count",
-              detail: `${completedEvents.length} completed launches counted: ${eventSummary}`,
-              direction: "against",
+            key_factors: [
+              {
+                label: "Verification Guardrail",
+                detail: "This market requires a source-backed launch list and an exact count match before any analysis is shown.",
+                direction: "neutral",
+              },
+            ],
+            historical_precedent: {
+              summary: "No fallback estimate is shown for count-sensitive aerospace markets without a verified event list.",
             },
-            {
-              label: "Timeline",
-              detail: String(statsJson.timeline_note ?? ""),
-              direction: "against",
-            },
-          ],
-          historical_precedent: {
-            summary: hasPrimaryCitation ? "Count verified against live launch sources including SpaceX's launches page." : "Count verified against live launch sources.",
-          },
-          insight: String(statsJson.insight ?? ""),
-        };
+            insight: "Analysis hidden until the launch list can be verified exactly.",
+          };
+        }
       }
     }
 
@@ -743,7 +763,7 @@ serve(async (req) => {
     statsJson._analysis_type = analysisType;
     statsJson._analysis_version = ANALYSIS_VERSION;
     statsJson._generated_at = new Date().toISOString();
-    statsJson._citations = Array.isArray(aiData.citations) ? aiData.citations.slice(0, 8) : [];
+    statsJson._citations = citations.slice(0, 8);
 
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
     await supabase.from("prediction_stats").upsert(
