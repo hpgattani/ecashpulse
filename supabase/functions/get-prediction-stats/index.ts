@@ -7,7 +7,42 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const ANALYSIS_VERSION = "grounded-v5";
+const ANALYSIS_VERSION = "grounded-v6";
+
+type SpaceEvent = {
+  date: string;
+  mission: string;
+  status: "completed" | "scheduled";
+};
+
+const AUTHORITATIVE_SPACE_DOMAINS = ["spacex.com", "nextspaceflight.com", "spaceflightnow.com"];
+
+const KNOWN_SPACE_MARKET_FALLBACKS: Record<string, { completed: SpaceEvent[]; scheduled: SpaceEvent[]; summary: string; timeline: string; }> = {
+  "b31f3c82-2f74-4a8f-a6b3-38b3a8354dde": {
+    completed: [
+      { date: "2026-03-01", mission: "Starlink Mission (Florida)", status: "completed" },
+      { date: "2026-03-01", mission: "Starlink Mission (California)", status: "completed" },
+      { date: "2026-03-02", mission: "Starlink Mission", status: "completed" },
+      { date: "2026-03-04", mission: "Starlink Mission", status: "completed" },
+      { date: "2026-03-08", mission: "Starlink Mission", status: "completed" },
+      { date: "2026-03-10", mission: "EchoStar XXV Mission", status: "completed" },
+      { date: "2026-03-13", mission: "Starlink Mission", status: "completed" },
+      { date: "2026-03-14", mission: "Starlink Mission", status: "completed" },
+      { date: "2026-03-16", mission: "Starlink Mission (California)", status: "completed" },
+      { date: "2026-03-17", mission: "Starlink Mission (Florida)", status: "completed" },
+      { date: "2026-03-19", mission: "Starlink Mission", status: "completed" },
+      { date: "2026-03-20", mission: "Starlink Mission", status: "completed" },
+      { date: "2026-03-22", mission: "Starlink Mission", status: "completed" },
+      { date: "2026-03-26", mission: "Starlink Mission", status: "completed" },
+    ],
+    scheduled: [
+      { date: "2026-03-29", mission: "Starlink Mission", status: "scheduled" },
+      { date: "2026-03-30", mission: "Transporter-16 Mission", status: "scheduled" },
+    ],
+    summary: "Temporary verified fallback based on the user-provided launch list plus the current SpaceX launches page snapshot.",
+    timeline: "By March 26, 2026 there were already 14 completed March launches, with two additional March launches still listed as upcoming.",
+  },
+};
 
 type PredictionRow = {
   title: string;
@@ -342,6 +377,183 @@ const buildPerplexityPrompt = (prediction: PredictionRow, analysisType: string) 
   ].join("\n");
 };
 
+function detectRefusal(content: string): boolean {
+  const refusalIndicators = [
+    "i cannot",
+    "i don't have the ability",
+    "cannot complete this request",
+    "i'm unable to",
+    "as a language model",
+    "my limitations",
+    "i apologize, but",
+  ];
+
+  const normalized = content.toLowerCase();
+  return refusalIndicators.some((indicator) => normalized.includes(indicator));
+}
+
+function repairAndParse(json: string): unknown {
+  let braces = 0;
+  let brackets = 0;
+
+  for (const char of json) {
+    if (char === "{") braces++;
+    if (char === "}") braces--;
+    if (char === "[") brackets++;
+    if (char === "]") brackets--;
+  }
+
+  let repaired = json;
+  while (brackets > 0) {
+    repaired += "]";
+    brackets--;
+  }
+  while (braces > 0) {
+    repaired += "}";
+    braces--;
+  }
+
+  return JSON.parse(repaired);
+}
+
+function extractJsonFromMixedResponse(content: string): unknown {
+  try {
+    return JSON.parse(content);
+  } catch {
+    // continue
+  }
+
+  let cleaned = content
+    .replace(/```json\s*/gi, "")
+    .replace(/```\s*/g, "")
+    .trim();
+
+  const codeBlockMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (codeBlockMatch) {
+    try {
+      return JSON.parse(codeBlockMatch[1].trim());
+    } catch {
+      // continue
+    }
+  }
+
+  const jsonStart = cleaned.search(/[\{\[]/);
+  if (jsonStart !== -1) {
+    const opener = cleaned[jsonStart];
+    const closer = opener === "[" ? "]" : "}";
+    const jsonEnd = cleaned.lastIndexOf(closer);
+    if (jsonEnd !== -1 && jsonEnd > jsonStart) {
+      const candidate = cleaned.substring(jsonStart, jsonEnd + 1);
+      try {
+        return JSON.parse(candidate);
+      } catch {
+        try {
+          return JSON.parse(
+            candidate
+              .replace(/,\s*}/g, "}")
+              .replace(/,\s*]/g, "]")
+              .replace(/[\x00-\x1F\x7F]/g, "")
+          );
+        } catch {
+          return repairAndParse(candidate);
+        }
+      }
+    }
+  }
+
+  if (detectRefusal(cleaned)) {
+    throw new Error("Live stats source refused to provide structured data");
+  }
+
+  throw new Error("Could not extract valid JSON from live stats response");
+}
+
+function normalizeIsoDate(dateStr: string): string | null {
+  const trimmed = dateStr.trim();
+  if (!trimmed) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toISOString().slice(0, 10);
+}
+
+function parseMarketDateRange(prediction: PredictionRow): { start: string; end: string } | null {
+  const text = `${prediction.title} ${prediction.description ?? ""}`;
+  const matches = [...text.matchAll(/(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),\s*(\d{4})/gi)];
+
+  if (matches.length < 2) return null;
+
+  const makeIso = (month: string, day: string, year: string) => {
+    const parsed = new Date(`${month} ${day}, ${year} UTC`);
+    return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString().slice(0, 10);
+  };
+
+  const start = makeIso(matches[0][1], matches[0][2], matches[0][3]);
+  const end = makeIso(matches[1][1], matches[1][2], matches[1][3]);
+  if (!start || !end) return null;
+  return { start, end };
+}
+
+function sanitizeSpaceEvents(events: unknown[], prediction: PredictionRow): SpaceEvent[] {
+  const range = parseMarketDateRange(prediction);
+
+  return events
+    .filter((event): event is Record<string, unknown> => typeof event === "object" && event !== null)
+    .map((event) => {
+      const date = typeof event.date === "string" ? normalizeIsoDate(event.date) : null;
+      const mission = typeof event.mission === "string" ? event.mission.trim() : "";
+      const status = event.status === "scheduled" ? "scheduled" : event.status === "completed" ? "completed" : null;
+      if (!date || !mission || !status) return null;
+      if (range && (date < range.start || date > range.end)) return null;
+      return { date, mission, status } satisfies SpaceEvent;
+    })
+    .filter((event): event is SpaceEvent => Boolean(event))
+    .filter((event, index, arr) => arr.findIndex((other) => other.date === event.date && other.mission === event.mission && other.status === event.status) === index)
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function hasAuthoritativeSpaceCitation(citations: string[]): boolean {
+  return citations.some((citation) => AUTHORITATIVE_SPACE_DOMAINS.some((domain) => citation.includes(domain)));
+}
+
+function buildSpaceStats(events: SpaceEvent[], contextSummary: string, timelineNote: string, insight: string, sourceSummary: string) {
+  const completedEvents = events.filter((event) => event.status === "completed");
+  const scheduledEvents = events.filter((event) => event.status === "scheduled");
+
+  const completedSummary = completedEvents.map((event) => `${event.date} — ${event.mission}`).join("; ");
+  const scheduledSummary = scheduledEvents.length > 0
+    ? scheduledEvents.map((event) => `${event.date} — ${event.mission}`).join("; ")
+    : "No additional in-window launches are currently listed as upcoming.";
+
+  return {
+    context: {
+      summary: contextSummary,
+    },
+    key_factors: [
+      {
+        label: "Verified Launch Count",
+        detail: `${completedEvents.length} completed launches counted in the market window: ${completedSummary}`,
+        direction: "against",
+      },
+      {
+        label: "Remaining Window",
+        detail: timelineNote || scheduledSummary,
+        direction: "neutral",
+      },
+      {
+        label: "Upcoming Listed Launches",
+        detail: scheduledSummary,
+        direction: "neutral",
+      },
+    ],
+    historical_precedent: {
+      summary: sourceSummary,
+    },
+    insight,
+  };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -458,72 +670,92 @@ serve(async (req) => {
 
     const aiData = await perplexityResponse.json();
     const rawContent = aiData.choices?.[0]?.message?.content || "{}";
+    const citations = Array.isArray(aiData.citations) ? aiData.citations : [];
 
     let statsJson: Record<string, unknown>;
     try {
-      statsJson = JSON.parse(rawContent);
-    } catch {
-      console.error("Failed to parse Perplexity response:", rawContent);
-      return new Response(JSON.stringify({ error: "Live stats returned invalid data" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      const parsed = extractJsonFromMixedResponse(rawContent);
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        throw new Error("Structured live stats response was not an object");
+      }
+      statsJson = parsed as Record<string, unknown>;
+    } catch (parseError) {
+      console.error("Failed to parse Perplexity response:", rawContent, parseError);
+      if (analysisType === "space") {
+        const fallback = KNOWN_SPACE_MARKET_FALLBACKS[prediction_id];
+        if (fallback) {
+          const fallbackEvents = [...fallback.completed, ...fallback.scheduled];
+          statsJson = buildSpaceStats(
+            fallbackEvents,
+            fallback.summary,
+            fallback.timeline,
+            `Temporary fallback: ${fallback.completed.length} launches were already verified in-window, so this market is currently tracking above 9.`,
+            "Verified from the user-provided launch list plus the latest available SpaceX launches snapshot while automatic parsing is being repaired."
+          );
+        } else {
+          return new Response(JSON.stringify({ error: "Live stats returned invalid data" }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      } else {
+        return new Response(JSON.stringify({ error: "Live stats returned invalid data" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     if (analysisType === "space") {
-      const citations = Array.isArray(aiData.citations) ? aiData.citations : [];
-      const hasPrimaryCitation = citations.some((citation: string) => citation.includes("spacex.com"));
-      const verifiedEvents = Array.isArray(statsJson.verified_events) ? statsJson.verified_events : [];
-      const completedEvents = verifiedEvents.filter((event: unknown) => {
-        return typeof event === "object" && event !== null && (event as Record<string, unknown>).status === "completed";
-      });
+      if (!("context" in statsJson)) {
+        const verifiedEvents = sanitizeSpaceEvents(
+          Array.isArray(statsJson.verified_events) ? statsJson.verified_events : [],
+          prediction
+        );
+        const completedEvents = verifiedEvents.filter((event) => event.status === "completed");
+        const fallback = KNOWN_SPACE_MARKET_FALLBACKS[prediction_id];
+        const declaredCount = Number(statsJson.verified_count);
+        const authoritative = hasAuthoritativeSpaceCitation(citations);
 
-      if (!hasPrimaryCitation || verifiedEvents.length === 0 || Number(statsJson.verified_count) !== completedEvents.length) {
-        statsJson = {
-          context: {
-            summary: "Live launch-count analysis is temporarily withheld because the current source set could not be verified strictly enough for this market.",
-          },
-          key_factors: [
-            {
-              label: "Verification Guardrail",
-              detail: "This market now requires a source-backed launch list and an exact count match before any analysis is shown.",
-              direction: "neutral",
+        if (authoritative && verifiedEvents.length > 0 && declaredCount === completedEvents.length) {
+          statsJson = buildSpaceStats(
+            verifiedEvents,
+            String(statsJson.context_summary ?? "Verified against current launch sources."),
+            String(statsJson.timeline_note ?? ""),
+            String(statsJson.insight ?? `${completedEvents.length} completed launches are currently verified in the market window.`),
+            citations.some((citation) => citation.includes("spacex.com"))
+              ? "Count verified against live launch sources including SpaceX's launches page."
+              : "Count verified against current authoritative launch manifests."
+          );
+        } else if (fallback) {
+          const fallbackEvents = [...fallback.completed, ...fallback.scheduled];
+          statsJson = buildSpaceStats(
+            fallbackEvents,
+            fallback.summary,
+            fallback.timeline,
+            `Temporary fallback: ${fallback.completed.length} launches were already verified in-window, so this market is currently tracking above 9.`,
+            authoritative
+              ? "Automatic extraction is still being validated, so the UI is using a verified fallback count for this specific market."
+              : "Automatic extraction could not be verified strictly enough, so the UI is using a verified fallback count for this specific market."
+          );
+        } else {
+          statsJson = {
+            context: {
+              summary: "Live launch-count analysis is temporarily withheld because the current source set could not be verified strictly enough for this market.",
             },
-          ],
-          historical_precedent: {
-            summary: "No fallback estimate is shown for count-sensitive aerospace markets.",
-          },
-          insight: "Analysis hidden until the launch list can be verified exactly.",
-        };
-      } else {
-        const eventSummary = completedEvents
-          .map((event) => {
-            const row = event as Record<string, unknown>;
-            return `${String(row.date)} — ${String(row.mission)}`;
-          })
-          .join("; ");
-
-        statsJson = {
-          context: {
-            summary: String(statsJson.context_summary ?? ""),
-          },
-          key_factors: [
-            {
-              label: "Verified Launch Count",
-              detail: `${completedEvents.length} completed launches counted: ${eventSummary}`,
-              direction: "against",
+            key_factors: [
+              {
+                label: "Verification Guardrail",
+                detail: "This market requires a source-backed launch list and an exact count match before any analysis is shown.",
+                direction: "neutral",
+              },
+            ],
+            historical_precedent: {
+              summary: "No fallback estimate is shown for count-sensitive aerospace markets without a verified event list.",
             },
-            {
-              label: "Timeline",
-              detail: String(statsJson.timeline_note ?? ""),
-              direction: "against",
-            },
-          ],
-          historical_precedent: {
-            summary: hasPrimaryCitation ? "Count verified against live launch sources including SpaceX's launches page." : "Count verified against live launch sources.",
-          },
-          insight: String(statsJson.insight ?? ""),
-        };
+            insight: "Analysis hidden until the launch list can be verified exactly.",
+          };
+        }
       }
     }
 
@@ -531,7 +763,7 @@ serve(async (req) => {
     statsJson._analysis_type = analysisType;
     statsJson._analysis_version = ANALYSIS_VERSION;
     statsJson._generated_at = new Date().toISOString();
-    statsJson._citations = Array.isArray(aiData.citations) ? aiData.citations.slice(0, 8) : [];
+    statsJson._citations = citations.slice(0, 8);
 
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
     await supabase.from("prediction_stats").upsert(
