@@ -28,7 +28,6 @@ const KNOWN_SPACE_MARKET_FALLBACKS: Record<string, { completed: SpaceEvent[]; sc
       { date: "2026-03-10", mission: "EchoStar XXV Mission", status: "completed" },
       { date: "2026-03-13", mission: "Starlink Mission", status: "completed" },
       { date: "2026-03-14", mission: "Starlink Mission", status: "completed" },
-      { date: "2026-03-16", mission: "Starlink Mission (California)", status: "completed" },
       { date: "2026-03-17", mission: "Starlink Mission (Florida)", status: "completed" },
       { date: "2026-03-17", mission: "Starlink Mission (California)", status: "completed" },
       { date: "2026-03-19", mission: "Starlink Mission", status: "completed" },
