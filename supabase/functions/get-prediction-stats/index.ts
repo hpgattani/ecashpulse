@@ -28,19 +28,20 @@ const KNOWN_SPACE_MARKET_FALLBACKS: Record<string, { completed: SpaceEvent[]; sc
       { date: "2026-03-10", mission: "EchoStar XXV Mission", status: "completed" },
       { date: "2026-03-13", mission: "Starlink Mission", status: "completed" },
       { date: "2026-03-14", mission: "Starlink Mission", status: "completed" },
-      { date: "2026-03-16", mission: "Starlink Mission (California)", status: "completed" },
       { date: "2026-03-17", mission: "Starlink Mission (Florida)", status: "completed" },
+      { date: "2026-03-17", mission: "Starlink Mission (California)", status: "completed" },
       { date: "2026-03-19", mission: "Starlink Mission", status: "completed" },
       { date: "2026-03-20", mission: "Starlink Mission", status: "completed" },
       { date: "2026-03-22", mission: "Starlink Mission", status: "completed" },
       { date: "2026-03-26", mission: "Starlink Mission", status: "completed" },
+      { date: "2026-03-27", mission: "Starlink Mission", status: "completed" },
     ],
     scheduled: [
       { date: "2026-03-29", mission: "Starlink Mission", status: "scheduled" },
       { date: "2026-03-30", mission: "Transporter-16 Mission", status: "scheduled" },
     ],
     summary: "Temporary verified fallback based on the user-provided launch list plus the current SpaceX launches page snapshot.",
-    timeline: "By March 26, 2026 there were already 14 completed March launches, with two additional March launches still listed as upcoming.",
+    timeline: "The March window currently lists 17 launches in total: 15 already completed by March 27, with 2 more still listed for March 29 and March 30.",
   },
 };
 
@@ -517,9 +518,14 @@ function hasAuthoritativeSpaceCitation(citations: string[]): boolean {
   return citations.some((citation) => AUTHORITATIVE_SPACE_DOMAINS.some((domain) => citation.includes(domain)));
 }
 
+function hasPrimarySpaceCitation(citations: string[]): boolean {
+  return citations.some((citation) => citation.includes("spacex.com"));
+}
+
 function buildSpaceStats(events: SpaceEvent[], contextSummary: string, timelineNote: string, insight: string, sourceSummary: string) {
   const completedEvents = events.filter((event) => event.status === "completed");
   const scheduledEvents = events.filter((event) => event.status === "scheduled");
+  const totalListedEvents = events.length;
 
   const completedSummary = completedEvents.map((event) => `${event.date} — ${event.mission}`).join("; ");
   const scheduledSummary = scheduledEvents.length > 0
@@ -531,6 +537,11 @@ function buildSpaceStats(events: SpaceEvent[], contextSummary: string, timelineN
       summary: contextSummary,
     },
     key_factors: [
+      {
+        label: "Total March Launches Listed",
+        detail: `${totalListedEvents} launches are currently listed in the market window (${completedEvents.length} completed, ${scheduledEvents.length} upcoming).`,
+        direction: "against",
+      },
       {
         label: "Verified Launch Count",
         detail: `${completedEvents.length} completed launches counted in the market window: ${completedSummary}`,
@@ -689,7 +700,7 @@ serve(async (req) => {
             fallbackEvents,
             fallback.summary,
             fallback.timeline,
-            `Temporary fallback: ${fallback.completed.length} launches were already verified in-window, so this market is currently tracking above 9.`,
+            `Temporary fallback: the March window currently lists 17 launches in total (${fallback.completed.length} completed and ${fallback.scheduled.length} upcoming), so this market is tracking well above 9.`,
             "Verified from the user-provided launch list plus the latest available SpaceX launches snapshot while automatic parsing is being repaired."
           );
         } else {
@@ -716,8 +727,22 @@ serve(async (req) => {
         const fallback = KNOWN_SPACE_MARKET_FALLBACKS[prediction_id];
         const declaredCount = Number(statsJson.verified_count);
         const authoritative = hasAuthoritativeSpaceCitation(citations);
+        const primaryCitation = hasPrimarySpaceCitation(citations);
+        const fallbackTotal = fallback ? fallback.completed.length + fallback.scheduled.length : 0;
+        const parsedTotal = verifiedEvents.length;
 
-        if (authoritative && verifiedEvents.length > 0 && declaredCount === completedEvents.length) {
+        if (fallback && (!primaryCitation || parsedTotal < fallbackTotal)) {
+          const fallbackEvents = [...fallback.completed, ...fallback.scheduled];
+          statsJson = buildSpaceStats(
+            fallbackEvents,
+            fallback.summary,
+            fallback.timeline,
+            `Temporary fallback: the March window currently lists 17 launches in total (${fallback.completed.length} completed and ${fallback.scheduled.length} upcoming), so this market is tracking well above 9.`,
+            !primaryCitation
+              ? "The live search response did not include the primary SpaceX source, so the UI is using a verified fallback count for this specific market."
+              : "The live search response undercounted the March window, so the UI is using a verified fallback count for this specific market."
+          );
+        } else if (authoritative && verifiedEvents.length > 0 && declaredCount === completedEvents.length) {
           statsJson = buildSpaceStats(
             verifiedEvents,
             String(statsJson.context_summary ?? "Verified against current launch sources."),
@@ -733,7 +758,7 @@ serve(async (req) => {
             fallbackEvents,
             fallback.summary,
             fallback.timeline,
-            `Temporary fallback: ${fallback.completed.length} launches were already verified in-window, so this market is currently tracking above 9.`,
+            `Temporary fallback: the March window currently lists 17 launches in total (${fallback.completed.length} completed and ${fallback.scheduled.length} upcoming), so this market is tracking well above 9.`,
             authoritative
               ? "Automatic extraction is still being validated, so the UI is using a verified fallback count for this specific market."
               : "Automatic extraction could not be verified strictly enough, so the UI is using a verified fallback count for this specific market."
