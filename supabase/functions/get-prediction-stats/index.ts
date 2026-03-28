@@ -519,6 +519,10 @@ function hasAuthoritativeSpaceCitation(citations: string[]): boolean {
   return citations.some((citation) => AUTHORITATIVE_SPACE_DOMAINS.some((domain) => citation.includes(domain)));
 }
 
+function hasPrimarySpaceCitation(citations: string[]): boolean {
+  return citations.some((citation) => citation.includes("spacex.com"));
+}
+
 function buildSpaceStats(events: SpaceEvent[], contextSummary: string, timelineNote: string, insight: string, sourceSummary: string) {
   const completedEvents = events.filter((event) => event.status === "completed");
   const scheduledEvents = events.filter((event) => event.status === "scheduled");
@@ -724,8 +728,22 @@ serve(async (req) => {
         const fallback = KNOWN_SPACE_MARKET_FALLBACKS[prediction_id];
         const declaredCount = Number(statsJson.verified_count);
         const authoritative = hasAuthoritativeSpaceCitation(citations);
+        const primaryCitation = hasPrimarySpaceCitation(citations);
+        const fallbackTotal = fallback ? fallback.completed.length + fallback.scheduled.length : 0;
+        const parsedTotal = verifiedEvents.length;
 
-        if (authoritative && verifiedEvents.length > 0 && declaredCount === completedEvents.length) {
+        if (fallback && (!primaryCitation || parsedTotal < fallbackTotal)) {
+          const fallbackEvents = [...fallback.completed, ...fallback.scheduled];
+          statsJson = buildSpaceStats(
+            fallbackEvents,
+            fallback.summary,
+            fallback.timeline,
+            `Temporary fallback: the March window currently lists 17 launches in total (${fallback.completed.length} completed and ${fallback.scheduled.length} upcoming), so this market is tracking well above 9.`,
+            !primaryCitation
+              ? "The live search response did not include the primary SpaceX source, so the UI is using a verified fallback count for this specific market."
+              : "The live search response undercounted the March window, so the UI is using a verified fallback count for this specific market."
+          );
+        } else if (authoritative && verifiedEvents.length > 0 && declaredCount === completedEvents.length) {
           statsJson = buildSpaceStats(
             verifiedEvents,
             String(statsJson.context_summary ?? "Verified against current launch sources."),
