@@ -632,6 +632,52 @@ serve(async (req) => {
 
     const { analysisType, query, recency, domainFilter, model } = buildSearchConfig(prediction);
 
+    // ── STAGE 0: CoinGecko live price for crypto markets ──
+    let coingeckoContext = "";
+    if (analysisType === "crypto") {
+      try {
+        const CRYPTO_MAP: Record<string, { id: string; symbol: string }> = {
+          bitcoin: { id: "bitcoin", symbol: "BTC" },
+          btc: { id: "bitcoin", symbol: "BTC" },
+          ethereum: { id: "ethereum", symbol: "ETH" },
+          eth: { id: "ethereum", symbol: "ETH" },
+          solana: { id: "solana", symbol: "SOL" },
+          sol: { id: "solana", symbol: "SOL" },
+          ecash: { id: "ecash", symbol: "XEC" },
+          xec: { id: "ecash", symbol: "XEC" },
+          ripple: { id: "ripple", symbol: "XRP" },
+          xrp: { id: "ripple", symbol: "XRP" },
+          cardano: { id: "cardano", symbol: "ADA" },
+          ada: { id: "cardano", symbol: "ADA" },
+          dogecoin: { id: "dogecoin", symbol: "DOGE" },
+          doge: { id: "dogecoin", symbol: "DOGE" },
+        };
+        const titleLower = prediction.title.toLowerCase();
+        const matched = Object.entries(CRYPTO_MAP).find(([key]) => titleLower.includes(key));
+        if (matched) {
+          const { id, symbol } = matched[1];
+          const cgResp = await fetch(
+            `https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd&include_24hr_change=true&include_7d_change=true&include_30d_change=true`
+          );
+          if (cgResp.ok) {
+            const cgData = await cgResp.json();
+            const coin = cgData[id];
+            if (coin) {
+              const parts = [`VERIFIED LIVE PRICE from CoinGecko API (${new Date().toISOString()}):`];
+              parts.push(`${symbol} current price: $${coin.usd}`);
+              if (coin.usd_24h_change != null) parts.push(`24h change: ${coin.usd_24h_change.toFixed(2)}%`);
+              if (coin.usd_7d_change != null) parts.push(`7d change: ${coin.usd_7d_change.toFixed(2)}%`);
+              if (coin.usd_30d_change != null) parts.push(`30d change: ${coin.usd_30d_change.toFixed(2)}%`);
+              coingeckoContext = parts.join("\n");
+              console.log("CoinGecko live price fetched:", coingeckoContext);
+            }
+          }
+        }
+      } catch (cgErr) {
+        console.error("CoinGecko fetch error:", cgErr);
+      }
+    }
+
     // ── STAGE 1: Perplexity search retrieval (raw facts + citations) ──
     let searchFacts = "";
     let citations: string[] = [];
