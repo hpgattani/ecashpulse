@@ -8,6 +8,7 @@ const corsHeaders = {
 };
 
 const ANALYSIS_VERSION = "grounded-v6";
+const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
 type SpaceEvent = {
   date: string;
@@ -621,7 +622,8 @@ serve(async (req) => {
     }
 
     const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY_1") || Deno.env.get("PERPLEXITY_API_KEY");
-    if (!PERPLEXITY_API_KEY) {
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!PERPLEXITY_API_KEY && !LOVABLE_API_KEY) {
       return new Response(JSON.stringify({ error: "Live analysis is not configured" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -629,59 +631,140 @@ serve(async (req) => {
     }
 
     const { analysisType, query, recency, domainFilter, model } = buildSearchConfig(prediction);
-    const perplexityResponse = await fetch("https://api.perplexity.ai/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${PERPLEXITY_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        temperature: 0.1,
-        messages: [
-          {
-            role: "system",
-            content: [
-              "You are a strict fact-checking analyst for a prediction market UI.",
-              "Return ONLY valid JSON matching the provided schema.",
-              "Use only live, source-supported facts.",
-              "If data cannot be verified, return null for that section or write a cautious statement instead of guessing.",
-              "Never invent counts, scores, dates, prices, percentages, launches, or records.",
-              `Current date: ${new Date().toISOString().split("T")[0]}`,
-            ].join(" "),
-          },
-          { role: "user", content: buildPerplexityPrompt(prediction, analysisType) },
-        ],
-        search_recency_filter: recency,
-        ...(domainFilter ? { search_domain_filter: domainFilter } : {}),
-        response_format: {
-          type: "json_schema",
-          json_schema: {
-            name: `prediction_analysis_${analysisType}`,
-            schema: buildResponseSchema(analysisType),
-          },
-        },
-      }),
-    });
 
-    if (!perplexityResponse.ok) {
-      const status = perplexityResponse.status;
-      if (status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limited, try again later" }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+    // ── STAGE 1: Perplexity search retrieval (raw facts + citations) ──
+    let searchFacts = "";
+    let citations: string[] = [];
+
+    if (PERPLEXITY_API_KEY) {
+      try {
+        const perplexityResponse = await fetch("https://api.perplexity.ai/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${PERPLEXITY_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model,
+            temperature: 0.1,
+            messages: [
+              {
+                role: "system",
+                content: [
+                  "You are a research assistant. Your job is to find and report ONLY verified, source-backed facts.",
+                  "Do NOT structure the output as JSON. Write plain text with all the raw facts, dates, numbers, and details you find.",
+                  "Include exact dates, scores, prices, names, and figures. Cite your sources inline.",
+                  "If information is uncertain or conflicting, say so explicitly.",
+                  "NEVER invent or estimate any data point. If you cannot find it, say 'not found'.",
+                  `Current date: ${new Date().toISOString().split("T")[0]}`,
+                ].join(" "),
+              },
+              { role: "user", content: query },
+            ],
+            search_recency_filter: recency,
+            ...(domainFilter ? { search_domain_filter: domainFilter } : {}),
+          }),
         });
+
+        if (perplexityResponse.ok) {
+          const pData = await perplexityResponse.json();
+          searchFacts = pData.choices?.[0]?.message?.content || "";
+          citations = Array.isArray(pData.citations) ? pData.citations : [];
+          console.log("Perplexity search facts length:", searchFacts.length, "citations:", citations.length);
+        } else {
+          const status = perplexityResponse.status;
+          if (status === 429) {
+            return new Response(JSON.stringify({ error: "Rate limited, try again later" }), {
+              status: 429,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+          console.error("Perplexity search error:", status, await perplexityResponse.text());
+          // Continue without search facts — Lovable AI will work with what it has
+        }
+      } catch (pErr) {
+        console.error("Perplexity fetch error:", pErr);
       }
-      console.error("Perplexity error:", status, await perplexityResponse.text());
-      return new Response(JSON.stringify({ error: "Failed to generate live stats" }), {
+    }
+
+    // ── STAGE 2: Lovable AI structured extraction from search facts ──
+    if (!LOVABLE_API_KEY) {
+      return new Response(JSON.stringify({ error: "AI extraction is not configured" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const aiData = await perplexityResponse.json();
+    const schema = buildResponseSchema(analysisType);
+    const extractionPrompt = [
+      `You are a strict fact-extraction engine for a prediction market platform.`,
+      `Your ONLY job is to extract structured data from the search results below.`,
+      ``,
+      `RULES:`,
+      `- ONLY use facts that appear in the search results. Do NOT add anything from your own knowledge.`,
+      `- If a data point is not in the search results, use null or write "Data not available in sources".`,
+      `- NEVER invent scores, dates, prices, counts, percentages, or records.`,
+      `- If the search results say information is uncertain or conflicting, reflect that honestly.`,
+      `- Return ONLY valid JSON matching the schema provided. No markdown, no explanation.`,
+      ``,
+      `Current date: ${new Date().toISOString().split("T")[0]}`,
+      ``,
+      `MARKET: ${prediction.title}`,
+      `DESCRIPTION: ${prediction.description ?? "N/A"}`,
+      `CATEGORY: ${analysisType}`,
+      ``,
+      `SEARCH RESULTS:`,
+      searchFacts || "(No search results available — return cautious analysis noting data is unavailable)",
+      ``,
+      `SOURCES: ${citations.length > 0 ? citations.join(", ") : "None available"}`,
+      ``,
+      `Return JSON matching this schema:`,
+      JSON.stringify(schema, null, 2),
+    ].join("\n");
+
+    const lovableResponse = await fetch(LOVABLE_AI_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        temperature: 0.05,
+        messages: [
+          {
+            role: "system",
+            content: "You are a JSON extraction engine. You extract structured data ONLY from provided search results. You never add information from your own training data. Output only valid JSON.",
+          },
+          { role: "user", content: extractionPrompt },
+        ],
+      }),
+    });
+
+    if (!lovableResponse.ok) {
+      const errStatus = lovableResponse.status;
+      const errBody = await lovableResponse.text();
+      console.error("Lovable AI error:", errStatus, errBody);
+      if (errStatus === 429) {
+        return new Response(JSON.stringify({ error: "AI rate limited, try again later" }), {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (errStatus === 402) {
+        return new Response(JSON.stringify({ error: "AI credits exhausted" }), {
+          status: 402,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({ error: "Failed to generate analysis" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const aiData = await lovableResponse.json();
     const rawContent = aiData.choices?.[0]?.message?.content || "{}";
-    const citations = Array.isArray(aiData.citations) ? aiData.citations : [];
 
     let statsJson: Record<string, unknown>;
     try {
