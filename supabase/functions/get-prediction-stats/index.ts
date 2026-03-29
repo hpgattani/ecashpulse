@@ -759,6 +759,11 @@ serve(async (req) => {
       `DESCRIPTION: ${prediction.description ?? "N/A"}`,
       `CATEGORY: ${analysisType}`,
       ``,
+      ...(coingeckoContext ? [
+        `VERIFIED LIVE MARKET DATA (CoinGecko API — use these numbers as the authoritative current price):`,
+        coingeckoContext,
+        ``,
+      ] : []),
       `SEARCH RESULTS:`,
       searchFacts || "(No search results available — return cautious analysis noting data is unavailable)",
       ``,
