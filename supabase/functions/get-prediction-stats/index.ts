@@ -500,6 +500,16 @@ function parseMarketDateRange(prediction: PredictionRow): { start: string; end: 
   return { start, end };
 }
 
+function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs: number) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  return fetch(url, {
+    ...init,
+    signal: controller.signal,
+  }).finally(() => clearTimeout(timeout));
+}
+
 function sanitizeSpaceEvents(events: unknown[], prediction: PredictionRow): SpaceEvent[] {
   const range = parseMarketDateRange(prediction);
 

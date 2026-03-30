@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BarChart3, ChevronDown, ChevronUp, Loader2, TrendingUp, TrendingDown, Minus, Zap, RefreshCw, Swords, LineChart, Brain } from 'lucide-react';
+import { ChevronDown, ChevronUp, Loader2, TrendingUp, TrendingDown, Minus, Zap, RefreshCw, Swords, LineChart, Brain } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -14,45 +14,78 @@ const PredictionStats = ({ predictionId, category }: PredictionStatsProps) => {
   const [stats, setStats] = useState<Record<string, any> | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const loadCachedStats = async () => {
+    const { data } = await supabase
+      .from('prediction_stats')
+      .select('stats_json')
+      .eq('prediction_id', predictionId)
+      .maybeSingle();
+
+    if (data?.stats_json && typeof data.stats_json === 'object') {
+      setStats(data.stats_json as Record<string, any>);
+      return true;
+    }
+
+    return false;
+  };
+
+  const runStatsRequest = async (forceRefresh = false, silent = false) => {
+    if (silent) {
+      setIsRefreshing(true);
+    } else {
+      setLoading(true);
+      setError(null);
+    }
+
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke('get-prediction-stats', {
+        body: { prediction_id: predictionId, ...(forceRefresh ? { force_refresh: true } : {}) },
+      });
+
+      if (fnError) throw new Error(fnError.message);
+      if (data?.error) throw new Error(data.error);
+      if (data?.stats) {
+        setStats(data.stats);
+      }
+
+      if (!forceRefresh && data?.stale) {
+        void runStatsRequest(true, true);
+      }
+    } catch (e: any) {
+      if (!stats) {
+        setError(e.message || 'Failed to load stats');
+      }
+    } finally {
+      if (silent) {
+        setIsRefreshing(false);
+      } else {
+        setLoading(false);
+      }
+    }
+  };
 
   const fetchStats = async () => {
     if (stats) {
       setIsOpen(!isOpen);
       return;
     }
+
     setIsOpen(true);
-    setLoading(true);
     setError(null);
-    try {
-      const { data, error: fnError } = await supabase.functions.invoke('get-prediction-stats', {
-        body: { prediction_id: predictionId },
-      });
-      if (fnError) throw new Error(fnError.message);
-      if (data?.error) throw new Error(data.error);
-      setStats(data.stats);
-    } catch (e: any) {
-      setError(e.message || 'Failed to load stats');
-    } finally {
-      setLoading(false);
+    const hadCachedStats = await loadCachedStats();
+
+    if (!hadCachedStats) {
+      setLoading(true);
     }
+
+    await runStatsRequest(false, false);
   };
 
   const refreshStats = async () => {
-    setStats(null);
-    setLoading(true);
     setError(null);
-    try {
-      const { data, error: fnError } = await supabase.functions.invoke('get-prediction-stats', {
-        body: { prediction_id: predictionId, force_refresh: true },
-      });
-      if (fnError) throw new Error(fnError.message);
-      if (data?.error) throw new Error(data.error);
-      setStats(data.stats);
-    } catch (e: any) {
-      setError(e.message || 'Failed to load stats');
-    } finally {
-      setLoading(false);
-    }
+    await runStatsRequest(true, false);
   };
 
   const directionIcon = (dir: string) => {
@@ -64,7 +97,6 @@ const PredictionStats = ({ predictionId, category }: PredictionStatsProps) => {
 
   const renderSportsStats = (s: Record<string, any>) => (
     <div className="space-y-4">
-      {/* Head to Head */}
       {s.head_to_head && (
         <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
           <div className="flex items-center gap-2 mb-2">
@@ -81,7 +113,6 @@ const PredictionStats = ({ predictionId, category }: PredictionStatsProps) => {
         </div>
       )}
 
-      {/* Form Guide */}
       {s.form_guide && (
         <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
           <div className="flex items-center gap-2 mb-3">
@@ -93,8 +124,8 @@ const PredictionStats = ({ predictionId, category }: PredictionStatsProps) => {
               <div key={ti}>
                 <p className="text-xs font-semibold text-foreground mb-1">{team.name}</p>
                 {team.recent?.slice(0, 4).map((m: any, i: number) => (
-                  <div key={i} className="flex justify-between text-xs py-0.5">
-                    <span className="text-muted-foreground truncate mr-2">{m.opponent}</span>
+                  <div key={i} className="flex justify-between text-xs py-0.5 gap-2">
+                    <span className="text-muted-foreground truncate">{m.opponent}</span>
                     <span className={`font-medium ${m.result?.startsWith('W') ? 'text-emerald-400' : m.result?.startsWith('L') ? 'text-red-400' : 'text-amber-400'}`}>
                       {m.result}
                     </span>
@@ -106,13 +137,12 @@ const PredictionStats = ({ predictionId, category }: PredictionStatsProps) => {
         </div>
       )}
 
-      {/* Key Stats comparison */}
       {s.key_stats?.length > 0 && (
         <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
           <h4 className="text-sm font-semibold text-foreground mb-2">Key Stats</h4>
           <div className="space-y-1">
             {s.key_stats.map((stat: any, i: number) => (
-              <div key={i} className="grid grid-cols-3 text-xs py-1 border-t border-border/20">
+              <div key={i} className="grid grid-cols-3 text-xs py-1 border-t border-border/20 gap-2">
                 <span className="text-foreground font-medium">{stat.team_a}</span>
                 <span className="text-center text-muted-foreground">{stat.label}</span>
                 <span className="text-right text-foreground font-medium">{stat.team_b}</span>
@@ -246,7 +276,7 @@ const PredictionStats = ({ predictionId, category }: PredictionStatsProps) => {
             className="overflow-hidden"
           >
             <div className="px-4 md:px-6 pb-4 md:pb-6">
-              {loading ? (
+              {loading && !stats ? (
                 <div className="flex items-center justify-center py-8 gap-2">
                   <Loader2 className="w-5 h-5 animate-spin text-primary" />
                   <span className="text-sm text-muted-foreground">Generating analysis...</span>
@@ -261,7 +291,6 @@ const PredictionStats = ({ predictionId, category }: PredictionStatsProps) => {
               ) : (
                 <>
                   {renderStats()}
-                  {/* Insight */}
                   {stats?.insight && (
                     <div className="mt-4 p-3 rounded-lg bg-primary/10 border border-primary/30">
                       <div className="flex items-start gap-2">
@@ -270,11 +299,10 @@ const PredictionStats = ({ predictionId, category }: PredictionStatsProps) => {
                       </div>
                     </div>
                   )}
-                  {/* Footer */}
-                  <div className="mt-3 flex items-center justify-between text-[10px] text-muted-foreground">
-                    <span>AI-generated • Refreshes every 24h</span>
+                  <div className="mt-3 flex items-center justify-between text-[10px] text-muted-foreground gap-2">
+                    <span>{isRefreshing ? 'Refreshing latest analysis…' : 'AI-generated • Refreshes every 24h'}</span>
                     <button onClick={refreshStats} className="flex items-center gap-1 hover:text-foreground transition-colors">
-                      <RefreshCw className="w-3 h-3" /> Refresh
+                      <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} /> Refresh
                     </button>
                   </div>
                 </>
