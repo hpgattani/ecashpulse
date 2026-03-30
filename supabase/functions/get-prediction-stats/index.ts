@@ -738,7 +738,7 @@ serve(async (req) => {
 
     if (PERPLEXITY_API_KEY) {
       try {
-        const perplexityResponse = await fetch("https://api.perplexity.ai/chat/completions", {
+        const perplexityResponse = await fetchWithTimeout("https://api.perplexity.ai/chat/completions", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${PERPLEXITY_API_KEY}`,
@@ -764,7 +764,7 @@ serve(async (req) => {
             search_recency_filter: recency,
             ...(domainFilter ? { search_domain_filter: domainFilter } : {}),
           }),
-        });
+        }, PERPLEXITY_TIMEOUT_MS);
 
         if (perplexityResponse.ok) {
           const pData = await perplexityResponse.json();
