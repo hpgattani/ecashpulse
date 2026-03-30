@@ -708,8 +708,10 @@ serve(async (req) => {
         const matched = Object.entries(CRYPTO_MAP).find(([key]) => titleLower.includes(key));
         if (matched) {
           const { id, symbol } = matched[1];
-          const cgResp = await fetch(
-            `https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd&include_24hr_change=true&include_7d_change=true&include_30d_change=true`
+          const cgResp = await fetchWithTimeout(
+            `https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd&include_24hr_change=true&include_7d_change=true&include_30d_change=true`,
+            {},
+            COINGECKO_TIMEOUT_MS
           );
           if (cgResp.ok) {
             const cgData = await cgResp.json();
