@@ -579,6 +579,33 @@ function buildSpaceStats(events: SpaceEvent[], contextSummary: string, timelineN
   };
 }
 
+function buildUnavailableStats(analysisType: string, reason: string) {
+  if (analysisType === "sports") {
+    return {
+      head_to_head: { summary: reason, records: [] },
+      form_guide: { team_a: null, team_b: null },
+      key_stats: [],
+      insight: "Showing a safe fallback while fresh sports data is refreshed in the background.",
+    };
+  }
+
+  if (analysisType === "crypto") {
+    return {
+      price_context: null,
+      key_metrics: [],
+      market_sentiment: null,
+      insight: "Showing a safe fallback while fresh market data is refreshed in the background.",
+    };
+  }
+
+  return {
+    context: { summary: reason },
+    key_factors: [],
+    historical_precedent: null,
+    insight: "Showing a safe fallback while fresh analysis is refreshed in the background.",
+  };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -597,7 +624,8 @@ serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Check cache first (skip if force_refresh)
+    let staleCachedStats: Record<string, unknown> | null = null;
+
     if (!force_refresh) {
       const { data: cached } = await supabase
         .from("prediction_stats")
@@ -609,12 +637,22 @@ serve(async (req) => {
         ? (cached.stats_json as Record<string, unknown>)._analysis_version
         : null;
 
+      if (cached?.stats_json && typeof cached.stats_json === "object") {
+        staleCachedStats = cached.stats_json as Record<string, unknown>;
+      }
+
       if (
         cached &&
         cachedVersion === ANALYSIS_VERSION &&
         new Date(cached.expires_at) > new Date()
       ) {
-        return new Response(JSON.stringify({ stats: cached.stats_json, cached: true }), {
+        return new Response(JSON.stringify({ stats: cached.stats_json, cached: true, stale: false }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (staleCachedStats) {
+        return new Response(JSON.stringify({ stats: staleCachedStats, cached: true, stale: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -633,6 +671,7 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
 
     const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY_1") || Deno.env.get("PERPLEXITY_API_KEY");
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
