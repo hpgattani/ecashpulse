@@ -7,8 +7,11 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const ANALYSIS_VERSION = "grounded-v6";
+const ANALYSIS_VERSION = "grounded-v7";
 const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const PERPLEXITY_TIMEOUT_MS = 5000;
+const LOVABLE_AI_TIMEOUT_MS = 3500;
+const COINGECKO_TIMEOUT_MS = 2000;
 
 type SpaceEvent = {
   date: string;
@@ -497,6 +500,16 @@ function parseMarketDateRange(prediction: PredictionRow): { start: string; end: 
   return { start, end };
 }
 
+function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs: number) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  return fetch(url, {
+    ...init,
+    signal: controller.signal,
+  }).finally(() => clearTimeout(timeout));
+}
+
 function sanitizeSpaceEvents(events: unknown[], prediction: PredictionRow): SpaceEvent[] {
   const range = parseMarketDateRange(prediction);
 
@@ -566,6 +579,33 @@ function buildSpaceStats(events: SpaceEvent[], contextSummary: string, timelineN
   };
 }
 
+function buildUnavailableStats(analysisType: string, reason: string) {
+  if (analysisType === "sports") {
+    return {
+      head_to_head: { summary: reason, records: [] },
+      form_guide: { team_a: null, team_b: null },
+      key_stats: [],
+      insight: "Showing a safe fallback while fresh sports data is refreshed in the background.",
+    };
+  }
+
+  if (analysisType === "crypto") {
+    return {
+      price_context: null,
+      key_metrics: [],
+      market_sentiment: null,
+      insight: "Showing a safe fallback while fresh market data is refreshed in the background.",
+    };
+  }
+
+  return {
+    context: { summary: reason },
+    key_factors: [],
+    historical_precedent: null,
+    insight: "Showing a safe fallback while fresh analysis is refreshed in the background.",
+  };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -584,7 +624,8 @@ serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Check cache first (skip if force_refresh)
+    let staleCachedStats: Record<string, unknown> | null = null;
+
     if (!force_refresh) {
       const { data: cached } = await supabase
         .from("prediction_stats")
@@ -596,12 +637,22 @@ serve(async (req) => {
         ? (cached.stats_json as Record<string, unknown>)._analysis_version
         : null;
 
+      if (cached?.stats_json && typeof cached.stats_json === "object") {
+        staleCachedStats = cached.stats_json as Record<string, unknown>;
+      }
+
       if (
         cached &&
         cachedVersion === ANALYSIS_VERSION &&
         new Date(cached.expires_at) > new Date()
       ) {
-        return new Response(JSON.stringify({ stats: cached.stats_json, cached: true }), {
+        return new Response(JSON.stringify({ stats: cached.stats_json, cached: true, stale: false }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (staleCachedStats) {
+        return new Response(JSON.stringify({ stats: staleCachedStats, cached: true, stale: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -620,6 +671,7 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
 
     const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY_1") || Deno.env.get("PERPLEXITY_API_KEY");
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -656,8 +708,10 @@ serve(async (req) => {
         const matched = Object.entries(CRYPTO_MAP).find(([key]) => titleLower.includes(key));
         if (matched) {
           const { id, symbol } = matched[1];
-          const cgResp = await fetch(
-            `https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd&include_24hr_change=true&include_7d_change=true&include_30d_change=true`
+          const cgResp = await fetchWithTimeout(
+            `https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd&include_24hr_change=true&include_7d_change=true&include_30d_change=true`,
+            {},
+            COINGECKO_TIMEOUT_MS
           );
           if (cgResp.ok) {
             const cgData = await cgResp.json();
@@ -684,7 +738,7 @@ serve(async (req) => {
 
     if (PERPLEXITY_API_KEY) {
       try {
-        const perplexityResponse = await fetch("https://api.perplexity.ai/chat/completions", {
+        const perplexityResponse = await fetchWithTimeout("https://api.perplexity.ai/chat/completions", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${PERPLEXITY_API_KEY}`,
@@ -710,7 +764,7 @@ serve(async (req) => {
             search_recency_filter: recency,
             ...(domainFilter ? { search_domain_filter: domainFilter } : {}),
           }),
-        });
+        }, PERPLEXITY_TIMEOUT_MS);
 
         if (perplexityResponse.ok) {
           const pData = await perplexityResponse.json();
@@ -773,7 +827,23 @@ serve(async (req) => {
       JSON.stringify(schema, null, 2),
     ].join("\n");
 
-    const lovableResponse = await fetch(LOVABLE_AI_URL, {
+    if (!searchFacts.trim() && analysisType !== "crypto") {
+      const fallbackStats = buildUnavailableStats(
+        analysisType,
+        "Fresh source-backed data was not available quickly enough, so cached-safe analysis is shown instead."
+      );
+      fallbackStats._category = prediction.category;
+      fallbackStats._analysis_type = analysisType;
+      fallbackStats._analysis_version = ANALYSIS_VERSION;
+      fallbackStats._generated_at = new Date().toISOString();
+      fallbackStats._citations = citations.slice(0, 8);
+
+      return new Response(JSON.stringify({ stats: fallbackStats, cached: false, stale: false }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const lovableResponse = await fetchWithTimeout(LOVABLE_AI_URL, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -790,7 +860,7 @@ serve(async (req) => {
           { role: "user", content: extractionPrompt },
         ],
       }),
-    });
+    }, LOVABLE_AI_TIMEOUT_MS);
 
     if (!lovableResponse.ok) {
       const errStatus = lovableResponse.status;
