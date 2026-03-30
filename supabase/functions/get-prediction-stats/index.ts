@@ -827,7 +827,23 @@ serve(async (req) => {
       JSON.stringify(schema, null, 2),
     ].join("\n");
 
-    const lovableResponse = await fetch(LOVABLE_AI_URL, {
+    if (!searchFacts.trim() && analysisType !== "crypto") {
+      const fallbackStats = buildUnavailableStats(
+        analysisType,
+        "Fresh source-backed data was not available quickly enough, so cached-safe analysis is shown instead."
+      );
+      fallbackStats._category = prediction.category;
+      fallbackStats._analysis_type = analysisType;
+      fallbackStats._analysis_version = ANALYSIS_VERSION;
+      fallbackStats._generated_at = new Date().toISOString();
+      fallbackStats._citations = citations.slice(0, 8);
+
+      return new Response(JSON.stringify({ stats: fallbackStats, cached: false, stale: false }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const lovableResponse = await fetchWithTimeout(LOVABLE_AI_URL, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -844,7 +860,7 @@ serve(async (req) => {
           { role: "user", content: extractionPrompt },
         ],
       }),
-    });
+    }, LOVABLE_AI_TIMEOUT_MS);
 
     if (!lovableResponse.ok) {
       const errStatus = lovableResponse.status;
