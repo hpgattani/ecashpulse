@@ -912,10 +912,16 @@ Deno.serve(async (req) => {
     let outputTotal = outputs.reduce((a, b) => a + b.value, 0n);
     let change = inputTotal - outputTotal - BigInt(estimatedFee);
     
+    // CRITICAL: Change must go to custodial wallet, not the per-prediction escrow
+    // Per-prediction escrows should be emptied after resolution, not accumulate change
+    const changeScript = (custodialKey || escrowAddress === FALLBACK_ESCROW_ADDRESS)
+      ? createP2PKHScript(cashAddrToHash160(FALLBACK_ESCROW_ADDRESS)!)
+      : escrowScript;
+    
     if (change > 546n) {
       outputs.push({
         value: change,
-        scriptPubKey: escrowScript,
+        scriptPubKey: changeScript,
       });
     } else {
       // Change is dust or negative — it becomes the implicit miner fee.
