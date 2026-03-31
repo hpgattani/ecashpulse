@@ -287,14 +287,12 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { prediction_id } = await req.json();
+    const { prediction_id, admin_password } = await req.json();
     
-    // Verify service role key in Authorization header
-    const authHeader = req.headers.get('authorization') || '';
-    const token = authHeader.replace('Bearer ', '');
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-    if (!token || token !== serviceRoleKey) {
-      return new Response(JSON.stringify({ error: 'Unauthorized - service role required' }), { status: 401, headers: corsHeaders });
+    // Admin auth - check against stored secret
+    const adminSecret = Deno.env.get('ADMIN_SECRET_PASSWORD');
+    if (!admin_password || admin_password !== adminSecret) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
     }
 
     if (!prediction_id) {
