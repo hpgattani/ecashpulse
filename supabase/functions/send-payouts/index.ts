@@ -912,11 +912,9 @@ Deno.serve(async (req) => {
     let outputTotal = outputs.reduce((a, b) => a + b.value, 0n);
     let change = inputTotal - outputTotal - BigInt(estimatedFee);
     
-    // CRITICAL: Change must go to custodial wallet, not the per-prediction escrow
-    // Per-prediction escrows should be emptied after resolution, not accumulate change
-    const changeScript = (custodialKey || escrowAddress === FALLBACK_ESCROW_ADDRESS)
-      ? createP2PKHScript(cashAddrToHash160(FALLBACK_ESCROW_ADDRESS)!)
-      : escrowScript;
+     // CRITICAL: Change ALWAYS goes to custodial wallet, never to per-prediction escrows
+     // Per-prediction escrows should be emptied after resolution, not accumulate change
+     const changeScript = createP2PKHScript(cashAddrToHash160(FALLBACK_ESCROW_ADDRESS)!);
     
     if (change > 546n) {
       outputs.push({
