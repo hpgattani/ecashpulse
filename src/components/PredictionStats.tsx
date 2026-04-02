@@ -16,28 +16,33 @@ const PredictionStats = ({ predictionId, category }: PredictionStatsProps) => {
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  const [lastGenerated, setLastGenerated] = useState<string | null>(null);
+
+  const canRefresh = () => {
+    if (!lastGenerated) return true;
+    const hoursSince = (Date.now() - new Date(lastGenerated).getTime()) / (1000 * 60 * 60);
+    return hoursSince >= 24;
+  };
+
   const loadCachedStats = async () => {
     const { data } = await supabase
       .from('prediction_stats')
-      .select('stats_json')
+      .select('stats_json, generated_at')
       .eq('prediction_id', predictionId)
       .maybeSingle();
 
     if (data?.stats_json && typeof data.stats_json === 'object') {
       setStats(data.stats_json as Record<string, any>);
+      if (data.generated_at) setLastGenerated(data.generated_at);
       return true;
     }
 
     return false;
   };
 
-  const runStatsRequest = async (forceRefresh = false, silent = false) => {
-    if (silent) {
-      setIsRefreshing(true);
-    } else {
-      setLoading(true);
-      setError(null);
-    }
+  const runStatsRequest = async (forceRefresh = false) => {
+    setLoading(true);
+    setError(null);
 
     try {
       const { data, error: fnError } = await supabase.functions.invoke('get-prediction-stats', {
@@ -48,21 +53,15 @@ const PredictionStats = ({ predictionId, category }: PredictionStatsProps) => {
       if (data?.error) throw new Error(data.error);
       if (data?.stats) {
         setStats(data.stats);
-      }
-
-      if (!forceRefresh && data?.stale) {
-        void runStatsRequest(true, true);
+        const genAt = data.stats?._generated_at;
+        if (genAt) setLastGenerated(genAt);
       }
     } catch (e: any) {
       if (!stats) {
         setError(e.message || 'Failed to load stats');
       }
     } finally {
-      if (silent) {
-        setIsRefreshing(false);
-      } else {
-        setLoading(false);
-      }
+      setLoading(false);
     }
   };
 
@@ -76,16 +75,19 @@ const PredictionStats = ({ predictionId, category }: PredictionStatsProps) => {
     setError(null);
     const hadCachedStats = await loadCachedStats();
 
-    if (!hadCachedStats) {
-      setLoading(true);
+    if (hadCachedStats) {
+      // Have cached data — show it instantly, don't re-fetch
+      return;
     }
 
-    await runStatsRequest(false, false);
+    // No cache — generate fresh
+    await runStatsRequest(false);
   };
 
   const refreshStats = async () => {
+    if (!canRefresh()) return;
     setError(null);
-    await runStatsRequest(true, false);
+    await runStatsRequest(true);
   };
 
   const directionIcon = (dir: string) => {
