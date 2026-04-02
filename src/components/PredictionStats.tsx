@@ -14,7 +14,6 @@ const PredictionStats = ({ predictionId, category }: PredictionStatsProps) => {
   const [stats, setStats] = useState<Record<string, any> | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const [lastGenerated, setLastGenerated] = useState<string | null>(null);
 
