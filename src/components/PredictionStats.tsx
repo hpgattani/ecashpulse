@@ -302,10 +302,14 @@ const PredictionStats = ({ predictionId, category }: PredictionStatsProps) => {
                     </div>
                   )}
                   <div className="mt-3 flex items-center justify-between text-[10px] text-muted-foreground gap-2">
-                    <span>{isRefreshing ? 'Refreshing latest analysis…' : 'AI-generated • Refreshes every 24h'}</span>
-                    <button onClick={refreshStats} className="flex items-center gap-1 hover:text-foreground transition-colors">
-                      <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} /> Refresh
-                    </button>
+                    <span>{loading ? 'Refreshing latest analysis…' : `AI-generated${lastGenerated ? ` • ${new Date(lastGenerated).toLocaleDateString()}` : ''}`}</span>
+                    {canRefresh() ? (
+                      <button onClick={refreshStats} disabled={loading} className="flex items-center gap-1 hover:text-foreground transition-colors disabled:opacity-50">
+                        <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} /> Refresh
+                      </button>
+                    ) : (
+                      <span className="text-muted-foreground/50">Refreshes in 24h</span>
+                    )}
                   </div>
                 </>
               )}
