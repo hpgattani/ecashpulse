@@ -214,27 +214,32 @@ Deno.serve(async (req) => {
     const recipients = Array.from(userPayouts.values());
     console.log(`Batched into ${recipients.length} recipients`);
 
-    // Apply variable platform fee
-    const DUST_LIMIT = 546;
+    // Apply variable platform fee — no per-recipient dust minimum
+    // Fees are collected into a single output, so individual fees can be any size
     const platformFeePercent = parseFloat(Deno.env.get('PLATFORM_FEE_PERCENT') || '1.0');
-    console.log(`Platform fee: ${platformFeePercent}% (min ${DUST_LIMIT} sats per recipient)`);
+    const MIN_PAYOUT_FOR_FEE = 10000; // Only charge fees on payouts >= 10,000 sats (100 XEC)
+    console.log(`Platform fee: ${platformFeePercent}% (waived below ${MIN_PAYOUT_FOR_FEE} sats)`);
     
     let totalFees = 0;
     const feesPerRecipient: Map<string, number> = new Map();
     
     for (const recipient of recipients) {
       const originalAmount = recipient.amount;
-      const percentFee = Math.floor(originalAmount * (platformFeePercent / 100));
-      const fee = Math.max(DUST_LIMIT, percentFee);
-      const cappedFee = Math.min(fee, Math.floor(originalAmount * 0.5));
-      const netAmount = originalAmount - cappedFee;
+      let fee = 0;
       
-      const effectivePercent = ((cappedFee / originalAmount) * 100).toFixed(2);
+      if (originalAmount >= MIN_PAYOUT_FOR_FEE) {
+        fee = Math.floor(originalAmount * (platformFeePercent / 100));
+        // Cap fee at 50% of payout as safety measure
+        fee = Math.min(fee, Math.floor(originalAmount * 0.5));
+      }
+      
+      const netAmount = originalAmount - fee;
+      const effectivePercent = originalAmount > 0 ? ((fee / originalAmount) * 100).toFixed(2) : '0.00';
       recipient.amount = netAmount;
-      feesPerRecipient.set(recipient.userId, cappedFee);
-      totalFees += cappedFee;
+      feesPerRecipient.set(recipient.userId, fee);
+      totalFees += fee;
       
-      console.log(`User ${recipient.userId}: Original ${originalAmount} XEC, Fee ${cappedFee} XEC (${effectivePercent}%), Net ${netAmount} XEC`);
+      console.log(`User ${recipient.userId}: Original ${originalAmount} sats, Fee ${fee} sats (${effectivePercent}%), Net ${netAmount} sats`);
     }
     
     console.log(`Total platform fees collected: ${totalFees} XEC`);

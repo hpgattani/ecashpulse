@@ -9,9 +9,9 @@ const corsHeaders = {
 
 const ANALYSIS_VERSION = "grounded-v7";
 const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const PERPLEXITY_TIMEOUT_MS = 5000;
-const LOVABLE_AI_TIMEOUT_MS = 3500;
-const COINGECKO_TIMEOUT_MS = 2000;
+const PERPLEXITY_TIMEOUT_MS = 10000;
+const LOVABLE_AI_TIMEOUT_MS = 10000;
+const COINGECKO_TIMEOUT_MS = 3000;
 
 type SpaceEvent = {
   date: string;

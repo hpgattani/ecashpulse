@@ -106,8 +106,9 @@ Deno.serve(async (req) => {
     const validUtxos = utxos.filter(u => !u.token);
     for (const utxo of validUtxos) totalAvailable += parseInt(utxo.value);
 
-    const estimatedSize = 10 + 180 + (3 * 34) + 50;
-    const estimatedFee = Math.max(400, estimatedSize);
+    // Fee = 1 sat/byte, with proper size estimate per input
+    const estimatedSize = 10 + (validUtxos.length * 180) + (3 * 34) + 50;
+    const estimatedFee = Math.max(600, Math.ceil(estimatedSize * 1.1));
 
     if (totalAvailable < amountSats + estimatedFee) {
       throw new Error(`Insufficient funds: need ${amountSats + estimatedFee}, have ${totalAvailable}`);
