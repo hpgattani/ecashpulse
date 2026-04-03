@@ -687,17 +687,10 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                     )}
 
                     {/* PayButton Container */}
-                    {escrowLoading ? (
-                      <div className="min-h-[56px] w-full flex items-center justify-center gap-2 text-muted-foreground">
-                        <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                        <span className="text-sm">Loading payment...</span>
-                      </div>
-                    ) : (
-                      <div
-                        ref={payButtonRef}
-                        className="min-h-[56px] w-full flex items-center justify-center"
-                      />
-                    )}
+                    <div
+                      ref={payButtonRef}
+                      className="min-h-[56px] w-full flex items-center justify-center"
+                    />
 
                     {payButtonError && (
                       <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/30">
