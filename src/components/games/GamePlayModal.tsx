@@ -451,7 +451,9 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
                     
                     {/* Game content - scales to fill container in fullscreen */}
                     <div className={`w-full h-full flex items-center justify-center ${isFullscreen ? "min-h-screen" : "min-h-[400px] sm:min-h-[450px]"}`}>
-                      {renderGame()}
+                      <Suspense fallback={<div className="flex items-center justify-center p-8"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>}>
+                        {renderGame()}
+                      </Suspense>
                     </div>
                   </div>
                 )}
