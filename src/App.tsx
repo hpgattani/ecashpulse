@@ -51,7 +51,7 @@ const App = () => (
                     <Route path="/stats" element={<Stats />} />
                     <Route path="/sentiment" element={<Sentiment />} />
                     <Route path="/raffle" element={<Raffle />} />
-                    <Route path="/games" element={<Games />} />
+                    <Route path="/games" element={<Suspense fallback={<div className="min-h-screen bg-background" />}><Games /></Suspense>} />
                     <Route path="/token" element={<Token />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
