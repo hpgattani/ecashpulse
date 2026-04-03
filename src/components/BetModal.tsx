@@ -644,7 +644,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                   {/* Bet Amount + Payout Preview */}
                   <div className="space-y-4">
                     <div>
-                      <label className="text-sm text-muted-foreground mb-1.5 block">{t.betAmount} (XEC)</label>
+                      <label className="text-sm text-muted-foreground mb-1.5 block">{t.betAmount}</label>
                       <div className="relative">
                         <Input
                           type="number"
