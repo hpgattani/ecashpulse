@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -17,9 +18,11 @@ import CreatePrediction from "./pages/CreatePrediction";
 import Stats from "./pages/Stats";
 import Sentiment from "./pages/Sentiment";
 import Raffle from "./pages/Raffle";
-import Games from "./pages/Games";
 import Token from "./pages/Token";
 import NotFound from "./pages/NotFound";
+
+// Lazy-load Games page (pulls in pixi.js ~129KB)
+const Games = lazy(() => import("./pages/Games"));
 
 const queryClient = new QueryClient();
 
@@ -48,7 +51,7 @@ const App = () => (
                     <Route path="/stats" element={<Stats />} />
                     <Route path="/sentiment" element={<Sentiment />} />
                     <Route path="/raffle" element={<Raffle />} />
-                    <Route path="/games" element={<Games />} />
+                    <Route path="/games" element={<Suspense fallback={<div className="min-h-screen bg-background" />}><Games /></Suspense>} />
                     <Route path="/token" element={<Token />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>

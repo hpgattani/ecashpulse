@@ -1,16 +1,18 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Trophy, Zap, CheckCircle, Gamepad2, Maximize2, Minimize2 } from "lucide-react";
+import { X, Trophy, Zap, CheckCircle, Gamepad2, Maximize2, Minimize2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCryptoPrices } from "@/hooks/useCryptoPrices";
 import { toast } from "sonner";
 import { triggerHaptic } from "@/hooks/useHaptic";
 import { supabase } from "@/integrations/supabase/client";
-import SnakeGame from "./SnakeGame";
-import TetrisGame from "./TetrisGame";
-import LumberjackGame from "./LumberjackGame";
-import SpaceShooterGame from "./SpaceShooterGame";
+
+// Lazy-load game components (pixi.js only loads when a game is opened)
+const SnakeGame = lazy(() => import("./SnakeGame"));
+const TetrisGame = lazy(() => import("./TetrisGame"));
+const LumberjackGame = lazy(() => import("./LumberjackGame"));
+const SpaceShooterGame = lazy(() => import("./SpaceShooterGame"));
 
 interface MiniGame {
   id: string;
@@ -449,7 +451,9 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
                     
                     {/* Game content - scales to fill container in fullscreen */}
                     <div className={`w-full h-full flex items-center justify-center ${isFullscreen ? "min-h-screen" : "min-h-[400px] sm:min-h-[450px]"}`}>
-                      {renderGame()}
+                      <Suspense fallback={<div className="flex items-center justify-center p-8"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>}>
+                        {renderGame()}
+                      </Suspense>
                     </div>
                   </div>
                 )}
