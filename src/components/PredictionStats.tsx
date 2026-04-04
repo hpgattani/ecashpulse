@@ -105,12 +105,14 @@ const PredictionStats = ({ predictionId, category }: PredictionStatsProps) => {
             <h4 className="text-sm font-semibold text-foreground">Head-to-Head</h4>
           </div>
           <p className="text-xs text-muted-foreground mb-2">{s.head_to_head.summary}</p>
-          {s.head_to_head.records?.map((r: any, i: number) => (
+          {s.head_to_head.records?.length > 0 ? s.head_to_head.records.map((r: any, i: number) => (
             <div key={i} className="flex justify-between text-xs py-1 border-t border-border/20">
               <span className="text-muted-foreground">{r.label}</span>
               <span className="text-foreground font-medium">{r.value}</span>
             </div>
-          ))}
+          )) : (
+            <p className="text-xs text-muted-foreground italic">No records available yet</p>
+          )}
         </div>
       )}
 
@@ -121,19 +123,25 @@ const PredictionStats = ({ predictionId, category }: PredictionStatsProps) => {
             <h4 className="text-sm font-semibold text-foreground">Form Guide</h4>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {[s.form_guide.team_a, s.form_guide.team_b].filter(Boolean).map((team: any, ti: number) => (
-              <div key={ti}>
-                <p className="text-xs font-semibold text-foreground mb-1">{team.name}</p>
-                {team.recent?.slice(0, 4).map((m: any, i: number) => (
-                  <div key={i} className="flex justify-between text-xs py-0.5 gap-2">
-                    <span className="text-muted-foreground truncate">{m.opponent}</span>
-                    <span className={`font-medium ${m.result?.startsWith('W') ? 'text-emerald-400' : m.result?.startsWith('L') ? 'text-red-400' : 'text-amber-400'}`}>
-                      {m.result}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ))}
+            {[s.form_guide.team_a, s.form_guide.team_b].filter(Boolean).length > 0 ? (
+              [s.form_guide.team_a, s.form_guide.team_b].filter(Boolean).map((team: any, ti: number) => (
+                <div key={ti}>
+                  <p className="text-xs font-semibold text-foreground mb-1">{team.name}</p>
+                  {team.recent?.length > 0 ? team.recent.slice(0, 4).map((m: any, i: number) => (
+                    <div key={i} className="flex justify-between text-xs py-0.5 gap-2">
+                      <span className="text-muted-foreground truncate">{m.opponent}</span>
+                      <span className={`font-medium ${m.result?.startsWith('W') ? 'text-emerald-400' : m.result?.startsWith('L') ? 'text-red-400' : 'text-amber-400'}`}>
+                        {m.result}
+                      </span>
+                    </div>
+                  )) : (
+                    <p className="text-xs text-muted-foreground italic">No recent matches found</p>
+                  )}
+                </div>
+              ))
+            ) : (
+              <p className="text-xs text-muted-foreground italic">No form data available</p>
+            )}
           </div>
         </div>
       )}
