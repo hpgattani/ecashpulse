@@ -345,9 +345,13 @@ const buildPerplexityPrompt = (prediction: PredictionRow, analysisType: string) 
     return [
       `Market: ${prediction.title}`,
       `Description: ${prediction.description ?? "N/A"}`,
-      "Return sports data only if it is currently verifiable.",
-      "For head-to-head and form guide, include dates inside the values and omit unsupported claims.",
-      "If some sections cannot be verified, return null for those sections and keep the insight cautious.",
+      "You MUST provide head_to_head and form_guide data. Search thoroughly for recent match results.",
+      "For head_to_head: provide a summary of the historical matchup and records array with stats like 'Total meetings', 'Team A wins', 'Team B wins', 'Draws', 'Last meeting' etc.",
+      "For form_guide: provide each team's last 3-5 match results with opponent name, result (W/L/D + score), and date.",
+      "If teams have never met, say so in the summary but still provide records like 'Total meetings: 0'.",
+      "For form guide, search for each team's most recent competitive matches (friendlies, qualifiers, league games).",
+      "Include dates in all values. Only return null for a section if the team literally does not exist.",
+      "For key_stats, include FIFA ranking, goals scored in last 5 games, clean sheets, etc.",
     ].join("\n");
   }
 

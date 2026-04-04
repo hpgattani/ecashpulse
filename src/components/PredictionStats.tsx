@@ -123,19 +123,25 @@ const PredictionStats = ({ predictionId, category }: PredictionStatsProps) => {
             <h4 className="text-sm font-semibold text-foreground">Form Guide</h4>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {[s.form_guide.team_a, s.form_guide.team_b].filter(Boolean).map((team: any, ti: number) => (
-              <div key={ti}>
-                <p className="text-xs font-semibold text-foreground mb-1">{team.name}</p>
-                {team.recent?.slice(0, 4).map((m: any, i: number) => (
-                  <div key={i} className="flex justify-between text-xs py-0.5 gap-2">
-                    <span className="text-muted-foreground truncate">{m.opponent}</span>
-                    <span className={`font-medium ${m.result?.startsWith('W') ? 'text-emerald-400' : m.result?.startsWith('L') ? 'text-red-400' : 'text-amber-400'}`}>
-                      {m.result}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ))}
+            {[s.form_guide.team_a, s.form_guide.team_b].filter(Boolean).length > 0 ? (
+              [s.form_guide.team_a, s.form_guide.team_b].filter(Boolean).map((team: any, ti: number) => (
+                <div key={ti}>
+                  <p className="text-xs font-semibold text-foreground mb-1">{team.name}</p>
+                  {team.recent?.length > 0 ? team.recent.slice(0, 4).map((m: any, i: number) => (
+                    <div key={i} className="flex justify-between text-xs py-0.5 gap-2">
+                      <span className="text-muted-foreground truncate">{m.opponent}</span>
+                      <span className={`font-medium ${m.result?.startsWith('W') ? 'text-emerald-400' : m.result?.startsWith('L') ? 'text-red-400' : 'text-amber-400'}`}>
+                        {m.result}
+                      </span>
+                    </div>
+                  )) : (
+                    <p className="text-xs text-muted-foreground italic">No recent matches found</p>
+                  )}
+                </div>
+              ))
+            ) : (
+              <p className="text-xs text-muted-foreground italic">No form data available</p>
+            )}
           </div>
         </div>
       )}
