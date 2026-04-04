@@ -385,7 +385,7 @@ const PredictionCard = ({ prediction, index, livePrice, climateData }: Predictio
               )}
               <button
                 onClick={handleShareToX}
-                className="hidden md:flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground text-xs transition-colors"
+                className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground text-xs transition-colors"
                 title="Share to X"
               >
                 <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
