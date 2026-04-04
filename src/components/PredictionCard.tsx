@@ -258,7 +258,14 @@ const PredictionCard = ({ prediction, index, livePrice, climateData }: Predictio
   const handleShareToX = (e: React.MouseEvent) => {
     e.stopPropagation();
     const url = `${window.location.origin}/prediction/${prediction.id}`;
-    const text = `${prediction.question}\n\nPlace your bet on eCash Pulse! 🎯`;
+    const templates = [
+      `🎯 What do you think? "${prediction.question}" — Place your bet on @eCashPulse!`,
+      `🔥 Hot take time! "${prediction.question}" — I just bet on this. Your turn 👇 @eCashPulse`,
+      `💰 Will you bet YES or NO? "${prediction.question}" — Powered by #eCash on @eCashPulse`,
+      `⚡ Prediction markets on #eCash! "${prediction.question}" — Put your XEC where your mouth is @eCashPulse`,
+      `🚀 Can you predict the future? "${prediction.question}" — Bet now on @eCashPulse #XEC`,
+    ];
+    const text = templates[Math.floor(Math.random() * templates.length)];
     const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
     window.open(twitterUrl, '_blank', 'noopener,noreferrer,width=550,height=420');
   };
