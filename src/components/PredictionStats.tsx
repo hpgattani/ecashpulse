@@ -105,12 +105,14 @@ const PredictionStats = ({ predictionId, category }: PredictionStatsProps) => {
             <h4 className="text-sm font-semibold text-foreground">Head-to-Head</h4>
           </div>
           <p className="text-xs text-muted-foreground mb-2">{s.head_to_head.summary}</p>
-          {s.head_to_head.records?.map((r: any, i: number) => (
+          {s.head_to_head.records?.length > 0 ? s.head_to_head.records.map((r: any, i: number) => (
             <div key={i} className="flex justify-between text-xs py-1 border-t border-border/20">
               <span className="text-muted-foreground">{r.label}</span>
               <span className="text-foreground font-medium">{r.value}</span>
             </div>
-          ))}
+          )) : (
+            <p className="text-xs text-muted-foreground italic">No records available yet</p>
+          )}
         </div>
       )}
 
