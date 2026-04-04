@@ -73,18 +73,25 @@ const buildSearchConfig = (prediction: PredictionRow) => {
   const analysisType = getAnalysisType(prediction);
 
   switch (analysisType) {
-    case "sports":
+    case "sports": {
+      // Extract team names from the title for targeted queries
+      const titleClean = prediction.title.replace(/^Will\s+/i, '').replace(/\?$/, '');
       return {
         analysisType,
         model: "sonar-pro",
         recency: "month",
         domainFilter: undefined,
         query: [
-          `Prediction market: ${prediction.title}`,
-          "Return only verified team form, recent results with dates, head-to-head records, and key matchup statistics.",
-          "If a stat cannot be verified from current sources, omit it instead of estimating.",
+          `Find detailed sports data for this matchup: ${prediction.title}`,
+          `I need:`,
+          `1. Head-to-head record between these teams/countries: total meetings, wins for each side, draws, and last meeting date and result`,
+          `2. Recent form for EACH team: their last 5 competitive match results with opponent, score, and date`,
+          `3. Key stats: FIFA rankings, goals scored/conceded in recent matches, clean sheets, win streaks`,
+          `4. Any relevant context about the upcoming match (venue, competition, date)`,
+          `Search thoroughly for "${titleClean}" historical results and recent form.`,
         ].join("\n"),
       };
+    }
     case "crypto":
       return {
         analysisType,
@@ -799,15 +806,24 @@ serve(async (req) => {
       });
     }
 
-    const schema = buildResponseSchema(analysisType);
+    const isSports = analysisType === "sports";
     const extractionPrompt = [
       `You are a strict fact-extraction engine for a prediction market platform.`,
-      `Your ONLY job is to extract structured data from the search results below.`,
+      `Your job is to extract structured data from the search results below.`,
       ``,
       `RULES:`,
-      `- ONLY use facts that appear in the search results. Do NOT add anything from your own knowledge.`,
-      `- If a data point is not in the search results, use null or write "Data not available in sources".`,
-      `- NEVER invent scores, dates, prices, counts, percentages, or records.`,
+      ...(isSports ? [
+        `- For SPORTS markets: you MAY supplement search results with well-known historical facts (e.g., head-to-head records, FIFA rankings, recent tournament results) since these are public knowledge.`,
+        `- You MUST still prioritize search results when available. Only use general knowledge to FILL GAPS.`,
+        `- For head_to_head: ALWAYS provide records with at least "Total meetings", wins for each team, "Draws", and "Last meeting". If unknown, provide best estimates with a note.`,
+        `- For form_guide: ALWAYS provide at least 3 recent competitive results per team with opponent, result (e.g. "W 2-0", "L 1-3", "D 0-0"), and approximate date.`,
+        `- For key_stats: Include FIFA ranking, goals in last 5 games, clean sheets, etc.`,
+        `- NEVER leave head_to_head.records as an empty array or form_guide teams with empty recent arrays.`,
+      ] : [
+        `- ONLY use facts that appear in the search results. Do NOT add anything from your own knowledge.`,
+        `- If a data point is not in the search results, use null or write "Data not available in sources".`,
+      ]),
+      `- NEVER invent scores or results that did not happen.`,
       `- If the search results say information is uncertain or conflicting, reflect that honestly.`,
       `- Return ONLY valid JSON matching the schema provided. No markdown, no explanation.`,
       ``,
@@ -823,7 +839,7 @@ serve(async (req) => {
         ``,
       ] : []),
       `SEARCH RESULTS:`,
-      searchFacts || "(No search results available — return cautious analysis noting data is unavailable)",
+      searchFacts || "(No search results available — use your knowledge for sports, or return cautious analysis for other categories)",
       ``,
       `SOURCES: ${citations.length > 0 ? citations.join(", ") : "None available"}`,
       ``,
@@ -831,7 +847,7 @@ serve(async (req) => {
       JSON.stringify(schema, null, 2),
     ].join("\n");
 
-    if (!searchFacts.trim() && analysisType !== "crypto") {
+    if (!searchFacts.trim() && analysisType !== "crypto" && analysisType !== "sports") {
       const fallbackStats = buildUnavailableStats(
         analysisType,
         "Fresh source-backed data was not available quickly enough, so cached-safe analysis is shown instead."
