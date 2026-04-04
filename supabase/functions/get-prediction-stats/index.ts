@@ -73,18 +73,25 @@ const buildSearchConfig = (prediction: PredictionRow) => {
   const analysisType = getAnalysisType(prediction);
 
   switch (analysisType) {
-    case "sports":
+    case "sports": {
+      // Extract team names from the title for targeted queries
+      const titleClean = prediction.title.replace(/^Will\s+/i, '').replace(/\?$/, '');
       return {
         analysisType,
         model: "sonar-pro",
         recency: "month",
         domainFilter: undefined,
         query: [
-          `Prediction market: ${prediction.title}`,
-          "Return only verified team form, recent results with dates, head-to-head records, and key matchup statistics.",
-          "If a stat cannot be verified from current sources, omit it instead of estimating.",
+          `Find detailed sports data for this matchup: ${prediction.title}`,
+          `I need:`,
+          `1. Head-to-head record between these teams/countries: total meetings, wins for each side, draws, and last meeting date and result`,
+          `2. Recent form for EACH team: their last 5 competitive match results with opponent, score, and date`,
+          `3. Key stats: FIFA rankings, goals scored/conceded in recent matches, clean sheets, win streaks`,
+          `4. Any relevant context about the upcoming match (venue, competition, date)`,
+          `Search thoroughly for "${titleClean}" historical results and recent form.`,
         ].join("\n"),
       };
+    }
     case "crypto":
       return {
         analysisType,
