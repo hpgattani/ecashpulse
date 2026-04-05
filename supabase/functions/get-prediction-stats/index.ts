@@ -807,6 +807,7 @@ serve(async (req) => {
     }
 
     const isSports = analysisType === "sports";
+    const schema = buildResponseSchema(analysisType);
     const extractionPrompt = [
       `You are a strict fact-extraction engine for a prediction market platform.`,
       `Your job is to extract structured data from the search results below.`,
