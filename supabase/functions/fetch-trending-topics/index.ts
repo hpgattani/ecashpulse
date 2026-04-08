@@ -79,10 +79,15 @@ const TRIVIALLY_TRUE_PATTERNS: RegExp[] = [
   /american team.*(win|super bowl)/i,
   /nfl team.*(win|super bowl)/i,
   // Block social media post/tweet counting markets (e.g. "Zelenskyy # posts March 20 - March 27")
-  /# ?(posts|tweets|times|retweets)/i,
+  /# ?(posts|tweets|times|retweets|truth social)/i,
   /\d+\s*-\s*\d+.*(tweets|posts)/i,
   /how many.*(tweets?|posts?|times?)/i,
   /total (tweets?|posts?|views?|likes?)/i,
+  // Block non-binary questions that ask for a number/rating/percentage
+  /approval rating/i,
+  /what (is|will be) the (score|rating|percentage|number|total|count)/i,
+  /how (much|many) will/i,
+  /what.*(gdp|inflation|unemployment) (rate|number)/i,
 ];
 
 // Keywords that belong to a specific category - reject if detected category doesn't match
