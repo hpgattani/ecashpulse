@@ -78,7 +78,6 @@ const buildSearchConfig = (prediction: PredictionRow) => {
       const titleClean = prediction.title.replace(/^Will\s+/i, '').replace(/\?$/, '');
       return {
         analysisType,
-        model: "sonar-pro",
         recency: "month",
         domainFilter: undefined,
         query: [
@@ -95,7 +94,6 @@ const buildSearchConfig = (prediction: PredictionRow) => {
     case "crypto":
       return {
         analysisType,
-        model: "sonar-pro",
         recency: "week",
         domainFilter: ["coingecko.com", "coinmarketcap.com", "binance.com", "kraken.com", "investing.com"],
         query: [
@@ -107,7 +105,6 @@ const buildSearchConfig = (prediction: PredictionRow) => {
     case "space":
       return {
         analysisType,
-        model: "sonar-reasoning-pro",
         recency: "year",
         domainFilter: ["spacex.com", "nextspaceflight.com", "spaceflightnow.com", "wikipedia.org"],
         query: [
@@ -121,7 +118,6 @@ const buildSearchConfig = (prediction: PredictionRow) => {
     default:
       return {
         analysisType,
-        model: "sonar-pro",
         recency: "month",
         domainFilter: undefined,
         query: [
