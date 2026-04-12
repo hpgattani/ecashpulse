@@ -5,6 +5,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_MINUTES = 60;
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -37,7 +40,30 @@ Deno.serve(async (req) => {
       });
     }
 
+    // --- Rate limiting: check recent failed attempts for this session_token ---
+    const windowStart = new Date(Date.now() - LOCKOUT_MINUTES * 60 * 1000).toISOString();
+    const { count: failedCount } = await supabase
+      .from('bet_audit_log')
+      .select('id', { count: 'exact', head: true })
+      .eq('event_type', 'admin_login_failed')
+      .eq('tx_hash', session_token)
+      .gte('created_at', windowStart);
+
+    if ((failedCount ?? 0) >= MAX_ATTEMPTS) {
+      console.log('admin-secret-login-v2: rate limited');
+      return new Response(JSON.stringify({ error: 'Too many failed attempts. Try again later.' }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     if (password !== adminPassword) {
+      // Log failed attempt
+      await supabase.from('bet_audit_log').insert({
+        event_type: 'admin_login_failed',
+        tx_hash: session_token,
+        metadata: { timestamp: new Date().toISOString() },
+      });
       console.log('admin-secret-login-v2: invalid password');
       return new Response(JSON.stringify({ error: 'Invalid password' }), {
         status: 401,
@@ -116,6 +142,13 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Log successful admin grant
+    await supabase.from('bet_audit_log').insert({
+      event_type: 'admin_login_success',
+      user_id,
+      metadata: { timestamp: new Date().toISOString() },
+    });
+
     console.log(`admin-secret-login-v2: admin granted user=${user_id}`);
 
     return new Response(JSON.stringify({ success: true, message: 'Admin access granted' }), {
@@ -124,7 +157,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('admin-secret-login-v2: unexpected error', error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      JSON.stringify({ error: 'An unexpected error occurred' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
