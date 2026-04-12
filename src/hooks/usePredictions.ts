@@ -50,14 +50,32 @@ export interface Prediction {
   noPool: number;
 }
 
+const VALID_CATEGORIES = ['crypto', 'politics', 'sports', 'tech', 'entertainment', 'economics', 'elections', 'finance', 'geopolitics', 'earnings', 'world', 'climate'] as const;
+
+const SPORTS_OVERRIDE_KEYWORDS = [
+  'pga', 'golf', 'masters', 'augusta', 'ryder cup', 'open championship', 'players championship',
+  'fedex cup', 'lpga', 'golfer',
+];
+
+const ENTERTAINMENT_KEYWORDS = [
+  'k-pop', 'kpop', 'bts', 'blackpink', 'grammy', 'emmy', 'golden globe', 'oscar', 'oscars',
+  'academy award', 'movie', 'film', 'director', 'best director', 'netflix', 'disney', 'hbo',
+  'prime video', 'youtube', 'tiktok', 'instagram', 'subscriber', 'taylor swift', 'beyonce',
+  'drake', 'kanye', 'marvel', 'dc comics', 'box office', 'mrbeast', 'podcast', 'influencer',
+  'met gala', 'vogue', 'fashion', 'celebrity', 'concert', 'album', 'streaming', 'kardashian',
+  'joe rogan', 'viral', 'views', 'followers', 'episode', 'season', 'series', 'cinema', 'spotify',
+  'tv show', 'premiere', 'house of the dragon', 'game of thrones', 'stranger things', 'the last of us',
+  'mandalorian', 'rings of power', 'star wars', 'series finale',
+];
+
+const hasAnyKeyword = (text: string, keywords: string[]) => keywords.some((keyword) => text.includes(keyword));
+
 const detectCategory = (title: string, existingCategory: string): Prediction['category'] => {
   const q = title.toLowerCase();
   const existing = (existingCategory || '').toLowerCase();
-  
-  // TRUST the existing database category if it's valid (not 'crypto' default or empty)
-  const validCategories = ['crypto', 'politics', 'sports', 'tech', 'entertainment', 'economics', 'elections', 'finance', 'geopolitics', 'earnings', 'world', 'climate'];
-  if (existing && validCategories.includes(existing) && existing !== 'crypto') {
-    return existing as Prediction['category'];
+
+  if (hasAnyKeyword(q, SPORTS_OVERRIDE_KEYWORDS)) {
+    return 'sports';
   }
   
   // Only run detection if existing category is 'crypto' (the default) or invalid
@@ -93,21 +111,7 @@ const detectCategory = (title: string, existingCategory: string): Prediction['ca
   }
 
   // Entertainment keywords - CHECK BEFORE crypto for K-pop, Grammy, Netflix, YouTube, etc.
-  if (
-    q.includes('k-pop') || q.includes('kpop') || q.includes('bts') || q.includes('blackpink') ||
-    q.includes('grammy') || q.includes('emmy') || q.includes('golden globe') ||
-    q.includes('oscar') || q.includes('oscars') || q.includes('academy award') ||
-    q.includes('movie') || q.includes('film') || q.includes('director') || q.includes('best director') ||
-    q.includes('netflix') || q.includes('disney') || q.includes('hbo') || q.includes('prime video') ||
-    q.includes('youtube') || q.includes('tiktok') || q.includes('instagram') || q.includes('subscriber') ||
-    q.includes('taylor swift') || q.includes('beyonce') || q.includes('drake') || q.includes('kanye') ||
-    q.includes('marvel') || q.includes('dc comics') || q.includes('box office') ||
-    q.includes('mrbeast') || q.includes('podcast') || q.includes('influencer') ||
-    q.includes('met gala') || q.includes('vogue') || q.includes('fashion') ||
-    q.includes('celebrity') || q.includes('concert') || q.includes('tour') || q.includes('album') ||
-    q.includes('streaming') || q.includes('kardashian') || q.includes('joe rogan') ||
-    q.includes('viral') || q.includes('views') || q.includes('followers')
-  ) {
+  if (hasAnyKeyword(q, ENTERTAINMENT_KEYWORDS)) {
     return 'entertainment';
   }
 
@@ -282,7 +286,7 @@ const detectCategory = (title: string, existingCategory: string): Prediction['ca
   }
 
   // If existing category is valid, keep it (trust the source data)
-  if (['crypto', 'politics', 'sports', 'tech', 'entertainment', 'economics', 'elections', 'finance', 'geopolitics', 'earnings', 'world', 'climate'].includes(existing)) {
+  if (VALID_CATEGORIES.includes(existing as Prediction['category'])) {
     return existing as Prediction['category'];
   }
 

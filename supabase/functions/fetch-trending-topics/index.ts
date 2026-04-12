@@ -97,7 +97,7 @@ const CATEGORY_KEYWORD_MAP: Record<string, string[]> = {
   sports: [
     'nfl', 'nba', 'mlb', 'nhl', 'super bowl', 'playoffs', 'championship', 'ipl', 'cricket', 'world cup',
     'tennis', 'wimbledon', 'us open', 'australian open', 'french open', 'roland garros', 'grand slam',
-    'atp', 'wta', 'serena williams'
+    'atp', 'wta', 'serena williams', 'pga', 'golf', 'masters', 'augusta', 'lpga', 'fedex cup', 'ryder cup'
   ],
   crypto: ['bitcoin', 'ethereum', 'btc', 'eth', 'token', 'blockchain', 'lighter'],
   politics: ['election', 'president', 'congress', 'senate', 'vote'],
@@ -229,6 +229,13 @@ function detectCategory(question: string): string {
   const q = question.toLowerCase();
 
   if (
+    q.includes('pga') || q.includes('golf') || q.includes('masters') || q.includes('augusta') ||
+    q.includes('lpga') || q.includes('fedex cup') || q.includes('ryder cup')
+  ) {
+    return 'sports';
+  }
+
+  if (
     q.includes('bitcoin') || q.includes('btc') || q.includes('ethereum') || q.includes('eth') ||
     q.includes('solana') || q.includes('sol') || q.includes('xrp') || q.includes('ripple') ||
     q.includes('cardano') || q.includes('ada') || q.includes('dogecoin') || q.includes('doge') ||
@@ -291,7 +298,7 @@ function detectCategory(question: string): string {
     q.includes('house of the dragon') || q.includes('game of thrones') || q.includes('stranger things') ||
     q.includes('the last of us') || q.includes('mandalorian') || q.includes('rings of power') ||
     q.includes('marvel') || q.includes('star wars') || q.includes('series finale') ||
-    q.includes('streaming') || q.includes('box office') || q.includes('concert') || q.includes('tour')
+    q.includes('streaming') || q.includes('box office') || q.includes('concert')
   ) {
     return 'entertainment';
   }
