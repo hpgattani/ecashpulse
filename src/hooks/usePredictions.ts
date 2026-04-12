@@ -54,7 +54,7 @@ const VALID_CATEGORIES = ['crypto', 'politics', 'sports', 'tech', 'entertainment
 
 const SPORTS_OVERRIDE_KEYWORDS = [
   'pga', 'golf', 'masters', 'augusta', 'ryder cup', 'open championship', 'players championship',
-  'fedex cup', 'lpga', 'golfer', 'tournament', 'round of 16', 'quarterfinal', 'semifinal', 'final',
+  'fedex cup', 'lpga', 'golfer',
 ];
 
 const ENTERTAINMENT_KEYWORDS = [
@@ -76,11 +76,6 @@ const detectCategory = (title: string, existingCategory: string): Prediction['ca
 
   if (hasAnyKeyword(q, SPORTS_OVERRIDE_KEYWORDS)) {
     return 'sports';
-  }
-  
-  // Trust the stored category only when it is valid and not one of the legacy categories that often leaked from imports.
-  if (existing && VALID_CATEGORIES.includes(existing as Prediction['category']) && existing !== 'crypto' && existing !== 'entertainment') {
-    return existing as Prediction['category'];
   }
   
   // Only run detection if existing category is 'crypto' (the default) or invalid
