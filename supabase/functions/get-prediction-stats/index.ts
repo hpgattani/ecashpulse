@@ -684,16 +684,15 @@ serve(async (req) => {
     }
 
 
-    const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY_1") || Deno.env.get("PERPLEXITY_API_KEY");
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!PERPLEXITY_API_KEY && !LOVABLE_API_KEY) {
-      return new Response(JSON.stringify({ error: "Live analysis is not configured" }), {
+    if (!LOVABLE_API_KEY) {
+      return new Response(JSON.stringify({ error: "AI analysis is not configured" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const { analysisType, query, recency, domainFilter, model } = buildSearchConfig(prediction);
+    const { analysisType, query, recency, domainFilter } = buildSearchConfig(prediction);
 
     // ── STAGE 0: CoinGecko live price for crypto markets ──
     let coingeckoContext = "";
@@ -743,59 +742,58 @@ serve(async (req) => {
       }
     }
 
-    // ── STAGE 1: Perplexity search retrieval (raw facts + citations) ──
+    // ── STAGE 1: Lovable AI search retrieval (replaces Perplexity) ──
     let searchFacts = "";
-    let citations: string[] = [];
+    const citations: string[] = [];
 
-    if (PERPLEXITY_API_KEY) {
-      try {
-        const perplexityResponse = await fetchWithTimeout("https://api.perplexity.ai/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${PERPLEXITY_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model,
-            temperature: 0.1,
-            messages: [
-              {
-                role: "system",
-                content: [
-                  "You are a research assistant. Your job is to find and report ONLY verified, source-backed facts.",
-                  "Do NOT structure the output as JSON. Write plain text with all the raw facts, dates, numbers, and details you find.",
-                  "Include exact dates, scores, prices, names, and figures. Cite your sources inline.",
-                  "If information is uncertain or conflicting, say so explicitly.",
-                  "NEVER invent or estimate any data point. If you cannot find it, say 'not found'.",
-                  `Current date: ${new Date().toISOString().split("T")[0]}`,
-                ].join(" "),
-              },
-              { role: "user", content: query },
-            ],
-            search_recency_filter: recency,
-            ...(domainFilter ? { search_domain_filter: domainFilter } : {}),
-          }),
-        }, PERPLEXITY_TIMEOUT_MS);
+    try {
+      const searchSystemPrompt = [
+        "You are a research assistant. Your job is to find and report ONLY verified, source-backed facts.",
+        "Do NOT structure the output as JSON. Write plain text with all the raw facts, dates, numbers, and details you find.",
+        "Include exact dates, scores, prices, names, and figures.",
+        "If information is uncertain or conflicting, say so explicitly.",
+        "NEVER invent or estimate any data point. If you cannot find it, say 'not found'.",
+        `Current date: ${new Date().toISOString().split("T")[0]}`,
+      ].join(" ");
 
-        if (perplexityResponse.ok) {
-          const pData = await perplexityResponse.json();
-          searchFacts = pData.choices?.[0]?.message?.content || "";
-          citations = Array.isArray(pData.citations) ? pData.citations : [];
-          console.log("Perplexity search facts length:", searchFacts.length, "citations:", citations.length);
-        } else {
-          const status = perplexityResponse.status;
-          if (status === 429) {
-            return new Response(JSON.stringify({ error: "Rate limited, try again later" }), {
-              status: 429,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-          }
-          console.error("Perplexity search error:", status, await perplexityResponse.text());
-          // Continue without search facts — Lovable AI will work with what it has
+      const searchResponse = await fetchWithTimeout(LOVABLE_AI_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          temperature: 0.1,
+          messages: [
+            { role: "system", content: searchSystemPrompt },
+            { role: "user", content: query },
+          ],
+        }),
+      }, LOVABLE_AI_SEARCH_TIMEOUT_MS);
+
+      if (searchResponse.ok) {
+        const searchData = await searchResponse.json();
+        searchFacts = searchData.choices?.[0]?.message?.content || "";
+        console.log("Lovable AI search facts length:", searchFacts.length);
+      } else {
+        const status = searchResponse.status;
+        if (status === 429) {
+          return new Response(JSON.stringify({ error: "Rate limited, try again later" }), {
+            status: 429,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
         }
-      } catch (pErr) {
-        console.error("Perplexity fetch error:", pErr);
+        if (status === 402) {
+          return new Response(JSON.stringify({ error: "AI credits exhausted" }), {
+            status: 402,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        console.error("Lovable AI search error:", status, await searchResponse.text());
       }
+    } catch (searchErr) {
+      console.error("Lovable AI search fetch error:", searchErr);
     }
 
     // ── STAGE 2: Lovable AI structured extraction from search facts ──
