@@ -7,10 +7,10 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const ANALYSIS_VERSION = "grounded-v7";
+const ANALYSIS_VERSION = "grounded-v8";
 const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const PERPLEXITY_TIMEOUT_MS = 10000;
-const LOVABLE_AI_TIMEOUT_MS = 10000;
+const LOVABLE_AI_SEARCH_TIMEOUT_MS = 15000;
+const LOVABLE_AI_EXTRACT_TIMEOUT_MS = 15000;
 const COINGECKO_TIMEOUT_MS = 3000;
 
 type SpaceEvent = {
