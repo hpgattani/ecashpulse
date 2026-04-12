@@ -875,7 +875,7 @@ serve(async (req) => {
           { role: "user", content: extractionPrompt },
         ],
       }),
-    }, LOVABLE_AI_TIMEOUT_MS);
+    }, LOVABLE_AI_EXTRACT_TIMEOUT_MS);
 
     if (!lovableResponse.ok) {
       const errStatus = lovableResponse.status;
