@@ -9,6 +9,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import BetModal from "@/components/BetModal";
 import PredictionStats from "@/components/PredictionStats";
+import CommentsSection from "@/components/CommentsSection";
 import { Outcome } from "@/hooks/usePredictions";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
