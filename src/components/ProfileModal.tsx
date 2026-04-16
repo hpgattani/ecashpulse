@@ -90,6 +90,31 @@ export const ProfileModal = ({ open, onOpenChange }: ProfileModalProps) => {
     }
   };
 
+  const handleRemoveAvatar = async () => {
+    if (!sessionToken) return;
+    setUploading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('update-profile', {
+        body: {
+          session_token: sessionToken,
+          display_name: displayName.trim() || null,
+          bio: bio.trim() || null,
+          avatar_url: null
+        }
+      });
+      if (error) throw error;
+      if (data?.success && data?.profile) {
+        updateProfile(data.profile);
+        setAvatarPreview(null);
+        toast.success('Profile picture removed!');
+      }
+    } catch {
+      toast.error('Failed to remove profile picture');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!user || !sessionToken) return;
     
