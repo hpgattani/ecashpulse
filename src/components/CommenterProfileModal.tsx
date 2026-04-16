@@ -104,47 +104,15 @@ const CommenterProfileModal = ({ open, onOpenChange, userId, displayName, avatar
               </div>
             </div>
 
-            {/* Profit Graph */}
-            {graphData.length > 1 ? (
-              <div className="rounded-lg bg-muted/30 p-3">
-                <p className="text-xs text-muted-foreground mb-2 font-medium">📈 Profit Curve</p>
-                  <svg viewBox={`0 0 ${graphWidth} ${graphHeight}`} className="w-full h-24" preserveAspectRatio="none">
-                    <line
-                      x1="0" y1={graphHeight / 2} x2={graphWidth} y2={graphHeight / 2}
-                      stroke="#555" strokeWidth="0.5" strokeDasharray="4 2"
-                    />
-                    <polygon
-                      fill={stats.totalProfit >= 0 ? "rgba(52,211,153,0.15)" : "rgba(248,113,113,0.15)"}
-                      points={`0,${graphHeight / 2} ${graphData
-                        .map((val, i) => {
-                          const x = (i / (graphData.length - 1)) * graphWidth;
-                          const y = graphHeight / 2 - (val / maxVal) * (graphHeight / 2 - 4);
-                          return `${x},${y}`;
-                        }).join(" ")} ${graphWidth},${graphHeight / 2}`}
-                    />
-                    <polyline
-                      fill="none"
-                      stroke={stats.totalProfit >= 0 ? "#34d399" : "#f87171"}
-                      strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"
-                      points={graphData
-                        .map((val, i) => {
-                          const x = (i / (graphData.length - 1)) * graphWidth;
-                          const y = graphHeight / 2 - (val / maxVal) * (graphHeight / 2 - 4);
-                          return `${x},${y}`;
-                        }).join(" ")}
-                    />
-                </svg>
-                <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
-                  <span>First bet</span>
-                  <span>Latest</span>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-4 text-muted-foreground">
-                <BarChart3 className="w-6 h-6 mx-auto mb-1 opacity-40" />
-                <p className="text-xs">No resolved bets yet</p>
-              </div>
-            )}
+            {/* Bullish Badge */}
+            <div className="rounded-lg bg-muted/30 p-3 text-center">
+              <p className="text-2xl mb-1">🐂</p>
+              <p className="text-xs text-muted-foreground font-medium">
+                {stats.wins + stats.losses > 0
+                  ? `${stats.wins + stats.losses} markets entered`
+                  : "No bets yet — waiting to go bullish!"}
+              </p>
+            </div>
           </div>
         ) : null}
       </DialogContent>
