@@ -194,20 +194,43 @@ export const UserBetHistoryModal = ({
               </span>
             </div>
             {profitStats.profitCurve.length > 1 && (() => {
-              const gd = profitStats.profitCurve;
+              const now = Date.now();
+              const periodMs = { '7d': 7*86400000, '30d': 30*86400000, '90d': 90*86400000, 'all': Infinity };
+              const cutoff = now - periodMs[graphPeriod];
+              const filtered = graphPeriod === 'all'
+                ? profitStats.profitCurve
+                : profitStats.profitCurve.filter(p => new Date(p.t).getTime() >= cutoff);
+              const gd = filtered.map(p => p.v);
+              if (gd.length < 2) return null;
               const maxV = Math.max(...gd.map(Math.abs), 1);
+              const lastVal = gd[gd.length - 1];
               const gW = 280, gH = 80;
               return (
                 <div className="rounded-lg bg-muted/30 p-2">
+                  <div className="flex gap-1 mb-2">
+                    {(['7d', '30d', '90d', 'all'] as const).map(p => (
+                      <button
+                        key={p}
+                        onClick={() => setGraphPeriod(p)}
+                        className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
+                          graphPeriod === p
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                        }`}
+                      >
+                        {p === 'all' ? 'All' : p.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
                   <svg viewBox={`0 0 ${gW} ${gH}`} className="w-full h-16" preserveAspectRatio="none">
                     <line x1="0" y1={gH/2} x2={gW} y2={gH/2} stroke="#555" strokeWidth="0.5" strokeDasharray="4 2" />
                     <polygon
-                      fill={profitStats.totalProfit >= 0 ? "rgba(52,211,153,0.15)" : "rgba(248,113,113,0.15)"}
+                      fill={lastVal >= 0 ? "rgba(52,211,153,0.15)" : "rgba(248,113,113,0.15)"}
                       points={`0,${gH/2} ${gd.map((v,i) => `${(i/(gd.length-1))*gW},${gH/2-(v/maxV)*(gH/2-4)}`).join(' ')} ${gW},${gH/2}`}
                     />
                     <polyline
                       fill="none"
-                      stroke={profitStats.totalProfit >= 0 ? "#34d399" : "#f87171"}
+                      stroke={lastVal >= 0 ? "#34d399" : "#f87171"}
                       strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"
                       points={gd.map((v,i) => `${(i/(gd.length-1))*gW},${gH/2-(v/maxV)*(gH/2-4)}`).join(' ')}
                     />
