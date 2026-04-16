@@ -383,6 +383,5 @@ const CommentsSection = ({ predictionId }: CommentsSectionProps) => {
     </>
   );
 };
-};
 
 export default CommentsSection;
