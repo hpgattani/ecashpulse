@@ -79,7 +79,8 @@ const CommentsSection = ({ predictionId }: CommentsSectionProps) => {
 
       const enriched: Comment[] = (data || []).map((c) => ({
         ...c,
-        display_name: profileMap[c.user_id] || null,
+        display_name: profileMap[c.user_id]?.display_name || null,
+        avatar_url: profileMap[c.user_id]?.avatar_url || null,
         position: positionMap[c.user_id] || null,
         like_count: likeCountMap[c.id] || 0,
         liked_by_me: myLikes.has(c.id),
