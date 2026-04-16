@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { Trophy, Medal, TrendingUp, Wallet, Crown, ChevronRight, Info, X } from 'lucide-react';
+import { Trophy, Medal, TrendingUp, Wallet, Crown, ChevronRight, Info, X, User } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { UserBetHistoryModal } from './UserBetHistoryModal';
@@ -10,6 +10,7 @@ interface LeaderboardEntry {
   user_id: string;
   ecash_address: string;
   display_name: string | null;
+  avatar_url: string | null;
   total_wins: number;
   total_bets: number;
   total_winnings: number;
