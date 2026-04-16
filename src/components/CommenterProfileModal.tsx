@@ -46,7 +46,7 @@ const CommenterProfileModal = ({ open, onOpenChange, userId, displayName, avatar
     fetchData();
   }, [open, userId]);
 
-  const graphData = stats?.profitCurve || [];
+  const graphData = useMemo(() => (stats?.profitCurve || []).map((p: any) => typeof p === 'number' ? p : p.v), [stats]);
   const maxVal = Math.max(...graphData.map(Math.abs), 1);
   const graphHeight = 100;
   const graphWidth = 280;
@@ -86,7 +86,7 @@ const CommenterProfileModal = ({ open, onOpenChange, userId, displayName, avatar
         ) : stats ? (
           <div className="p-4 space-y-4">
             {/* Stats Grid */}
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <div className="rounded-lg bg-muted/40 p-3 text-center">
                 <Trophy className="w-4 h-4 mx-auto mb-1 text-amber-400" />
                 <p className="text-lg font-bold text-foreground">{stats.wins}</p>
@@ -102,44 +102,37 @@ const CommenterProfileModal = ({ open, onOpenChange, userId, displayName, avatar
                 <p className="text-lg font-bold text-foreground">{stats.winRate}%</p>
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Win Rate</p>
               </div>
-              <div className="rounded-lg bg-muted/40 p-3 text-center">
-                <TrendingUp className="w-4 h-4 mx-auto mb-1 text-emerald-400" />
-                <p className={`text-lg font-bold ${stats.totalProfit >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                  {stats.totalProfit >= 0 ? "+" : ""}{formatXec(stats.totalProfit)} XEC
-                </p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Net Profit</p>
-              </div>
             </div>
 
             {/* Profit Graph */}
             {graphData.length > 1 ? (
               <div className="rounded-lg bg-muted/30 p-3">
                 <p className="text-xs text-muted-foreground mb-2 font-medium">📈 Profit Curve</p>
-                <svg viewBox={`0 0 ${graphWidth} ${graphHeight}`} className="w-full h-24" preserveAspectRatio="none">
-                  <line
-                    x1="0" y1={graphHeight / 2} x2={graphWidth} y2={graphHeight / 2}
-                    stroke="hsl(var(--border))" strokeWidth="0.5" strokeDasharray="4 2"
-                  />
-                  <polygon
-                    fill={stats.totalProfit >= 0 ? "hsl(var(--chart-2) / 0.1)" : "hsl(var(--destructive) / 0.1)"}
-                    points={`0,${graphHeight / 2} ${graphData
-                      .map((val, i) => {
-                        const x = (i / (graphData.length - 1)) * graphWidth;
-                        const y = graphHeight / 2 - (val / maxVal) * (graphHeight / 2 - 4);
-                        return `${x},${y}`;
-                      }).join(" ")} ${graphWidth},${graphHeight / 2}`}
-                  />
-                  <polyline
-                    fill="none"
-                    stroke={stats.totalProfit >= 0 ? "hsl(var(--chart-2))" : "hsl(var(--destructive))"}
-                    strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"
-                    points={graphData
-                      .map((val, i) => {
-                        const x = (i / (graphData.length - 1)) * graphWidth;
-                        const y = graphHeight / 2 - (val / maxVal) * (graphHeight / 2 - 4);
-                        return `${x},${y}`;
-                      }).join(" ")}
-                  />
+                  <svg viewBox={`0 0 ${graphWidth} ${graphHeight}`} className="w-full h-24" preserveAspectRatio="none">
+                    <line
+                      x1="0" y1={graphHeight / 2} x2={graphWidth} y2={graphHeight / 2}
+                      stroke="#555" strokeWidth="0.5" strokeDasharray="4 2"
+                    />
+                    <polygon
+                      fill={stats.totalProfit >= 0 ? "rgba(52,211,153,0.15)" : "rgba(248,113,113,0.15)"}
+                      points={`0,${graphHeight / 2} ${graphData
+                        .map((val, i) => {
+                          const x = (i / (graphData.length - 1)) * graphWidth;
+                          const y = graphHeight / 2 - (val / maxVal) * (graphHeight / 2 - 4);
+                          return `${x},${y}`;
+                        }).join(" ")} ${graphWidth},${graphHeight / 2}`}
+                    />
+                    <polyline
+                      fill="none"
+                      stroke={stats.totalProfit >= 0 ? "#34d399" : "#f87171"}
+                      strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"
+                      points={graphData
+                        .map((val, i) => {
+                          const x = (i / (graphData.length - 1)) * graphWidth;
+                          const y = graphHeight / 2 - (val / maxVal) * (graphHeight / 2 - 4);
+                          return `${x},${y}`;
+                        }).join(" ")}
+                    />
                 </svg>
                 <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
                   <span>First bet</span>
