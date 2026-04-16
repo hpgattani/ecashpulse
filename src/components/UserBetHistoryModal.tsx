@@ -85,9 +85,11 @@ export const UserBetHistoryModal = ({
   };
 
   const formatXEC = (satoshis: number) => {
-    const xec = satoshis / 100;
-    if (xec >= 1000) return (xec / 1000).toFixed(1) + 'K';
-    return xec.toLocaleString();
+    const xec = Math.abs(satoshis) / 100;
+    const sign = satoshis < 0 ? '-' : '';
+    if (xec >= 1_000_000) return sign + (xec / 1_000_000).toFixed(2) + 'M';
+    if (xec >= 1_000) return sign + (xec / 1_000).toFixed(1) + 'K';
+    return sign + xec.toLocaleString();
   };
 
   const getStatusIcon = (status: string) => {
