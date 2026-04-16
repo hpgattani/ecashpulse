@@ -204,9 +204,14 @@ export const Leaderboard = () => {
                         <TrendingUp className="w-4 h-4" />
                         {leader.win_rate}%
                       </div>
-                      <div className={`text-sm font-semibold ${leader.net_profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {leader.net_profit >= 0 ? '📈' : '📉'} {leader.net_profit >= 0 ? '+' : ''}{formatXEC(leader.net_profit)}
+                      <div className={`text-xs font-semibold ${leader.net_profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {leader.net_profit >= 0 ? '+' : ''}{formatXEC(leader.net_profit)}
                       </div>
+                      {leader.total_winnings > 0 && (
+                        <div className="text-[10px] text-yellow-400/70">
+                          💰 {formatXEC(leader.total_winnings)}
+                        </div>
+                      )}
                     </div>
                     <ChevronRight className="w-5 h-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
