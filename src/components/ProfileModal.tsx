@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { User, Save } from 'lucide-react';
+import { User, Save, Camera, Loader2 } from 'lucide-react';
 
 interface ProfileModalProps {
   open: boolean;
@@ -19,14 +19,76 @@ export const ProfileModal = ({ open, onOpenChange }: ProfileModalProps) => {
   const [displayName, setDisplayName] = useState(profile?.display_name || '');
   const [bio, setBio] = useState(profile?.bio || '');
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Sync state when profile changes or modal opens
   useEffect(() => {
     if (open) {
       setDisplayName(profile?.display_name || '');
       setBio(profile?.bio || '');
+      setAvatarPreview(profile?.avatar_url || null);
     }
   }, [open, profile]);
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !sessionToken) return;
+
+    // Validate client-side
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Use JPEG, PNG, WebP, or GIF');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Max file size is 2MB');
+      return;
+    }
+
+    // Show immediate preview
+    const reader = new FileReader();
+    reader.onload = (ev) => setAvatarPreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/upload-avatar`,
+        {
+          method: 'POST',
+          headers: {
+            'x-session-token': sessionToken,
+          },
+          body: formData,
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok || data.error) {
+        toast.error(data.error || 'Failed to upload avatar');
+        setAvatarPreview(profile?.avatar_url || null);
+        return;
+      }
+
+      if (data.profile) {
+        updateProfile(data.profile);
+        setAvatarPreview(data.avatar_url);
+        toast.success('Profile picture updated!');
+      }
+    } catch {
+      toast.error('Failed to upload avatar');
+      setAvatarPreview(profile?.avatar_url || null);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   const handleSave = async () => {
     if (!user || !sessionToken) return;
@@ -44,7 +106,6 @@ export const ProfileModal = ({ open, onOpenChange }: ProfileModalProps) => {
       if (error) throw error;
       
       if (data?.success && data?.profile) {
-        // Update context and localStorage via AuthContext
         updateProfile(data.profile);
         toast.success('Profile updated successfully!');
         onOpenChange(false);
@@ -70,6 +131,44 @@ export const ProfileModal = ({ open, onOpenChange }: ProfileModalProps) => {
         </DialogHeader>
         
         <div className="space-y-4 py-4">
+          {/* Avatar */}
+          <div className="flex flex-col items-center gap-3">
+            <div className="relative group">
+              <div className="w-20 h-20 rounded-full overflow-hidden bg-muted border-2 border-border">
+                {avatarPreview ? (
+                  <img
+                    src={avatarPreview}
+                    alt="Profile"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <User className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 active:opacity-100 transition-opacity flex items-center justify-center"
+              >
+                {uploading ? (
+                  <Loader2 className="w-5 h-5 text-white animate-spin" />
+                ) : (
+                  <Camera className="w-5 h-5 text-white" />
+                )}
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                onChange={handleAvatarChange}
+                className="hidden"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">Tap to change • Max 2MB</p>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="address" className="text-muted-foreground">eCash Address</Label>
             <Input
