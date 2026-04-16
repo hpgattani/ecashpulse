@@ -40,9 +40,9 @@ Deno.serve(async (req) => {
     // Also get display names from profiles
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('user_id, display_name');
+      .select('user_id, display_name, avatar_url');
 
-    const profileMap = new Map(profiles?.map(p => [p.user_id, p.display_name]) || []);
+    const profileMap = new Map(profiles?.map(p => [p.user_id, { display_name: p.display_name, avatar_url: p.avatar_url }]) || []);
 
     // Aggregate stats by user
     const userStats: Record<string, {
