@@ -14,6 +14,7 @@ interface LeaderboardEntry {
   total_wins: number;
   total_bets: number;
   total_winnings: number;
+  net_profit: number;
   win_rate: number;
 }
 
@@ -67,14 +68,11 @@ export const Leaderboard = () => {
   };
 
   const formatXEC = (satoshis: number) => {
-    const xec = satoshis / 100;
-    if (xec >= 1000000) {
-      return (xec / 1000000).toFixed(2) + 'M XEC';
-    }
-    if (xec >= 1000) {
-      return (xec / 1000).toFixed(1) + 'K XEC';
-    }
-    return xec.toLocaleString() + ' XEC';
+    const xec = Math.abs(satoshis) / 100;
+    const sign = satoshis < 0 ? '-' : '';
+    if (xec >= 1_000_000) return sign + (xec / 1_000_000).toFixed(2) + 'M XEC';
+    if (xec >= 1_000) return sign + (xec / 1_000).toFixed(1) + 'K XEC';
+    return sign + xec.toLocaleString() + ' XEC';
   };
 
   const getRankIcon = (index: number) => {
@@ -206,11 +204,9 @@ export const Leaderboard = () => {
                         <TrendingUp className="w-4 h-4" />
                         {leader.win_rate}%
                       </div>
-                      {leader.total_winnings > 0 && (
-                        <div className="text-sm font-semibold text-yellow-400">
-                          💰 {formatXEC(leader.total_winnings)}
-                        </div>
-                      )}
+                      <div className={`text-sm font-semibold ${leader.net_profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {leader.net_profit >= 0 ? '📈' : '📉'} {leader.net_profit >= 0 ? '+' : ''}{formatXEC(leader.net_profit)}
+                      </div>
                     </div>
                     <ChevronRight className="w-5 h-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
