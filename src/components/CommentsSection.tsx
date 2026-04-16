@@ -228,53 +228,56 @@ const CommentsSection = ({ predictionId }: CommentsSectionProps) => {
           )}
         </div>
         <div className="flex-1 min-w-0">
-      <div className="flex items-center justify-between mb-1">
-        <div className="flex items-center gap-2 flex-wrap">
-            {comment.display_name || "Anonymous"}
-          </span>
-          {comment.position && (
-            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-              comment.position === "yes"
-                ? "bg-emerald-500/20 text-emerald-400"
-                : "bg-red-500/20 text-red-400"
-            }`}>
-              {comment.position.toUpperCase()}
-            </span>
-          )}
-          <span className="text-xs text-muted-foreground">{formatDate(comment.created_at)}</span>
-        </div>
-        <div className="flex items-center gap-1">
-          {user && sessionToken && !isReply && (
-            <button
-              onClick={() => setReplyingTo(comment)}
-              className="opacity-0 group-hover:opacity-100 active:opacity-100 transition-opacity text-muted-foreground hover:text-primary"
-              title="Reply"
-            >
-              <Reply className="w-3.5 h-3.5" />
-            </button>
-          )}
-          {user?.id === comment.user_id && (
-            <button
-              onClick={() => handleDelete(comment.id)}
-              className="opacity-0 group-hover:opacity-100 active:opacity-100 transition-opacity text-muted-foreground hover:text-red-400"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          )}
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-medium text-foreground">
+                {comment.display_name || "Anonymous"}
+              </span>
+              {comment.position && (
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                  comment.position === "yes"
+                    ? "bg-emerald-500/20 text-emerald-400"
+                    : "bg-red-500/20 text-red-400"
+                }`}>
+                  {comment.position.toUpperCase()}
+                </span>
+              )}
+              <span className="text-xs text-muted-foreground">{formatDate(comment.created_at)}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              {user && sessionToken && !isReply && (
+                <button
+                  onClick={() => setReplyingTo(comment)}
+                  className="opacity-0 group-hover:opacity-100 active:opacity-100 transition-opacity text-muted-foreground hover:text-primary"
+                  title="Reply"
+                >
+                  <Reply className="w-3.5 h-3.5" />
+                </button>
+              )}
+              {user?.id === comment.user_id && (
+                <button
+                  onClick={() => handleDelete(comment.id)}
+                  className="opacity-0 group-hover:opacity-100 active:opacity-100 transition-opacity text-muted-foreground hover:text-red-400"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+          <p className="text-sm text-foreground/90 mb-1.5">{comment.content}</p>
+          <button
+            onClick={() => handleToggleLike(comment.id)}
+            className={`flex items-center gap-1 text-xs transition-colors ${
+              comment.liked_by_me
+                ? "text-red-400"
+                : "text-muted-foreground hover:text-red-400"
+            }`}
+          >
+            <Heart className={`w-3.5 h-3.5 ${comment.liked_by_me ? "fill-red-400" : ""}`} />
+            {comment.like_count > 0 && <span>{comment.like_count}</span>}
+          </button>
         </div>
       </div>
-      <p className="text-sm text-foreground/90 mb-1.5">{comment.content}</p>
-      <button
-        onClick={() => handleToggleLike(comment.id)}
-        className={`flex items-center gap-1 text-xs transition-colors ${
-          comment.liked_by_me
-            ? "text-red-400"
-            : "text-muted-foreground hover:text-red-400"
-        }`}
-      >
-        <Heart className={`w-3.5 h-3.5 ${comment.liked_by_me ? "fill-red-400" : ""}`} />
-        {comment.like_count > 0 && <span>{comment.like_count}</span>}
-      </button>
     </motion.div>
   );
 
