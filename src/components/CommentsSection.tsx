@@ -57,10 +57,10 @@ const CommentsSection = ({ predictionId }: CommentsSectionProps) => {
 
       if (userIds.length > 0) {
         const [profilesRes, betsRes] = await Promise.all([
-          supabase.from("profiles").select("user_id, display_name").in("user_id", userIds),
+          supabase.from("profiles").select("user_id, display_name, avatar_url").in("user_id", userIds),
           supabase.from("bets").select("user_id, position").eq("prediction_id", predictionId).eq("status", "confirmed").in("user_id", userIds),
         ]);
-        profilesRes.data?.forEach((p) => { profileMap[p.user_id] = p.display_name; });
+        profilesRes.data?.forEach((p) => { profileMap[p.user_id] = { display_name: p.display_name, avatar_url: p.avatar_url }; });
         betsRes.data?.forEach((b) => { positionMap[b.user_id] = b.position; });
       }
 
