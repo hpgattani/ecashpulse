@@ -167,6 +167,15 @@ export const UserBetHistoryModal = ({
           <div className="text-center">
             <div className="text-xl font-bold text-green-500">{stats.wins}</div>
             <div className="text-xs text-muted-foreground">{t.wins}</div>
+          </div>
+          <div className="text-center">
+            <div className="text-xl font-bold text-red-500">{stats.losses}</div>
+            <div className="text-xs text-muted-foreground">Losses</div>
+          </div>
+          <div className="text-center">
+            <div className="text-xl font-bold text-yellow-500">{stats.pending}</div>
+            <div className="text-xs text-muted-foreground">Pending</div>
+          </div>
         </div>
 
         {/* Net Profit + Graph */}
@@ -206,11 +215,6 @@ export const UserBetHistoryModal = ({
             })()}
           </div>
         )}
-          <div className="text-center">
-            <div className="text-xl font-bold text-yellow-500">{stats.pending}</div>
-            <div className="text-xs text-muted-foreground">Pending</div>
-          </div>
-        </div>
 
         {/* Bet List */}
         <div className="flex-1 overflow-y-auto space-y-2 py-3">
