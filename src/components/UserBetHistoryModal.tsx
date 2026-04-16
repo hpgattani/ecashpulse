@@ -129,6 +129,7 @@ export const UserBetHistoryModal = ({
     wins: bets.filter(b => b.status === 'won').length,
     losses: bets.filter(b => b.status === 'lost').length,
     pending: bets.filter(b => b.status === 'confirmed').length,
+    totalVolume: bets.reduce((sum, b) => sum + b.amount, 0),
   };
 
   return (
@@ -159,22 +160,26 @@ export const UserBetHistoryModal = ({
         </DialogHeader>
 
         {/* Stats Row */}
-        <div className="grid grid-cols-4 gap-2 py-3 border-b border-border">
+        <div className="grid grid-cols-5 gap-1 py-3 border-b border-border">
           <div className="text-center">
-            <div className="text-xl font-bold">{stats.total}</div>
-            <div className="text-xs text-muted-foreground">{t.bets}</div>
+            <div className="text-lg font-bold">{stats.total}</div>
+            <div className="text-[10px] text-muted-foreground">{t.bets}</div>
           </div>
           <div className="text-center">
-            <div className="text-xl font-bold text-green-500">{stats.wins}</div>
-            <div className="text-xs text-muted-foreground">{t.wins}</div>
+            <div className="text-lg font-bold text-green-500">{stats.wins}</div>
+            <div className="text-[10px] text-muted-foreground">{t.wins}</div>
           </div>
           <div className="text-center">
-            <div className="text-xl font-bold text-red-500">{stats.losses}</div>
-            <div className="text-xs text-muted-foreground">Losses</div>
+            <div className="text-lg font-bold text-red-500">{stats.losses}</div>
+            <div className="text-[10px] text-muted-foreground">Losses</div>
           </div>
           <div className="text-center">
-            <div className="text-xl font-bold text-yellow-500">{stats.pending}</div>
-            <div className="text-xs text-muted-foreground">Pending</div>
+            <div className="text-lg font-bold text-yellow-500">{stats.pending}</div>
+            <div className="text-[10px] text-muted-foreground">Pending</div>
+          </div>
+          <div className="text-center">
+            <div className="text-lg font-bold text-blue-400">{formatXEC(stats.totalVolume)}</div>
+            <div className="text-[10px] text-muted-foreground">Volume</div>
           </div>
         </div>
 
