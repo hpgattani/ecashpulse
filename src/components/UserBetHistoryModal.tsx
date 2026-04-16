@@ -134,8 +134,14 @@ export const UserBetHistoryModal = ({
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
-            <div className="p-2 rounded-full bg-primary/20">
-              <Wallet className="w-5 h-5 text-primary" />
+            <div className="w-10 h-10 rounded-full overflow-hidden bg-muted border border-border/50 shrink-0">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <User className="w-5 h-5 text-muted-foreground" />
+                </div>
+              )}
             </div>
             <div>
               <div className="text-lg font-semibold">
