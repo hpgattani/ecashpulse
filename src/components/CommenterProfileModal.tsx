@@ -104,13 +104,16 @@ const CommenterProfileModal = ({ open, onOpenChange, userId, displayName, avatar
               </div>
             </div>
 
-            {/* Bullish Badge */}
-            <div className="rounded-lg bg-muted/30 p-3 text-center">
-              <p className="text-2xl mb-1">🐂</p>
-              <p className="text-xs text-muted-foreground font-medium">
+            {/* Bullish Banner */}
+            <div className="rounded-lg bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 p-3 text-center">
+              <p className="text-2xl mb-1">🚀</p>
+              <p className="text-sm font-semibold text-emerald-400">
+                {stats.winRate >= 50 ? "Bullish Trader" : stats.wins + stats.losses > 0 ? "Rising Contender" : "Fresh Blood"}
+              </p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
                 {stats.wins + stats.losses > 0
-                  ? `${stats.wins + stats.losses} markets entered`
-                  : "No bets yet — waiting to go bullish!"}
+                  ? `${stats.wins + stats.losses} markets · ${stats.wins} wins`
+                  : "Ready to make moves"}
               </p>
             </div>
           </div>
