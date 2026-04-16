@@ -163,12 +163,22 @@ export const Leaderboard = () => {
                   </div>
                   
                   <div className="flex-shrink-0">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center border-2 ${
+                    <div className={`w-12 h-12 rounded-full overflow-hidden border-2 ${
                       index === 0 
-                        ? 'bg-gradient-to-br from-yellow-500/30 to-amber-600/30 border-yellow-500/50' 
-                        : 'bg-primary/20 border-primary/30'
+                        ? 'border-yellow-500/50' 
+                        : 'border-primary/30'
                     }`}>
-                      <Wallet className={`w-6 h-6 ${index === 0 ? 'text-yellow-400' : 'text-primary'}`} />
+                      {leader.avatar_url ? (
+                        <img src={leader.avatar_url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className={`w-full h-full flex items-center justify-center ${
+                          index === 0 
+                            ? 'bg-gradient-to-br from-yellow-500/30 to-amber-600/30' 
+                            : 'bg-primary/20'
+                        }`}>
+                          <User className={`w-6 h-6 ${index === 0 ? 'text-yellow-400' : 'text-primary'}`} />
+                        </div>
+                      )}
                     </div>
                   </div>
                   
