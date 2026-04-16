@@ -12,6 +12,7 @@ interface Comment {
   created_at: string;
   user_id: string;
   display_name: string | null;
+  avatar_url: string | null;
   position?: string | null;
   parent_id?: string | null;
   like_count: number;
