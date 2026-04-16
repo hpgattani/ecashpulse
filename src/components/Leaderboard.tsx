@@ -14,6 +14,7 @@ interface LeaderboardEntry {
   total_wins: number;
   total_bets: number;
   total_winnings: number;
+  net_profit: number;
   win_rate: number;
 }
 
@@ -67,14 +68,11 @@ export const Leaderboard = () => {
   };
 
   const formatXEC = (satoshis: number) => {
-    const xec = satoshis / 100;
-    if (xec >= 1000000) {
-      return (xec / 1000000).toFixed(2) + 'M XEC';
-    }
-    if (xec >= 1000) {
-      return (xec / 1000).toFixed(1) + 'K XEC';
-    }
-    return xec.toLocaleString() + ' XEC';
+    const xec = Math.abs(satoshis) / 100;
+    const sign = satoshis < 0 ? '-' : '';
+    if (xec >= 1_000_000) return sign + (xec / 1_000_000).toFixed(2) + 'M XEC';
+    if (xec >= 1_000) return sign + (xec / 1_000).toFixed(1) + 'K XEC';
+    return sign + xec.toLocaleString() + ' XEC';
   };
 
   const getRankIcon = (index: number) => {
@@ -206,11 +204,9 @@ export const Leaderboard = () => {
                         <TrendingUp className="w-4 h-4" />
                         {leader.win_rate}%
                       </div>
-                      {leader.total_winnings > 0 && (
-                        <div className="text-sm font-semibold text-yellow-400">
-                          💰 {formatXEC(leader.total_winnings)}
-                        </div>
-                      )}
+                      <div className={`text-sm font-semibold ${leader.net_profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {leader.net_profit >= 0 ? '📈' : '📉'} {leader.net_profit >= 0 ? '+' : ''}{formatXEC(leader.net_profit)}
+                      </div>
                     </div>
                     <ChevronRight className="w-5 h-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
@@ -240,43 +236,21 @@ export const Leaderboard = () => {
             </DialogHeader>
             <div className="space-y-4 text-sm">
               <p className="text-muted-foreground">
-                The leaderboard uses a <span className="text-foreground font-medium">weighted combo score</span> that balances consistency, profitability, and accuracy:
+                The leaderboard ranks traders by <span className="text-foreground font-medium">net profit</span> — the most profitable traders rise to the top.
               </p>
               
               <div className="space-y-3">
                 <div className="flex items-start gap-3 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-                  <Trophy className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                  <TrendingUp className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
                   <div>
-                    <p className="font-semibold text-foreground">Total Wins — 40%</p>
-                    <p className="text-muted-foreground text-xs">Raw win count. More wins = higher score.</p>
+                    <p className="font-semibold text-foreground">Net Profit</p>
+                    <p className="text-muted-foreground text-xs">Total payouts minus total stakes. Only won and lost bets count — pending bets are excluded.</p>
                   </div>
                 </div>
-                
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
-                  <Wallet className="w-5 h-5 text-yellow-400 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="font-semibold text-foreground">Total Winnings — 35%</p>
-                    <p className="text-muted-foreground text-xs">Log-scaled (log₁₀) to prevent outliers from dominating. Someone who won 3M XEC scores higher than 67K XEC, but not 50× higher.</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-primary/10 border border-primary/20">
-                  <TrendingUp className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="font-semibold text-foreground">Win Rate — 25%</p>
-                    <p className="text-muted-foreground text-xs">Percentage of bets won. Rewards accuracy and smart betting.</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-3 rounded-lg bg-muted/50 border border-border">
-                <p className="text-xs font-mono text-muted-foreground">
-                  Score = (wins × 0.4) + (log₁₀(winnings) × 3.5) + (winRate × 2.5)
-                </p>
               </div>
 
               <p className="text-xs text-muted-foreground">
-                <span className="font-medium text-foreground">Minimum requirement:</span> 2+ wins and 2+ total bets to qualify for the leaderboard.
+                <span className="font-medium text-foreground">Minimum requirement:</span> 2+ total bets to qualify for the leaderboard.
               </p>
             </div>
           </DialogContent>

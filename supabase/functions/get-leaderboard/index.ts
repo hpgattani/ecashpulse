@@ -52,6 +52,7 @@ Deno.serve(async (req) => {
       total_bets: number;
       total_wins: number;
       total_winnings: number;
+      net_profit: number;
     }> = {};
 
     for (const bet of bets || []) {
@@ -67,6 +68,7 @@ Deno.serve(async (req) => {
           total_bets: 0,
           total_wins: 0,
           total_winnings: 0,
+          net_profit: 0,
         };
       }
 
@@ -74,33 +76,29 @@ Deno.serve(async (req) => {
       if (bet.status === 'won') {
         userStats[userId].total_wins += 1;
         userStats[userId].total_winnings += bet.payout_amount || 0;
+        userStats[userId].net_profit += (bet.payout_amount || 0) - bet.amount;
+      } else if (bet.status === 'lost') {
+        userStats[userId].net_profit -= bet.amount;
       }
     }
 
-    // Convert to array - only users with wins and more than 1 bet
+    // Convert to array - rank by net profit (most profitable first)
     const leaderboard = Object.entries(userStats)
       .map(([user_id, stats]) => ({
         user_id,
         ecash_address: stats.ecash_address,
         display_name: stats.display_name,
+        avatar_url: stats.avatar_url,
         total_bets: stats.total_bets,
         total_wins: stats.total_wins,
         total_winnings: stats.total_winnings,
+        net_profit: stats.net_profit,
         win_rate: stats.total_bets > 0 
           ? Math.round((stats.total_wins / stats.total_bets) * 100) 
           : 0
       }))
-      .filter(l => l.total_wins >= 2 && l.total_bets > 1)
-      .map(l => {
-        // Combination score: weighted formula
-        // 40% wins (normalized), 35% winnings (log-scaled), 25% win rate
-        const winsScore = l.total_wins;
-        const winningsScore = l.total_winnings > 0 ? Math.log10(l.total_winnings) : 0;
-        const winRateScore = l.win_rate / 100;
-        l.combo_score = (winsScore * 0.4) + (winningsScore * 3.5) + (winRateScore * 2.5);
-        return l;
-      })
-      .sort((a, b) => (b as any).combo_score - (a as any).combo_score)
+      .filter(l => l.total_bets > 1)
+      .sort((a, b) => b.net_profit - a.net_profit)
       .slice(0, 10);
 
     console.log(`Leaderboard: ${leaderboard.length} winners found`);
