@@ -166,7 +166,18 @@ export const ProfileModal = ({ open, onOpenChange }: ProfileModalProps) => {
                 className="hidden"
               />
             </div>
-            <p className="text-xs text-muted-foreground">Tap to change • Max 2MB</p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-muted-foreground">Tap to change • Max 2MB</p>
+              {avatarPreview && (
+                <button
+                  onClick={handleRemoveAvatar}
+                  disabled={uploading}
+                  className="text-xs text-destructive hover:underline disabled:opacity-50"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="space-y-2">
