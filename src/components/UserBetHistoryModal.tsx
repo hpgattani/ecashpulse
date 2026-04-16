@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Trophy, TrendingUp, TrendingDown, Clock, CheckCircle, XCircle, RefreshCw, Wallet } from 'lucide-react';
+import { Trophy, TrendingUp, TrendingDown, Clock, CheckCircle, XCircle, RefreshCw, Wallet, User, BarChart3 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useNavigate } from 'react-router-dom';
@@ -36,12 +36,13 @@ export const UserBetHistoryModal = ({
 }: UserBetHistoryModalProps) => {
   const [bets, setBets] = useState<UserBet[]>([]);
   const [loading, setLoading] = useState(true);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [profitStats, setProfitStats] = useState<{ wins: number; losses: number; winRate: number; totalProfit: number; profitCurve: number[] } | null>(null);
   const { t } = useLanguage();
   const navigate = useNavigate();
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
-    // Display in user's local timezone
     return date.toLocaleDateString(undefined, {
       month: 'short',
       day: 'numeric',
@@ -52,8 +53,18 @@ export const UserBetHistoryModal = ({
   useEffect(() => {
     if (open && userId) {
       fetchBetHistory();
+      fetchProfileAndStats();
     }
   }, [open, userId]);
+
+  const fetchProfileAndStats = async () => {
+    const [profileRes, statsRes] = await Promise.all([
+      supabase.from('profiles').select('avatar_url').eq('user_id', userId).single(),
+      supabase.functions.invoke('get-user-stats', { body: { user_id: userId } }),
+    ]);
+    setAvatarUrl(profileRes.data?.avatar_url || null);
+    if (statsRes.data) setProfitStats(statsRes.data);
+  };
 
   const fetchBetHistory = async () => {
     setLoading(true);
@@ -123,8 +134,14 @@ export const UserBetHistoryModal = ({
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
-            <div className="p-2 rounded-full bg-primary/20">
-              <Wallet className="w-5 h-5 text-primary" />
+            <div className="w-10 h-10 rounded-full overflow-hidden bg-muted border border-border/50 shrink-0">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <User className="w-5 h-5 text-muted-foreground" />
+                </div>
+              )}
             </div>
             <div>
               <div className="text-lg font-semibold">
@@ -148,11 +165,45 @@ export const UserBetHistoryModal = ({
           <div className="text-center">
             <div className="text-xl font-bold text-green-500">{stats.wins}</div>
             <div className="text-xs text-muted-foreground">{t.wins}</div>
+        </div>
+
+        {/* Net Profit + Graph */}
+        {profitStats && (
+          <div className="space-y-2 pb-2 border-b border-border">
+            <div className="flex items-center justify-between px-1">
+              <span className="text-xs text-muted-foreground font-medium">⚡ Net Profit</span>
+              <span className={`text-sm font-bold ${profitStats.totalProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {profitStats.totalProfit >= 0 ? '+' : ''}{formatXEC(profitStats.totalProfit)} XEC
+              </span>
+            </div>
+            {profitStats.profitCurve.length > 1 && (() => {
+              const gd = profitStats.profitCurve;
+              const maxV = Math.max(...gd.map(Math.abs), 1);
+              const gW = 280, gH = 80;
+              return (
+                <div className="rounded-lg bg-muted/30 p-2">
+                  <svg viewBox={`0 0 ${gW} ${gH}`} className="w-full h-16" preserveAspectRatio="none">
+                    <line x1="0" y1={gH/2} x2={gW} y2={gH/2} stroke="hsl(var(--border))" strokeWidth="0.5" strokeDasharray="4 2" />
+                    <polygon
+                      fill={profitStats.totalProfit >= 0 ? "hsl(var(--chart-2) / 0.1)" : "hsl(var(--destructive) / 0.1)"}
+                      points={`0,${gH/2} ${gd.map((v,i) => `${(i/(gd.length-1))*gW},${gH/2-(v/maxV)*(gH/2-4)}`).join(' ')} ${gW},${gH/2}`}
+                    />
+                    <polyline
+                      fill="none"
+                      stroke={profitStats.totalProfit >= 0 ? "hsl(var(--chart-2))" : "hsl(var(--destructive))"}
+                      strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"
+                      points={gd.map((v,i) => `${(i/(gd.length-1))*gW},${gH/2-(v/maxV)*(gH/2-4)}`).join(' ')}
+                    />
+                  </svg>
+                  <div className="flex justify-between text-[10px] text-muted-foreground">
+                    <span>First bet</span>
+                    <span>Latest</span>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
-          <div className="text-center">
-            <div className="text-xl font-bold text-red-500">{stats.losses}</div>
-            <div className="text-xs text-muted-foreground">Losses</div>
-          </div>
+        )}
           <div className="text-center">
             <div className="text-xl font-bold text-yellow-500">{stats.pending}</div>
             <div className="text-xs text-muted-foreground">Pending</div>

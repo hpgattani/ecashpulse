@@ -40,14 +40,15 @@ Deno.serve(async (req) => {
     // Also get display names from profiles
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('user_id, display_name');
+      .select('user_id, display_name, avatar_url');
 
-    const profileMap = new Map(profiles?.map(p => [p.user_id, p.display_name]) || []);
+    const profileMap = new Map(profiles?.map(p => [p.user_id, { display_name: p.display_name, avatar_url: p.avatar_url }]) || []);
 
     // Aggregate stats by user
     const userStats: Record<string, {
       ecash_address: string;
       display_name: string | null;
+      avatar_url: string | null;
       total_bets: number;
       total_wins: number;
       total_winnings: number;
@@ -56,11 +57,13 @@ Deno.serve(async (req) => {
     for (const bet of bets || []) {
       const userId = bet.user_id;
       const address = (bet.users as any)?.ecash_address || '';
+      const prof = profileMap.get(userId);
 
       if (!userStats[userId]) {
         userStats[userId] = {
           ecash_address: address,
-          display_name: profileMap.get(userId) || null,
+          display_name: prof?.display_name || null,
+          avatar_url: prof?.avatar_url || null,
           total_bets: 0,
           total_wins: 0,
           total_winnings: 0,
