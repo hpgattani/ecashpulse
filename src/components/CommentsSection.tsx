@@ -35,6 +35,7 @@ const CommentsSection = ({ predictionId }: CommentsSectionProps) => {
   const [newComment, setNewComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [replyingTo, setReplyingTo] = useState<Comment | null>(null);
+  const [viewingProfile, setViewingProfile] = useState<{ userId: string; displayName: string | null; avatarUrl: string | null } | null>(null);
 
   const fetchComments = async () => {
     setLoading(true);
