@@ -11,57 +11,42 @@ interface CommenterProfileModalProps {
   avatarUrl: string | null;
 }
 
-interface BetRecord {
-  status: string;
-  amount: number;
-  payout_amount: number | null;
-  confirmed_at: string | null;
+interface UserStats {
+  wins: number;
+  losses: number;
+  winRate: number;
+  totalProfit: number;
+  profitCurve: number[];
 }
 
 const CommenterProfileModal = ({ open, onOpenChange, userId, displayName, avatarUrl }: CommenterProfileModalProps) => {
   const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState<{ total_bets: number; total_wins: number; total_volume: number } | null>(null);
-  const [bets, setBets] = useState<BetRecord[]>([]);
+  const [stats, setStats] = useState<UserStats | null>(null);
 
   useEffect(() => {
     if (!open || !userId) return;
     setLoading(true);
 
     const fetchData = async () => {
-      const [profileRes, betsRes] = await Promise.all([
-        supabase.from("profiles").select("total_bets, total_wins, total_volume").eq("user_id", userId).single(),
-        supabase.from("bets").select("status, amount, payout_amount, confirmed_at").eq("user_id", userId).in("status", ["won", "lost"]).order("confirmed_at", { ascending: true }).limit(200),
-      ]);
-      setProfile(profileRes.data || { total_bets: 0, total_wins: 0, total_volume: 0 });
-      setBets(betsRes.data || []);
-      setLoading(false);
+      try {
+        const { data, error } = await supabase.functions.invoke("get-user-stats", {
+          body: { user_id: userId },
+        });
+        if (!error && data) {
+          setStats(data);
+        } else {
+          setStats({ wins: 0, losses: 0, winRate: 0, totalProfit: 0, profitCurve: [] });
+        }
+      } catch {
+        setStats({ wins: 0, losses: 0, winRate: 0, totalProfit: 0, profitCurve: [] });
+      } finally {
+        setLoading(false);
+      }
     };
     fetchData();
   }, [open, userId]);
 
-  const stats = useMemo(() => {
-    const wins = bets.filter((b) => b.status === "won").length;
-    const losses = bets.filter((b) => b.status === "lost").length;
-    const totalProfit = bets.reduce((sum, b) => {
-      if (b.status === "won") return sum + ((b.payout_amount || 0) - b.amount);
-      if (b.status === "lost") return sum - b.amount;
-      return sum;
-    }, 0);
-    const winRate = wins + losses > 0 ? Math.round((wins / (wins + losses)) * 100) : 0;
-    return { wins, losses, totalProfit, winRate };
-  }, [bets]);
-
-  // Build cumulative profit graph data
-  const graphData = useMemo(() => {
-    if (bets.length === 0) return [];
-    let cumulative = 0;
-    return bets.map((b) => {
-      if (b.status === "won") cumulative += ((b.payout_amount || 0) - b.amount);
-      else if (b.status === "lost") cumulative -= b.amount;
-      return cumulative;
-    });
-  }, [bets]);
-
+  const graphData = stats?.profitCurve || [];
   const maxVal = Math.max(...graphData.map(Math.abs), 1);
   const graphHeight = 100;
   const graphWidth = 280;
@@ -89,7 +74,7 @@ const CommenterProfileModal = ({ open, onOpenChange, userId, displayName, avatar
             </div>
             <div className="min-w-0">
               <p className="text-base font-semibold truncate">{displayName || "Anonymous"}</p>
-              <p className="text-xs text-muted-foreground font-normal">Betting Track Record</p>
+              <p className="text-xs text-primary font-normal">⚡ Pulse Performance</p>
             </div>
           </DialogTitle>
         </DialogHeader>
@@ -98,7 +83,7 @@ const CommenterProfileModal = ({ open, onOpenChange, userId, displayName, avatar
           <div className="flex items-center justify-center py-10">
             <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
           </div>
-        ) : (
+        ) : stats ? (
           <div className="p-4 space-y-4">
             {/* Stats Grid */}
             <div className="grid grid-cols-2 gap-2">
@@ -127,36 +112,14 @@ const CommenterProfileModal = ({ open, onOpenChange, userId, displayName, avatar
             </div>
 
             {/* Profit Graph */}
-            {graphData.length > 1 && (
+            {graphData.length > 1 ? (
               <div className="rounded-lg bg-muted/30 p-3">
-                <p className="text-xs text-muted-foreground mb-2 font-medium">Cumulative Profit</p>
+                <p className="text-xs text-muted-foreground mb-2 font-medium">📈 Profit Curve</p>
                 <svg viewBox={`0 0 ${graphWidth} ${graphHeight}`} className="w-full h-24" preserveAspectRatio="none">
-                  {/* Zero line */}
                   <line
-                    x1="0"
-                    y1={graphHeight / 2}
-                    x2={graphWidth}
-                    y2={graphHeight / 2}
-                    stroke="hsl(var(--border))"
-                    strokeWidth="0.5"
-                    strokeDasharray="4 2"
+                    x1="0" y1={graphHeight / 2} x2={graphWidth} y2={graphHeight / 2}
+                    stroke="hsl(var(--border))" strokeWidth="0.5" strokeDasharray="4 2"
                   />
-                  {/* Profit line */}
-                  <polyline
-                    fill="none"
-                    stroke={stats.totalProfit >= 0 ? "hsl(var(--chart-2))" : "hsl(var(--destructive))"}
-                    strokeWidth="2"
-                    strokeLinejoin="round"
-                    strokeLinecap="round"
-                    points={graphData
-                      .map((val, i) => {
-                        const x = (i / (graphData.length - 1)) * graphWidth;
-                        const y = graphHeight / 2 - (val / maxVal) * (graphHeight / 2 - 4);
-                        return `${x},${y}`;
-                      })
-                      .join(" ")}
-                  />
-                  {/* Area fill */}
                   <polygon
                     fill={stats.totalProfit >= 0 ? "hsl(var(--chart-2) / 0.1)" : "hsl(var(--destructive) / 0.1)"}
                     points={`0,${graphHeight / 2} ${graphData
@@ -164,8 +127,18 @@ const CommenterProfileModal = ({ open, onOpenChange, userId, displayName, avatar
                         const x = (i / (graphData.length - 1)) * graphWidth;
                         const y = graphHeight / 2 - (val / maxVal) * (graphHeight / 2 - 4);
                         return `${x},${y}`;
-                      })
-                      .join(" ")} ${graphWidth},${graphHeight / 2}`}
+                      }).join(" ")} ${graphWidth},${graphHeight / 2}`}
+                  />
+                  <polyline
+                    fill="none"
+                    stroke={stats.totalProfit >= 0 ? "hsl(var(--chart-2))" : "hsl(var(--destructive))"}
+                    strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"
+                    points={graphData
+                      .map((val, i) => {
+                        const x = (i / (graphData.length - 1)) * graphWidth;
+                        const y = graphHeight / 2 - (val / maxVal) * (graphHeight / 2 - 4);
+                        return `${x},${y}`;
+                      }).join(" ")}
                   />
                 </svg>
                 <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
@@ -173,16 +146,14 @@ const CommenterProfileModal = ({ open, onOpenChange, userId, displayName, avatar
                   <span>Latest</span>
                 </div>
               </div>
-            )}
-
-            {graphData.length === 0 && (
+            ) : (
               <div className="text-center py-4 text-muted-foreground">
                 <BarChart3 className="w-6 h-6 mx-auto mb-1 opacity-40" />
                 <p className="text-xs">No resolved bets yet</p>
               </div>
             )}
           </div>
-        )}
+        ) : null}
       </DialogContent>
     </Dialog>
   );
