@@ -1,0 +1,1 @@
+ALTER TABLE public.comments ADD COLUMN parent_id uuid DEFAULT NULL;
