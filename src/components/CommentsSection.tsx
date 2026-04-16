@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { MessageSquare, Send, Loader2, Trash2, Reply, X } from "lucide-react";
+import { MessageSquare, Send, Loader2, Trash2, Reply, X, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,6 +14,8 @@ interface Comment {
   display_name: string | null;
   position?: string | null;
   parent_id?: string | null;
+  like_count: number;
+  liked_by_me: boolean;
 }
 
 interface CommentWithReplies extends Comment {
@@ -44,30 +46,42 @@ const CommentsSection = ({ predictionId }: CommentsSectionProps) => {
 
       if (error) throw error;
 
+      const commentIds = (data || []).map((c) => c.id);
       const userIds = [...new Set((data || []).map((c) => c.user_id))];
+
       let profileMap: Record<string, string | null> = {};
       let positionMap: Record<string, string | null> = {};
+      let likeCountMap: Record<string, number> = {};
+      let myLikes = new Set<string>();
 
       if (userIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("user_id, display_name")
-          .in("user_id", userIds);
-        profiles?.forEach((p) => { profileMap[p.user_id] = p.display_name; });
+        const [profilesRes, betsRes] = await Promise.all([
+          supabase.from("profiles").select("user_id, display_name").in("user_id", userIds),
+          supabase.from("bets").select("user_id, position").eq("prediction_id", predictionId).eq("status", "confirmed").in("user_id", userIds),
+        ]);
+        profilesRes.data?.forEach((p) => { profileMap[p.user_id] = p.display_name; });
+        betsRes.data?.forEach((b) => { positionMap[b.user_id] = b.position; });
+      }
 
-        const { data: bets } = await supabase
-          .from("bets")
-          .select("user_id, position")
-          .eq("prediction_id", predictionId)
-          .eq("status", "confirmed")
-          .in("user_id", userIds);
-        bets?.forEach((b) => { positionMap[b.user_id] = b.position; });
+      // Fetch likes
+      if (commentIds.length > 0) {
+        const { data: likes } = await supabase
+          .from("comment_likes")
+          .select("comment_id, user_id")
+          .in("comment_id", commentIds);
+
+        likes?.forEach((l) => {
+          likeCountMap[l.comment_id] = (likeCountMap[l.comment_id] || 0) + 1;
+          if (user && l.user_id === user.id) myLikes.add(l.comment_id);
+        });
       }
 
       const enriched: Comment[] = (data || []).map((c) => ({
         ...c,
         display_name: profileMap[c.user_id] || null,
         position: positionMap[c.user_id] || null,
+        like_count: likeCountMap[c.id] || 0,
+        liked_by_me: myLikes.has(c.id),
       }));
 
       setComments(enriched);
@@ -80,7 +94,6 @@ const CommentsSection = ({ predictionId }: CommentsSectionProps) => {
 
   useEffect(() => { fetchComments(); }, [predictionId]);
 
-  // Build tree: top-level + replies
   const threadedComments = useMemo<CommentWithReplies[]>(() => {
     const topLevel: CommentWithReplies[] = [];
     const replyMap: Record<string, Comment[]> = {};
@@ -94,10 +107,7 @@ const CommentsSection = ({ predictionId }: CommentsSectionProps) => {
       }
     });
 
-    topLevel.forEach((t) => {
-      t.replies = replyMap[t.id] || [];
-    });
-
+    topLevel.forEach((t) => { t.replies = replyMap[t.id] || []; });
     return topLevel;
   }, [comments]);
 
@@ -149,6 +159,42 @@ const CommentsSection = ({ predictionId }: CommentsSectionProps) => {
     }
   };
 
+  const handleToggleLike = async (commentId: string) => {
+    if (!sessionToken || !user) {
+      toast.error("Log in to like comments");
+      return;
+    }
+
+    // Optimistic update
+    setComments((prev) =>
+      prev.map((c) =>
+        c.id === commentId
+          ? { ...c, liked_by_me: !c.liked_by_me, like_count: c.liked_by_me ? c.like_count - 1 : c.like_count + 1 }
+          : c
+      )
+    );
+
+    try {
+      const { error } = await supabase.functions.invoke("toggle-comment-like", {
+        body: { comment_id: commentId },
+        headers: { "x-session-token": sessionToken },
+      });
+      if (error) {
+        // Revert on failure
+        setComments((prev) =>
+          prev.map((c) =>
+            c.id === commentId
+              ? { ...c, liked_by_me: !c.liked_by_me, like_count: c.liked_by_me ? c.like_count - 1 : c.like_count + 1 }
+              : c
+          )
+        );
+      }
+    } catch {
+      // Revert
+      fetchComments();
+    }
+  };
+
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr);
     const now = new Date();
@@ -189,7 +235,7 @@ const CommentsSection = ({ predictionId }: CommentsSectionProps) => {
           {user && sessionToken && !isReply && (
             <button
               onClick={() => setReplyingTo(comment)}
-              className="opacity-0 group-hover:opacity-100 md:opacity-0 active:opacity-100 transition-opacity text-muted-foreground hover:text-primary"
+              className="opacity-0 group-hover:opacity-100 active:opacity-100 transition-opacity text-muted-foreground hover:text-primary"
               title="Reply"
             >
               <Reply className="w-3.5 h-3.5" />
@@ -198,14 +244,25 @@ const CommentsSection = ({ predictionId }: CommentsSectionProps) => {
           {user?.id === comment.user_id && (
             <button
               onClick={() => handleDelete(comment.id)}
-              className="opacity-0 group-hover:opacity-100 md:opacity-0 active:opacity-100 transition-opacity text-muted-foreground hover:text-red-400"
+              className="opacity-0 group-hover:opacity-100 active:opacity-100 transition-opacity text-muted-foreground hover:text-red-400"
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
       </div>
-      <p className="text-sm text-foreground/90">{comment.content}</p>
+      <p className="text-sm text-foreground/90 mb-1.5">{comment.content}</p>
+      <button
+        onClick={() => handleToggleLike(comment.id)}
+        className={`flex items-center gap-1 text-xs transition-colors ${
+          comment.liked_by_me
+            ? "text-red-400"
+            : "text-muted-foreground hover:text-red-400"
+        }`}
+      >
+        <Heart className={`w-3.5 h-3.5 ${comment.liked_by_me ? "fill-red-400" : ""}`} />
+        {comment.like_count > 0 && <span>{comment.like_count}</span>}
+      </button>
     </motion.div>
   );
 
@@ -226,7 +283,6 @@ const CommentsSection = ({ predictionId }: CommentsSectionProps) => {
       </div>
 
       <div className="p-4 md:p-6 space-y-4">
-        {/* Comment input */}
         {user && sessionToken ? (
           <div className="space-y-2">
             {replyingTo && (
@@ -264,7 +320,6 @@ const CommentsSection = ({ predictionId }: CommentsSectionProps) => {
           </p>
         )}
 
-        {/* Comments list */}
         {loading ? (
           <div className="flex items-center justify-center py-6">
             <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
