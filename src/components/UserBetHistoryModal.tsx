@@ -36,12 +36,13 @@ export const UserBetHistoryModal = ({
 }: UserBetHistoryModalProps) => {
   const [bets, setBets] = useState<UserBet[]>([]);
   const [loading, setLoading] = useState(true);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [profitStats, setProfitStats] = useState<{ wins: number; losses: number; winRate: number; totalProfit: number; profitCurve: number[] } | null>(null);
   const { t } = useLanguage();
   const navigate = useNavigate();
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
-    // Display in user's local timezone
     return date.toLocaleDateString(undefined, {
       month: 'short',
       day: 'numeric',
@@ -52,8 +53,18 @@ export const UserBetHistoryModal = ({
   useEffect(() => {
     if (open && userId) {
       fetchBetHistory();
+      fetchProfileAndStats();
     }
   }, [open, userId]);
+
+  const fetchProfileAndStats = async () => {
+    const [profileRes, statsRes] = await Promise.all([
+      supabase.from('profiles').select('avatar_url').eq('user_id', userId).single(),
+      supabase.functions.invoke('get-user-stats', { body: { user_id: userId } }),
+    ]);
+    setAvatarUrl(profileRes.data?.avatar_url || null);
+    if (statsRes.data) setProfitStats(statsRes.data);
+  };
 
   const fetchBetHistory = async () => {
     setLoading(true);
