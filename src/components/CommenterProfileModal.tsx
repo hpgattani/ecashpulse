@@ -46,7 +46,7 @@ const CommenterProfileModal = ({ open, onOpenChange, userId, displayName, avatar
     fetchData();
   }, [open, userId]);
 
-  const graphData = stats?.profitCurve || [];
+  const graphData = useMemo(() => (stats?.profitCurve || []).map((p: any) => typeof p === 'number' ? p : p.v), [stats]);
   const maxVal = Math.max(...graphData.map(Math.abs), 1);
   const graphHeight = 100;
   const graphWidth = 280;
