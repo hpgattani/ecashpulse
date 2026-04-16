@@ -369,7 +369,19 @@ const CommentsSection = ({ predictionId }: CommentsSectionProps) => {
         )}
       </div>
     </motion.div>
+
+    {viewingProfile && (
+      <CommenterProfileModal
+        open={!!viewingProfile}
+        onOpenChange={(open) => { if (!open) setViewingProfile(null); }}
+        userId={viewingProfile.userId}
+        displayName={viewingProfile.displayName}
+        avatarUrl={viewingProfile.avatarUrl}
+      />
+    )}
+    </>
   );
+};
 };
 
 export default CommentsSection;
