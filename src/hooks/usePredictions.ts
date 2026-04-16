@@ -57,6 +57,16 @@ const SPORTS_OVERRIDE_KEYWORDS = [
   'fedex cup', 'lpga', 'golfer',
 ];
 
+// Team suffix patterns for sports detection (FC, SC, United, City, etc.)
+const SPORTS_TEAM_PATTERNS = [
+  /\b\w+\s+fc\b/i, /\b\w+\s+sc\b/i, /\b\w+\s+cf\b/i, /\b\w+\s+ac\b/i,
+  /\b\w+\s+united\b/i, /\b\w+\s+city\b/i, /\b\w+\s+rovers\b/i, /\b\w+\s+athletic\b/i,
+  /\b\w+\s+albion\b/i, /\b\w+\s+wanderers\b/i, /\b\w+\s+rangers\b/i, /\b\w+\s+sporting\b/i,
+  /\breal\s+\w+/i, /\b\w+\s+dynamo\b/i, /\b\w+\s+olimpik\b/i,
+  /win\s+on\s+\d/i, /\bvs\.?\s/i, /\b\w+\s+v\s+\w+/i,
+  /\bmatch\b/i, /\bderby\b/i, /\bleague\b/i, /\bcup\b/i, /\btournament\b/i,
+];
+
 const ENTERTAINMENT_KEYWORDS = [
   'k-pop', 'kpop', 'bts', 'blackpink', 'grammy', 'emmy', 'golden globe', 'oscar', 'oscars',
   'academy award', 'movie', 'film', 'director', 'best director', 'netflix', 'disney', 'hbo',
@@ -75,6 +85,11 @@ const detectCategory = (title: string, existingCategory: string): Prediction['ca
   const existing = (existingCategory || '').toLowerCase();
 
   if (hasAnyKeyword(q, SPORTS_OVERRIDE_KEYWORDS)) {
+    return 'sports';
+  }
+
+  // Team suffix/pattern detection (e.g. "Wadi Degla SC", "Al Ahly FC", "win on 2026-05-01")
+  if (SPORTS_TEAM_PATTERNS.some(pattern => pattern.test(title))) {
     return 'sports';
   }
   

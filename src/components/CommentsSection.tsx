@@ -110,13 +110,20 @@ const CommentsSection = ({ predictionId }: CommentsSectionProps) => {
   };
 
   const handleDelete = async (commentId: string) => {
-    const { error } = await supabase
-      .from("comments")
-      .delete()
-      .eq("id", commentId);
+    if (!sessionToken) return;
+    try {
+      const { data, error } = await supabase.functions.invoke("delete-comment", {
+        body: { comment_id: commentId, session_token: sessionToken },
+      });
 
-    if (!error) {
+      if (error || data?.error) {
+        toast.error("Failed to delete comment");
+        return;
+      }
+
       setComments((prev) => prev.filter((c) => c.id !== commentId));
+    } catch {
+      toast.error("Failed to delete comment");
     }
   };
 
