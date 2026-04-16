@@ -217,9 +217,19 @@ const CommentsSection = ({ predictionId }: CommentsSectionProps) => {
       animate={{ opacity: 1, y: 0 }}
       className={`p-3 rounded-lg bg-muted/30 group ${isReply ? "ml-4 border-l-2 border-primary/20" : ""}`}
     >
+      <div className="flex gap-2.5">
+        <div className="shrink-0 w-7 h-7 rounded-full overflow-hidden bg-muted border border-border/50 mt-0.5">
+          {comment.avatar_url ? (
+            <img src={comment.avatar_url} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <User className="w-3.5 h-3.5 text-muted-foreground" />
+            </div>
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm font-medium text-foreground">
             {comment.display_name || "Anonymous"}
           </span>
           {comment.position && (
