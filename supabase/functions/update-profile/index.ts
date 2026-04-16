@@ -48,7 +48,9 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { session_token, display_name, bio } = await req.json();
+    const body = await req.json();
+    const { session_token, display_name, bio } = body;
+    const hasAvatarField = 'avatar_url' in body;
     
     // Validate session and get authenticated user_id
     const sessionResult = await validateSession(supabase, session_token);
@@ -77,14 +79,20 @@ Deno.serve(async (req) => {
       );
     }
 
+    const updateData: Record<string, any> = {
+      display_name: display_name || null,
+      bio: bio || null,
+      updated_at: new Date().toISOString()
+    };
+    
+    if (hasAvatarField) {
+      updateData.avatar_url = body.avatar_url;
+    }
+
     // Update the profile for the authenticated user only
     const { data: profile, error } = await supabase
       .from('profiles')
-      .update({ 
-        display_name: display_name || null,
-        bio: bio || null,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('user_id', user_id)
       .select()
       .single();
