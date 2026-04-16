@@ -24,7 +24,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Fetch resolved bets for this user
     const { data: bets, error } = await supabase
       .from('bets')
       .select('status, amount, payout_amount, confirmed_at')
@@ -47,12 +46,12 @@ Deno.serve(async (req) => {
     const winRate = wins + losses > 0 ? Math.round((wins / (wins + losses)) * 100) : 0;
 
     let totalProfit = 0;
-    const profitCurve: number[] = [];
+    const profitCurve: { t: string; v: number }[] = [];
     
     for (const b of resolvedBets) {
       if (b.status === 'won') totalProfit += ((b.payout_amount || 0) - b.amount);
       else if (b.status === 'lost') totalProfit -= b.amount;
-      profitCurve.push(totalProfit);
+      profitCurve.push({ t: b.confirmed_at || b.created_at, v: totalProfit });
     }
 
     return new Response(
