@@ -199,14 +199,14 @@ export const UserBetHistoryModal = ({
               return (
                 <div className="rounded-lg bg-muted/30 p-2">
                   <svg viewBox={`0 0 ${gW} ${gH}`} className="w-full h-16" preserveAspectRatio="none">
-                    <line x1="0" y1={gH/2} x2={gW} y2={gH/2} stroke="hsl(var(--border))" strokeWidth="0.5" strokeDasharray="4 2" />
+                    <line x1="0" y1={gH/2} x2={gW} y2={gH/2} stroke="#555" strokeWidth="0.5" strokeDasharray="4 2" />
                     <polygon
-                      fill={profitStats.totalProfit >= 0 ? "hsl(var(--chart-2) / 0.1)" : "hsl(var(--destructive) / 0.1)"}
+                      fill={profitStats.totalProfit >= 0 ? "rgba(52,211,153,0.15)" : "rgba(248,113,113,0.15)"}
                       points={`0,${gH/2} ${gd.map((v,i) => `${(i/(gd.length-1))*gW},${gH/2-(v/maxV)*(gH/2-4)}`).join(' ')} ${gW},${gH/2}`}
                     />
                     <polyline
                       fill="none"
-                      stroke={profitStats.totalProfit >= 0 ? "hsl(var(--chart-2))" : "hsl(var(--destructive))"}
+                      stroke={profitStats.totalProfit >= 0 ? "#34d399" : "#f87171"}
                       strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"
                       points={gd.map((v,i) => `${(i/(gd.length-1))*gW},${gH/2-(v/maxV)*(gH/2-4)}`).join(' ')}
                     />
