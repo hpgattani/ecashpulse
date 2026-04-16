@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { MessageSquare, Send, Loader2, Trash2, Reply, X, Heart } from "lucide-react";
+import { MessageSquare, Send, Loader2, Trash2, Reply, X, Heart, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
