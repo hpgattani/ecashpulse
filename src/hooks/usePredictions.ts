@@ -76,6 +76,10 @@ const ENTERTAINMENT_KEYWORDS = [
   'joe rogan', 'viral', 'views', 'followers', 'episode', 'season', 'series', 'cinema', 'spotify',
   'tv show', 'premiere', 'house of the dragon', 'game of thrones', 'stranger things', 'the last of us',
   'mandalorian', 'rings of power', 'star wars', 'series finale',
+  'bruno mars', 'billboard', 'hot 100', 'top 40', 'chart', 'hit song', 'music video', 'rapper',
+  'singer', 'artist', 'record label', 'grammy nomination', 'arena tour', 'sold out', 'debut album',
+  'ariana grande', 'ed sheeran', 'bad bunny', 'the weeknd', 'dua lipa', 'rihanna', 'adele',
+  'post malone', 'travis scott', 'sza', 'olivia rodrigo', 'billie eilish', 'doja cat', 'lil nas',
 ];
 
 const hasAnyKeyword = (text: string, keywords: string[]) => keywords.some((keyword) => text.includes(keyword));
@@ -135,7 +139,7 @@ const detectCategory = (title: string, existingCategory: string): Prediction['ca
     q.includes('climate') || q.includes('carbon') || q.includes('emissions') || q.includes('global warming') ||
     q.includes('renewable') || q.includes('solar power') || q.includes('wind power') ||
     q.includes('paris agreement') || q.includes('cop2') ||
-    q.includes('nasa') || q.includes('mars') || q.includes('moon landing') || q.includes('asteroid') ||
+    q.includes('nasa') || q.includes('planet mars') || q.includes('water on mars') || q.includes('moon landing') || q.includes('asteroid') ||
     q.includes('vaccine') || q.includes('fda') || q.includes('drug approval') || q.includes('clinical trial') ||
     q.includes('temperature') || q.includes('°c') || q.includes('°f') || q.includes('celsius') ||
     q.includes('fahrenheit') || q.includes('weather') || q.includes('hurricane') || q.includes('typhoon') ||
