@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { MessageSquare, Send, Loader2, Trash2, Reply, X, Heart } from "lucide-react";
+import { MessageSquare, Send, Loader2, Trash2, Reply, X, Heart, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,6 +12,7 @@ interface Comment {
   created_at: string;
   user_id: string;
   display_name: string | null;
+  avatar_url: string | null;
   position?: string | null;
   parent_id?: string | null;
   like_count: number;
@@ -49,17 +50,17 @@ const CommentsSection = ({ predictionId }: CommentsSectionProps) => {
       const commentIds = (data || []).map((c) => c.id);
       const userIds = [...new Set((data || []).map((c) => c.user_id))];
 
-      let profileMap: Record<string, string | null> = {};
+      let profileMap: Record<string, { display_name: string | null; avatar_url: string | null }> = {};
       let positionMap: Record<string, string | null> = {};
       let likeCountMap: Record<string, number> = {};
       let myLikes = new Set<string>();
 
       if (userIds.length > 0) {
         const [profilesRes, betsRes] = await Promise.all([
-          supabase.from("profiles").select("user_id, display_name").in("user_id", userIds),
+          supabase.from("profiles").select("user_id, display_name, avatar_url").in("user_id", userIds),
           supabase.from("bets").select("user_id, position").eq("prediction_id", predictionId).eq("status", "confirmed").in("user_id", userIds),
         ]);
-        profilesRes.data?.forEach((p) => { profileMap[p.user_id] = p.display_name; });
+        profilesRes.data?.forEach((p) => { profileMap[p.user_id] = { display_name: p.display_name, avatar_url: p.avatar_url }; });
         betsRes.data?.forEach((b) => { positionMap[b.user_id] = b.position; });
       }
 
@@ -78,7 +79,8 @@ const CommentsSection = ({ predictionId }: CommentsSectionProps) => {
 
       const enriched: Comment[] = (data || []).map((c) => ({
         ...c,
-        display_name: profileMap[c.user_id] || null,
+        display_name: profileMap[c.user_id]?.display_name || null,
+        avatar_url: profileMap[c.user_id]?.avatar_url || null,
         position: positionMap[c.user_id] || null,
         like_count: likeCountMap[c.id] || 0,
         liked_by_me: myLikes.has(c.id),
@@ -215,54 +217,67 @@ const CommentsSection = ({ predictionId }: CommentsSectionProps) => {
       animate={{ opacity: 1, y: 0 }}
       className={`p-3 rounded-lg bg-muted/30 group ${isReply ? "ml-4 border-l-2 border-primary/20" : ""}`}
     >
-      <div className="flex items-center justify-between mb-1">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm font-medium text-foreground">
-            {comment.display_name || "Anonymous"}
-          </span>
-          {comment.position && (
-            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-              comment.position === "yes"
-                ? "bg-emerald-500/20 text-emerald-400"
-                : "bg-red-500/20 text-red-400"
-            }`}>
-              {comment.position.toUpperCase()}
-            </span>
+      <div className="flex gap-2.5">
+        <div className="shrink-0 w-7 h-7 rounded-full overflow-hidden bg-muted border border-border/50 mt-0.5">
+          {comment.avatar_url ? (
+            <img src={comment.avatar_url} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <User className="w-3.5 h-3.5 text-muted-foreground" />
+            </div>
           )}
-          <span className="text-xs text-muted-foreground">{formatDate(comment.created_at)}</span>
         </div>
-        <div className="flex items-center gap-1">
-          {user && sessionToken && !isReply && (
-            <button
-              onClick={() => setReplyingTo(comment)}
-              className="opacity-0 group-hover:opacity-100 active:opacity-100 transition-opacity text-muted-foreground hover:text-primary"
-              title="Reply"
-            >
-              <Reply className="w-3.5 h-3.5" />
-            </button>
-          )}
-          {user?.id === comment.user_id && (
-            <button
-              onClick={() => handleDelete(comment.id)}
-              className="opacity-0 group-hover:opacity-100 active:opacity-100 transition-opacity text-muted-foreground hover:text-red-400"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          )}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-medium text-foreground">
+                {comment.display_name || "Anonymous"}
+              </span>
+              {comment.position && (
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                  comment.position === "yes"
+                    ? "bg-emerald-500/20 text-emerald-400"
+                    : "bg-red-500/20 text-red-400"
+                }`}>
+                  {comment.position.toUpperCase()}
+                </span>
+              )}
+              <span className="text-xs text-muted-foreground">{formatDate(comment.created_at)}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              {user && sessionToken && !isReply && (
+                <button
+                  onClick={() => setReplyingTo(comment)}
+                  className="opacity-0 group-hover:opacity-100 active:opacity-100 transition-opacity text-muted-foreground hover:text-primary"
+                  title="Reply"
+                >
+                  <Reply className="w-3.5 h-3.5" />
+                </button>
+              )}
+              {user?.id === comment.user_id && (
+                <button
+                  onClick={() => handleDelete(comment.id)}
+                  className="opacity-0 group-hover:opacity-100 active:opacity-100 transition-opacity text-muted-foreground hover:text-red-400"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+          <p className="text-sm text-foreground/90 mb-1.5">{comment.content}</p>
+          <button
+            onClick={() => handleToggleLike(comment.id)}
+            className={`flex items-center gap-1 text-xs transition-colors ${
+              comment.liked_by_me
+                ? "text-red-400"
+                : "text-muted-foreground hover:text-red-400"
+            }`}
+          >
+            <Heart className={`w-3.5 h-3.5 ${comment.liked_by_me ? "fill-red-400" : ""}`} />
+            {comment.like_count > 0 && <span>{comment.like_count}</span>}
+          </button>
         </div>
       </div>
-      <p className="text-sm text-foreground/90 mb-1.5">{comment.content}</p>
-      <button
-        onClick={() => handleToggleLike(comment.id)}
-        className={`flex items-center gap-1 text-xs transition-colors ${
-          comment.liked_by_me
-            ? "text-red-400"
-            : "text-muted-foreground hover:text-red-400"
-        }`}
-      >
-        <Heart className={`w-3.5 h-3.5 ${comment.liked_by_me ? "fill-red-400" : ""}`} />
-        {comment.like_count > 0 && <span>{comment.like_count}</span>}
-      </button>
     </motion.div>
   );
 
