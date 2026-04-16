@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import CommenterProfileModal from "./CommenterProfileModal";
 
 interface Comment {
   id: string;
@@ -34,6 +35,7 @@ const CommentsSection = ({ predictionId }: CommentsSectionProps) => {
   const [newComment, setNewComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [replyingTo, setReplyingTo] = useState<Comment | null>(null);
+  const [viewingProfile, setViewingProfile] = useState<{ userId: string; displayName: string | null; avatarUrl: string | null } | null>(null);
 
   const fetchComments = async () => {
     setLoading(true);
@@ -218,7 +220,10 @@ const CommentsSection = ({ predictionId }: CommentsSectionProps) => {
       className={`p-3 rounded-lg bg-muted/30 group ${isReply ? "ml-4 border-l-2 border-primary/20" : ""}`}
     >
       <div className="flex gap-2.5">
-        <div className="shrink-0 w-7 h-7 rounded-full overflow-hidden bg-muted border border-border/50 mt-0.5">
+        <button
+          className="shrink-0 w-7 h-7 rounded-full overflow-hidden bg-muted border border-border/50 mt-0.5 cursor-pointer hover:ring-2 hover:ring-primary/40 transition-all"
+          onClick={() => setViewingProfile({ userId: comment.user_id, displayName: comment.display_name, avatarUrl: comment.avatar_url })}
+        >
           {comment.avatar_url ? (
             <img src={comment.avatar_url} alt="" className="w-full h-full object-cover" />
           ) : (
@@ -226,13 +231,16 @@ const CommentsSection = ({ predictionId }: CommentsSectionProps) => {
               <User className="w-3.5 h-3.5 text-muted-foreground" />
             </div>
           )}
-        </div>
+        </button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm font-medium text-foreground">
+              <button
+                className="text-sm font-medium text-foreground hover:text-primary transition-colors cursor-pointer"
+                onClick={() => setViewingProfile({ userId: comment.user_id, displayName: comment.display_name, avatarUrl: comment.avatar_url })}
+              >
                 {comment.display_name || "Anonymous"}
-              </span>
+              </button>
               {comment.position && (
                 <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
                   comment.position === "yes"
@@ -282,6 +290,7 @@ const CommentsSection = ({ predictionId }: CommentsSectionProps) => {
   );
 
   return (
+    <>
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -361,6 +370,17 @@ const CommentsSection = ({ predictionId }: CommentsSectionProps) => {
         )}
       </div>
     </motion.div>
+
+    {viewingProfile && (
+      <CommenterProfileModal
+        open={!!viewingProfile}
+        onOpenChange={(open) => { if (!open) setViewingProfile(null); }}
+        userId={viewingProfile.userId}
+        displayName={viewingProfile.displayName}
+        avatarUrl={viewingProfile.avatarUrl}
+      />
+    )}
+    </>
   );
 };
 
