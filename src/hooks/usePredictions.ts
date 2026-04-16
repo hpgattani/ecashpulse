@@ -87,6 +87,11 @@ const detectCategory = (title: string, existingCategory: string): Prediction['ca
   if (hasAnyKeyword(q, SPORTS_OVERRIDE_KEYWORDS)) {
     return 'sports';
   }
+
+  // Team suffix/pattern detection (e.g. "Wadi Degla SC", "Al Ahly FC", "win on 2026-05-01")
+  if (SPORTS_TEAM_PATTERNS.some(pattern => pattern.test(title))) {
+    return 'sports';
+  }
   
   // Only run detection if existing category is 'crypto' (the default) or invalid
   // Sports keywords - CHECK EARLY for Africa Cup, sports events
