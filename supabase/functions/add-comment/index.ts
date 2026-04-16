@@ -2,7 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-session-token',
 };
 
 Deno.serve(async (req) => {
@@ -16,7 +16,6 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // Get session token from header
     const sessionToken = req.headers.get('x-session-token');
     if (!sessionToken) {
       return new Response(
@@ -25,7 +24,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Validate session
     const { data: session, error: sessionError } = await supabase
       .from('sessions')
       .select('user_id, expires_at')
@@ -39,7 +37,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { prediction_id, content } = await req.json();
+    const { prediction_id, content, parent_id } = await req.json();
 
     if (!prediction_id || !content || content.trim().length === 0) {
       return new Response(
@@ -55,13 +53,42 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Insert comment
+    // If parent_id provided, validate it exists and belongs to the same prediction
+    let resolvedParentId = parent_id || null;
+    if (resolvedParentId) {
+      const { data: parentComment, error: parentError } = await supabase
+        .from('comments')
+        .select('id, prediction_id, parent_id')
+        .eq('id', resolvedParentId)
+        .single();
+
+      if (parentError || !parentComment) {
+        return new Response(
+          JSON.stringify({ error: 'Parent comment not found' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (parentComment.prediction_id !== prediction_id) {
+        return new Response(
+          JSON.stringify({ error: 'Parent comment belongs to a different prediction' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Flatten: if replying to a reply, attach to the root parent instead
+      if (parentComment.parent_id) {
+        resolvedParentId = parentComment.parent_id;
+      }
+    }
+
     const { data, error } = await supabase
       .from('comments')
       .insert({
         prediction_id,
         user_id: session.user_id,
-        content: content.trim()
+        content: content.trim(),
+        parent_id: resolvedParentId,
       })
       .select()
       .single();
