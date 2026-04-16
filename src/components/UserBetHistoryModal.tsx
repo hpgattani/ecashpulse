@@ -37,7 +37,8 @@ export const UserBetHistoryModal = ({
   const [bets, setBets] = useState<UserBet[]>([]);
   const [loading, setLoading] = useState(true);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [profitStats, setProfitStats] = useState<{ wins: number; losses: number; winRate: number; totalProfit: number; profitCurve: number[] } | null>(null);
+  const [profitStats, setProfitStats] = useState<{ wins: number; losses: number; winRate: number; totalProfit: number; profitCurve: { t: string; v: number }[] } | null>(null);
+  const [graphPeriod, setGraphPeriod] = useState<'7d' | '30d' | '90d' | 'all'>('all');
   const { t } = useLanguage();
   const navigate = useNavigate();
 
