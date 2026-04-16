@@ -86,7 +86,7 @@ const CommenterProfileModal = ({ open, onOpenChange, userId, displayName, avatar
         ) : stats ? (
           <div className="p-4 space-y-4">
             {/* Stats Grid */}
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <div className="rounded-lg bg-muted/40 p-3 text-center">
                 <Trophy className="w-4 h-4 mx-auto mb-1 text-amber-400" />
                 <p className="text-lg font-bold text-foreground">{stats.wins}</p>
@@ -101,13 +101,6 @@ const CommenterProfileModal = ({ open, onOpenChange, userId, displayName, avatar
                 <BarChart3 className="w-4 h-4 mx-auto mb-1 text-primary" />
                 <p className="text-lg font-bold text-foreground">{stats.winRate}%</p>
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Win Rate</p>
-              </div>
-              <div className="rounded-lg bg-muted/40 p-3 text-center">
-                <TrendingUp className="w-4 h-4 mx-auto mb-1 text-emerald-400" />
-                <p className={`text-lg font-bold ${stats.totalProfit >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                  {stats.totalProfit >= 0 ? "+" : ""}{formatXec(stats.totalProfit)} XEC
-                </p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Net Profit</p>
               </div>
             </div>
 
