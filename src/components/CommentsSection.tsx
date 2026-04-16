@@ -50,7 +50,7 @@ const CommentsSection = ({ predictionId }: CommentsSectionProps) => {
       const commentIds = (data || []).map((c) => c.id);
       const userIds = [...new Set((data || []).map((c) => c.user_id))];
 
-      let profileMap: Record<string, string | null> = {};
+      let profileMap: Record<string, { display_name: string | null; avatar_url: string | null }> = {};
       let positionMap: Record<string, string | null> = {};
       let likeCountMap: Record<string, number> = {};
       let myLikes = new Set<string>();
