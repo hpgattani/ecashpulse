@@ -165,11 +165,45 @@ export const UserBetHistoryModal = ({
           <div className="text-center">
             <div className="text-xl font-bold text-green-500">{stats.wins}</div>
             <div className="text-xs text-muted-foreground">{t.wins}</div>
+        </div>
+
+        {/* Net Profit + Graph */}
+        {profitStats && (
+          <div className="space-y-2 pb-2 border-b border-border">
+            <div className="flex items-center justify-between px-1">
+              <span className="text-xs text-muted-foreground font-medium">⚡ Net Profit</span>
+              <span className={`text-sm font-bold ${profitStats.totalProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {profitStats.totalProfit >= 0 ? '+' : ''}{formatXEC(profitStats.totalProfit)} XEC
+              </span>
+            </div>
+            {profitStats.profitCurve.length > 1 && (() => {
+              const gd = profitStats.profitCurve;
+              const maxV = Math.max(...gd.map(Math.abs), 1);
+              const gW = 280, gH = 80;
+              return (
+                <div className="rounded-lg bg-muted/30 p-2">
+                  <svg viewBox={`0 0 ${gW} ${gH}`} className="w-full h-16" preserveAspectRatio="none">
+                    <line x1="0" y1={gH/2} x2={gW} y2={gH/2} stroke="hsl(var(--border))" strokeWidth="0.5" strokeDasharray="4 2" />
+                    <polygon
+                      fill={profitStats.totalProfit >= 0 ? "hsl(var(--chart-2) / 0.1)" : "hsl(var(--destructive) / 0.1)"}
+                      points={`0,${gH/2} ${gd.map((v,i) => `${(i/(gd.length-1))*gW},${gH/2-(v/maxV)*(gH/2-4)}`).join(' ')} ${gW},${gH/2}`}
+                    />
+                    <polyline
+                      fill="none"
+                      stroke={profitStats.totalProfit >= 0 ? "hsl(var(--chart-2))" : "hsl(var(--destructive))"}
+                      strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"
+                      points={gd.map((v,i) => `${(i/(gd.length-1))*gW},${gH/2-(v/maxV)*(gH/2-4)}`).join(' ')}
+                    />
+                  </svg>
+                  <div className="flex justify-between text-[10px] text-muted-foreground">
+                    <span>First bet</span>
+                    <span>Latest</span>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
-          <div className="text-center">
-            <div className="text-xl font-bold text-red-500">{stats.losses}</div>
-            <div className="text-xs text-muted-foreground">Losses</div>
-          </div>
+        )}
           <div className="text-center">
             <div className="text-xl font-bold text-yellow-500">{stats.pending}</div>
             <div className="text-xs text-muted-foreground">Pending</div>
