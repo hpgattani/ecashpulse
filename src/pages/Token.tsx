@@ -59,7 +59,7 @@ const Token = () => {
             <div className="flex flex-col md:flex-row items-center justify-between gap-6">
               <div>
                 <p className="text-sm text-muted-foreground uppercase tracking-wider mb-1">Launch Price</p>
-                <p className="text-4xl md:text-5xl font-display font-bold text-primary">5.44 XEC</p>
+                <p className="text-4xl md:text-5xl font-display font-bold text-primary">5.46 XEC</p>
                 <p className="text-sm text-muted-foreground mt-1">
                   Introductory price for the first 2 months · Price hike planned
                 </p>
