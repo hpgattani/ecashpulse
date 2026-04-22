@@ -1,0 +1,1 @@
+UPDATE public.predictions SET yes_pool = yes_pool + 50000 WHERE id = '7c070914-a36b-4f22-a9ca-f87b44dde050';
