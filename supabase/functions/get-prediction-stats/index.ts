@@ -394,11 +394,13 @@ const buildPerplexityPrompt = (prediction: PredictionRow, analysisType: string) 
     ].join("\n");
   }
 
-  if (analysisType === "crypto") {
+  if (analysisType === "crypto" || analysisType === "stocks") {
     return [
       `Market: ${prediction.title}`,
       `Description: ${prediction.description ?? "N/A"}`,
-      "Return only live or recent market figures supported by current sources.",
+      analysisType === "stocks"
+        ? "Use live finance sources (Yahoo Finance, Bloomberg, MarketWatch, companiesmarketcap.com) for current stock price, % changes, and market cap."
+        : "Return only live or recent market figures supported by current sources.",
       "Do not infer percentage changes from memory.",
       "If a figure is unavailable, use null for the whole section instead of guessing.",
     ].join("\n");
