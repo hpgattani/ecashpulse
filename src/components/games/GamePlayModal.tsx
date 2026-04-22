@@ -178,14 +178,23 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
     setTimeout(() => setIsGameActive(true), 100);
   }, [closePayButtonModal, lockedEntryFee]);
 
-  // Load PayButton script
+  // Load PayButton script (pinned + jsDelivr fallback)
   useEffect(() => {
-    if (!document.querySelector('script[src*="paybutton"]')) {
-      const script = document.createElement("script");
-      script.src = "https://unpkg.com/@paybutton/paybutton/dist/paybutton.js";
-      script.async = true;
-      document.body.appendChild(script);
-    }
+    if ((window as any).PayButton) return;
+    if (document.querySelector('script[src*="paybutton"]')) return;
+    const primary = 'https://unpkg.com/@paybutton/paybutton@5.4.0/dist/paybutton.js';
+    const fallback = 'https://cdn.jsdelivr.net/npm/@paybutton/paybutton@5.4.0/dist/paybutton.js';
+    const s = document.createElement('script');
+    s.src = primary;
+    s.async = true;
+    s.onerror = () => {
+      console.warn('[PayButton] unpkg failed, loading jsDelivr fallback');
+      const f = document.createElement('script');
+      f.src = fallback;
+      f.async = true;
+      document.body.appendChild(f);
+    };
+    document.body.appendChild(s);
   }, []);
 
   // Render PayButton with retry loop for mobile AnimatePresence timing

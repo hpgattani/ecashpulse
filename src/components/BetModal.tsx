@@ -282,44 +282,55 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
   const ensurePayButtonLoaded = useCallback(async () => {
     if ((window as any).PayButton) return;
 
-    await new Promise<void>((resolve, reject) => {
-      const existingScript = document.querySelector(
-        'script[src="https://unpkg.com/@paybutton/paybutton/dist/paybutton.js"]'
-      ) as HTMLScriptElement | null;
+    const PRIMARY = "https://unpkg.com/@paybutton/paybutton@5.4.0/dist/paybutton.js";
+    const FALLBACK = "https://cdn.jsdelivr.net/npm/@paybutton/paybutton@5.4.0/dist/paybutton.js";
 
-      const script = existingScript ?? document.createElement("script");
+    const loadFrom = (src: string) =>
+      new Promise<void>((resolve, reject) => {
+        const existing = document.querySelector(
+          `script[src="${src}"]`
+        ) as HTMLScriptElement | null;
+        const script = existing ?? document.createElement("script");
 
-      const handleLoad = () => {
-        script.dataset.loaded = "true";
-        cleanup();
-        resolve();
-      };
+        const cleanup = () => {
+          script.removeEventListener("load", handleLoad);
+          script.removeEventListener("error", handleError);
+        };
+        const handleLoad = () => {
+          script.dataset.loaded = "true";
+          cleanup();
+          resolve();
+        };
+        const handleError = () => {
+          cleanup();
+          reject(new Error(`Failed to load ${src}`));
+        };
 
-      const handleError = () => {
-        cleanup();
-        reject(new Error("Unable to load payment widget. Please check your connection and try again."));
-      };
+        if ((window as any).PayButton) {
+          resolve();
+          return;
+        }
 
-      const cleanup = () => {
-        script.removeEventListener("load", handleLoad);
-        script.removeEventListener("error", handleError);
-      };
+        script.addEventListener("load", handleLoad);
+        script.addEventListener("error", handleError);
 
-      script.addEventListener("load", handleLoad);
-      script.addEventListener("error", handleError);
+        if (!existing) {
+          script.src = src;
+          script.async = true;
+          document.body.appendChild(script);
+        }
+      });
 
-      if ((window as any).PayButton) {
-        cleanup();
-        resolve();
-        return;
-      }
-
-      if (!existingScript) {
-        script.src = "https://unpkg.com/@paybutton/paybutton/dist/paybutton.js";
-        script.async = true;
-        document.body.appendChild(script);
-      }
-    });
+    try {
+      await loadFrom(PRIMARY);
+    } catch (e) {
+      console.warn("[PayButton] unpkg failed, trying jsDelivr fallback", e);
+      await loadFrom(FALLBACK).catch(() => {
+        throw new Error(
+          "Unable to load payment widget. Please check your connection and try again."
+        );
+      });
+    }
   }, []);
 
   // Render PayButton from scratch with deterministic retries
