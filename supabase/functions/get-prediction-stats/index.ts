@@ -121,6 +121,23 @@ const buildSearchConfig = (prediction: PredictionRow) => {
           "Use live market sources and omit any figure that is not directly supported.",
         ].join("\n"),
       };
+    case "stocks":
+      return {
+        analysisType,
+        recency: "week",
+        domainFilter: [
+          "finance.yahoo.com", "bloomberg.com", "marketwatch.com", "cnbc.com",
+          "reuters.com", "ft.com", "wsj.com", "investing.com",
+          "companiesmarketcap.com", "stockanalysis.com", "macrotrends.net",
+        ],
+        query: [
+          `Prediction market: ${prediction.title}`,
+          `Description: ${prediction.description ?? "N/A"}`,
+          "Return verified CURRENT stock price, 7d change, 30d change, and current market capitalization.",
+          "If the question compares companies (e.g., largest by market cap), include the current market cap of each named company AND the current global #1 by market cap, with figures in USD.",
+          "Cite live financial sources. Omit any figure that is not directly supported.",
+        ].join("\n"),
+      };
     case "space":
       return {
         analysisType,
