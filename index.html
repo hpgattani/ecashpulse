@@ -25,8 +25,25 @@
     <meta name="twitter:description" content="Trade on real-world events with eCash Pulse. Instant settlements, near-zero fees." />
     <meta name="twitter:image" content="https://ecashpulse.com/og-preview.png" />
     
-    <!-- PayButton Script -->
-    <script src="https://unpkg.com/@paybutton/paybutton/dist/paybutton.js"></script>
+    <!-- PayButton Script (pinned + jsDelivr fallback) -->
+    <script>
+      (function () {
+        function loadScript(src, onLoad, onError) {
+          var s = document.createElement('script');
+          s.src = src; s.async = true;
+          s.onload = onLoad; s.onerror = onError;
+          document.head.appendChild(s);
+        }
+        var primary = 'https://unpkg.com/@paybutton/paybutton@5.4.0/dist/paybutton.js';
+        var fallback = 'https://cdn.jsdelivr.net/npm/@paybutton/paybutton@5.4.0/dist/paybutton.js';
+        loadScript(primary, null, function () {
+          console.warn('[PayButton] unpkg failed, loading jsDelivr fallback');
+          loadScript(fallback, null, function () {
+            console.error('[PayButton] both CDNs failed to load payment widget');
+          });
+        });
+      })();
+    </script>
   </head>
 
   <body>
