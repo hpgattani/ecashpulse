@@ -287,7 +287,7 @@ const buildResponseSchema = (analysisType: string) => {
     };
   }
 
-  if (analysisType === "crypto") {
+  if (analysisType === "crypto" || analysisType === "stocks") {
     return {
       type: "object",
       additionalProperties: false,
