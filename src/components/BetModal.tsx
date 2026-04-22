@@ -65,29 +65,26 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
   useEffect(() => {
     if (isOpen && prediction.id) {
       setEscrowLoading(true);
-      supabase
-        .from('predictions')
-        .select('escrow_address')
-        .eq('id', prediction.id)
-        .single()
-        .then(({ data, error }) => {
-          if (error) {
+      void (async () => {
+        try {
+          const { data, error } = await supabase
+            .from('predictions')
+            .select('escrow_address')
+            .eq('id', prediction.id)
+            .single();
+
+          if (error || !isValidEcashPaymentAddress(data?.escrow_address)) {
             setFreshEscrowAddress(FALLBACK_ESCROW_ADDRESS);
             return;
           }
 
-          if (isValidEcashPaymentAddress(data?.escrow_address)) {
-            setFreshEscrowAddress(data!.escrow_address);
-          } else {
-            setFreshEscrowAddress(FALLBACK_ESCROW_ADDRESS);
-          }
-        })
-        .catch(() => {
+          setFreshEscrowAddress(data.escrow_address);
+        } catch {
           setFreshEscrowAddress(FALLBACK_ESCROW_ADDRESS);
-        })
-        .finally(() => {
+        } finally {
           setEscrowLoading(false);
-        });
+        }
+      })();
     }
   }, [isOpen, prediction.id]);
 
