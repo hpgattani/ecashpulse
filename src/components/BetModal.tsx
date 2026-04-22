@@ -70,12 +70,22 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
         .select('escrow_address')
         .eq('id', prediction.id)
         .single()
-        .then(({ data }) => {
+        .then(({ data, error }) => {
+          if (error) {
+            setFreshEscrowAddress(FALLBACK_ESCROW_ADDRESS);
+            return;
+          }
+
           if (isValidEcashPaymentAddress(data?.escrow_address)) {
             setFreshEscrowAddress(data!.escrow_address);
           } else {
             setFreshEscrowAddress(FALLBACK_ESCROW_ADDRESS);
           }
+        })
+        .catch(() => {
+          setFreshEscrowAddress(FALLBACK_ESCROW_ADDRESS);
+        })
+        .finally(() => {
           setEscrowLoading(false);
         });
     }
