@@ -880,7 +880,7 @@ serve(async (req) => {
       JSON.stringify(schema, null, 2),
     ].join("\n");
 
-    if (!searchFacts.trim() && analysisType !== "crypto" && analysisType !== "sports") {
+    if (!searchFacts.trim() && analysisType !== "crypto" && analysisType !== "stocks" && analysisType !== "sports") {
       const fallbackStats = buildUnavailableStats(
         analysisType,
         "Fresh source-backed data was not available quickly enough, so cached-safe analysis is shown instead."
