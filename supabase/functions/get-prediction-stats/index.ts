@@ -634,7 +634,7 @@ function buildUnavailableStats(analysisType: string, reason: string) {
     };
   }
 
-  if (analysisType === "crypto") {
+  if (analysisType === "crypto" || analysisType === "stocks") {
     return {
       price_context: null,
       key_metrics: [],
