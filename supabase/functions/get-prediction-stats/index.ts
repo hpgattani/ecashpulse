@@ -60,10 +60,29 @@ const hasAnyKeyword = (value: string, keywords: string[]) => {
   return keywords.some((keyword) => normalized.includes(keyword));
 };
 
+const STOCK_KEYWORDS = [
+  "nvidia", "apple", "microsoft", "amazon", "alphabet", "google", "meta", "tesla",
+  "berkshire", "broadcom", "tsmc", "saudi aramco", "stock", "shares", "share price",
+  "market cap", "market capitalization", "largest company", "biggest company",
+  "s&p 500", "nasdaq", "dow jones", "earnings", "ipo", "nyse",
+];
+
+const CRYPTO_KEYWORDS = [
+  "bitcoin", "btc", "ethereum", "eth", "solana", "sol", "xec", "ecash",
+  "dogecoin", "doge", "altcoin", "crypto",
+];
+
 const getAnalysisType = (prediction: PredictionRow) => {
   const combined = `${prediction.title} ${prediction.description ?? ""}`.toLowerCase();
 
   if (prediction.category === "sports") return "sports";
+
+  // Stocks/equities take priority over the (often wrong) crypto category
+  // because price/market-cap data lives on finance sites, not crypto exchanges.
+  if (hasAnyKeyword(combined, STOCK_KEYWORDS) && !hasAnyKeyword(combined, CRYPTO_KEYWORDS)) {
+    return "stocks";
+  }
+
   if (prediction.category === "crypto") return "crypto";
   if (hasAnyKeyword(combined, ["spacex", "launch", "starship", "falcon 9", "rocket"])) return "space";
   return "default";
