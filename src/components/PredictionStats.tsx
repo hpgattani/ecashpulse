@@ -251,8 +251,11 @@ const PredictionStats = ({ predictionId, category }: PredictionStatsProps) => {
 
   const renderStats = () => {
     if (!stats) return null;
-    if (category === 'sports') return renderSportsStats(stats);
-    if (category === 'crypto') return renderCryptoStats(stats);
+    const analysisType = (stats as Record<string, any>)._analysis_type;
+    if (analysisType === 'sports' || category === 'sports') return renderSportsStats(stats);
+    if (analysisType === 'crypto' || analysisType === 'stocks' || category === 'crypto') {
+      return renderCryptoStats(stats);
+    }
     return renderDefaultStats(stats);
   };
 

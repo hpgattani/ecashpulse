@@ -60,10 +60,29 @@ const hasAnyKeyword = (value: string, keywords: string[]) => {
   return keywords.some((keyword) => normalized.includes(keyword));
 };
 
+const STOCK_KEYWORDS = [
+  "nvidia", "apple", "microsoft", "amazon", "alphabet", "google", "meta", "tesla",
+  "berkshire", "broadcom", "tsmc", "saudi aramco", "stock", "shares", "share price",
+  "market cap", "market capitalization", "largest company", "biggest company",
+  "s&p 500", "nasdaq", "dow jones", "earnings", "ipo", "nyse",
+];
+
+const CRYPTO_KEYWORDS = [
+  "bitcoin", "btc", "ethereum", "eth", "solana", "sol", "xec", "ecash",
+  "dogecoin", "doge", "altcoin", "crypto",
+];
+
 const getAnalysisType = (prediction: PredictionRow) => {
   const combined = `${prediction.title} ${prediction.description ?? ""}`.toLowerCase();
 
   if (prediction.category === "sports") return "sports";
+
+  // Stocks/equities take priority over the (often wrong) crypto category
+  // because price/market-cap data lives on finance sites, not crypto exchanges.
+  if (hasAnyKeyword(combined, STOCK_KEYWORDS) && !hasAnyKeyword(combined, CRYPTO_KEYWORDS)) {
+    return "stocks";
+  }
+
   if (prediction.category === "crypto") return "crypto";
   if (hasAnyKeyword(combined, ["spacex", "launch", "starship", "falcon 9", "rocket"])) return "space";
   return "default";
@@ -100,6 +119,23 @@ const buildSearchConfig = (prediction: PredictionRow) => {
           `Prediction market: ${prediction.title}`,
           "Return only verified current price context, 7d change, 30d change, and notable market drivers.",
           "Use live market sources and omit any figure that is not directly supported.",
+        ].join("\n"),
+      };
+    case "stocks":
+      return {
+        analysisType,
+        recency: "week",
+        domainFilter: [
+          "finance.yahoo.com", "bloomberg.com", "marketwatch.com", "cnbc.com",
+          "reuters.com", "ft.com", "wsj.com", "investing.com",
+          "companiesmarketcap.com", "stockanalysis.com", "macrotrends.net",
+        ],
+        query: [
+          `Prediction market: ${prediction.title}`,
+          `Description: ${prediction.description ?? "N/A"}`,
+          "Return verified CURRENT stock price, 7d change, 30d change, and current market capitalization.",
+          "If the question compares companies (e.g., largest by market cap), include the current market cap of each named company AND the current global #1 by market cap, with figures in USD.",
+          "Cite live financial sources. Omit any figure that is not directly supported.",
         ].join("\n"),
       };
     case "space":
@@ -251,7 +287,7 @@ const buildResponseSchema = (analysisType: string) => {
     };
   }
 
-  if (analysisType === "crypto") {
+  if (analysisType === "crypto" || analysisType === "stocks") {
     return {
       type: "object",
       additionalProperties: false,
@@ -358,11 +394,13 @@ const buildPerplexityPrompt = (prediction: PredictionRow, analysisType: string) 
     ].join("\n");
   }
 
-  if (analysisType === "crypto") {
+  if (analysisType === "crypto" || analysisType === "stocks") {
     return [
       `Market: ${prediction.title}`,
       `Description: ${prediction.description ?? "N/A"}`,
-      "Return only live or recent market figures supported by current sources.",
+      analysisType === "stocks"
+        ? "Use live finance sources (Yahoo Finance, Bloomberg, MarketWatch, companiesmarketcap.com) for current stock price, % changes, and market cap."
+        : "Return only live or recent market figures supported by current sources.",
       "Do not infer percentage changes from memory.",
       "If a figure is unavailable, use null for the whole section instead of guessing.",
     ].join("\n");
@@ -596,7 +634,7 @@ function buildUnavailableStats(analysisType: string, reason: string) {
     };
   }
 
-  if (analysisType === "crypto") {
+  if (analysisType === "crypto" || analysisType === "stocks") {
     return {
       price_context: null,
       key_metrics: [],
@@ -842,7 +880,7 @@ serve(async (req) => {
       JSON.stringify(schema, null, 2),
     ].join("\n");
 
-    if (!searchFacts.trim() && analysisType !== "crypto" && analysisType !== "sports") {
+    if (!searchFacts.trim() && analysisType !== "crypto" && analysisType !== "stocks" && analysisType !== "sports") {
       const fallbackStats = buildUnavailableStats(
         analysisType,
         "Fresh source-backed data was not available quickly enough, so cached-safe analysis is shown instead."
