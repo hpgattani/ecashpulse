@@ -14,6 +14,11 @@ import { triggerHaptic } from "@/hooks/useHaptic";
 
 const FALLBACK_ESCROW_ADDRESS = "ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp";
 
+const isValidEcashPaymentAddress = (address?: string | null): boolean => {
+  if (!address) return false;
+  return /^ecash:[qp][a-z0-9]{41}$/.test(address.trim().toLowerCase());
+};
+
 interface Prediction {
   id: string;
   question: string;
@@ -66,8 +71,10 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
         .eq('id', prediction.id)
         .single()
         .then(({ data }) => {
-          if (data?.escrow_address) {
-            setFreshEscrowAddress(data.escrow_address);
+          if (isValidEcashPaymentAddress(data?.escrow_address)) {
+            setFreshEscrowAddress(data!.escrow_address);
+          } else {
+            setFreshEscrowAddress(FALLBACK_ESCROW_ADDRESS);
           }
           setEscrowLoading(false);
         });
@@ -348,7 +355,7 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
       return;
     }
 
-    const paymentAddress = freshEscrowAddress.startsWith("ecash:")
+    const paymentAddress = isValidEcashPaymentAddress(freshEscrowAddress)
       ? freshEscrowAddress
       : FALLBACK_ESCROW_ADDRESS;
 
