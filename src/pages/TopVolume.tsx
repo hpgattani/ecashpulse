@@ -49,6 +49,19 @@ const TopVolume = () => {
   const [leaders, setLeaders] = useState<VolumeEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<VolumeEntry | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleCopy = async (e: React.MouseEvent, address: string, id: string) => {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopiedId(id);
+      toast({ title: 'Address copied', description: address });
+      setTimeout(() => setCopiedId((c) => (c === id ? null : c)), 1500);
+    } catch {
+      toast({ title: 'Copy failed', variant: 'destructive' });
+    }
+  };
 
   useEffect(() => {
     (async () => {
