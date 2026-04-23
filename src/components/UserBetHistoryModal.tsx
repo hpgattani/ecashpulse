@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Trophy, TrendingUp, TrendingDown, Clock, CheckCircle, XCircle, RefreshCw, Wallet, User, BarChart3 } from 'lucide-react';
+import { Trophy, TrendingUp, TrendingDown, Clock, CheckCircle, XCircle, RefreshCw, Wallet, User, BarChart3, Copy, Check } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useNavigate } from 'react-router-dom';
+import { toast } from '@/hooks/use-toast';
 
 interface UserBet {
   id: string;
