@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
-import { Crown, Trophy, Medal, TrendingUp, User, Flame, Copy, Check } from 'lucide-react';
+import { Crown, Trophy, Medal, TrendingUp, User, Flame } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { UserBetHistoryModal } from '@/components/UserBetHistoryModal';
-import { toast } from '@/hooks/use-toast';
 
 interface VolumeEntry {
   user_id: string;
