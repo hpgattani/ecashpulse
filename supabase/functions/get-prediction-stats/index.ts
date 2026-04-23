@@ -72,6 +72,13 @@ const CRYPTO_KEYWORDS = [
   "dogecoin", "doge", "altcoin", "crypto",
 ];
 
+const AI_KEYWORDS = [
+  "ai model", "ai models", "best ai", "llm", "large language model",
+  "chatbot arena", "lmarena", "lmsys", "gpt-", "claude", "gemini",
+  "openai", "anthropic", "deepmind", "mistral", "llama", "grok",
+  "ai leaderboard", "ai benchmark", "mmlu", "humaneval", "swe-bench",
+];
+
 const getAnalysisType = (prediction: PredictionRow) => {
   const combined = `${prediction.title} ${prediction.description ?? ""}`.toLowerCase();
 
@@ -82,6 +89,8 @@ const getAnalysisType = (prediction: PredictionRow) => {
   if (hasAnyKeyword(combined, STOCK_KEYWORDS) && !hasAnyKeyword(combined, CRYPTO_KEYWORDS)) {
     return "stocks";
   }
+
+  if (hasAnyKeyword(combined, AI_KEYWORDS)) return "ai";
 
   if (prediction.category === "crypto") return "crypto";
   if (hasAnyKeyword(combined, ["spacex", "launch", "starship", "falcon 9", "rocket"])) return "space";
