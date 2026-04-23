@@ -160,16 +160,40 @@ const buildSearchConfig = (prediction: PredictionRow) => {
           "Never summarize the count without listing the underlying dated launch events.",
         ].join("\n"),
       };
+    case "ai":
+      return {
+        analysisType,
+        recency: "month",
+        domainFilter: [
+          "lmarena.ai", "chat.lmsys.org", "huggingface.co", "openai.com",
+          "anthropic.com", "deepmind.google", "ai.google.dev",
+          "techcrunch.com", "theverge.com", "arstechnica.com", "wired.com",
+          "artificialanalysis.ai", "scale.com",
+        ],
+        query: [
+          `Prediction market: ${prediction.title}`,
+          `Description: ${prediction.description ?? "N/A"}`,
+          "Find the CURRENT Chatbot Arena (LMArena) leaderboard top-ranked AI models with their providers and Elo scores.",
+          "List the top 5 models by current rank, including the company that built each one.",
+          "Include any recent model releases or score changes from the last 30 days.",
+          "Cite lmarena.ai or other authoritative AI benchmark sources.",
+        ].join("\n"),
+      };
     default:
       return {
         analysisType,
         recency: "month",
         domainFilter: undefined,
         query: [
-          `Prediction market: ${prediction.title}`,
+          `Prediction market question: ${prediction.title}`,
           `Description: ${prediction.description ?? "N/A"}`,
-          "Return only current, verifiable context and key factors directly supported by live sources.",
-          "If evidence is weak or conflicting, say so clearly instead of guessing.",
+          "Provide the most relevant CURRENT context for this question, including:",
+          "- Recent news, events, or data points from the last 30 days that bear on the outcome",
+          "- Key entities, people, organizations, or numbers involved",
+          "- Any leaderboards, rankings, polls, or measurable indicators that exist today",
+          "- Known scheduled events between now and the resolution date",
+          "Use authoritative sources. Be specific with dates, names, and figures.",
+          "Do NOT refuse to answer just because the future is uncertain — provide today's snapshot of relevant facts.",
         ].join("\n"),
       };
   }
