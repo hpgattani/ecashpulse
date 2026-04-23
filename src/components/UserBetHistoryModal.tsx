@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Trophy, TrendingUp, TrendingDown, Clock, CheckCircle, XCircle, RefreshCw, Wallet, User, BarChart3 } from 'lucide-react';
+import { Trophy, TrendingUp, TrendingDown, Clock, CheckCircle, XCircle, RefreshCw, Wallet, User, BarChart3, Copy, Check } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useNavigate } from 'react-router-dom';
+import { toast } from '@/hooks/use-toast';
 
 interface UserBet {
   id: string;
@@ -39,8 +40,21 @@ export const UserBetHistoryModal = ({
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [profitStats, setProfitStats] = useState<{ wins: number; losses: number; winRate: number; totalProfit: number; profitCurve: { t: string; v: number }[] } | null>(null);
   const [graphPeriod, setGraphPeriod] = useState<'7d' | '30d' | '90d' | 'all'>('all');
+  const [copied, setCopied] = useState(false);
   const { t } = useLanguage();
   const navigate = useNavigate();
+
+  const handleCopyAddress = async () => {
+    const addr = ecashAddress.startsWith('ecash:') ? ecashAddress : `ecash:${ecashAddress}`;
+    try {
+      await navigator.clipboard.writeText(addr);
+      setCopied(true);
+      toast({ title: 'Address copied', description: addr });
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      toast({ title: 'Copy failed', variant: 'destructive' });
+    }
+  };
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -147,15 +161,29 @@ export const UserBetHistoryModal = ({
                 </div>
               )}
             </div>
-            <div>
-              <div className="text-lg font-semibold">
+            <div className="min-w-0 flex-1">
+              <div className="text-lg font-semibold truncate">
                 {displayName || ecashAddress}
               </div>
-              {displayName && (
-                <div className="text-xs font-mono text-muted-foreground">
-                  {ecashAddress}
-                </div>
-              )}
+              <div className="flex items-center gap-1.5 mt-0.5">
+                {displayName && (
+                  <div className="text-xs font-mono text-muted-foreground truncate">
+                    {ecashAddress}
+                  </div>
+                )}
+                <button
+                  onClick={handleCopyAddress}
+                  className="flex-shrink-0 p-1 rounded hover:bg-primary/20 transition-colors text-muted-foreground hover:text-primary"
+                  aria-label="Copy address"
+                  title="Copy address"
+                >
+                  {copied ? (
+                    <Check className="w-3.5 h-3.5 text-green-400" />
+                  ) : (
+                    <Copy className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              </div>
             </div>
           </DialogTitle>
         </DialogHeader>

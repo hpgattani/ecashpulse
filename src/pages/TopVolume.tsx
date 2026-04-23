@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
-import { Crown, Trophy, Medal, TrendingUp, User, Flame, Copy, Check } from 'lucide-react';
+import { Crown, Trophy, Medal, TrendingUp, User, Flame } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { UserBetHistoryModal } from '@/components/UserBetHistoryModal';
-import { toast } from '@/hooks/use-toast';
 
 interface VolumeEntry {
   user_id: string;
@@ -49,19 +48,6 @@ const TopVolume = () => {
   const [leaders, setLeaders] = useState<VolumeEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<VolumeEntry | null>(null);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-
-  const handleCopy = async (e: React.MouseEvent, address: string, id: string) => {
-    e.stopPropagation();
-    try {
-      await navigator.clipboard.writeText(address);
-      setCopiedId(id);
-      toast({ title: 'Address copied', description: address });
-      setTimeout(() => setCopiedId((c) => (c === id ? null : c)), 1500);
-    } catch {
-      toast({ title: 'Copy failed', variant: 'destructive' });
-    }
-  };
 
   useEffect(() => {
     (async () => {
@@ -140,24 +126,11 @@ const TopVolume = () => {
                         <h3 className="font-semibold text-sm truncate">
                           {leader.display_name || formatAddress(leader.ecash_address)}
                         </h3>
-                        <div className="flex items-center gap-1 mt-0.5">
-                          {leader.display_name && (
-                            <p className="font-mono text-xs text-muted-foreground truncate">
-                              {formatAddress(leader.ecash_address)}
-                            </p>
-                          )}
-                          <button
-                            onClick={(e) => handleCopy(e, `ecash:${leader.ecash_address.replace('ecash:', '')}`, leader.user_id)}
-                            className="flex-shrink-0 p-1 rounded hover:bg-primary/20 transition-colors text-muted-foreground hover:text-primary"
-                            aria-label="Copy address"
-                          >
-                            {copiedId === leader.user_id ? (
-                              <Check className="w-3.5 h-3.5 text-green-400" />
-                            ) : (
-                              <Copy className="w-3.5 h-3.5" />
-                            )}
-                          </button>
-                        </div>
+                        {leader.display_name && (
+                          <p className="font-mono text-xs text-muted-foreground truncate">
+                            {formatAddress(leader.ecash_address)}
+                          </p>
+                        )}
                         <div className="text-xs text-muted-foreground mt-0.5">
                           {leader.total_bets} bets
                         </div>
