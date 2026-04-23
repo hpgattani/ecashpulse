@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
-import { Zap, Github, ExternalLink, Send } from 'lucide-react';
+import { Activity, Github, ExternalLink, Send } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const XIcon = ({ className }: { className?: string }) => (
@@ -41,7 +41,7 @@ const Footer = () => {
           >
             <div className="flex items-center gap-2 mb-4">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                <Zap className="w-5 h-5 text-primary-foreground" />
+                <Activity className="w-5 h-5 text-primary-foreground" />
               </div>
               <span className="font-display font-bold text-xl">
                 eCash<span className="text-primary">Pulse</span>
