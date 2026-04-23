@@ -423,96 +423,8 @@ async function fetchPolymarketData(): Promise<Array<{ title: string; description
   }
 }
 
-// Use Perplexity to get trending Polymarket markets
-async function fetchPerplexityPolymarket(): Promise<Array<{ title: string; description: string; category: string; endDate?: string }>> {
-  const apiKey = Deno.env.get('PERPLEXITY_API_KEY');
-  if (!apiKey) {
-    console.log('PERPLEXITY_API_KEY not set, skipping Perplexity fetch');
-    return [];
-  }
+// Perplexity removed — Polymarket direct API + Lovable AI cover ingestion now.
 
-  try {
-    const today = new Date().toISOString().split('T')[0];
-    const response = await fetch('https://api.perplexity.ai/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'sonar',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a prediction market analyst. Return ONLY valid JSON array, no markdown.'
-          },
-          {
-            role: 'user',
-            content: `Today is ${today}. Search Polymarket.com for the top 15 most popular active prediction markets right now. 
-            
-For each market provide:
-- title: the exact question (e.g. "Will Bitcoin reach $100k before 2025?")
-- description: brief context (1-2 sentences)
-- category: one of crypto, politics, sports, tech, entertainment, economics
-- endDate: the resolution date in YYYY-MM-DD format (must be in the future)
-
-Return as JSON array ONLY:
-[{"title":"...", "description":"...", "category":"...", "endDate":"..."}]`
-          }
-        ],
-        search_domain_filter: ['polymarket.com'],
-        search_recency_filter: 'week'
-      }),
-    });
-
-    if (!response.ok) {
-      console.log('Perplexity API error:', response.status);
-      return [];
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || '';
-
-    let cleaned = content.trim();
-    if (cleaned.startsWith('```')) {
-      cleaned = cleaned.replace(/```json\n?/g, '').replace(/```\n?/g, '');
-    }
-    cleaned = cleaned.trim();
-
-    // Find JSON array in content
-    const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) {
-      console.log('No JSON array found in Perplexity response');
-      return [];
-    }
-
-    const predictions = JSON.parse(jsonMatch[0]);
-    const now = new Date();
-    const minEndDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-
-    const validPredictions = predictions
-      .filter((p: any) => {
-        if (!p.title) return false;
-        if (p.endDate) {
-          const endDate = new Date(p.endDate);
-          return endDate > now;
-        }
-        return true;
-      })
-      .map((p: any) => ({
-        title: p.title,
-        description: p.description || '',
-        category: detectCategory(p.title),
-        endDate: p.endDate && new Date(p.endDate) > minEndDate ? p.endDate : minEndDate.toISOString().split('T')[0]
-      }));
-
-    console.log(`Perplexity returned ${validPredictions.length} Polymarket predictions`);
-    return validPredictions;
-  } catch (error) {
-    console.error('Perplexity fetch error:', error);
-    return [];
-  }
-}
 
 // Generate AI predictions as fallback
 async function generateAIPredictions(): Promise<Array<{ title: string; description: string; category: string; endDate?: string }>> {
@@ -592,16 +504,12 @@ async function syncPredictions(supabase: any): Promise<{ created: number; resolv
   let created = 0;
   let resolved = 0;
 
-  // Fetch from Perplexity (Polymarket search) + direct Polymarket API
-  console.log('Fetching from Perplexity + Polymarket API...');
-  
-  const [perplexityMarkets, polymarketMarkets] = await Promise.all([
-    fetchPerplexityPolymarket(),
-    fetchPolymarketData(),
-  ]);
+  // Fetch from direct Polymarket API (no Perplexity)
+  console.log('Fetching from Polymarket API...');
 
-  const allMarkets = [...perplexityMarkets, ...polymarketMarkets];
-  console.log(`Total markets fetched: ${perplexityMarkets.length} from Perplexity, ${polymarketMarkets.length} from Polymarket`);
+  const polymarketMarkets = await fetchPolymarketData();
+  const allMarkets = [...polymarketMarkets];
+  console.log(`Total markets fetched: ${polymarketMarkets.length} from Polymarket`);
 
   // Get existing predictions
   const { data: existingPredictions } = await supabase
@@ -728,7 +636,7 @@ Deno.serve(async (req) => {
   );
 
   try {
-    console.log('Starting prediction sync (Perplexity + Polymarket)...');
+    console.log('Starting prediction sync (Polymarket API)...');
     const result = await syncPredictions(supabase);
     console.log(`Sync complete: ${result.created} created, ${result.resolved} resolved`);
 
