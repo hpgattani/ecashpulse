@@ -7,7 +7,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const ANALYSIS_VERSION = "grounded-v8";
+const ANALYSIS_VERSION = "grounded-v9";
 const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const LOVABLE_AI_SEARCH_TIMEOUT_MS = 20000;
 const LOVABLE_AI_EXTRACT_TIMEOUT_MS = 25000;
@@ -72,6 +72,13 @@ const CRYPTO_KEYWORDS = [
   "dogecoin", "doge", "altcoin", "crypto",
 ];
 
+const AI_KEYWORDS = [
+  "ai model", "ai models", "best ai", "llm", "large language model",
+  "chatbot arena", "lmarena", "lmsys", "gpt-", "claude", "gemini",
+  "openai", "anthropic", "deepmind", "mistral", "llama", "grok",
+  "ai leaderboard", "ai benchmark", "mmlu", "humaneval", "swe-bench",
+];
+
 const getAnalysisType = (prediction: PredictionRow) => {
   const combined = `${prediction.title} ${prediction.description ?? ""}`.toLowerCase();
 
@@ -82,6 +89,8 @@ const getAnalysisType = (prediction: PredictionRow) => {
   if (hasAnyKeyword(combined, STOCK_KEYWORDS) && !hasAnyKeyword(combined, CRYPTO_KEYWORDS)) {
     return "stocks";
   }
+
+  if (hasAnyKeyword(combined, AI_KEYWORDS)) return "ai";
 
   if (prediction.category === "crypto") return "crypto";
   if (hasAnyKeyword(combined, ["spacex", "launch", "starship", "falcon 9", "rocket"])) return "space";
@@ -151,16 +160,40 @@ const buildSearchConfig = (prediction: PredictionRow) => {
           "Never summarize the count without listing the underlying dated launch events.",
         ].join("\n"),
       };
+    case "ai":
+      return {
+        analysisType,
+        recency: "month",
+        domainFilter: [
+          "lmarena.ai", "chat.lmsys.org", "huggingface.co", "openai.com",
+          "anthropic.com", "deepmind.google", "ai.google.dev",
+          "techcrunch.com", "theverge.com", "arstechnica.com", "wired.com",
+          "artificialanalysis.ai", "scale.com",
+        ],
+        query: [
+          `Prediction market: ${prediction.title}`,
+          `Description: ${prediction.description ?? "N/A"}`,
+          "Find the CURRENT Chatbot Arena (LMArena) leaderboard top-ranked AI models with their providers and Elo scores.",
+          "List the top 5 models by current rank, including the company that built each one.",
+          "Include any recent model releases or score changes from the last 30 days.",
+          "Cite lmarena.ai or other authoritative AI benchmark sources.",
+        ].join("\n"),
+      };
     default:
       return {
         analysisType,
         recency: "month",
         domainFilter: undefined,
         query: [
-          `Prediction market: ${prediction.title}`,
+          `Prediction market question: ${prediction.title}`,
           `Description: ${prediction.description ?? "N/A"}`,
-          "Return only current, verifiable context and key factors directly supported by live sources.",
-          "If evidence is weak or conflicting, say so clearly instead of guessing.",
+          "Provide the most relevant CURRENT context for this question, including:",
+          "- Recent news, events, or data points from the last 30 days that bear on the outcome",
+          "- Key entities, people, organizations, or numbers involved",
+          "- Any leaderboards, rankings, polls, or measurable indicators that exist today",
+          "- Known scheduled events between now and the resolution date",
+          "Use authoritative sources. Be specific with dates, names, and figures.",
+          "Do NOT refuse to answer just because the future is uncertain — provide today's snapshot of relevant facts.",
         ].join("\n"),
       };
   }
@@ -839,24 +872,29 @@ serve(async (req) => {
     }
 
     const isSports = analysisType === "sports";
+    const isAi = analysisType === "ai";
+    const allowKnowledgeFill = isSports || isAi || analysisType === "default";
     const schema = buildResponseSchema(analysisType);
     const extractionPrompt = [
       `You are a strict fact-extraction engine for a prediction market platform.`,
       `Your job is to extract structured data from the search results below.`,
       ``,
       `RULES:`,
-      ...(isSports ? [
-        `- For SPORTS markets: you MAY supplement search results with well-known historical facts (e.g., head-to-head records, FIFA rankings, recent tournament results) since these are public knowledge.`,
-        `- You MUST still prioritize search results when available. Only use general knowledge to FILL GAPS.`,
-        `- For head_to_head: ALWAYS provide records with at least "Total meetings", wins for each team, "Draws", and "Last meeting". If unknown, provide best estimates with a note.`,
-        `- For form_guide: ALWAYS provide at least 3 recent competitive results per team with opponent, result (e.g. "W 2-0", "L 1-3", "D 0-0"), and approximate date.`,
-        `- For key_stats: Include FIFA ranking, goals in last 5 games, clean sheets, etc.`,
-        `- NEVER leave head_to_head.records as an empty array or form_guide teams with empty recent arrays.`,
+      ...(allowKnowledgeFill ? [
+        `- Prioritize the search results, but you MAY supplement with widely-known public facts (rankings, recent events, well-known entities) when search gaps exist.`,
+        `- For the "context" summary, ALWAYS provide a useful current snapshot — never just say "data not available".`,
+        `- For "key_factors", provide at least 2-4 concrete factors with dates, names, or numbers when possible.`,
+        ...(isSports ? [
+          `- For SPORTS: ALWAYS provide head_to_head with records (Total meetings, wins, draws, last meeting) and form_guide with last 3-5 results per team. Never leave them empty.`,
+        ] : []),
+        ...(isAi ? [
+          `- For AI markets: name the current top-ranked AI models on Chatbot Arena / LMArena and the companies behind them. Include Elo scores when known.`,
+        ] : []),
       ] : [
         `- ONLY use facts that appear in the search results. Do NOT add anything from your own knowledge.`,
         `- If a data point is not in the search results, use null or write "Data not available in sources".`,
       ]),
-      `- NEVER invent scores or results that did not happen.`,
+      `- NEVER invent scores, prices, or results that did not happen.`,
       `- If the search results say information is uncertain or conflicting, reflect that honestly.`,
       `- Return ONLY valid JSON matching the schema provided. No markdown, no explanation.`,
       ``,
@@ -872,7 +910,7 @@ serve(async (req) => {
         ``,
       ] : []),
       `SEARCH RESULTS:`,
-      searchFacts || "(No search results available — use your knowledge for sports, or return cautious analysis for other categories)",
+      searchFacts || "(No search results available — use your general knowledge to provide a useful current snapshot)",
       ``,
       `SOURCES: ${citations.length > 0 ? citations.join(", ") : "None available"}`,
       ``,
