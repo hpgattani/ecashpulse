@@ -161,15 +161,29 @@ export const UserBetHistoryModal = ({
                 </div>
               )}
             </div>
-            <div>
-              <div className="text-lg font-semibold">
+            <div className="min-w-0 flex-1">
+              <div className="text-lg font-semibold truncate">
                 {displayName || ecashAddress}
               </div>
-              {displayName && (
-                <div className="text-xs font-mono text-muted-foreground">
-                  {ecashAddress}
-                </div>
-              )}
+              <div className="flex items-center gap-1.5 mt-0.5">
+                {displayName && (
+                  <div className="text-xs font-mono text-muted-foreground truncate">
+                    {ecashAddress}
+                  </div>
+                )}
+                <button
+                  onClick={handleCopyAddress}
+                  className="flex-shrink-0 p-1 rounded hover:bg-primary/20 transition-colors text-muted-foreground hover:text-primary"
+                  aria-label="Copy address"
+                  title="Copy address"
+                >
+                  {copied ? (
+                    <Check className="w-3.5 h-3.5 text-green-400" />
+                  ) : (
+                    <Copy className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              </div>
             </div>
           </DialogTitle>
         </DialogHeader>
