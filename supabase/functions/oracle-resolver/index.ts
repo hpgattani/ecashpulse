@@ -401,59 +401,6 @@ async function checkSportsResult(title: string): Promise<OracleResult> {
 
 // ==================== NEWS/EVENTS ORACLES ====================
 
-async function queryPerplexity(title: string): Promise<{ resolved: boolean; outcome?: 'yes' | 'no'; reason?: string } | null> {
-  const perplexityKey = Deno.env.get('PERPLEXITY_API_KEY');
-  if (!perplexityKey) return null;
-
-  try {
-    const response = await fetch('https://api.perplexity.ai/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${perplexityKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'sonar',
-        messages: [
-          { 
-            role: 'system', 
-            content: `You are a fact-checker. Given a prediction, search for CURRENT information and determine if the event occurred.
-
-ONLY respond with JSON:
-{"resolved": true, "outcome": "yes", "reason": "Brief explanation", "confidence": "high"}
-OR {"resolved": true, "outcome": "no", "reason": "Brief explanation", "confidence": "high"}
-OR {"resolved": false, "reason": "Not yet occurred"}`
-          },
-          { 
-            role: 'user', 
-            content: `Has this prediction been resolved? "${title}" Today: ${new Date().toISOString().split('T')[0]}` 
-          }
-        ],
-        search_recency_filter: 'week',
-      }),
-    });
-
-    if (!response.ok) return null;
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || '';
-    
-    let cleaned = content.trim();
-    if (cleaned.startsWith('```')) {
-      cleaned = cleaned.replace(/```json\n?/g, '').replace(/```\n?/g, '');
-    }
-    
-    const result = JSON.parse(cleaned);
-    if (result.resolved && result.outcome && result.confidence === 'high') {
-      return { resolved: true, outcome: result.outcome, reason: result.reason };
-    }
-    return { resolved: false };
-  } catch (error) {
-    console.error('Perplexity error:', error);
-    return null;
-  }
-}
-
 async function queryLovableAI(title: string, model: string): Promise<{ resolved: boolean; outcome?: 'yes' | 'no'; reason?: string; source: string } | null> {
   const lovableKey = Deno.env.get('LOVABLE_API_KEY');
   if (!lovableKey) return null;
@@ -468,16 +415,16 @@ async function queryLovableAI(title: string, model: string): Promise<{ resolved:
       body: JSON.stringify({
         model,
         messages: [
-          { 
-            role: 'system', 
+          {
+            role: 'system',
             content: `You verify prediction outcomes. ONLY respond with JSON:
 {"resolved": true, "outcome": "yes", "reason": "Brief explanation", "confidence": "high"}
 OR {"resolved": true, "outcome": "no", "reason": "Brief explanation", "confidence": "high"}
 OR {"resolved": false, "reason": "Event unclear"}`
           },
-          { 
-            role: 'user', 
-            content: `Is this prediction resolved? "${title}" Today: ${new Date().toISOString().split('T')[0]}` 
+          {
+            role: 'user',
+            content: `Is this prediction resolved? "${title}" Today: ${new Date().toISOString().split('T')[0]}`
           }
         ],
       }),
@@ -487,12 +434,12 @@ OR {"resolved": false, "reason": "Event unclear"}`
 
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || '';
-    
+
     let cleaned = content.trim();
     if (cleaned.startsWith('```')) {
       cleaned = cleaned.replace(/```json\n?/g, '').replace(/```\n?/g, '');
     }
-    
+
     const result = JSON.parse(cleaned);
     if (result.resolved && result.outcome && result.confidence === 'high') {
       return { resolved: true, outcome: result.outcome, reason: result.reason, source: model };
@@ -505,61 +452,55 @@ OR {"resolved": false, "reason": "Event unclear"}`
 }
 
 async function checkNewsEvent(title: string): Promise<OracleResult> {
-  // CONSENSUS MODE: Require both Perplexity and Lovable AI to agree for high-confidence resolution
-  // This maximizes accuracy while being cost-conscious
-  
-  // Query both sources in parallel for efficiency
-  const [perplexityResult, lovableResult] = await Promise.all([
-    queryPerplexity(title),
-    queryLovableAI(title, 'google/gemini-2.5-flash-lite') // Use lite model to save credits
+  // CONSENSUS MODE: Query two Lovable AI models with different strengths.
+  // Resolve only when both agree, to maximize accuracy without external dependencies.
+
+  const [primary, secondary] = await Promise.all([
+    queryLovableAI(title, 'google/gemini-2.5-pro'),       // strongest reasoning
+    queryLovableAI(title, 'google/gemini-2.5-flash-lite') // cheap second opinion
   ]);
-  
-  // If both agree on the same outcome -> HIGH CONFIDENCE, resolve
-  if (perplexityResult?.resolved && lovableResult?.resolved &&
-      perplexityResult.outcome === lovableResult.outcome) {
-    console.log(`✅ CONSENSUS: Perplexity + Lovable AI agree: ${title.slice(0, 40)} -> ${perplexityResult.outcome}`);
+
+  // Both agree -> high confidence
+  if (primary?.resolved && secondary?.resolved &&
+      primary.outcome === secondary.outcome) {
+    console.log(`✅ CONSENSUS: ${primary.source} + ${secondary.source} agree: ${title.slice(0, 40)} -> ${primary.outcome}`);
     return {
       resolved: true,
-      outcome: perplexityResult.outcome,
-      reason: `${perplexityResult.reason} [Consensus: Perplexity + Lovable AI]`,
+      outcome: primary.outcome,
+      reason: `${primary.reason} [Consensus: ${primary.source} + ${secondary.source}]`,
       currentValue: 'AI Consensus'
     };
   }
-  
-  // If they disagree, don't resolve - needs manual review
-  if (perplexityResult?.resolved && lovableResult?.resolved &&
-      perplexityResult.outcome !== lovableResult.outcome) {
-    console.log(`⚠️ AI DISAGREEMENT: Perplexity=${perplexityResult.outcome}, Lovable=${lovableResult.outcome} for ${title.slice(0, 40)}`);
-    console.log(`   Perplexity reason: ${perplexityResult.reason}`);
-    console.log(`   Lovable reason: ${lovableResult.reason}`);
-    return { resolved: false }; // Manual resolution required
+
+  // Disagreement -> needs manual review
+  if (primary?.resolved && secondary?.resolved &&
+      primary.outcome !== secondary.outcome) {
+    console.log(`⚠️ AI DISAGREEMENT: ${primary.source}=${primary.outcome}, ${secondary.source}=${secondary.outcome} for ${title.slice(0, 40)}`);
+    return { resolved: false };
   }
-  
-  // If only Perplexity resolved (Lovable failed/402) - Perplexity has real-time search, trust it solo
-  if (perplexityResult?.resolved && perplexityResult.outcome) {
-    console.log(`📰 Perplexity solo (Lovable unavailable): ${title.slice(0, 40)} -> ${perplexityResult.outcome}`);
+
+  // Only one resolved with high confidence -> trust the strongest model solo
+  if (primary?.resolved && primary.outcome) {
+    console.log(`🤖 ${primary.source} solo: ${title.slice(0, 40)} -> ${primary.outcome}`);
     return {
       resolved: true,
-      outcome: perplexityResult.outcome,
-      reason: `${perplexityResult.reason} [Source: Perplexity Web Search]`,
-      currentValue: 'Perplexity'
+      outcome: primary.outcome,
+      reason: `${primary.reason} [Source: ${primary.source}]`,
+      currentValue: primary.source,
     };
   }
-  
-  // If only Lovable resolved (Perplexity failed) - less reliable without web search, be cautious
-  if (lovableResult?.resolved && lovableResult.outcome) {
-    // Only trust Lovable AI solo for clear-cut predictions (has high confidence)
-    console.log(`🤖 Lovable AI solo (Perplexity unavailable): ${title.slice(0, 40)} -> ${lovableResult.outcome}`);
+
+  if (secondary?.resolved && secondary.outcome) {
+    console.log(`🤖 ${secondary.source} solo: ${title.slice(0, 40)} -> ${secondary.outcome}`);
     return {
       resolved: true,
-      outcome: lovableResult.outcome,
-      reason: `${lovableResult.reason} [Source: Lovable AI]`,
-      currentValue: 'Lovable AI'
+      outcome: secondary.outcome,
+      reason: `${secondary.reason} [Source: ${secondary.source}]`,
+      currentValue: secondary.source,
     };
   }
-  
-  // Both failed - needs manual admin resolution
-  console.log(`⚠️ Both AI sources failed for: ${title.slice(0, 50)}`);
+
+  console.log(`⚠️ All AI sources unable to resolve: ${title.slice(0, 50)}`);
   return { resolved: false };
 }
 
