@@ -872,24 +872,29 @@ serve(async (req) => {
     }
 
     const isSports = analysisType === "sports";
+    const isAi = analysisType === "ai";
+    const allowKnowledgeFill = isSports || isAi || analysisType === "default";
     const schema = buildResponseSchema(analysisType);
     const extractionPrompt = [
       `You are a strict fact-extraction engine for a prediction market platform.`,
       `Your job is to extract structured data from the search results below.`,
       ``,
       `RULES:`,
-      ...(isSports ? [
-        `- For SPORTS markets: you MAY supplement search results with well-known historical facts (e.g., head-to-head records, FIFA rankings, recent tournament results) since these are public knowledge.`,
-        `- You MUST still prioritize search results when available. Only use general knowledge to FILL GAPS.`,
-        `- For head_to_head: ALWAYS provide records with at least "Total meetings", wins for each team, "Draws", and "Last meeting". If unknown, provide best estimates with a note.`,
-        `- For form_guide: ALWAYS provide at least 3 recent competitive results per team with opponent, result (e.g. "W 2-0", "L 1-3", "D 0-0"), and approximate date.`,
-        `- For key_stats: Include FIFA ranking, goals in last 5 games, clean sheets, etc.`,
-        `- NEVER leave head_to_head.records as an empty array or form_guide teams with empty recent arrays.`,
+      ...(allowKnowledgeFill ? [
+        `- Prioritize the search results, but you MAY supplement with widely-known public facts (rankings, recent events, well-known entities) when search gaps exist.`,
+        `- For the "context" summary, ALWAYS provide a useful current snapshot — never just say "data not available".`,
+        `- For "key_factors", provide at least 2-4 concrete factors with dates, names, or numbers when possible.`,
+        ...(isSports ? [
+          `- For SPORTS: ALWAYS provide head_to_head with records (Total meetings, wins, draws, last meeting) and form_guide with last 3-5 results per team. Never leave them empty.`,
+        ] : []),
+        ...(isAi ? [
+          `- For AI markets: name the current top-ranked AI models on Chatbot Arena / LMArena and the companies behind them. Include Elo scores when known.`,
+        ] : []),
       ] : [
         `- ONLY use facts that appear in the search results. Do NOT add anything from your own knowledge.`,
         `- If a data point is not in the search results, use null or write "Data not available in sources".`,
       ]),
-      `- NEVER invent scores or results that did not happen.`,
+      `- NEVER invent scores, prices, or results that did not happen.`,
       `- If the search results say information is uncertain or conflicting, reflect that honestly.`,
       `- Return ONLY valid JSON matching the schema provided. No markdown, no explanation.`,
       ``,
@@ -905,7 +910,7 @@ serve(async (req) => {
         ``,
       ] : []),
       `SEARCH RESULTS:`,
-      searchFacts || "(No search results available — use your knowledge for sports, or return cautious analysis for other categories)",
+      searchFacts || "(No search results available — use your general knowledge to provide a useful current snapshot)",
       ``,
       `SOURCES: ${citations.length > 0 ? citations.join(", ") : "None available"}`,
       ``,
