@@ -40,8 +40,21 @@ export const UserBetHistoryModal = ({
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [profitStats, setProfitStats] = useState<{ wins: number; losses: number; winRate: number; totalProfit: number; profitCurve: { t: string; v: number }[] } | null>(null);
   const [graphPeriod, setGraphPeriod] = useState<'7d' | '30d' | '90d' | 'all'>('all');
+  const [copied, setCopied] = useState(false);
   const { t } = useLanguage();
   const navigate = useNavigate();
+
+  const handleCopyAddress = async () => {
+    const addr = ecashAddress.startsWith('ecash:') ? ecashAddress : `ecash:${ecashAddress}`;
+    try {
+      await navigator.clipboard.writeText(addr);
+      setCopied(true);
+      toast({ title: 'Address copied', description: addr });
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      toast({ title: 'Copy failed', variant: 'destructive' });
+    }
+  };
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
