@@ -140,24 +140,11 @@ const TopVolume = () => {
                         <h3 className="font-semibold text-sm truncate">
                           {leader.display_name || formatAddress(leader.ecash_address)}
                         </h3>
-                        <div className="flex items-center gap-1 mt-0.5">
-                          {leader.display_name && (
-                            <p className="font-mono text-xs text-muted-foreground truncate">
-                              {formatAddress(leader.ecash_address)}
-                            </p>
-                          )}
-                          <button
-                            onClick={(e) => handleCopy(e, `ecash:${leader.ecash_address.replace('ecash:', '')}`, leader.user_id)}
-                            className="flex-shrink-0 p-1 rounded hover:bg-primary/20 transition-colors text-muted-foreground hover:text-primary"
-                            aria-label="Copy address"
-                          >
-                            {copiedId === leader.user_id ? (
-                              <Check className="w-3.5 h-3.5 text-green-400" />
-                            ) : (
-                              <Copy className="w-3.5 h-3.5" />
-                            )}
-                          </button>
-                        </div>
+                        {leader.display_name && (
+                          <p className="font-mono text-xs text-muted-foreground truncate">
+                            {formatAddress(leader.ecash_address)}
+                          </p>
+                        )}
                         <div className="text-xs text-muted-foreground mt-0.5">
                           {leader.total_bets} bets
                         </div>
