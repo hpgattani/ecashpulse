@@ -1103,6 +1103,23 @@ serve(async (req) => {
       }
     }
 
+    // ── Authoritative override: never let the LLM hallucinate crypto prices ──
+    // If we have verified CoinGecko data, replace whatever the model wrote into
+    // price_context with the real numbers. This prevents bugs like the model
+    // pulling "$64,300 as of 01:55 AM ET" out of stale search snippets.
+    if (analysisType === "crypto" && coingeckoData) {
+      const fmtPrice = `$${coingeckoData.price.toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`;
+      const fmtPct = (n: number | null) => (n == null ? "n/a" : `${n.toFixed(2)}%`);
+      statsJson.price_context = {
+        current_price: `${fmtPrice} (${coingeckoData.symbol}, CoinGecko live)`,
+        price_7d_change: fmtPct(coingeckoData.change7d),
+        price_30d_change: fmtPct(coingeckoData.change30d),
+      };
+    }
+
     statsJson._category = prediction.category;
     statsJson._analysis_type = analysisType;
     statsJson._analysis_version = ANALYSIS_VERSION;
