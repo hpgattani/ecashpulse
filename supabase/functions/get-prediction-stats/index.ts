@@ -7,7 +7,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const ANALYSIS_VERSION = "grounded-v10";
+const ANALYSIS_VERSION = "grounded-v11";
 const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const LOVABLE_AI_SEARCH_TIMEOUT_MS = 20000;
 const LOVABLE_AI_EXTRACT_TIMEOUT_MS = 25000;
@@ -763,6 +763,15 @@ serve(async (req) => {
 
     // ── STAGE 0: CoinGecko live price for crypto markets ──
     let coingeckoContext = "";
+    let coingeckoData: {
+      symbol: string;
+      price: number;
+      change24h: number | null;
+      change7d: number | null;
+      change30d: number | null;
+      marketCap: number | null;
+      lastUpdated: string | null;
+    } | null = null;
     if (analysisType === "crypto") {
       try {
         const CRYPTO_MAP: Record<string, { id: string; symbol: string }> = {
