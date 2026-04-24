@@ -7,7 +7,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const ANALYSIS_VERSION = "grounded-v10";
+const ANALYSIS_VERSION = "grounded-v11";
 const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const LOVABLE_AI_SEARCH_TIMEOUT_MS = 20000;
 const LOVABLE_AI_EXTRACT_TIMEOUT_MS = 25000;
@@ -763,6 +763,15 @@ serve(async (req) => {
 
     // ── STAGE 0: CoinGecko live price for crypto markets ──
     let coingeckoContext = "";
+    let coingeckoData: {
+      symbol: string;
+      price: number;
+      change24h: number | null;
+      change7d: number | null;
+      change30d: number | null;
+      marketCap: number | null;
+      lastUpdated: string | null;
+    } | null = null;
     if (analysisType === "crypto") {
       try {
         const CRYPTO_MAP: Record<string, { id: string; symbol: string }> = {
@@ -796,23 +805,22 @@ serve(async (req) => {
             const cgData = await cgResp.json();
             const coin = Array.isArray(cgData) ? cgData[0] : null;
             if (coin) {
+              coingeckoData = {
+                symbol,
+                price: Number(coin.current_price),
+                change24h: coin.price_change_percentage_24h_in_currency ?? null,
+                change7d: coin.price_change_percentage_7d_in_currency ?? null,
+                change30d: coin.price_change_percentage_30d_in_currency ?? null,
+                marketCap: coin.market_cap ?? null,
+                lastUpdated: coin.last_updated ?? null,
+              };
               const parts = [`VERIFIED LIVE PRICE from CoinGecko API (${new Date().toISOString()}):`];
               parts.push(`${symbol} current price: $${coin.current_price}`);
-              if (coin.price_change_percentage_24h_in_currency != null) {
-                parts.push(`24h change: ${coin.price_change_percentage_24h_in_currency.toFixed(2)}%`);
-              }
-              if (coin.price_change_percentage_7d_in_currency != null) {
-                parts.push(`7d change: ${coin.price_change_percentage_7d_in_currency.toFixed(2)}%`);
-              }
-              if (coin.price_change_percentage_30d_in_currency != null) {
-                parts.push(`30d change: ${coin.price_change_percentage_30d_in_currency.toFixed(2)}%`);
-              }
-              if (coin.market_cap != null) {
-                parts.push(`Market cap: $${Number(coin.market_cap).toLocaleString("en-US")}`);
-              }
-              if (coin.last_updated) {
-                parts.push(`Source last_updated: ${coin.last_updated}`);
-              }
+              if (coingeckoData.change24h != null) parts.push(`24h change: ${coingeckoData.change24h.toFixed(2)}%`);
+              if (coingeckoData.change7d != null) parts.push(`7d change: ${coingeckoData.change7d.toFixed(2)}%`);
+              if (coingeckoData.change30d != null) parts.push(`30d change: ${coingeckoData.change30d.toFixed(2)}%`);
+              if (coingeckoData.marketCap != null) parts.push(`Market cap: $${Number(coingeckoData.marketCap).toLocaleString("en-US")}`);
+              if (coingeckoData.lastUpdated) parts.push(`Source last_updated: ${coingeckoData.lastUpdated}`);
               coingeckoContext = parts.join("\n");
               console.log("CoinGecko live price fetched:", coingeckoContext);
             }
@@ -1093,6 +1101,23 @@ serve(async (req) => {
           };
         }
       }
+    }
+
+    // ── Authoritative override: never let the LLM hallucinate crypto prices ──
+    // If we have verified CoinGecko data, replace whatever the model wrote into
+    // price_context with the real numbers. This prevents bugs like the model
+    // pulling "$64,300 as of 01:55 AM ET" out of stale search snippets.
+    if (analysisType === "crypto" && coingeckoData) {
+      const fmtPrice = `$${coingeckoData.price.toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`;
+      const fmtPct = (n: number | null) => (n == null ? "n/a" : `${n.toFixed(2)}%`);
+      statsJson.price_context = {
+        current_price: `${fmtPrice} (${coingeckoData.symbol}, CoinGecko live)`,
+        price_7d_change: fmtPct(coingeckoData.change7d),
+        price_30d_change: fmtPct(coingeckoData.change30d),
+      };
     }
 
     statsJson._category = prediction.category;
