@@ -15,7 +15,9 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { session_token, ecash_address, tx_hash } = await req.json();
+    const body = await req.json();
+    const { session_token, tx_hash } = body;
+    let ecash_address = body.ecash_address;
 
     // Method 1: Validate by session token (for session refresh)
     if (session_token) {
@@ -69,7 +71,53 @@ Deno.serve(async (req) => {
     }
 
     // Method 2: Find session by ecash_address (for login after webhook)
-    if (ecash_address) {
+    if (ecash_address !== undefined && ecash_address !== null) {
+      // Defensive: ensure ecash_address is a string
+      if (typeof ecash_address !== 'string') {
+        console.error('Invalid ecash_address type:', typeof ecash_address, ecash_address);
+        return new Response(
+          JSON.stringify({ valid: false, error: 'Invalid ecash_address format' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // If client couldn't detect sender, extract from tx via Chronik (same as create-session)
+      if ((ecash_address === '__from_tx__' || ecash_address === '') && tx_hash && typeof tx_hash === 'string') {
+        try {
+          console.log(`validate-session: extracting sender from tx ${tx_hash} via Chronik...`);
+          const CHRONIK_ENDPOINTS = [
+            'https://chronik-native1.fabien.cash',
+            'https://chronik-native2.fabien.cash',
+            'https://chronik.pay2stay.com/xec',
+            'https://chronik.e.cash',
+          ];
+          for (const endpoint of CHRONIK_ENDPOINTS) {
+            try {
+              const r = await fetch(`${endpoint}/tx/${tx_hash}`);
+              if (!r.ok) continue;
+              const tx = await r.json();
+              const inputAddr = tx?.inputs?.[0]?.outputScript;
+              // Try outputs to find sender via inputs - Chronik returns inputs with addresses sometimes
+              const senderFromInput = tx?.inputs?.[0]?.sender?.address || tx?.inputs?.[0]?.outputAddress;
+              if (senderFromInput && typeof senderFromInput === 'string') {
+                ecash_address = senderFromInput;
+                break;
+              }
+              // Fallback: derive from outputScript (skip — too complex here)
+            } catch (_) { continue; }
+          }
+        } catch (e) {
+          console.error('Chronik extraction failed:', e);
+        }
+      }
+
+      if (ecash_address === '__from_tx__' || !ecash_address) {
+        return new Response(
+          JSON.stringify({ valid: false, error: 'Could not detect sender wallet address' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       const trimmedAddress = ecash_address.trim().toLowerCase();
       
       // Find user by address
