@@ -1,5 +1,28 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { ChronikClient } from 'https://esm.sh/chronik-client@3.6.1';
+import { decodeCashAddress, encodeCashAddress } from 'https://esm.sh/ecashaddrjs@2.0.0';
+
+// Coerce/normalize untrusted input into a canonical lowercase ecash:q... address.
+// Returns null if the input is not a valid eCash address.
+function normalizeEcashAddressServer(input: unknown): string | null {
+  let raw: string | null = null;
+  if (typeof input === 'string') raw = input;
+  else if (input && typeof input === 'object') {
+    const obj = input as Record<string, unknown>;
+    const v = obj.address ?? obj.addr ?? obj.cashAddress;
+    if (typeof v === 'string') raw = v;
+  }
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  try {
+    const { prefix, type, hash } = decodeCashAddress(trimmed) as { prefix: string; type: string; hash: string | Uint8Array };
+    if (prefix !== 'ecash') return null;
+    return encodeCashAddress('ecash', type as never, hash as never).toLowerCase();
+  } catch {
+    return null;
+  }
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -259,6 +282,21 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: 'Valid transaction hash required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Defense-in-depth: PayButton may send an object like { address, amount } instead
+    // of a string. Normalize via ecashaddrjs (per eCash SKILLS.md). The sentinel
+    // '__from_tx__' is preserved so the Chronik fallback below still triggers.
+    if (ecash_address !== undefined && ecash_address !== null && ecash_address !== '__from_tx__') {
+      const normalized = normalizeEcashAddressServer(ecash_address);
+      if (!normalized) {
+        console.warn('create-session: rejecting unusable ecash_address, will fall back to tx extraction', {
+          type: typeof ecash_address,
+        });
+        ecash_address = '__from_tx__';
+      } else {
+        ecash_address = normalized;
+      }
     }
 
     // If client couldn't detect sender address, extract from tx via Chronik
