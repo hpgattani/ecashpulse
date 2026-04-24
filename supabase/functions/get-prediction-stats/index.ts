@@ -805,23 +805,22 @@ serve(async (req) => {
             const cgData = await cgResp.json();
             const coin = Array.isArray(cgData) ? cgData[0] : null;
             if (coin) {
+              coingeckoData = {
+                symbol,
+                price: Number(coin.current_price),
+                change24h: coin.price_change_percentage_24h_in_currency ?? null,
+                change7d: coin.price_change_percentage_7d_in_currency ?? null,
+                change30d: coin.price_change_percentage_30d_in_currency ?? null,
+                marketCap: coin.market_cap ?? null,
+                lastUpdated: coin.last_updated ?? null,
+              };
               const parts = [`VERIFIED LIVE PRICE from CoinGecko API (${new Date().toISOString()}):`];
               parts.push(`${symbol} current price: $${coin.current_price}`);
-              if (coin.price_change_percentage_24h_in_currency != null) {
-                parts.push(`24h change: ${coin.price_change_percentage_24h_in_currency.toFixed(2)}%`);
-              }
-              if (coin.price_change_percentage_7d_in_currency != null) {
-                parts.push(`7d change: ${coin.price_change_percentage_7d_in_currency.toFixed(2)}%`);
-              }
-              if (coin.price_change_percentage_30d_in_currency != null) {
-                parts.push(`30d change: ${coin.price_change_percentage_30d_in_currency.toFixed(2)}%`);
-              }
-              if (coin.market_cap != null) {
-                parts.push(`Market cap: $${Number(coin.market_cap).toLocaleString("en-US")}`);
-              }
-              if (coin.last_updated) {
-                parts.push(`Source last_updated: ${coin.last_updated}`);
-              }
+              if (coingeckoData.change24h != null) parts.push(`24h change: ${coingeckoData.change24h.toFixed(2)}%`);
+              if (coingeckoData.change7d != null) parts.push(`7d change: ${coingeckoData.change7d.toFixed(2)}%`);
+              if (coingeckoData.change30d != null) parts.push(`30d change: ${coingeckoData.change30d.toFixed(2)}%`);
+              if (coingeckoData.marketCap != null) parts.push(`Market cap: $${Number(coingeckoData.marketCap).toLocaleString("en-US")}`);
+              if (coingeckoData.lastUpdated) parts.push(`Source last_updated: ${coingeckoData.lastUpdated}`);
               coingeckoContext = parts.join("\n");
               console.log("CoinGecko live price fetched:", coingeckoContext);
             }
