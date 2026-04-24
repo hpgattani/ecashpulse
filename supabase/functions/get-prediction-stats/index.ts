@@ -7,7 +7,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const ANALYSIS_VERSION = "grounded-v9";
+const ANALYSIS_VERSION = "grounded-v10";
 const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const LOVABLE_AI_SEARCH_TIMEOUT_MS = 20000;
 const LOVABLE_AI_EXTRACT_TIMEOUT_MS = 25000;
@@ -785,23 +785,39 @@ serve(async (req) => {
         const matched = Object.entries(CRYPTO_MAP).find(([key]) => titleLower.includes(key));
         if (matched) {
           const { id, symbol } = matched[1];
+          // NOTE: /simple/price does NOT support include_7d_change / include_30d_change.
+          // Use /coins/markets which exposes price_change_percentage_{24h,7d,30d}_in_currency.
           const cgResp = await fetchWithTimeout(
-            `https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd&include_24hr_change=true&include_7d_change=true&include_30d_change=true`,
+            `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${id}&price_change_percentage=24h,7d,30d`,
             {},
             COINGECKO_TIMEOUT_MS
           );
           if (cgResp.ok) {
             const cgData = await cgResp.json();
-            const coin = cgData[id];
+            const coin = Array.isArray(cgData) ? cgData[0] : null;
             if (coin) {
               const parts = [`VERIFIED LIVE PRICE from CoinGecko API (${new Date().toISOString()}):`];
-              parts.push(`${symbol} current price: $${coin.usd}`);
-              if (coin.usd_24h_change != null) parts.push(`24h change: ${coin.usd_24h_change.toFixed(2)}%`);
-              if (coin.usd_7d_change != null) parts.push(`7d change: ${coin.usd_7d_change.toFixed(2)}%`);
-              if (coin.usd_30d_change != null) parts.push(`30d change: ${coin.usd_30d_change.toFixed(2)}%`);
+              parts.push(`${symbol} current price: $${coin.current_price}`);
+              if (coin.price_change_percentage_24h_in_currency != null) {
+                parts.push(`24h change: ${coin.price_change_percentage_24h_in_currency.toFixed(2)}%`);
+              }
+              if (coin.price_change_percentage_7d_in_currency != null) {
+                parts.push(`7d change: ${coin.price_change_percentage_7d_in_currency.toFixed(2)}%`);
+              }
+              if (coin.price_change_percentage_30d_in_currency != null) {
+                parts.push(`30d change: ${coin.price_change_percentage_30d_in_currency.toFixed(2)}%`);
+              }
+              if (coin.market_cap != null) {
+                parts.push(`Market cap: $${Number(coin.market_cap).toLocaleString("en-US")}`);
+              }
+              if (coin.last_updated) {
+                parts.push(`Source last_updated: ${coin.last_updated}`);
+              }
               coingeckoContext = parts.join("\n");
               console.log("CoinGecko live price fetched:", coingeckoContext);
             }
+          } else {
+            console.error("CoinGecko non-OK status:", cgResp.status);
           }
         }
       } catch (cgErr) {
