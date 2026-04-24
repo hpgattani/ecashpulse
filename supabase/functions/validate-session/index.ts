@@ -15,7 +15,9 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { session_token, ecash_address, tx_hash } = await req.json();
+    const body = await req.json();
+    const { session_token, tx_hash } = body;
+    let ecash_address = body.ecash_address;
 
     // Method 1: Validate by session token (for session refresh)
     if (session_token) {
