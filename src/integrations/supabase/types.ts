@@ -121,6 +121,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "bets_prediction_id_fkey"
+            columns: ["prediction_id"]
+            isOneToOne: false
+            referencedRelation: "predictions_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "bets_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
@@ -299,6 +306,13 @@ export type Database = {
             columns: ["prediction_id"]
             isOneToOne: false
             referencedRelation: "predictions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comments_prediction_id_fkey"
+            columns: ["prediction_id"]
+            isOneToOne: false
+            referencedRelation: "predictions_public"
             referencedColumns: ["id"]
           },
           {
@@ -554,6 +568,13 @@ export type Database = {
             columns: ["prediction_id"]
             isOneToOne: false
             referencedRelation: "predictions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outcomes_prediction_id_fkey"
+            columns: ["prediction_id"]
+            isOneToOne: false
+            referencedRelation: "predictions_public"
             referencedColumns: ["id"]
           },
         ]
@@ -1018,6 +1039,68 @@ export type Database = {
           total_payouts_xec: number | null
         }
         Relationships: []
+      }
+      predictions_public: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          creator_id: string | null
+          description: string | null
+          end_date: string | null
+          escrow_address: string | null
+          id: string | null
+          image_url: string | null
+          no_pool: number | null
+          resolution_date: string | null
+          resolved_at: string | null
+          status: Database["public"]["Enums"]["prediction_status"] | null
+          title: string | null
+          updated_at: string | null
+          yes_pool: number | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          creator_id?: string | null
+          description?: string | null
+          end_date?: string | null
+          escrow_address?: string | null
+          id?: string | null
+          image_url?: string | null
+          no_pool?: number | null
+          resolution_date?: string | null
+          resolved_at?: string | null
+          status?: Database["public"]["Enums"]["prediction_status"] | null
+          title?: string | null
+          updated_at?: string | null
+          yes_pool?: number | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          creator_id?: string | null
+          description?: string | null
+          end_date?: string | null
+          escrow_address?: string | null
+          id?: string | null
+          image_url?: string | null
+          no_pool?: number | null
+          resolution_date?: string | null
+          resolved_at?: string | null
+          status?: Database["public"]["Enums"]["prediction_status"] | null
+          title?: string | null
+          updated_at?: string | null
+          yes_pool?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "predictions_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Functions: {
