@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { normalizeEcashAddress, coerceAddressString } from '@/lib/ecashAddress';
 
 // Platform auth wallet - receives verification payments
 const AUTH_WALLET = 'ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp';
@@ -186,19 +187,25 @@ const Auth = () => {
 
       console.log('Auth payment detected:', transaction);
       
-      let senderAddress = transaction.inputAddresses?.[0];
+      // PayButton sometimes returns sender as { address, amount } instead of a string.
+      // Normalize via ecashaddrjs (per eCash SKILLS.md) so the server always gets
+      // a clean canonical `ecash:q...` string — never an object.
+      const rawSender: unknown =
+        transaction.inputAddresses?.[0] ?? (transaction as { senderAddress?: unknown }).senderAddress;
+      let senderAddress = normalizeEcashAddress(rawSender as never);
+
       const txHash = transaction.hash || transaction.txid;
-      
+
       if (!txHash) {
         setError('No transaction hash received. Please try again.');
         return;
       }
 
-      // If PayButton didn't provide inputAddresses, skip client-side detection
-      // and let the server extract the sender from the tx hash via Chronik
+      // If PayButton didn't provide a usable address, signal the server to extract it from the tx via Chronik.
       if (!senderAddress) {
-        console.log('PayButton did not provide sender address, server will extract from tx');
-        senderAddress = '__from_tx__'; // Signal server to extract from tx
+        const coerced = coerceAddressString(rawSender as never);
+        console.log('PayButton sender not usable directly:', { rawSender, coerced });
+        senderAddress = '__from_tx__';
       }
 
       verifyAndLogin(txHash, senderAddress);
