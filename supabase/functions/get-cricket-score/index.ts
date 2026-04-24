@@ -27,7 +27,7 @@ serve(async (req) => {
         clearTimeout(timeout);
         return res;
       } catch (err) {
-        console.log(`Attempt ${i + 1} failed:`, err.message);
+        console.log(`Attempt ${i + 1} failed:`, err instanceof Error ? err.message : String(err));
         if (i === retries - 1) throw err;
         await new Promise(r => setTimeout(r, 1500 * (i + 1)));
       }
@@ -123,7 +123,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Cricket score error:', error);
     // Return graceful error - don't break the UI
-    return new Response(JSON.stringify({ match: null, error: error.message }), {
+    return new Response(JSON.stringify({ match: null, error: error instanceof Error ? error.message : String(error) }), {
       status: 200, // Return 200 so client handles gracefully
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
