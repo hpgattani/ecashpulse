@@ -2,7 +2,7 @@
 // PayButton sometimes returns sender as an object { address, amount } instead of a
 // string, which crashes server code that calls .trim() on it. This helper accepts
 // any shape and returns a validated, lowercase `ecash:q...` string — or null.
-import { decode, encode } from 'ecashaddrjs';
+import { decodeCashAddress, encodeCashAddress } from 'ecashaddrjs';
 
 export type AddressLike =
   | string
@@ -36,10 +36,10 @@ export function normalizeEcashAddress(input: AddressLike): string | null {
   const trimmed = raw.trim();
   if (!trimmed) return null;
   try {
-    const { prefix, type, hash } = decode(trimmed);
+    const { prefix, type, hash } = decodeCashAddress(trimmed);
     // Only accept eCash mainnet addresses
     if (prefix !== 'ecash') return null;
-    return encode('ecash', type, hash).toLowerCase();
+    return encodeCashAddress('ecash', type, hash).toLowerCase();
   } catch {
     return null;
   }
