@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
       error?: string;
     }> = [];
 
-    for (const prediction of predictions) {
+    for (const prediction of workingPredictions) {
       try {
         if (repairExisting && prediction.escrow_privkey_encrypted) {
           let repairedAddress = prediction.escrow_script_hex ? scriptHexToCashAddr(prediction.escrow_script_hex) : null;
