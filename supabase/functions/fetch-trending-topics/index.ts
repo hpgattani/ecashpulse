@@ -201,14 +201,8 @@ function normalizeAutoEndDate(endDate: string | undefined, category: Category, t
   return new Date(candidateMs).toISOString();
 }
 
-function generateEscrowAddress(): string {
-  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-  let address = 'ecash:qp';
-  for (let i = 0; i < 38; i++) {
-    address += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return address;
-}
+// Real escrow material is generated per prediction via _shared/escrow.ts.
+// (Removed legacy generateEscrowAddress() that produced fake addresses without checksum/privkey.)
 
 function calculateEndDate(category: string, daysHint?: number): string {
   const now = new Date();
