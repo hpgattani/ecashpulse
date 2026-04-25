@@ -46,8 +46,6 @@ Deno.serve(async (req) => {
       filteredPredictions = predictions.filter((p) => !withBets.has(p.id));
     }
 
-    const { data: predictions, error: fetchError } = await predictionsQuery;
-
     if (fetchError) {
       return new Response(
         JSON.stringify({ error: 'Failed to fetch predictions', details: fetchError.message }),
@@ -55,11 +53,12 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (!predictions || predictions.length === 0) {
+    const workingPredictions = filteredPredictions || [];
+    if (workingPredictions.length === 0) {
       return new Response(
         JSON.stringify({
           success: true,
-          message: repairExisting ? 'No active predictions to repair' : 'No predictions need escrow keys',
+          message: repairExisting ? 'No active predictions to repair' : 'No predictions need escrow keys (or all candidates already have bets)',
           count: 0,
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
