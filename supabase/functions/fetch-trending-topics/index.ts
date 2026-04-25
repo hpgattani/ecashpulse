@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { generateEscrowMaterial, isEscrowMaterialConsistent } from '../_shared/escrow.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -200,14 +201,8 @@ function normalizeAutoEndDate(endDate: string | undefined, category: Category, t
   return new Date(candidateMs).toISOString();
 }
 
-function generateEscrowAddress(): string {
-  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-  let address = 'ecash:qp';
-  for (let i = 0; i < 38; i++) {
-    address += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return address;
-}
+// Real escrow material is generated per prediction via _shared/escrow.ts.
+// (Removed legacy generateEscrowAddress() that produced fake addresses without checksum/privkey.)
 
 function calculateEndDate(category: string, daysHint?: number): string {
   const now = new Date();
@@ -590,13 +585,26 @@ async function syncPredictions(supabase: any): Promise<{ created: number; resolv
 
     const marketWithOdds = market as { yesOdds?: number; noOdds?: number; imageUrl?: string };
 
+    let escrow;
+    try {
+      escrow = await generateEscrowMaterial();
+      if (!isEscrowMaterialConsistent(escrow)) {
+        throw new Error('Escrow integrity check failed');
+      }
+    } catch (e) {
+      errors.push(`Escrow gen failed: ${market.title.slice(0, 50)}`);
+      continue;
+    }
+
     // IMPORTANT: Do NOT set fake volume from odds!
     // Pools must always start at 0 and only increase via real bets
     const newPrediction = {
       title: market.title.slice(0, 200),
       description: (market.description || '').slice(0, 500),
       category,
-      escrow_address: generateEscrowAddress(),
+      escrow_address: escrow.escrowAddress,
+      escrow_privkey_encrypted: escrow.privkeyHex,
+      escrow_script_hex: escrow.scriptHex,
       end_date: normalizedEndDate,
       status: 'active',
       yes_pool: 0,

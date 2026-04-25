@@ -33,6 +33,19 @@ Deno.serve(async (req) => {
 
     const { data: predictions, error: fetchError } = await predictionsQuery;
 
+    // In generation mode, exclude predictions that already have bets to avoid
+    // changing the escrow address users have already paid into.
+    let filteredPredictions = predictions;
+    if (!repairExisting && predictions && predictions.length > 0) {
+      const ids = predictions.map((p) => p.id);
+      const { data: betsRows } = await supabase
+        .from('bets')
+        .select('prediction_id')
+        .in('prediction_id', ids);
+      const withBets = new Set((betsRows || []).map((b: { prediction_id: string }) => b.prediction_id));
+      filteredPredictions = predictions.filter((p) => !withBets.has(p.id));
+    }
+
     if (fetchError) {
       return new Response(
         JSON.stringify({ error: 'Failed to fetch predictions', details: fetchError.message }),
@@ -40,11 +53,12 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (!predictions || predictions.length === 0) {
+    const workingPredictions = filteredPredictions || [];
+    if (workingPredictions.length === 0) {
       return new Response(
         JSON.stringify({
           success: true,
-          message: repairExisting ? 'No active predictions to repair' : 'No predictions need escrow keys',
+          message: repairExisting ? 'No active predictions to repair' : 'No predictions need escrow keys (or all candidates already have bets)',
           count: 0,
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -61,7 +75,7 @@ Deno.serve(async (req) => {
       error?: string;
     }> = [];
 
-    for (const prediction of predictions) {
+    for (const prediction of workingPredictions) {
       try {
         if (repairExisting && prediction.escrow_privkey_encrypted) {
           let repairedAddress = prediction.escrow_script_hex ? scriptHexToCashAddr(prediction.escrow_script_hex) : null;
@@ -182,7 +196,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        total: predictions.length,
+        total: workingPredictions.length,
         generated: generatedCount,
         repaired: repairedCount,
         unchanged: results.filter((r) => r.mode === 'unchanged').length,
