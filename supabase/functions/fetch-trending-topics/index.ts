@@ -578,12 +578,16 @@ async function syncPredictions(supabase: any): Promise<{ created: number; resolv
       market.title
     );
 
-    if (!normalizedEndDate) {
-      console.log(`Skipping far-future prediction: ${market.title.slice(0, 50)}`);
+    let escrow;
+    try {
+      escrow = await generateEscrowMaterial();
+      if (!isEscrowMaterialConsistent(escrow)) {
+        throw new Error('Escrow integrity check failed');
+      }
+    } catch (e) {
+      errors.push(`Escrow gen failed: ${market.title.slice(0, 50)}`);
       continue;
     }
-
-    const marketWithOdds = market as { yesOdds?: number; noOdds?: number; imageUrl?: string };
 
     // IMPORTANT: Do NOT set fake volume from odds!
     // Pools must always start at 0 and only increase via real bets
@@ -591,7 +595,9 @@ async function syncPredictions(supabase: any): Promise<{ created: number; resolv
       title: market.title.slice(0, 200),
       description: (market.description || '').slice(0, 500),
       category,
-      escrow_address: generateEscrowAddress(),
+      escrow_address: escrow.escrowAddress,
+      escrow_privkey_encrypted: escrow.privkeyHex,
+      escrow_script_hex: escrow.scriptHex,
       end_date: normalizedEndDate,
       status: 'active',
       yes_pool: 0,
