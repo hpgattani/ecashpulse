@@ -196,7 +196,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        total: predictions.length,
+        total: workingPredictions.length,
         generated: generatedCount,
         repaired: repairedCount,
         unchanged: results.filter((r) => r.mode === 'unchanged').length,
