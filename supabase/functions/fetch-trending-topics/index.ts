@@ -578,6 +578,13 @@ async function syncPredictions(supabase: any): Promise<{ created: number; resolv
       market.title
     );
 
+    if (!normalizedEndDate) {
+      console.log(`Skipping far-future prediction: ${market.title.slice(0, 50)}`);
+      continue;
+    }
+
+    const marketWithOdds = market as { yesOdds?: number; noOdds?: number; imageUrl?: string };
+
     let escrow;
     try {
       escrow = await generateEscrowMaterial();
