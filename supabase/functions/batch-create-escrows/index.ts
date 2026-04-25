@@ -33,6 +33,21 @@ Deno.serve(async (req) => {
 
     const { data: predictions, error: fetchError } = await predictionsQuery;
 
+    // In generation mode, exclude predictions that already have bets to avoid
+    // changing the escrow address users have already paid into.
+    let filteredPredictions = predictions;
+    if (!repairExisting && predictions && predictions.length > 0) {
+      const ids = predictions.map((p) => p.id);
+      const { data: betsRows } = await supabase
+        .from('bets')
+        .select('prediction_id')
+        .in('prediction_id', ids);
+      const withBets = new Set((betsRows || []).map((b: { prediction_id: string }) => b.prediction_id));
+      filteredPredictions = predictions.filter((p) => !withBets.has(p.id));
+    }
+
+    const { data: predictions, error: fetchError } = await predictionsQuery;
+
     if (fetchError) {
       return new Response(
         JSON.stringify({ error: 'Failed to fetch predictions', details: fetchError.message }),
