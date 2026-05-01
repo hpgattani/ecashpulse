@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { TrendingUp, Flame, Loader2, ChevronLeft, ChevronRight, Bitcoin, Landmark, Trophy, Cpu, Film, Vote, DollarSign, Globe2, BarChart3, Map, Leaf, Globe } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import type { Prediction } from '@/hooks/usePredictions';
+import { useCryptoPrices } from '@/hooks/useCryptoPrices';
+import { usdNearXec } from '@/lib/xecFormat';
 
 interface TrendingSectionProps {
   predictions: Prediction[];
@@ -15,6 +17,8 @@ const TrendingSection = ({ predictions, loading }: TrendingSectionProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const { prices: cryptoPrices } = useCryptoPrices();
+  const xecUsd = cryptoPrices.ecash;
   
   // Show top 5 predictions sorted by highest volume (most bets), only active ones
   const trendingPredictions = [...predictions]
@@ -228,7 +232,10 @@ const TrendingSection = ({ predictions, loading }: TrendingSectionProps) => {
                                 : prediction.volume.toLocaleString()
                             } XEC
                           </div>
-                          <div className="text-[10px] sm:text-xs text-muted-foreground">{t.volume}</div>
+                          <div className="text-[10px] sm:text-xs text-muted-foreground">
+                            {t.volume}
+                            {xecUsd && prediction.volume > 0 ? <span className="ml-1">{usdNearXec(prediction.volume, xecUsd)}</span> : null}
+                          </div>
                         </div>
                       </div>
                     </div>
