@@ -34,6 +34,8 @@ export const Leaderboard = () => {
   const [showRankingInfo, setShowRankingInfo] = useState(false);
   const { t } = useLanguage();
   const sectionRef = useRef<HTMLElement>(null);
+  const { prices: cryptoPrices } = useCryptoPrices();
+  const xecUsd = cryptoPrices.ecash;
 
   // Parallax scroll effect
   const { scrollYProgress } = useScroll({
@@ -208,10 +210,12 @@ export const Leaderboard = () => {
                       </div>
                       <div className={`text-xs font-semibold ${leader.net_profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                         {leader.net_profit >= 0 ? '+' : ''}{formatXEC(leader.net_profit)}
+                        {xecUsd ? <span className="ml-1 text-[10px] font-normal text-muted-foreground">{usdNearSats(Math.abs(leader.net_profit), xecUsd)}</span> : null}
                       </div>
                       {leader.total_winnings > 0 && (
                         <div className="text-[10px] text-yellow-400/70">
                           💰 {formatXEC(leader.total_winnings)}
+                          {xecUsd ? <span className="ml-1 text-muted-foreground">{usdNearSats(leader.total_winnings, xecUsd)}</span> : null}
                         </div>
                       )}
                     </div>
