@@ -24,6 +24,8 @@ import Footer from "@/components/Footer";
 import PredictionDetailModal from "@/components/PredictionDetailModal";
 import BetModal from "@/components/BetModal";
 import CountdownTimer from "@/components/CountdownTimer";
+import { useCryptoPrices } from "@/hooks/useCryptoPrices";
+import { usdNearSats } from "@/lib/xecFormat";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
