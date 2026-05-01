@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { Outcome } from '@/hooks/usePredictions';
 import { useNavigate } from 'react-router-dom';
+import { useCryptoPrices } from '@/hooks/useCryptoPrices';
+import { usdNearSats } from '@/lib/xecFormat';
 
 interface Prediction {
   id: string;
