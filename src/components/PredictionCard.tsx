@@ -14,6 +14,8 @@ import CountdownTimer from "./CountdownTimer";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getKnownScore } from "@/hooks/useSportsScores";
 import { triggerHaptic } from "@/hooks/useHaptic";
+import { useCryptoPrices } from "@/hooks/useCryptoPrices";
+import { usdNearXec } from "@/lib/xecFormat";
 
 interface Prediction {
   id: string;
