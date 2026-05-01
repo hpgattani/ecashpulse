@@ -6,6 +6,8 @@ import { supabase } from '@/integrations/supabase/client';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { UserBetHistoryModal } from '@/components/UserBetHistoryModal';
+import { useCryptoPrices } from '@/hooks/useCryptoPrices';
+import { usdNearSats } from '@/lib/xecFormat';
 
 interface VolumeEntry {
   user_id: string;
@@ -48,6 +50,8 @@ const TopVolume = () => {
   const [leaders, setLeaders] = useState<VolumeEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<VolumeEntry | null>(null);
+  const { prices: cryptoPrices } = useCryptoPrices();
+  const xecUsd = cryptoPrices.ecash;
 
   useEffect(() => {
     (async () => {
@@ -140,7 +144,9 @@ const TopVolume = () => {
                           <TrendingUp className="w-4 h-4" />
                           {formatXEC(leader.total_volume)}
                         </div>
-                        <div className="text-[10px] text-muted-foreground">total volume</div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {xecUsd ? `${usdNearSats(leader.total_volume, xecUsd)} • total volume` : 'total volume'}
+                        </div>
                       </div>
                     </div>
                   </motion.div>
