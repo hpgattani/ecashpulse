@@ -11,6 +11,8 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useCryptoPrices } from '@/hooks/useCryptoPrices';
+import { usdNearSats } from '@/lib/xecFormat';
 
 interface Bet {
   id: string;
@@ -36,6 +38,8 @@ const PublicBets = () => {
   const [bets, setBets] = useState<Bet[]>([]);
   const [loading, setLoading] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
+  const { prices: cryptoPrices } = useCryptoPrices();
+  const xecUsd = cryptoPrices.ecash;
 
   // Parallax scroll effect
   const { scrollYProgress } = useScroll({
@@ -193,6 +197,7 @@ const PublicBets = () => {
                   </span>
                   <span className="text-foreground font-medium text-sm">
                     {formatAmount(bet.amount)}
+                    {xecUsd ? <span className="ml-1 text-[10px] text-muted-foreground font-normal">{usdNearSats(bet.amount, xecUsd)}</span> : null}
                   </span>
                 </div>
 

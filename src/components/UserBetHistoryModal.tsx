@@ -5,6 +5,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
+import { useCryptoPrices } from '@/hooks/useCryptoPrices';
+import { usdNearSats } from '@/lib/xecFormat';
 
 interface UserBet {
   id: string;
@@ -43,6 +45,8 @@ export const UserBetHistoryModal = ({
   const [copied, setCopied] = useState(false);
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const { prices: cryptoPrices } = useCryptoPrices();
+  const xecUsd = cryptoPrices.ecash;
 
   const handleCopyAddress = async () => {
     const addr = ecashAddress.startsWith('ecash:') ? ecashAddress : `ecash:${ecashAddress}`;
@@ -208,6 +212,7 @@ export const UserBetHistoryModal = ({
           </div>
           <div className="text-center">
             <div className="text-lg font-bold text-blue-400">{formatXEC(stats.totalVolume)}</div>
+            {xecUsd ? <div className="text-[9px] text-muted-foreground leading-tight">{usdNearSats(stats.totalVolume, xecUsd)}</div> : null}
             <div className="text-[10px] text-muted-foreground">Volume</div>
           </div>
         </div>
@@ -219,6 +224,7 @@ export const UserBetHistoryModal = ({
               <span className="text-xs text-muted-foreground font-medium">⚡ Net Profit</span>
               <span className={`text-sm font-bold ${profitStats.totalProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                 {profitStats.totalProfit >= 0 ? '+' : ''}{formatXEC(profitStats.totalProfit)} XEC
+                {xecUsd ? <span className="ml-1 text-[10px] font-normal text-muted-foreground">{usdNearSats(Math.abs(profitStats.totalProfit), xecUsd)}</span> : null}
               </span>
             </div>
             {profitStats.profitCurve.length > 1 && (() => {
@@ -301,7 +307,10 @@ export const UserBetHistoryModal = ({
                       }`}>
                         {bet.outcome_label || bet.position.toUpperCase()}
                       </span>
-                      <span>{formatXEC(bet.amount)} XEC</span>
+                      <span>
+                        {formatXEC(bet.amount)} XEC
+                        {xecUsd ? <span className="ml-1 text-muted-foreground/70">{usdNearSats(bet.amount, xecUsd)}</span> : null}
+                      </span>
                       <span>•</span>
                       <span>{formatDate(bet.confirmed_at || bet.created_at)}</span>
                     </div>
@@ -314,6 +323,7 @@ export const UserBetHistoryModal = ({
                     {bet.status === 'won' && bet.payout_amount && (
                       <span className="text-green-500 font-semibold text-sm">
                         +{formatXEC(bet.payout_amount)}
+                        {xecUsd ? <span className="ml-1 text-[10px] font-normal text-muted-foreground">{usdNearSats(bet.payout_amount, xecUsd)}</span> : null}
                       </span>
                     )}
                   </div>

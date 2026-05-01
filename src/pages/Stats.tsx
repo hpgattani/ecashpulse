@@ -7,6 +7,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { TrendingUp, Users, BarChart3, Trophy, Target, CheckCircle } from "lucide-react";
+import { useCryptoPrices } from "@/hooks/useCryptoPrices";
+import { usdNearXec } from "@/lib/xecFormat";
 
 interface PlatformStats {
   totalBets: number;
@@ -34,6 +36,8 @@ export default function Stats() {
   const [stats, setStats] = useState<PlatformStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { prices: cryptoPrices } = useCryptoPrices();
+  const xecUsd = cryptoPrices.ecash;
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -56,7 +60,7 @@ export default function Stats() {
     {
       title: "Total Volume",
       value: formatXEC(stats.totalVolume),
-      description: "Total amount bet on the platform",
+      description: xecUsd ? `${usdNearXec(stats.totalVolume / 100, xecUsd)} • Total amount bet on the platform` : "Total amount bet on the platform",
       icon: TrendingUp,
       gradient: "from-emerald-500/20 to-emerald-600/10",
       iconColor: "text-emerald-500",
@@ -72,7 +76,7 @@ export default function Stats() {
     {
       title: "Amount Won",
       value: formatXEC(stats.totalWon),
-      description: "Total payouts to winners",
+      description: xecUsd ? `${usdNearXec(stats.totalWon / 100, xecUsd)} • Total payouts to winners` : "Total payouts to winners",
       icon: Trophy,
       gradient: "from-amber-500/20 to-amber-600/10",
       iconColor: "text-amber-500",

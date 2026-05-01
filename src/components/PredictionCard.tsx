@@ -14,6 +14,8 @@ import CountdownTimer from "./CountdownTimer";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getKnownScore } from "@/hooks/useSportsScores";
 import { triggerHaptic } from "@/hooks/useHaptic";
+import { useCryptoPrices } from "@/hooks/useCryptoPrices";
+import { usdNearXec } from "@/lib/xecFormat";
 
 interface Prediction {
   id: string;
@@ -95,6 +97,8 @@ const PredictionCard = ({ prediction, index, livePrice, climateData }: Predictio
   const { t, translateTitle } = useLanguage();
   const { betByPredictionId } = useUserBetSummaries();
   const userBet: UserBetSummary | null = betByPredictionId[prediction.id] ?? null;
+  const { prices: cryptoPrices } = useCryptoPrices();
+  const xecUsd = cryptoPrices.ecash;
 
   const [isBetModalOpen, setIsBetModalOpen] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<"yes" | "no">("yes");
@@ -329,7 +333,10 @@ const PredictionCard = ({ prediction, index, livePrice, climateData }: Predictio
             >
               <div className="bg-card border border-primary/40 rounded-lg px-3 py-2 shadow-lg shadow-primary/20 min-w-[120px]">
                 <p className="text-xs text-muted-foreground mb-0.5">{t.yourBet}</p>
-                <p className="text-sm font-bold text-primary">{(userBet.amount / 100).toLocaleString()} XEC</p>
+                <p className="text-sm font-bold text-primary">
+                  {(userBet.amount / 100).toLocaleString()} XEC
+                  {xecUsd ? <span className="ml-1 text-[10px] font-normal text-muted-foreground">{usdNearXec(userBet.amount / 100, xecUsd)}</span> : null}
+                </p>
                 <div className="text-xs font-medium text-foreground mt-0.5">
                   {(() => {
                     const picks = userBet.picks?.length
@@ -509,9 +516,12 @@ const PredictionCard = ({ prediction, index, livePrice, climateData }: Predictio
 
           {/* Stats Row */}
           <div className="flex items-center justify-between text-xs text-muted-foreground mb-4">
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 flex-wrap">
               <Users className="w-3 h-3" />
-              {formatVolume(prediction.volume)} {t.vol}
+              <span>{formatVolume(prediction.volume)} {t.vol}</span>
+              {xecUsd && prediction.volume > 0 ? (
+                <span className="text-[10px] text-muted-foreground/80">{usdNearXec(prediction.volume, xecUsd)}</span>
+              ) : null}
             </div>
             <CountdownTimer endDate={prediction.endDate} />
             <div className="flex items-center gap-1">
