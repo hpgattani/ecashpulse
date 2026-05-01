@@ -114,6 +114,8 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
   // Calculate potential payout using actual pool values (parimutuel formula)
   const betAmountXec = parseFloat(betAmount) || 0;
   const betAmountSats = betAmountXec * 100; // Convert XEC to satoshis
+  const { prices: cryptoPrices } = useCryptoPrices();
+  const xecUsd = cryptoPrices.ecash;
   
   // Get pool values (in satoshis) - default to 0 if not available
   const yesPoolSats = prediction.yesPool ?? (prediction.volume ? prediction.volume * 100 * prediction.yesOdds / 100 : 0);
@@ -684,6 +686,9 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                         />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium text-sm">XEC</span>
                       </div>
+                      {betAmountXec > 0 && xecUsd ? (
+                        <p className="text-xs text-muted-foreground mt-1">{usdNearXec(betAmountXec, xecUsd)}</p>
+                      ) : null}
                     </div>
 
                     {betAmount && parseFloat(betAmount) > 0 && (
@@ -698,11 +703,17 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
                           <>
                             <div className="flex justify-between text-sm">
                               <span className="text-muted-foreground">{t.totalPayout}:</span>
-                              <span className="text-emerald-400 font-bold">{potentialPayout} XEC</span>
+                              <span className="text-emerald-400 font-bold">
+                                {potentialPayout} XEC
+                                {xecUsd ? <span className="ml-1 text-[10px] font-normal text-muted-foreground">{usdNearXec(parseFloat(potentialPayout), xecUsd)}</span> : null}
+                              </span>
                             </div>
                             <div className="flex justify-between text-sm">
                               <span className="text-muted-foreground">{t.profit}:</span>
-                              <span className="text-emerald-400 font-bold">+{potentialProfit} XEC</span>
+                              <span className="text-emerald-400 font-bold">
+                                +{potentialProfit} XEC
+                                {xecUsd ? <span className="ml-1 text-[10px] font-normal text-muted-foreground">{usdNearXec(parseFloat(potentialProfit), xecUsd)}</span> : null}
+                              </span>
                             </div>
                           </>
                         ) : (
