@@ -11,6 +11,8 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useCryptoPrices } from '@/hooks/useCryptoPrices';
+import { usdNearSats } from '@/lib/xecFormat';
 
 interface Bet {
   id: string;
