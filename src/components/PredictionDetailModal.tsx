@@ -44,6 +44,8 @@ const PredictionDetailModal = ({ isOpen, onClose, prediction, onSelectOutcome }:
   const [predictionStatus, setPredictionStatus] = useState<string | null>(null);
   const [resolvedDescription, setResolvedDescription] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { prices: cryptoPrices } = useCryptoPrices();
+  const xecUsd = cryptoPrices.ecash;
 
   useEffect(() => {
     if (!isOpen || !prediction) return;
@@ -310,7 +312,10 @@ const PredictionDetailModal = ({ isOpen, onClose, prediction, onSelectOutcome }:
                             <span className="text-sm font-medium">
                               {act.outcome_label ? act.outcome_label : (act.position === 'yes' ? 'Yes' : 'No')}
                             </span>
-                            <span className="text-sm text-primary font-bold">{formatXEC(act.amount)}</span>
+                            <span className="text-sm text-primary font-bold">
+                              {formatXEC(act.amount)}
+                              {xecUsd ? <span className="ml-1 text-[10px] font-normal text-muted-foreground">{usdNearSats(act.amount, xecUsd)}</span> : null}
+                            </span>
                             <span className="text-xs text-muted-foreground">{formatDate(act.timestamp)}</span>
                           </div>
                         </div>
