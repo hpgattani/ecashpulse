@@ -94,6 +94,8 @@ const MyBets = () => {
   const { user, sessionToken, loading: authLoading } = useAuth();
   const { t, translateTitle, language } = useLanguage();
   const navigate = useNavigate();
+  const { prices: cryptoPrices } = useCryptoPrices();
+  const xecUsd = cryptoPrices.ecash;
 
   const [bets, setBets] = useState<BetWithPrediction[]>([]);
   const [submissions, setSubmissions] = useState<UserSubmission[]>([]);
@@ -296,7 +298,10 @@ const MyBets = () => {
                       <span className="text-muted-foreground">{formatDate(bet.created_at)}</span>
                     </div>
 
-                    <div className="mt-3 font-bold">{formatXEC(bet.amount)}</div>
+                    <div className="mt-3 font-bold">
+                      {formatXEC(bet.amount)}
+                      {xecUsd ? <span className="ml-2 text-xs font-normal text-muted-foreground">{usdNearSats(bet.amount, xecUsd)}</span> : null}
+                    </div>
                   </button>
                 ))
               )}
