@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables } from '@/integrations/supabase/types';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useCryptoPrices } from '@/hooks/useCryptoPrices';
+import { usdNearSats } from '@/lib/xecFormat';
 
 type Prediction = Omit<Tables<'predictions'>, 'escrow_privkey_encrypted' | 'escrow_script_hex'>;
 
@@ -14,6 +16,8 @@ const ResolvedBets = () => {
   const [resolvedPredictions, setResolvedPredictions] = useState<Prediction[]>([]);
   const [loading, setLoading] = useState(true);
   const { t, translateTitle, language } = useLanguage();
+  const { prices: cryptoPrices } = useCryptoPrices();
+  const xecUsd = cryptoPrices.ecash;
 
   useEffect(() => {
     fetchResolved();
@@ -136,7 +140,10 @@ const ResolvedBets = () => {
 
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-muted-foreground">{t.totalPool}</span>
-                  <span className="font-semibold text-primary">{formatXEC(totalPool)}</span>
+                  <span className="font-semibold text-primary">
+                    {formatXEC(totalPool)}
+                    {xecUsd ? <span className="ml-1 text-[10px] font-normal text-muted-foreground">{usdNearSats(totalPool, xecUsd)}</span> : null}
+                  </span>
                 </div>
               </motion.div>
             );
