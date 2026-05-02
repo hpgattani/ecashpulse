@@ -60,6 +60,8 @@ const Prediction = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { t, translateTitle } = useLanguage();
+  const { prices: cryptoPrices } = useCryptoPrices();
+  const xecUsd = cryptoPrices.ecash;
   const [prediction, setPrediction] = useState<PredictionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isBetModalOpen, setIsBetModalOpen] = useState(false);
