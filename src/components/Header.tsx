@@ -300,6 +300,14 @@ const Header = () => {
                   <Flame className="w-4 h-4" />
                   Top Volume
                 </Link>
+                <Link
+                  to="/ecash-inu"
+                  className="text-pink-400 hover:text-pink-300 transition-colors flex items-center gap-2 font-medium"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <PawPrint className="w-4 h-4" />
+                  eCash Inu 🐾
+                </Link>
                 <div className="flex items-center justify-between pt-2 border-t border-border/30">
                   <span className="text-sm text-muted-foreground">Theme</span>
                   <ThemeToggle />
