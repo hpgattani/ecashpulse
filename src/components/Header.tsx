@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Activity, Menu, X, Wallet, LogOut, TrendingUp, User, BarChart3, MessageCircleHeart, Ticket, Gamepad2, Coins, Flame } from "lucide-react";
+import { Activity, Menu, X, Wallet, LogOut, TrendingUp, User, BarChart3, MessageCircleHeart, Ticket, Gamepad2, Coins, Flame, PawPrint } from "lucide-react";
 import { ProfileModal } from "./ProfileModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -156,6 +156,10 @@ const Header = () => {
                 <Flame className="w-4 h-4" />
                 Top Volume
               </Link>
+              <Link to="/ecash-inu" className="text-pink-400 hover:text-pink-300 transition-colors flex items-center gap-1">
+                <PawPrint className="w-4 h-4" />
+                eCash Inu
+              </Link>
             </nav>
 
             {/* Desktop Actions */}
@@ -295,6 +299,14 @@ const Header = () => {
                 >
                   <Flame className="w-4 h-4" />
                   Top Volume
+                </Link>
+                <Link
+                  to="/ecash-inu"
+                  className="text-pink-400 hover:text-pink-300 transition-colors flex items-center gap-2 font-medium"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <PawPrint className="w-4 h-4" />
+                  eCash Inu 🐾
                 </Link>
                 <div className="flex items-center justify-between pt-2 border-t border-border/30">
                   <span className="text-sm text-muted-foreground">Theme</span>
