@@ -580,7 +580,9 @@ const Prediction = () => {
                   <div className="mt-4 flex items-center gap-2 px-4 py-3 rounded-lg bg-primary/10 border border-primary/30">
                     <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0" />
                     <span className="text-sm font-medium text-foreground">
-                      You bet {(userBet.amount / 100).toLocaleString()} XEC on{" "}
+                      You bet {(userBet.amount / 100).toLocaleString()} XEC
+                      {xecUsd ? <span className="ml-1 text-muted-foreground font-normal">{usdNearXec(userBet.amount / 100, xecUsd)}</span> : null}
+                      {" "}on{" "}
                       <span className="text-primary font-semibold">
                         {userBet.outcome_label || userBet.position.toUpperCase()}
                       </span>
@@ -651,7 +653,10 @@ const Prediction = () => {
                 <div className="flex flex-wrap gap-4 mb-6 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <Users className="w-4 h-4" />
-                    <span>{formatVolume(totalPool)} {t.volume}</span>
+                    <span>
+                      {formatVolume(totalPool)} {t.volume}
+                      {xecUsd && totalPool > 0 ? <span className="ml-1 text-muted-foreground/80">{usdNearXec(totalPool / 100, xecUsd)}</span> : null}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Activity className="w-4 h-4" />
@@ -760,6 +765,11 @@ const Prediction = () => {
                           <p className="text-sm font-semibold text-foreground">
                             {(activity.amount / 100).toLocaleString()} XEC
                           </p>
+                          {xecUsd ? (
+                            <p className="text-[10px] text-muted-foreground">
+                              {usdNearXec(activity.amount / 100, xecUsd)}
+                            </p>
+                          ) : null}
                           <p className={`text-xs font-medium ${
                             activity.position === 'yes' ? 'text-emerald-400' : 'text-red-400'
                           }`}>
