@@ -6,7 +6,6 @@ import XpulseBanner from '@/components/XpulseBanner';
 import Hero from '@/components/Hero';
 import MarketNav from '@/components/MarketNav';
 import PendingBetsSection from '@/components/PendingBetsSection';
-import SpotlightMarket from '@/components/SpotlightMarket';
 import TrendingSection from '@/components/TrendingSection';
 import MarketsSection from '@/components/MarketsSection';
 import ResolvedBets from '@/components/ResolvedBets';
@@ -62,7 +61,6 @@ const Index = () => {
         <XpulseBanner />
           <main className="pt-8">
             <Hero />
-            <SpotlightMarket />
             <MarketNav 
               activeCategory={activeCategory}
               onCategoryChange={setActiveCategory}
