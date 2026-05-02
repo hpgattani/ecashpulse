@@ -20,7 +20,6 @@ import Sentiment from "./pages/Sentiment";
 import Raffle from "./pages/Raffle";
 import Token from "./pages/Token";
 import TopVolume from "./pages/TopVolume";
-import EcashInu from "./pages/EcashInu";
 import NotFound from "./pages/NotFound";
 
 // Lazy-load Games page (pulls in pixi.js ~129KB)
@@ -56,7 +55,6 @@ const App = () => (
                     <Route path="/games" element={<Suspense fallback={<div className="min-h-screen bg-background" />}><Games /></Suspense>} />
                     <Route path="/token" element={<Token />} />
                     <Route path="/top-volume" element={<TopVolume />} />
-                    <Route path="/ecash-inu" element={<EcashInu />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </BrowserRouter>
