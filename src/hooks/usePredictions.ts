@@ -508,7 +508,7 @@ export const usePredictions = () => {
             .eq('status', 'active')
             .gt('end_date', now)
             .order('end_date', { ascending: true })
-            .limit(500),
+            .limit(1000),
           10000,
           'predictions fetch'
         );
