@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 import Header from '@/components/Header';
 import XpulseBanner from '@/components/XpulseBanner';
 import Hero from '@/components/Hero';
+import FeaturedTruthcoinSection from '@/components/FeaturedTruthcoinSection';
 import MarketNav from '@/components/MarketNav';
 import PendingBetsSection from '@/components/PendingBetsSection';
 import TrendingSection from '@/components/TrendingSection';
@@ -61,6 +62,7 @@ const Index = () => {
         <XpulseBanner />
           <main className="pt-8">
             <Hero />
+            <FeaturedTruthcoinSection />
             <MarketNav 
               activeCategory={activeCategory}
               onCategoryChange={setActiveCategory}
