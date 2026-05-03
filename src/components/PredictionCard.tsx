@@ -464,7 +464,11 @@ const PredictionCard = ({ prediction, index, livePrice, climateData }: Predictio
                   { bg: 'from-cyan-500/20 to-cyan-600/10', border: 'border-cyan-500/40 hover:border-cyan-400', text: 'text-cyan-400', glow: 'hover:shadow-[0_0_20px_rgba(6,182,212,0.3)]' },
                 ];
                 const colorIdx = idx % glowColors.length;
-                const color = glowColors[colorIdx];
+                let color = glowColors[colorIdx];
+                // Semantic overrides: Above=green, Below=red, Up=green, Down=red
+                const lbl = outcome.label.toLowerCase().trim();
+                if (lbl === 'above' || lbl === 'up' || lbl === 'yes') color = glowColors[0];
+                else if (lbl === 'below' || lbl === 'down' || lbl === 'no') color = glowColors[1];
                 
                 return (
                   <button
