@@ -114,6 +114,7 @@ const FeaturedTruthcoinSection = () => {
               <div className="text-2xl sm:text-3xl font-bold text-red-400">{belowOdds}%</div>
               <div className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
                 {(below.pool / 100).toLocaleString()} XEC pool
+                {xecUsd ? <span className="ml-1">{usdNearXec(below.pool / 100, xecUsd)}</span> : null}
               </div>
             </div>
           </div>
