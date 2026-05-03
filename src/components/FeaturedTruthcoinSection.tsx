@@ -103,6 +103,7 @@ const FeaturedTruthcoinSection = () => {
               <div className="text-2xl sm:text-3xl font-bold text-emerald-400">{aboveOdds}%</div>
               <div className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
                 {(above.pool / 100).toLocaleString()} XEC pool
+                {xecUsd ? <span className="ml-1">{usdNearXec(above.pool / 100, xecUsd)}</span> : null}
               </div>
             </div>
             <div className="relative p-3 sm:p-4 rounded-xl bg-gradient-to-br from-red-500/15 to-red-600/5 border border-red-500/40 group-hover:shadow-[0_0_24px_rgba(239,68,68,0.25)] transition-all">
