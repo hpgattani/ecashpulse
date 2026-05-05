@@ -580,7 +580,7 @@ const Prediction = () => {
                   <div className="mt-4 flex items-center gap-2 px-4 py-3 rounded-lg bg-primary/10 border border-primary/30">
                     <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0" />
                     <span className="text-sm font-medium text-foreground">
-                      You bet {(userBet.amount / 100).toLocaleString()} XEC on{" "}
+                      You bet {(userBet.amount / 100).toLocaleString()} XEC{xecUsd ? <span className="text-muted-foreground ml-1">{usdNearXec(userBet.amount / 100, xecUsd)}</span> : null} on{" "}
                       <span className="text-primary font-semibold">
                         {userBet.outcome_label || userBet.position.toUpperCase()}
                       </span>
