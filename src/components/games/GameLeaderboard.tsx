@@ -27,6 +27,8 @@ const GameLeaderboard = ({ game }: GameLeaderboardProps) => {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [totalPot, setTotalPot] = useState(0);
   const [loading, setLoading] = useState(true);
+  const { prices } = useCryptoPrices();
+  const xecUsd = prices.ecash;
 
   const getWeekNumber = () => {
     const now = new Date();
