@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { Trophy, Medal } from "lucide-react";
+import { useCryptoPrices } from "@/hooks/useCryptoPrices";
+import { usdNearXec } from "@/lib/xecFormat";
 
 interface MiniGame {
   id: string;
