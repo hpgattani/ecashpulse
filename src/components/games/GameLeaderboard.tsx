@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { Trophy, Medal } from "lucide-react";
+import { useCryptoPrices } from "@/hooks/useCryptoPrices";
+import { usdNearXec } from "@/lib/xecFormat";
 
 interface MiniGame {
   id: string;
@@ -25,6 +27,8 @@ const GameLeaderboard = ({ game }: GameLeaderboardProps) => {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [totalPot, setTotalPot] = useState(0);
   const [loading, setLoading] = useState(true);
+  const { prices } = useCryptoPrices();
+  const xecUsd = prices.ecash;
 
   const getWeekNumber = () => {
     const now = new Date();
@@ -129,6 +133,7 @@ const GameLeaderboard = ({ game }: GameLeaderboardProps) => {
           <div className="text-right">
             <p className="text-xs text-muted-foreground">Prize Pool</p>
             <p className="font-bold text-primary">{(totalPot / 100).toLocaleString()} XEC</p>
+            {xecUsd ? <p className="text-[10px] text-muted-foreground">{usdNearXec(totalPot / 100, xecUsd)}</p> : null}
           </div>
         )}
       </div>
@@ -167,6 +172,7 @@ const GameLeaderboard = ({ game }: GameLeaderboardProps) => {
                     {prize && (
                       <span className="text-xs text-primary font-medium">
                         +{(prize / 100).toLocaleString()} XEC
+                        {xecUsd ? <span className="ml-1 text-muted-foreground">{usdNearXec(prize / 100, xecUsd)}</span> : null}
                       </span>
                     )}
                     <span className="font-bold text-foreground">{entry.score.toLocaleString()}</span>
