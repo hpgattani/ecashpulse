@@ -172,6 +172,7 @@ const GameLeaderboard = ({ game }: GameLeaderboardProps) => {
                     {prize && (
                       <span className="text-xs text-primary font-medium">
                         +{(prize / 100).toLocaleString()} XEC
+                        {xecUsd ? <span className="ml-1 text-muted-foreground">{usdNearXec(prize / 100, xecUsd)}</span> : null}
                       </span>
                     )}
                     <span className="font-bold text-foreground">{entry.score.toLocaleString()}</span>
