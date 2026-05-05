@@ -15,6 +15,8 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getKnownScore } from "@/hooks/useSportsScores";
+import { useCryptoPrices } from "@/hooks/useCryptoPrices";
+import { usdNearXec } from "@/lib/xecFormat";
 
 // Old shared links may point at a duplicate/deleted prediction record.
 // Keep a lightweight redirect map so those links continue to work.
