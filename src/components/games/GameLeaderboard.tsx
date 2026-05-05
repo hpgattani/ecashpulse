@@ -133,6 +133,7 @@ const GameLeaderboard = ({ game }: GameLeaderboardProps) => {
           <div className="text-right">
             <p className="text-xs text-muted-foreground">Prize Pool</p>
             <p className="font-bold text-primary">{(totalPot / 100).toLocaleString()} XEC</p>
+            {xecUsd ? <p className="text-[10px] text-muted-foreground">{usdNearXec(totalPot / 100, xecUsd)}</p> : null}
           </div>
         )}
       </div>
