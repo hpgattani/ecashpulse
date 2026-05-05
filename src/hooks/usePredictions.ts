@@ -453,27 +453,22 @@ const filterDailyPredictions = (predictions: Prediction[]): Prediction[] => {
   return result;
 };
 
-// Remove duplicate predictions by normalizing titles
+// Remove only EXACT duplicate predictions (same title + same end_date).
+// Previous implementation stripped months/years/dates and merged distinct
+// markets like "Selic rate after April 2026" with "Selic rate after June 2026",
+// or different Brazilian Senate election markets, hiding them from the UI.
 const deduplicatePredictions = (predictions: Prediction[]): Prediction[] => {
   const seen = new Map<string, Prediction>();
-  
+
   for (const p of predictions) {
-    // Normalize: lowercase, remove dates/years, trim whitespace
-    const normalized = p.question
-      .toLowerCase()
-      .replace(/\b(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}(,?\s*\d{4})?/gi, '')
-      .replace(/\bby\s+(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}/gi, '')
-      .replace(/\b20\d{2}\b/g, '')
-      .replace(/\s+/g, ' ')
-      .trim();
-    
-    // If we haven't seen this normalized title, or this one has higher volume, keep it
-    const existing = seen.get(normalized);
+    // Key on normalized title + end_date so genuinely distinct markets stay visible.
+    const key = `${p.question.toLowerCase().replace(/\s+/g, ' ').trim()}|${p.endDate}`;
+    const existing = seen.get(key);
     if (!existing || p.volume > existing.volume) {
-      seen.set(normalized, p);
+      seen.set(key, p);
     }
   }
-  
+
   return Array.from(seen.values());
 };
 
