@@ -762,6 +762,7 @@ const Prediction = () => {
                         <div className="text-right">
                           <p className="text-sm font-semibold text-foreground">
                             {(activity.amount / 100).toLocaleString()} XEC
+                            {xecUsd ? <span className="ml-1 text-xs text-muted-foreground font-normal">{usdNearXec(activity.amount / 100, xecUsd)}</span> : null}
                           </p>
                           <p className={`text-xs font-medium ${
                             activity.position === 'yes' ? 'text-emerald-400' : 'text-red-400'
