@@ -651,7 +651,10 @@ const Prediction = () => {
                 <div className="flex flex-wrap gap-4 mb-6 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <Users className="w-4 h-4" />
-                    <span>{formatVolume(totalPool)} {t.volume}</span>
+                    <span>
+                      {formatVolume(totalPool)} {t.volume}
+                      {xecUsd && totalPool > 0 ? <span className="ml-1">{usdNearXec(totalPool / 100, xecUsd)}</span> : null}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Activity className="w-4 h-4" />
