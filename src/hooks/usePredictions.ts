@@ -496,21 +496,33 @@ export const usePredictions = () => {
       try {
         const now = new Date().toISOString();
 
-        // Fetch in parallel: nearest-ending (for upcoming sections) AND highest-volume
-        // (so trending/top-volume markets aren't cut off when total active > limit).
-        const [predictionsResult, topVolumeResult] = await Promise.all([
-          withTimeout(
-            supabase
-              .from('predictions')
-              .select('id, title, description, category, image_url, end_date, status, yes_pool, no_pool, escrow_address, created_at')
-              .eq('status', 'active')
-              .gt('end_date', now)
-              .order('end_date', { ascending: true })
-              .limit(500),
-            10000,
-            'predictions fetch'
-          ),
-          withTimeout(
+        // Fetch nearest-ending first (primary list), then top-volume as a best-effort
+        // supplement so trending markets aren't cut off. Run sequentially so a failure
+        // in the supplemental query never blocks the primary list.
+        const predictionsResult = await withTimeout(
+          supabase
+            .from('predictions')
+            .select('id, title, description, category, image_url, end_date, status, yes_pool, no_pool, escrow_address, created_at')
+            .eq('status', 'active')
+            .gt('end_date', now)
+            .order('end_date', { ascending: true })
+            .limit(500),
+          15000,
+          'predictions fetch'
+        );
+
+        if (predictionsResult.error) {
+          setError(predictionsResult.error.message);
+          console.error('Error fetching predictions:', predictionsResult.error);
+          return;
+        }
+
+        const baseRows = (predictionsResult.data || []) as DBPrediction[];
+
+        // Best-effort supplement for top-volume markets ending later than the 500-window.
+        let extraRows: DBPrediction[] = [];
+        try {
+          const topVolumeResult = await withTimeout(
             supabase
               .from('predictions')
               .select('id, title, description, category, image_url, end_date, status, yes_pool, no_pool, escrow_address, created_at')
@@ -520,20 +532,16 @@ export const usePredictions = () => {
               .limit(200),
             10000,
             'top volume predictions fetch'
-          ),
-        ]);
-
-        if (predictionsResult.error) {
-          setError(predictionsResult.error.message);
-          console.error('Error fetching predictions:', predictionsResult.error);
-          return;
+          );
+          if (!topVolumeResult.error) {
+            const topRows = (topVolumeResult.data || []) as DBPrediction[];
+            const seenIds = new Set(baseRows.map((p) => p.id));
+            extraRows = topRows.filter((p) => !seenIds.has(p.id));
+          }
+        } catch (e) {
+          console.warn('Top-volume supplement fetch failed (non-fatal):', e);
         }
 
-        const baseRows = (predictionsResult.data || []) as DBPrediction[];
-        const topRows = (topVolumeResult.data || []) as DBPrediction[];
-        // Merge unique by id
-        const seenIds = new Set(baseRows.map((p) => p.id));
-        const extraRows = topRows.filter((p) => !seenIds.has(p.id));
         const predictionRows = [...baseRows, ...extraRows];
 
         if (predictionRows.length === 0) {
