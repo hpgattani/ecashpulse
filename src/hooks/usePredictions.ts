@@ -496,17 +496,32 @@ export const usePredictions = () => {
       try {
         const now = new Date().toISOString();
 
-        const predictionsResult = await withTimeout(
-          supabase
-            .from('predictions')
-            .select('id, title, description, category, image_url, end_date, status, yes_pool, no_pool, escrow_address, created_at')
-            .eq('status', 'active')
-            .gt('end_date', now)
-            .order('end_date', { ascending: true })
-            .limit(500),
-          10000,
-          'predictions fetch'
-        );
+        // Fetch in parallel: nearest-ending (for upcoming sections) AND highest-volume
+        // (so trending/top-volume markets aren't cut off when total active > limit).
+        const [predictionsResult, topVolumeResult] = await Promise.all([
+          withTimeout(
+            supabase
+              .from('predictions')
+              .select('id, title, description, category, image_url, end_date, status, yes_pool, no_pool, escrow_address, created_at')
+              .eq('status', 'active')
+              .gt('end_date', now)
+              .order('end_date', { ascending: true })
+              .limit(500),
+            10000,
+            'predictions fetch'
+          ),
+          withTimeout(
+            supabase
+              .from('predictions')
+              .select('id, title, description, category, image_url, end_date, status, yes_pool, no_pool, escrow_address, created_at')
+              .eq('status', 'active')
+              .gt('end_date', now)
+              .order('yes_pool', { ascending: false })
+              .limit(200),
+            10000,
+            'top volume predictions fetch'
+          ),
+        ]);
 
         if (predictionsResult.error) {
           setError(predictionsResult.error.message);
@@ -514,7 +529,12 @@ export const usePredictions = () => {
           return;
         }
 
-        const predictionRows = (predictionsResult.data || []) as DBPrediction[];
+        const baseRows = (predictionsResult.data || []) as DBPrediction[];
+        const topRows = (topVolumeResult.data || []) as DBPrediction[];
+        // Merge unique by id
+        const seenIds = new Set(baseRows.map((p) => p.id));
+        const extraRows = topRows.filter((p) => !seenIds.has(p.id));
+        const predictionRows = [...baseRows, ...extraRows];
 
         if (predictionRows.length === 0) {
           setPredictions([]);
