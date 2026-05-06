@@ -519,8 +519,18 @@ export const usePredictions = () => {
 
         const baseRows = (predictionsResult.data || []) as DBPrediction[];
 
-        // Best-effort supplement for top-volume markets ending later than the 500-window.
-        let extraRows: DBPrediction[] = [];
+        // Best-effort supplements for top-volume markets ending later than the 500-window.
+        // Fetch both YES-heavy and NO-heavy markets because true volume is yes_pool + no_pool.
+        const extraRowsById = new Map<string, DBPrediction>();
+        const addExtraRows = (rows: DBPrediction[]) => {
+          const seenIds = new Set([...baseRows.map((p) => p.id), ...extraRowsById.keys()]);
+          rows.forEach((p) => {
+            if (!seenIds.has(p.id)) {
+              extraRowsById.set(p.id, p);
+            }
+          });
+        };
+
         try {
           const topVolumeResult = await withTimeout(
             supabase
@@ -534,15 +544,32 @@ export const usePredictions = () => {
             'top volume predictions fetch'
           );
           if (!topVolumeResult.error) {
-            const topRows = (topVolumeResult.data || []) as DBPrediction[];
-            const seenIds = new Set(baseRows.map((p) => p.id));
-            extraRows = topRows.filter((p) => !seenIds.has(p.id));
+            addExtraRows((topVolumeResult.data || []) as DBPrediction[]);
           }
         } catch (e) {
-          console.warn('Top-volume supplement fetch failed (non-fatal):', e);
+          console.warn('YES-pool supplement fetch failed (non-fatal):', e);
         }
 
-        const predictionRows = [...baseRows, ...extraRows];
+        try {
+          const topNoPoolResult = await withTimeout(
+            supabase
+              .from('predictions')
+              .select('id, title, description, category, image_url, end_date, status, yes_pool, no_pool, escrow_address, created_at')
+              .eq('status', 'active')
+              .gt('end_date', now)
+              .order('no_pool', { ascending: false })
+              .limit(200),
+            10000,
+            'top no-pool predictions fetch'
+          );
+          if (!topNoPoolResult.error) {
+            addExtraRows((topNoPoolResult.data || []) as DBPrediction[]);
+          }
+        } catch (e) {
+          console.warn('NO-pool supplement fetch failed (non-fatal):', e);
+        }
+
+        const predictionRows = [...baseRows, ...Array.from(extraRowsById.values())];
 
         if (predictionRows.length === 0) {
           setPredictions([]);
@@ -551,23 +578,33 @@ export const usePredictions = () => {
         }
 
         const predictionIds = predictionRows.map((p) => p.id);
-
-        const outcomesResult = await withTimeout(
-          supabase
-            .from('outcomes')
-            .select('id, prediction_id, label, pool')
-            .in('prediction_id', predictionIds),
-          10000,
-          'outcomes fetch'
-        );
-
-        if (outcomesResult.error) {
-          setError(outcomesResult.error.message);
-          console.error('Error fetching outcomes:', outcomesResult.error);
-          return;
+        const outcomeChunks: string[][] = [];
+        for (let i = 0; i < predictionIds.length; i += 75) {
+          outcomeChunks.push(predictionIds.slice(i, i + 75));
         }
 
-        const outcomes = (outcomesResult.data || []) as DBOutcome[];
+        const outcomes: DBOutcome[] = [];
+        for (const [index, ids] of outcomeChunks.entries()) {
+          try {
+            const outcomesResult = await withTimeout(
+              supabase
+                .from('outcomes')
+                .select('id, prediction_id, label, pool')
+                .in('prediction_id', ids),
+              10000,
+              `outcomes fetch chunk ${index + 1}`
+            );
+
+            if (outcomesResult.error) {
+              console.warn(`Outcomes fetch chunk ${index + 1} failed (non-fatal):`, outcomesResult.error);
+              continue;
+            }
+
+            outcomes.push(...((outcomesResult.data || []) as DBOutcome[]));
+          } catch (e) {
+            console.warn(`Outcomes fetch chunk ${index + 1} failed (non-fatal):`, e);
+          }
+        }
         const allPredictions = predictionRows.map((p) => transformPrediction(p, outcomes));
 
         // Filter to show only next upcoming daily prediction per series
