@@ -55,6 +55,17 @@ interface BetActivity {
   outcome_label?: string;
 }
 
+const isNegativeBetActivity = (activity: BetActivity) => {
+  const label = activity.outcome_label?.trim().toLowerCase();
+
+  if (label) {
+    if (label.includes("below") || label === "no") return true;
+    if (label.includes("above") || label === "yes") return false;
+  }
+
+  return activity.position !== "yes";
+};
+
 const Prediction = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -732,46 +743,48 @@ const Prediction = () => {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {activities.map((activity, index) => (
-                      <motion.div
-                        key={activity.id}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                        className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                            activity.position === 'yes' ? 'bg-emerald-500/20' : 'bg-red-500/20'
-                          }`}>
-                            {activity.position === 'yes' ? (
-                              <TrendingUp className="w-4 h-4 text-emerald-400" />
-                            ) : (
-                              <TrendingDown className="w-4 h-4 text-red-400" />
-                            )}
+                    {activities.map((activity, index) => {
+                      const isNegative = isNegativeBetActivity(activity);
+
+                      return (
+                        <motion.div
+                          key={activity.id}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                              isNegative ? 'bg-red-500/20' : 'bg-emerald-500/20'
+                            }`}>
+                              {isNegative ? (
+                                <TrendingDown className="w-4 h-4 text-red-400" />
+                              ) : (
+                                <TrendingUp className="w-4 h-4 text-emerald-400" />
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-foreground">
+                                {formatAddress(activity.address)}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {formatActivityDate(activity.timestamp)}
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-sm font-medium text-foreground">
-                              {formatAddress(activity.address)}
+                          <div className="text-right">
+                            <p className="text-sm font-semibold text-foreground">
+                              {(activity.amount / 100).toLocaleString()} XEC
+                              {xecUsd ? <span className="ml-1 text-xs text-muted-foreground font-normal">{usdNearXec(activity.amount / 100, xecUsd)}</span> : null}
                             </p>
-                            <p className="text-xs text-muted-foreground">
-                              {formatActivityDate(activity.timestamp)}
+                            <p className={`text-xs font-medium ${isNegative ? 'text-red-400' : 'text-emerald-400'}`}>
+                              {activity.outcome_label || (activity.position === 'yes' ? t.yes.toUpperCase() : t.no.toUpperCase())}
                             </p>
                           </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-semibold text-foreground">
-                            {(activity.amount / 100).toLocaleString()} XEC
-                            {xecUsd ? <span className="ml-1 text-xs text-muted-foreground font-normal">{usdNearXec(activity.amount / 100, xecUsd)}</span> : null}
-                          </p>
-                          <p className={`text-xs font-medium ${
-                            activity.position === 'yes' ? 'text-emerald-400' : 'text-red-400'
-                          }`}>
-                            {activity.outcome_label || (activity.position === 'yes' ? t.yes.toUpperCase() : t.no.toUpperCase())}
-                          </p>
-                        </div>
-                      </motion.div>
-                    ))}
+                        </motion.div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
