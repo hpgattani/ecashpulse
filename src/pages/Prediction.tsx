@@ -55,6 +55,17 @@ interface BetActivity {
   outcome_label?: string;
 }
 
+const isNegativeBetActivity = (activity: BetActivity) => {
+  const label = activity.outcome_label?.trim().toLowerCase();
+
+  if (label) {
+    if (label.includes("below") || label === "no") return true;
+    if (label.includes("above") || label === "yes") return false;
+  }
+
+  return activity.position !== "yes";
+};
+
 const Prediction = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
