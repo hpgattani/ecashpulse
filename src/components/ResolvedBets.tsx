@@ -22,6 +22,7 @@ const ResolvedBets = () => {
   useEffect(() => {
     fetchResolved();
 
+    // Realtime: refetch on any UPDATE that lands on a resolved status.
     const channel = supabase
       .channel('resolved-predictions')
       .on(
@@ -32,15 +33,27 @@ const ResolvedBets = () => {
           table: 'predictions',
         },
         (payload) => {
-          if (payload.new.status?.startsWith('resolved')) {
+          const status = (payload.new as { status?: string } | null)?.status;
+          if (typeof status === 'string' && status.startsWith('resolved')) {
             fetchResolved();
           }
         }
       )
       .subscribe();
 
+    // Safety net: poll every 60s in case realtime is dropped.
+    const pollId = window.setInterval(fetchResolved, 60_000);
+
+    // Refetch when the tab becomes visible again.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') fetchResolved();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
     return () => {
       supabase.removeChannel(channel);
+      window.clearInterval(pollId);
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, []);
 
