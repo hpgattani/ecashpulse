@@ -85,14 +85,14 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
 
   const handleClose = useCallback(() => {
     closePayButtonModal();
-    const hadTeam = assignedTeams.length > 0;
+    const hadTicket = assignedTeams.length > 0 || step === 'pending';
     setStep('info');
     setAssignedTeams([]);
     setDisplayTeam('');
     setCreatedRaffleId(null);
     onOpenChange(false);
-    if (hadTeam) onSuccess();
-  }, [assignedTeams, closePayButtonModal, onOpenChange, onSuccess]);
+    if (hadTicket) onSuccess();
+  }, [assignedTeams, step, closePayButtonModal, onOpenChange, onSuccess]);
 
   const handlePaymentSuccess = useCallback(async (txHash?: string) => {
     if (!user || !sessionToken) return;
