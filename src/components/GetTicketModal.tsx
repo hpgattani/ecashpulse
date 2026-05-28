@@ -359,9 +359,11 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
                           ))}
                         </div>
                       </div>
-                      <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                        <Eye className="w-3.5 h-3.5" />
-                        Only you can see this
+                      <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 flex items-start gap-2 text-left">
+                        <Eye className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                        <p className="text-xs text-muted-foreground">
+                          Only you can see this. <span className="text-amber-400 font-semibold">Please keep your {assignedTeams.length > 1 ? 'teams' : 'team'} secret</span> until all tickets are sold — it keeps the raffle fair and fun for everyone.
+                        </p>
                       </div>
                       <Button className="w-full mt-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-black font-bold" onClick={handleClose}>Done</Button>
                     </motion.div>
