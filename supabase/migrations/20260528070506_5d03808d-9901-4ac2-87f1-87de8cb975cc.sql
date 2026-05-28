@@ -1,0 +1,1 @@
+REVOKE SELECT (assigned_team) ON public.raffle_entries FROM anon, authenticated;
