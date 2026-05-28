@@ -342,8 +342,12 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
                         <CheckCircle className="w-10 h-10 text-emerald-500" />
                       </div>
                       <div>
-                        <p className="text-muted-foreground text-sm mb-2">You got:</p>
-                        <h2 className="font-display text-3xl font-bold text-foreground">{assignedTeam}</h2>
+                        <p className="text-muted-foreground text-sm mb-2">{assignedTeams.length > 1 ? 'Your teams:' : 'You got:'}</p>
+                        <div className="space-y-1">
+                          {assignedTeams.map((t) => (
+                            <h2 key={t} className="font-display text-2xl font-bold text-foreground">{t}</h2>
+                          ))}
+                        </div>
                       </div>
                       <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
                         <Eye className="w-3.5 h-3.5" />
