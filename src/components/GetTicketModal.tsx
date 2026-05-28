@@ -331,20 +331,8 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
 
 
 
-            {step === 'pending' && (
-              <div className="py-8 text-center space-y-4">
-                <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-amber-500/20 to-yellow-500/20 flex items-center justify-center">
-                  <Eye className="w-10 h-10 text-amber-400" />
-                </div>
-                <h3 className="font-display text-xl font-bold text-foreground">Ticket Sealed!</h3>
-                <p className="text-sm text-muted-foreground px-2">
-                  Your {teamsPerEntry > 1 ? `${teamsPerEntry} teams have` : 'team has'} been randomly assigned and locked in.
-                  Everyone's teams will be revealed once <span className="text-amber-400 font-semibold">all tickets are sold</span>.
-                </p>
-                <p className="text-xs text-muted-foreground">Come back when the raffle is full to see your matchup.</p>
-                <Button className="w-full mt-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-black font-bold" onClick={handleClose}>Done</Button>
-              </div>
-            )}
+
+
 
 
             {step === 'reveal' && (
