@@ -8,8 +8,9 @@ const corsHeaders = {
 // Official event names that are fee-free
 const OFFICIAL_EVENT_NAMES = [
   "NFL Super Bowl 2026",
-  "MLB World Series 2026", 
+  "MLB World Series 2026",
   "T20 World Cup 2026",
+  "FIFA World Cup 2026",
   "The Voice USA",
   "The Voice UK",
   "The Voice Australia",
