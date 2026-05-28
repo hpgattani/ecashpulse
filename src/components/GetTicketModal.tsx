@@ -134,22 +134,12 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
 
 
 
-        setShuffling(true);
-        setStep('reveal');
         const finalTeams: string[] = Array.isArray(data.assigned_teams) && data.assigned_teams.length > 0
           ? data.assigned_teams
           : [data.assigned_team];
-        let count = 0;
-        const interval = setInterval(() => {
-          setDisplayTeam(teams[Math.floor(Math.random() * teams.length)]);
-          count++;
-          if (count > 20) {
-            clearInterval(interval);
-            setShuffling(false);
-            setAssignedTeams(finalTeams);
-            setDisplayTeam(finalTeams[0]);
-          }
-        }, 100);
+        setAssignedTeams(finalTeams);
+        setShuffling(false);
+        setStep('reveal');
       } else {
         throw new Error(data.error || 'Failed to get ticket');
       }
