@@ -22,8 +22,10 @@ interface OfficialEvent {
   name: string;
   category: string;
   teams: string[];
-  entryCostUsd: number;
   description: string;
+  entryCostUsd?: number;
+  entryCostXec?: number;
+  teamsPerEntry?: number;
 }
 
 interface GetTicketModalProps {
@@ -42,20 +44,30 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
   const payButtonRef = useRef<HTMLDivElement>(null);
 
   const [step, setStep] = useState<'info' | 'confirming' | 'reveal'>('info');
-  const [assignedTeam, setAssignedTeam] = useState<string | null>(null);
+  const [assignedTeams, setAssignedTeams] = useState<string[]>([]);
   const [shuffling, setShuffling] = useState(false);
   const [displayTeam, setDisplayTeam] = useState('');
   const [createdRaffleId, setCreatedRaffleId] = useState<string | null>(null);
 
+  const teamsPerEntry = officialEvent?.teamsPerEntry ?? 1;
+
   const entryCost = raffle
     ? raffle.entry_cost
     : officialEvent
-      ? Math.ceil(officialEvent.entryCostUsd / xecPrice)
+      ? (officialEvent.entryCostXec
+          ? officialEvent.entryCostXec
+          : officialEvent.entryCostUsd
+            ? Math.ceil(officialEvent.entryCostUsd / xecPrice)
+            : 0)
       : 0;
 
   const entryCostUsd = raffle
     ? (raffle.entry_cost * xecPrice).toFixed(2)
-    : officialEvent?.entryCostUsd.toFixed(2) || '0';
+    : officialEvent
+      ? (officialEvent.entryCostUsd
+          ? officialEvent.entryCostUsd.toFixed(2)
+          : ((officialEvent.entryCostXec ?? 0) * xecPrice).toFixed(2))
+      : '0';
 
   const eventName = raffle?.event_name || officialEvent?.name || '';
   const teams = raffle?.teams || officialEvent?.teams || [];
