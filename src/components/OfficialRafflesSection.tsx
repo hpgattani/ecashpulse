@@ -191,7 +191,14 @@ export function OfficialRafflesSection({ xecPrice, onRaffleCreated }: OfficialRa
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
         {OFFICIAL_EVENTS.map((event) => {
           const { hasRaffle, raffle } = getEventStatus(event.id);
-          const entryCostXec = Math.ceil(event.entryCostUsd / xecPrice);
+          const entryCostXec = event.entryCostXec
+            ? event.entryCostXec
+            : event.entryCostUsd
+              ? Math.ceil(event.entryCostUsd / xecPrice)
+              : 0;
+          const entryCostUsdDisplay = event.entryCostUsd
+            ? event.entryCostUsd.toFixed(2)
+            : (entryCostXec * xecPrice).toFixed(2);
           
           return (
             <div 
@@ -209,15 +216,23 @@ export function OfficialRafflesSection({ xecPrice, onRaffleCreated }: OfficialRa
               {/* Event Info */}
               <div className="pt-2">
                 <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-lg">{event.flag}</span>
                     <Badge variant="outline" className="text-xs">{event.teams.length} teams</Badge>
+                    {event.teamsPerEntry && event.teamsPerEntry > 1 && (
+                      <Badge variant="outline" className="text-xs border-emerald-500/40 text-emerald-400">
+                        {event.teamsPerEntry} per ticket
+                      </Badge>
+                    )}
                   </div>
                   <button
                     onClick={async (e) => {
                       e.stopPropagation();
                       const shareUrl = `${window.location.origin}/raffle?official=${event.id}`;
-                      const shareText = `🎟️ ${event.name} - Pick your team & win the pot! Entry: $${event.entryCostUsd}`;
+                      const costLabel = event.entryCostXec
+                        ? `${event.entryCostXec.toLocaleString()} XEC`
+                        : `$${event.entryCostUsd}`;
+                      const shareText = `🎟️ ${event.name} - Pick your team & win the pot! Entry: ${costLabel}`;
                       try {
                         if (navigator.share) {
                           await navigator.share({ title: event.name, text: shareText, url: shareUrl });
@@ -247,7 +262,7 @@ export function OfficialRafflesSection({ xecPrice, onRaffleCreated }: OfficialRa
                 <div className="font-mono font-semibold text-foreground">
                   {entryCostXec.toLocaleString()} XEC
                 </div>
-                <div className="text-xs text-muted-foreground">~${event.entryCostUsd}</div>
+                <div className="text-xs text-muted-foreground">~${entryCostUsdDisplay}</div>
               </div>
 
               {/* Status & Action */}
