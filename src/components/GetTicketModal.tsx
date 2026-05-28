@@ -85,14 +85,14 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
 
   const handleClose = useCallback(() => {
     closePayButtonModal();
-    const hadTeam = assignedTeam;
+    const hadTeam = assignedTeams.length > 0;
     setStep('info');
-    setAssignedTeam(null);
+    setAssignedTeams([]);
     setDisplayTeam('');
     setCreatedRaffleId(null);
     onOpenChange(false);
     if (hadTeam) onSuccess();
-  }, [assignedTeam, closePayButtonModal, onOpenChange, onSuccess]);
+  }, [assignedTeams, closePayButtonModal, onOpenChange, onSuccess]);
 
   const handlePaymentSuccess = useCallback(async (txHash?: string) => {
     if (!user || !sessionToken) return;
@@ -109,6 +109,8 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
             title: officialEvent.name,
             description: officialEvent.description,
             entry_cost_usd: officialEvent.entryCostUsd,
+            entry_cost_xec: officialEvent.entryCostXec,
+            teams_per_entry: officialEvent.teamsPerEntry ?? 1,
             session_token: sessionToken,
             is_official: true,
             skip_creation_fee: true,
@@ -129,6 +131,9 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
         toast.success('Ticket Purchased!', { description: `Entry fee: ${entryCost.toLocaleString()} XEC` });
         setShuffling(true);
         setStep('reveal');
+        const finalTeams: string[] = Array.isArray(data.assigned_teams) && data.assigned_teams.length > 0
+          ? data.assigned_teams
+          : [data.assigned_team];
         let count = 0;
         const interval = setInterval(() => {
           setDisplayTeam(teams[Math.floor(Math.random() * teams.length)]);
@@ -136,8 +141,8 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
           if (count > 20) {
             clearInterval(interval);
             setShuffling(false);
-            setAssignedTeam(data.assigned_team);
-            setDisplayTeam(data.assigned_team);
+            setAssignedTeams(finalTeams);
+            setDisplayTeam(finalTeams[0]);
           }
         }, 100);
       } else {
