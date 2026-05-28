@@ -129,6 +129,13 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
 
       if (data.success) {
         toast.success('Ticket Purchased!', { description: `Entry fee: ${entryCost.toLocaleString()} XEC` });
+
+        // If raffle isn't sold out yet, hold the reveal until all tickets are sold.
+        if (data.pending_reveal) {
+          setStep('pending');
+          return;
+        }
+
         setShuffling(true);
         setStep('reveal');
         const finalTeams: string[] = Array.isArray(data.assigned_teams) && data.assigned_teams.length > 0
