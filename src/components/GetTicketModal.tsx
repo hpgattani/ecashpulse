@@ -327,39 +327,35 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
 
 
             {step === 'reveal' && (
-              <div className="py-8 text-center">
-                <AnimatePresence mode="wait">
-                  {shuffling ? (
-                    <motion.div key="shuffling" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-                      <Shuffle className="w-12 h-12 text-amber-400 mx-auto animate-pulse" />
-                      <motion.div key={displayTeam} initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="font-display text-2xl font-bold text-foreground">
-                        {displayTeam || '???'}
-                      </motion.div>
-                      <p className="text-muted-foreground">Assigning your team...</p>
-                    </motion.div>
-                  ) : (
-                    <motion.div key="revealed" initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 200 }} className="space-y-4">
-                      <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-amber-500/20 to-yellow-500/20 flex items-center justify-center">
-                        <CheckCircle className="w-10 h-10 text-emerald-500" />
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground text-sm mb-2">{assignedTeams.length > 1 ? 'Your teams:' : 'You got:'}</p>
-                        <div className="space-y-1">
-                          {assignedTeams.map((t) => (
-                            <h2 key={t} className="font-display text-2xl font-bold text-foreground">{t}</h2>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 flex items-start gap-2 text-left">
-                        <Eye className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
-                        <p className="text-xs text-muted-foreground">
-                          Only you can see this. <span className="text-amber-400 font-semibold">Please keep your {assignedTeams.length > 1 ? 'teams' : 'team'} secret</span> until all tickets are sold — it keeps the raffle fair and fun for everyone.
-                        </p>
-                      </div>
-                      <Button className="w-full mt-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-black font-bold" onClick={handleClose}>Done</Button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+              <div className="py-4">
+                <div className="text-center mb-4">
+                  <div className="w-14 h-14 mx-auto rounded-full bg-gradient-to-br from-amber-500/20 to-yellow-500/20 flex items-center justify-center mb-2">
+                    <CheckCircle className="w-7 h-7 text-emerald-500" />
+                  </div>
+                  <h3 className="font-display text-lg font-bold text-foreground">Ticket Secured!</h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Scratch the {assignedTeams.length > 1 ? 'cards' : 'card'} below to reveal your {assignedTeams.length > 1 ? 'teams' : 'team'}
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  {assignedTeams.map((t, i) => (
+                    <ScratchCard
+                      key={`${t}-${i}`}
+                      team={t}
+                      label={assignedTeams.length > 1 ? `Team ${i + 1} of ${assignedTeams.length}` : undefined}
+                    />
+                  ))}
+                </div>
+
+                <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 flex items-start gap-2 text-left mt-4">
+                  <Eye className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-muted-foreground">
+                    Only you can see this. <span className="text-amber-400 font-semibold">Everyone else finds out once all tickets are sold.</span> Please keep it secret to keep the raffle fair.
+                  </p>
+                </div>
+
+                <Button className="w-full mt-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-black font-bold" onClick={handleClose}>Done</Button>
               </div>
             )}
           </motion.div>
