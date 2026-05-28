@@ -43,7 +43,7 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
   const { user, sessionToken } = useAuth();
   const payButtonRef = useRef<HTMLDivElement>(null);
 
-  const [step, setStep] = useState<'info' | 'confirming' | 'reveal'>('info');
+  const [step, setStep] = useState<'info' | 'confirming' | 'reveal' | 'pending'>('info');
   const [assignedTeams, setAssignedTeams] = useState<string[]>([]);
   const [shuffling, setShuffling] = useState(false);
   const [displayTeam, setDisplayTeam] = useState('');
@@ -85,14 +85,14 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
 
   const handleClose = useCallback(() => {
     closePayButtonModal();
-    const hadTeam = assignedTeams.length > 0;
+    const hadTicket = assignedTeams.length > 0 || step === 'pending';
     setStep('info');
     setAssignedTeams([]);
     setDisplayTeam('');
     setCreatedRaffleId(null);
     onOpenChange(false);
-    if (hadTeam) onSuccess();
-  }, [assignedTeams, closePayButtonModal, onOpenChange, onSuccess]);
+    if (hadTicket) onSuccess();
+  }, [assignedTeams, step, closePayButtonModal, onOpenChange, onSuccess]);
 
   const handlePaymentSuccess = useCallback(async (txHash?: string) => {
     if (!user || !sessionToken) return;
@@ -129,6 +129,13 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
 
       if (data.success) {
         toast.success('Ticket Purchased!', { description: `Entry fee: ${entryCost.toLocaleString()} XEC` });
+
+        // If raffle isn't sold out yet, hold the reveal until all tickets are sold.
+        if (data.pending_reveal) {
+          setStep('pending');
+          return;
+        }
+
         setShuffling(true);
         setStep('reveal');
         const finalTeams: string[] = Array.isArray(data.assigned_teams) && data.assigned_teams.length > 0
@@ -297,8 +304,8 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
                 <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 flex items-start gap-3">
                   <Shuffle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-sm font-medium text-foreground">Random Team Assignment</p>
-                    <p className="text-xs text-muted-foreground mt-1">After payment, you'll be randomly assigned a team. Only you can see your team!</p>
+                    <p className="text-sm font-medium text-foreground">Sealed Random Assignment</p>
+                    <p className="text-xs text-muted-foreground mt-1">Your {teamsPerEntry > 1 ? `${teamsPerEntry} teams are` : 'team is'} assigned at payment, but stays sealed. Teams are revealed to everyone only once all tickets are sold.</p>
                   </div>
                 </div>
 
@@ -324,6 +331,24 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
                 <p className="text-foreground font-medium">Getting your ticket...</p>
               </div>
             )}
+
+
+
+            {step === 'pending' && (
+              <div className="py-8 text-center space-y-4">
+                <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-amber-500/20 to-yellow-500/20 flex items-center justify-center">
+                  <Eye className="w-10 h-10 text-amber-400" />
+                </div>
+                <h3 className="font-display text-xl font-bold text-foreground">Ticket Sealed!</h3>
+                <p className="text-sm text-muted-foreground px-2">
+                  Your {teamsPerEntry > 1 ? `${teamsPerEntry} teams have` : 'team has'} been randomly assigned and locked in.
+                  Everyone's teams will be revealed once <span className="text-amber-400 font-semibold">all tickets are sold</span>.
+                </p>
+                <p className="text-xs text-muted-foreground">Come back when the raffle is full to see your matchup.</p>
+                <Button className="w-full mt-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-black font-bold" onClick={handleClose}>Done</Button>
+              </div>
+            )}
+
 
             {step === 'reveal' && (
               <div className="py-8 text-center">
