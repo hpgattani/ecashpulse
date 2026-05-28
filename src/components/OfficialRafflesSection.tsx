@@ -20,6 +20,16 @@ const VOICE_COUNTRIES = {
 
 // Official events that don't require creation fee
 export const OFFICIAL_EVENTS = [
+  {
+    id: 'fifa_world_cup_2026',
+    name: 'FIFA World Cup 2026',
+    category: 'sports',
+    teams: ['United States', 'Canada', 'Mexico', 'Japan', 'South Korea', 'Iran', 'Saudi Arabia', 'Jordan', 'Uzbekistan', 'Iraq', 'Qatar', 'South Africa', 'Morocco', 'Egypt', 'Tunisia', 'Algeria', 'Ghana', 'Senegal', 'Ivory Coast', 'Cape Verde', 'Congo DR', 'Panama', 'Curaçao', 'Haiti', 'Argentina', 'Brazil', 'Uruguay', 'Colombia', 'Ecuador', 'Paraguay', 'New Zealand', 'England', 'France', 'Spain', 'Germany', 'Portugal', 'Netherlands', 'Belgium', 'Croatia', 'Switzerland', 'Austria', 'Norway', 'Scotland', 'Sweden', 'Türkiye', 'Bosnia and Herzegovina', 'Czechia'],
+    entryCostXec: 50000,
+    teamsPerEntry: 2,
+    description: 'Get a ticket — you receive 2 random teams. Win it all if either lifts the trophy!',
+    flag: '🏆',
+  },
   { 
     id: 'nfl_super_bowl', 
     name: 'NFL Super Bowl 2026', 
@@ -74,7 +84,13 @@ export const OFFICIAL_EVENTS = [
     description: 'Pick who wins The Voice Australia!',
     flag: '🇦🇺'
   },
-];
+] as const;
+
+type OfficialEvent = (typeof OFFICIAL_EVENTS)[number] & {
+  entryCostUsd?: number;
+  entryCostXec?: number;
+  teamsPerEntry?: number;
+};
 
 interface Raffle {
   id: string;
