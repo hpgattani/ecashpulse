@@ -22,8 +22,10 @@ interface OfficialEvent {
   name: string;
   category: string;
   teams: string[];
-  entryCostUsd: number;
   description: string;
+  entryCostUsd?: number;
+  entryCostXec?: number;
+  teamsPerEntry?: number;
 }
 
 interface GetTicketModalProps {
@@ -42,20 +44,30 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
   const payButtonRef = useRef<HTMLDivElement>(null);
 
   const [step, setStep] = useState<'info' | 'confirming' | 'reveal'>('info');
-  const [assignedTeam, setAssignedTeam] = useState<string | null>(null);
+  const [assignedTeams, setAssignedTeams] = useState<string[]>([]);
   const [shuffling, setShuffling] = useState(false);
   const [displayTeam, setDisplayTeam] = useState('');
   const [createdRaffleId, setCreatedRaffleId] = useState<string | null>(null);
 
+  const teamsPerEntry = officialEvent?.teamsPerEntry ?? 1;
+
   const entryCost = raffle
     ? raffle.entry_cost
     : officialEvent
-      ? Math.ceil(officialEvent.entryCostUsd / xecPrice)
+      ? (officialEvent.entryCostXec
+          ? officialEvent.entryCostXec
+          : officialEvent.entryCostUsd
+            ? Math.ceil(officialEvent.entryCostUsd / xecPrice)
+            : 0)
       : 0;
 
   const entryCostUsd = raffle
     ? (raffle.entry_cost * xecPrice).toFixed(2)
-    : officialEvent?.entryCostUsd.toFixed(2) || '0';
+    : officialEvent
+      ? (officialEvent.entryCostUsd
+          ? officialEvent.entryCostUsd.toFixed(2)
+          : ((officialEvent.entryCostXec ?? 0) * xecPrice).toFixed(2))
+      : '0';
 
   const eventName = raffle?.event_name || officialEvent?.name || '';
   const teams = raffle?.teams || officialEvent?.teams || [];
@@ -73,14 +85,14 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
 
   const handleClose = useCallback(() => {
     closePayButtonModal();
-    const hadTeam = assignedTeam;
+    const hadTeam = assignedTeams.length > 0;
     setStep('info');
-    setAssignedTeam(null);
+    setAssignedTeams([]);
     setDisplayTeam('');
     setCreatedRaffleId(null);
     onOpenChange(false);
     if (hadTeam) onSuccess();
-  }, [assignedTeam, closePayButtonModal, onOpenChange, onSuccess]);
+  }, [assignedTeams, closePayButtonModal, onOpenChange, onSuccess]);
 
   const handlePaymentSuccess = useCallback(async (txHash?: string) => {
     if (!user || !sessionToken) return;
@@ -97,6 +109,8 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
             title: officialEvent.name,
             description: officialEvent.description,
             entry_cost_usd: officialEvent.entryCostUsd,
+            entry_cost_xec: officialEvent.entryCostXec,
+            teams_per_entry: officialEvent.teamsPerEntry ?? 1,
             session_token: sessionToken,
             is_official: true,
             skip_creation_fee: true,
@@ -117,6 +131,9 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
         toast.success('Ticket Purchased!', { description: `Entry fee: ${entryCost.toLocaleString()} XEC` });
         setShuffling(true);
         setStep('reveal');
+        const finalTeams: string[] = Array.isArray(data.assigned_teams) && data.assigned_teams.length > 0
+          ? data.assigned_teams
+          : [data.assigned_team];
         let count = 0;
         const interval = setInterval(() => {
           setDisplayTeam(teams[Math.floor(Math.random() * teams.length)]);
@@ -124,8 +141,8 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
           if (count > 20) {
             clearInterval(interval);
             setShuffling(false);
-            setAssignedTeam(data.assigned_team);
-            setDisplayTeam(data.assigned_team);
+            setAssignedTeams(finalTeams);
+            setDisplayTeam(finalTeams[0]);
           }
         }, 100);
       } else {
@@ -325,8 +342,12 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
                         <CheckCircle className="w-10 h-10 text-emerald-500" />
                       </div>
                       <div>
-                        <p className="text-muted-foreground text-sm mb-2">You got:</p>
-                        <h2 className="font-display text-3xl font-bold text-foreground">{assignedTeam}</h2>
+                        <p className="text-muted-foreground text-sm mb-2">{assignedTeams.length > 1 ? 'Your teams:' : 'You got:'}</p>
+                        <div className="space-y-1">
+                          {assignedTeams.map((t) => (
+                            <h2 key={t} className="font-display text-2xl font-bold text-foreground">{t}</h2>
+                          ))}
+                        </div>
                       </div>
                       <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
                         <Eye className="w-3.5 h-3.5" />

@@ -19,7 +19,12 @@ const EVENT_ROSTERS: Record<string, { name: string; category: string; teams: str
   "fifa_world_cup": {
     name: "FIFA World Cup 2026",
     category: "sports",
-    teams: ["Argentina", "France", "Brazil", "Germany", "England", "Spain", "Portugal", "Netherlands", "Belgium", "Italy", "USA", "Mexico", "Japan", "South Korea", "Australia", "Morocco", "Senegal", "Canada", "Uruguay", "Croatia", "Denmark", "Switzerland", "Poland", "Serbia", "Ecuador", "Wales", "Ghana", "Cameroon", "Tunisia", "Saudi Arabia", "Iran", "Costa Rica"]
+    teams: ["United States", "Canada", "Mexico", "Japan", "South Korea", "Iran", "Saudi Arabia", "Jordan", "Uzbekistan", "Iraq", "Qatar", "South Africa", "Morocco", "Egypt", "Tunisia", "Algeria", "Ghana", "Senegal", "Ivory Coast", "Cape Verde", "Congo DR", "Panama", "Curaçao", "Haiti", "Argentina", "Brazil", "Uruguay", "Colombia", "Ecuador", "Paraguay", "New Zealand", "England", "France", "Spain", "Germany", "Portugal", "Netherlands", "Belgium", "Croatia", "Switzerland", "Austria", "Norway", "Scotland", "Sweden", "Türkiye", "Bosnia and Herzegovina", "Czechia"]
+  },
+  "fifa_world_cup_2026": {
+    name: "FIFA World Cup 2026",
+    category: "sports",
+    teams: ["United States", "Canada", "Mexico", "Japan", "South Korea", "Iran", "Saudi Arabia", "Jordan", "Uzbekistan", "Iraq", "Qatar", "South Africa", "Morocco", "Egypt", "Tunisia", "Algeria", "Ghana", "Senegal", "Ivory Coast", "Cape Verde", "Congo DR", "Panama", "Curaçao", "Haiti", "Argentina", "Brazil", "Uruguay", "Colombia", "Ecuador", "Paraguay", "New Zealand", "England", "France", "Spain", "Germany", "Portugal", "Netherlands", "Belgium", "Croatia", "Switzerland", "Austria", "Norway", "Scotland", "Sweden", "Türkiye", "Bosnia and Herzegovina", "Czechia"]
   },
   "nfl_playoffs": {
     name: "NFL Playoffs 2026",
@@ -109,7 +114,7 @@ const EVENT_ROSTERS: Record<string, { name: string; category: string; teams: str
 };
 
 // Official events that don't require creation fee
-const OFFICIAL_EVENTS = ["nfl_super_bowl", "mlb_world_series", "t20_world_cup_2026", "the_voice_finale"];
+const OFFICIAL_EVENTS = ["nfl_super_bowl", "mlb_world_series", "t20_world_cup_2026", "the_voice_finale", "fifa_world_cup_2026"];
 
 // Fictional teams for instant raffles
 const FICTIONAL_TEAMS = [
@@ -233,10 +238,18 @@ Deno.serve(async (req) => {
       "t20_world_cup_2026": 2.50,
       "the_voice_finale": 5,
     };
-    
-    const finalEntryXec = isOfficialEvent && officialEntryCosts[event_id] 
-      ? Math.ceil(officialEntryCosts[event_id] / 0.00003)
-      : entryXec;
+
+    // Allow an explicit XEC entry cost (used by FIFA World Cup 2026 official raffle = 50,000 XEC fixed)
+    let finalEntryXec: number;
+    if (isOfficialEvent && typeof entry_cost_xec === "number" && entry_cost_xec > 0) {
+      finalEntryXec = Math.floor(entry_cost_xec);
+    } else if (isOfficialEvent && officialEntryCosts[event_id]) {
+      finalEntryXec = Math.ceil(officialEntryCosts[event_id] / 0.00003);
+    } else {
+      finalEntryXec = entryXec;
+    }
+
+    const teamsPerEntry = Math.max(1, Math.min(Number(body.teams_per_entry) || 1, 10));
 
     // Create raffle
     const { data: raffle, error: raffleError } = await supabase
@@ -249,6 +262,7 @@ Deno.serve(async (req) => {
         event_name: eventName,
         teams: teamsList,
         entry_cost: finalEntryXec,
+        teams_per_entry: teamsPerEntry,
         total_pot: 0,
         status: "open",
         starts_at: starts_at || null,

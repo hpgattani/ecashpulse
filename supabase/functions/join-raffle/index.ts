@@ -117,10 +117,10 @@ Deno.serve(async (req) => {
 
     const participantHash = await hashAddress(user.ecash_address);
 
-    // Check if user already has an entry
+    // Check if user already has an entry (a "ticket" = N team rows for this user)
     const userHasEntry = existingEntries?.some(e => e.participant_address_hash === participantHash);
     if (userHasEntry) {
-      return new Response(JSON.stringify({ error: "You already have a team in this raffle" }), {
+      return new Response(JSON.stringify({ error: "You already have a ticket in this raffle" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -137,23 +137,28 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Randomly assign a team
-    const shuffled = shuffleArray(availableTeams);
-    const assignedTeam = shuffled[0];
+    const teamsPerEntry = Math.max(1, Number((raffle as any).teams_per_entry) || 1);
+    const teamsToAssign = Math.min(teamsPerEntry, availableTeams.length);
 
-    // Create entry
-    const { data: entry, error: entryError } = await supabase
+    // Randomly assign N teams in a single ticket purchase
+    const shuffled = shuffleArray(availableTeams);
+    const assignedTeams = shuffled.slice(0, teamsToAssign);
+
+    // Create entry rows (one per assigned team, sharing the same tx_hash)
+    const sharedTxHash = tx_hash || `entry_${Date.now()}`;
+    const rows = assignedTeams.map((team) => ({
+      raffle_id,
+      user_id: user.id,
+      assigned_team: team,
+      amount_paid: raffle.entry_cost,
+      tx_hash: sharedTxHash,
+      participant_address_hash: participantHash,
+    }));
+
+    const { data: entries, error: entryError } = await supabase
       .from("raffle_entries")
-      .insert({
-        raffle_id,
-        user_id: user.id,
-        assigned_team: assignedTeam,
-        amount_paid: raffle.entry_cost,
-        tx_hash: tx_hash || `entry_${Date.now()}`,
-        participant_address_hash: participantHash,
-      })
-      .select()
-      .single();
+      .insert(rows)
+      .select();
 
     if (entryError) {
       console.error("Error creating entry:", entryError);
@@ -163,9 +168,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Update raffle total pot
+    // Update raffle total pot (one ticket = one entry_cost regardless of teams_per_entry)
     const newPot = raffle.total_pot + raffle.entry_cost;
-    const remainingSpots = availableTeams.length - 1;
+    const remainingSpots = availableTeams.length - teamsToAssign;
 
     // If all spots filled, mark raffle as full
     const newStatus = remainingSpots === 0 ? "full" : "open";
@@ -175,13 +180,15 @@ Deno.serve(async (req) => {
       .update({ total_pot: newPot, status: newStatus })
       .eq("id", raffle_id);
 
-    console.log(`User joined raffle ${raffle_id}, assigned team: ${assignedTeam}`);
+    console.log(`User joined raffle ${raffle_id}, assigned teams: ${assignedTeams.join(", ")}`);
 
-    return new Response(JSON.stringify({ 
-      success: true, 
-      entry,
-      assigned_team: assignedTeam,
-      remaining_spots: remainingSpots
+    return new Response(JSON.stringify({
+      success: true,
+      entry: entries?.[0],
+      entries,
+      assigned_team: assignedTeams[0],
+      assigned_teams: assignedTeams,
+      remaining_spots: remainingSpots,
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

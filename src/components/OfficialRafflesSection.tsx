@@ -18,61 +18,83 @@ const VOICE_COUNTRIES = {
   'the_voice_india': { flag: '🇮🇳', name: 'The Voice India' },
 };
 
+type OfficialEvent = {
+  id: string;
+  name: string;
+  category: string;
+  teams: string[];
+  description: string;
+  flag: string;
+  entryCostUsd?: number;
+  entryCostXec?: number;
+  teamsPerEntry?: number;
+};
+
 // Official events that don't require creation fee
-export const OFFICIAL_EVENTS = [
-  { 
-    id: 'nfl_super_bowl', 
-    name: 'NFL Super Bowl 2026', 
-    category: 'sports', 
+export const OFFICIAL_EVENTS: OfficialEvent[] = [
+  {
+    id: 'fifa_world_cup_2026',
+    name: 'FIFA World Cup 2026',
+    category: 'sports',
+    teams: ['United States', 'Canada', 'Mexico', 'Japan', 'South Korea', 'Iran', 'Saudi Arabia', 'Jordan', 'Uzbekistan', 'Iraq', 'Qatar', 'South Africa', 'Morocco', 'Egypt', 'Tunisia', 'Algeria', 'Ghana', 'Senegal', 'Ivory Coast', 'Cape Verde', 'Congo DR', 'Panama', 'Curaçao', 'Haiti', 'Argentina', 'Brazil', 'Uruguay', 'Colombia', 'Ecuador', 'Paraguay', 'New Zealand', 'England', 'France', 'Spain', 'Germany', 'Portugal', 'Netherlands', 'Belgium', 'Croatia', 'Switzerland', 'Austria', 'Norway', 'Scotland', 'Sweden', 'Türkiye', 'Bosnia and Herzegovina', 'Czechia'],
+    entryCostXec: 50000,
+    teamsPerEntry: 2,
+    description: 'Get a ticket — you receive 2 random teams. Win it all if either lifts the trophy!',
+    flag: '🏆',
+  },
+  {
+    id: 'nfl_super_bowl',
+    name: 'NFL Super Bowl 2026',
+    category: 'sports',
     teams: ['Kansas City Chiefs', 'San Francisco 49ers', 'Philadelphia Eagles', 'Buffalo Bills', 'Dallas Cowboys', 'Detroit Lions', 'Baltimore Ravens', 'Miami Dolphins', 'Cleveland Browns', 'Green Bay Packers', 'New York Jets', 'Los Angeles Rams', 'Cincinnati Bengals', 'Seattle Seahawks', 'Jacksonville Jaguars', 'Minnesota Vikings', 'Tampa Bay Buccaneers', 'Pittsburgh Steelers', 'Atlanta Falcons', 'Los Angeles Chargers', 'New Orleans Saints', 'Denver Broncos', 'Indianapolis Colts', 'Las Vegas Raiders', 'Tennessee Titans', 'Arizona Cardinals', 'Houston Texans', 'New York Giants', 'Washington Commanders', 'Carolina Panthers', 'Chicago Bears', 'New England Patriots'],
     entryCostUsd: 2,
     description: 'Pick a team to win Super Bowl 2026!',
-    flag: '🏈'
+    flag: '🏈',
   },
-  { 
-    id: 'mlb_world_series', 
-    name: 'MLB World Series 2026', 
-    category: 'sports', 
+  {
+    id: 'mlb_world_series',
+    name: 'MLB World Series 2026',
+    category: 'sports',
     teams: ['New York Yankees', 'Los Angeles Dodgers', 'Atlanta Braves', 'Houston Astros', 'Philadelphia Phillies', 'San Diego Padres', 'Seattle Mariners', 'Cleveland Guardians', 'Toronto Blue Jays', 'New York Mets', 'St. Louis Cardinals', 'Tampa Bay Rays', 'Baltimore Orioles', 'Minnesota Twins', 'Milwaukee Brewers', 'Arizona Diamondbacks', 'Chicago Cubs', 'Texas Rangers', 'Boston Red Sox', 'Detroit Tigers', 'Los Angeles Angels', 'San Francisco Giants', 'Chicago White Sox', 'Cincinnati Reds', 'Kansas City Royals', 'Colorado Rockies', 'Pittsburgh Pirates', 'Miami Marlins', 'Washington Nationals', 'Oakland Athletics'],
     entryCostUsd: 2,
     description: 'Pick a team to win World Series 2026!',
-    flag: '⚾'
+    flag: '⚾',
   },
-  { 
-    id: 't20_world_cup_2026', 
-    name: 'T20 World Cup 2026', 
-    category: 'sports', 
+  {
+    id: 't20_world_cup_2026',
+    name: 'T20 World Cup 2026',
+    category: 'sports',
     teams: ['India', 'Australia', 'England', 'Pakistan', 'South Africa', 'New Zealand', 'West Indies', 'Sri Lanka', 'Afghanistan', 'Ireland', 'Netherlands', 'Zimbabwe', 'Scotland', 'Nepal', 'USA', 'Canada', 'UAE', 'Oman', 'Namibia', 'Italy'],
     entryCostUsd: 2.50,
     description: 'Pick a team to win T20 World Cup 2026!',
-    flag: '🏏'
+    flag: '🏏',
   },
-  { 
-    id: 'the_voice_us', 
-    name: 'The Voice USA', 
-    category: 'entertainment', 
+  {
+    id: 'the_voice_us',
+    name: 'The Voice USA',
+    category: 'entertainment',
     teams: ['Contestant 1', 'Contestant 2', 'Contestant 3', 'Contestant 4', 'Contestant 5', 'Contestant 6', 'Contestant 7', 'Contestant 8', 'Contestant 9', 'Contestant 10'],
     entryCostUsd: 5,
     description: 'Pick who wins The Voice USA!',
-    flag: '🇺🇸'
+    flag: '🇺🇸',
   },
-  { 
-    id: 'the_voice_uk', 
-    name: 'The Voice UK', 
-    category: 'entertainment', 
+  {
+    id: 'the_voice_uk',
+    name: 'The Voice UK',
+    category: 'entertainment',
     teams: ['Contestant 1', 'Contestant 2', 'Contestant 3', 'Contestant 4', 'Contestant 5', 'Contestant 6', 'Contestant 7', 'Contestant 8', 'Contestant 9', 'Contestant 10'],
     entryCostUsd: 5,
     description: 'Pick who wins The Voice UK!',
-    flag: '🇬🇧'
+    flag: '🇬🇧',
   },
-  { 
-    id: 'the_voice_australia', 
-    name: 'The Voice Australia', 
-    category: 'entertainment', 
+  {
+    id: 'the_voice_australia',
+    name: 'The Voice Australia',
+    category: 'entertainment',
     teams: ['Contestant 1', 'Contestant 2', 'Contestant 3', 'Contestant 4', 'Contestant 5', 'Contestant 6', 'Contestant 7', 'Contestant 8', 'Contestant 9', 'Contestant 10'],
     entryCostUsd: 5,
     description: 'Pick who wins The Voice Australia!',
-    flag: '🇦🇺'
+    flag: '🇦🇺',
   },
 ];
 
@@ -169,7 +191,14 @@ export function OfficialRafflesSection({ xecPrice, onRaffleCreated }: OfficialRa
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
         {OFFICIAL_EVENTS.map((event) => {
           const { hasRaffle, raffle } = getEventStatus(event.id);
-          const entryCostXec = Math.ceil(event.entryCostUsd / xecPrice);
+          const entryCostXec = event.entryCostXec
+            ? event.entryCostXec
+            : event.entryCostUsd
+              ? Math.ceil(event.entryCostUsd / xecPrice)
+              : 0;
+          const entryCostUsdDisplay = event.entryCostUsd
+            ? event.entryCostUsd.toFixed(2)
+            : (entryCostXec * xecPrice).toFixed(2);
           
           return (
             <div 
@@ -187,15 +216,23 @@ export function OfficialRafflesSection({ xecPrice, onRaffleCreated }: OfficialRa
               {/* Event Info */}
               <div className="pt-2">
                 <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-lg">{event.flag}</span>
                     <Badge variant="outline" className="text-xs">{event.teams.length} teams</Badge>
+                    {event.teamsPerEntry && event.teamsPerEntry > 1 && (
+                      <Badge variant="outline" className="text-xs border-emerald-500/40 text-emerald-400">
+                        {event.teamsPerEntry} per ticket
+                      </Badge>
+                    )}
                   </div>
                   <button
                     onClick={async (e) => {
                       e.stopPropagation();
                       const shareUrl = `${window.location.origin}/raffle?official=${event.id}`;
-                      const shareText = `🎟️ ${event.name} - Pick your team & win the pot! Entry: $${event.entryCostUsd}`;
+                      const costLabel = event.entryCostXec
+                        ? `${event.entryCostXec.toLocaleString()} XEC`
+                        : `$${event.entryCostUsd}`;
+                      const shareText = `🎟️ ${event.name} - Pick your team & win the pot! Entry: ${costLabel}`;
                       try {
                         if (navigator.share) {
                           await navigator.share({ title: event.name, text: shareText, url: shareUrl });
@@ -225,7 +262,7 @@ export function OfficialRafflesSection({ xecPrice, onRaffleCreated }: OfficialRa
                 <div className="font-mono font-semibold text-foreground">
                   {entryCostXec.toLocaleString()} XEC
                 </div>
-                <div className="text-xs text-muted-foreground">~${event.entryCostUsd}</div>
+                <div className="text-xs text-muted-foreground">~${entryCostUsdDisplay}</div>
               </div>
 
               {/* Status & Action */}
