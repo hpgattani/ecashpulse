@@ -815,6 +815,7 @@ export type Database = {
           starts_at: string | null
           status: string
           teams: Json
+          teams_per_entry: number
           title: string
           total_pot: number
           winner_entry_id: string | null
@@ -836,6 +837,7 @@ export type Database = {
           starts_at?: string | null
           status?: string
           teams?: Json
+          teams_per_entry?: number
           title: string
           total_pot?: number
           winner_entry_id?: string | null
@@ -857,6 +859,7 @@ export type Database = {
           starts_at?: string | null
           status?: string
           teams?: Json
+          teams_per_entry?: number
           title?: string
           total_pot?: number
           winner_entry_id?: string | null
