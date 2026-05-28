@@ -182,16 +182,12 @@ Deno.serve(async (req) => {
 
     console.log(`User joined raffle ${raffle_id}, assigned teams: ${assignedTeams.join(", ")}`);
 
-    // Reveal teams only once the raffle is fully sold out.
-    const isFull = remainingSpots === 0;
-
     return new Response(JSON.stringify({
       success: true,
       entry: entries?.[0],
-      entries: isFull ? entries : entries?.map((e: any) => ({ ...e, assigned_team: null })),
-      assigned_team: isFull ? assignedTeams[0] : null,
-      assigned_teams: isFull ? assignedTeams : [],
-      pending_reveal: !isFull,
+      entries,
+      assigned_team: assignedTeams[0],
+      assigned_teams: assignedTeams,
       remaining_spots: remainingSpots,
     }), {
       status: 200,

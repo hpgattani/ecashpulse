@@ -36,7 +36,7 @@ export const OFFICIAL_EVENTS: OfficialEvent[] = [
     id: 'fifa_world_cup_2026',
     name: 'FIFA World Cup 2026',
     category: 'sports',
-    teams: ['United States', 'Canada', 'Mexico', 'Japan', 'South Korea', 'Iran', 'Saudi Arabia', 'Jordan', 'Uzbekistan', 'Iraq', 'Qatar', 'South Africa', 'Morocco', 'Egypt', 'Tunisia', 'Algeria', 'Ghana', 'Senegal', 'Ivory Coast', 'Cape Verde', 'Congo DR', 'Panama', 'Curaçao', 'Haiti', 'Argentina', 'Brazil', 'Uruguay', 'Colombia', 'Ecuador', 'Paraguay', 'New Zealand', 'England', 'France', 'Spain', 'Germany', 'Portugal', 'Netherlands', 'Belgium', 'Croatia', 'Switzerland', 'Austria', 'Norway', 'Scotland', 'Sweden', 'Türkiye', 'Bosnia and Herzegovina', 'Czechia'],
+    teams: ['United States', 'Canada', 'Mexico', 'Japan', 'South Korea', 'Iran', 'Saudi Arabia', 'Jordan', 'Uzbekistan', 'Iraq', 'Qatar', 'South Africa', 'Morocco', 'Egypt', 'Tunisia', 'Algeria', 'Ghana', 'Senegal', 'Ivory Coast', 'Cape Verde', 'Congo DR', 'Panama', 'Curaçao', 'Haiti', 'Argentina', 'Brazil', 'Uruguay', 'Colombia', 'Ecuador', 'Paraguay', 'New Zealand', 'England', 'France', 'Spain', 'Germany', 'Portugal', 'Netherlands', 'Belgium', 'Croatia', 'Switzerland', 'Austria', 'Norway', 'Scotland', 'Sweden', 'Türkiye', 'Bosnia and Herzegovina', 'Czechia', 'Bolivia'],
     entryCostXec: 50000,
     teamsPerEntry: 2,
     description: 'Get a ticket — you receive 2 random teams. Win it all if either lifts the trophy!',

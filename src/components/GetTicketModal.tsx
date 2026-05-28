@@ -43,7 +43,7 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
   const { user, sessionToken } = useAuth();
   const payButtonRef = useRef<HTMLDivElement>(null);
 
-  const [step, setStep] = useState<'info' | 'confirming' | 'reveal' | 'pending'>('info');
+  const [step, setStep] = useState<'info' | 'confirming' | 'reveal'>('info');
   const [assignedTeams, setAssignedTeams] = useState<string[]>([]);
   const [shuffling, setShuffling] = useState(false);
   const [displayTeam, setDisplayTeam] = useState('');
@@ -85,14 +85,14 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
 
   const handleClose = useCallback(() => {
     closePayButtonModal();
-    const hadTicket = assignedTeams.length > 0 || step === 'pending';
+    const hadTicket = assignedTeams.length > 0;
     setStep('info');
     setAssignedTeams([]);
     setDisplayTeam('');
     setCreatedRaffleId(null);
     onOpenChange(false);
     if (hadTicket) onSuccess();
-  }, [assignedTeams, step, closePayButtonModal, onOpenChange, onSuccess]);
+  }, [assignedTeams, closePayButtonModal, onOpenChange, onSuccess]);
 
   const handlePaymentSuccess = useCallback(async (txHash?: string) => {
     if (!user || !sessionToken) return;
@@ -130,11 +130,8 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
       if (data.success) {
         toast.success('Ticket Purchased!', { description: `Entry fee: ${entryCost.toLocaleString()} XEC` });
 
-        // If raffle isn't sold out yet, hold the reveal until all tickets are sold.
-        if (data.pending_reveal) {
-          setStep('pending');
-          return;
-        }
+
+
 
         setShuffling(true);
         setStep('reveal');
@@ -304,8 +301,8 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
                 <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 flex items-start gap-3">
                   <Shuffle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-sm font-medium text-foreground">Sealed Random Assignment</p>
-                    <p className="text-xs text-muted-foreground mt-1">Your {teamsPerEntry > 1 ? `${teamsPerEntry} teams are` : 'team is'} assigned at payment, but stays sealed. Teams are revealed to everyone only once all tickets are sold.</p>
+                    <p className="text-sm font-medium text-foreground">Random Team Assignment</p>
+                    <p className="text-xs text-muted-foreground mt-1">You'll see your {teamsPerEntry > 1 ? `${teamsPerEntry} teams` : 'team'} right after payment. Please keep it secret until all tickets are sold!</p>
                   </div>
                 </div>
 
@@ -334,20 +331,8 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
 
 
 
-            {step === 'pending' && (
-              <div className="py-8 text-center space-y-4">
-                <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-amber-500/20 to-yellow-500/20 flex items-center justify-center">
-                  <Eye className="w-10 h-10 text-amber-400" />
-                </div>
-                <h3 className="font-display text-xl font-bold text-foreground">Ticket Sealed!</h3>
-                <p className="text-sm text-muted-foreground px-2">
-                  Your {teamsPerEntry > 1 ? `${teamsPerEntry} teams have` : 'team has'} been randomly assigned and locked in.
-                  Everyone's teams will be revealed once <span className="text-amber-400 font-semibold">all tickets are sold</span>.
-                </p>
-                <p className="text-xs text-muted-foreground">Come back when the raffle is full to see your matchup.</p>
-                <Button className="w-full mt-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-black font-bold" onClick={handleClose}>Done</Button>
-              </div>
-            )}
+
+
 
 
             {step === 'reveal' && (
@@ -374,9 +359,11 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
                           ))}
                         </div>
                       </div>
-                      <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                        <Eye className="w-3.5 h-3.5" />
-                        Only you can see this
+                      <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 flex items-start gap-2 text-left">
+                        <Eye className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                        <p className="text-xs text-muted-foreground">
+                          Only you can see this. <span className="text-amber-400 font-semibold">Please keep your {assignedTeams.length > 1 ? 'teams' : 'team'} secret</span> until all tickets are sold — it keeps the raffle fair and fun for everyone.
+                        </p>
                       </div>
                       <Button className="w-full mt-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-black font-bold" onClick={handleClose}>Done</Button>
                     </motion.div>
