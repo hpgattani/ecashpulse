@@ -330,6 +330,9 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
                 <Loader2 className="w-12 h-12 text-amber-400 animate-spin mx-auto mb-4" />
                 <p className="text-foreground font-medium">Getting your ticket...</p>
               </div>
+            )}
+
+
 
             {step === 'pending' && (
               <div className="py-8 text-center space-y-4">
