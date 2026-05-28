@@ -114,7 +114,7 @@ const EVENT_ROSTERS: Record<string, { name: string; category: string; teams: str
 };
 
 // Official events that don't require creation fee
-const OFFICIAL_EVENTS = ["nfl_super_bowl", "mlb_world_series", "t20_world_cup_2026", "the_voice_finale"];
+const OFFICIAL_EVENTS = ["nfl_super_bowl", "mlb_world_series", "t20_world_cup_2026", "the_voice_finale", "fifa_world_cup_2026"];
 
 // Fictional teams for instant raffles
 const FICTIONAL_TEAMS = [
