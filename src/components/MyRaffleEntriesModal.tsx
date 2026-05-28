@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Ticket, Loader2, Trophy, Clock, Eye } from 'lucide-react';
+import { Ticket, Loader2, Trophy, Clock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useCryptoPrices } from '@/hooks/useCryptoPrices';
 import { formatDistanceToNow } from 'date-fns';
+import { getTeamFlag } from '@/lib/teamFlags';
 
 interface RaffleEntry {
   id: string;
@@ -116,16 +117,19 @@ export function MyRaffleEntriesModal({ open, onOpenChange }: MyRaffleEntriesModa
                   </div>
 
                   <div className="bg-primary/10 rounded-lg p-3 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-2xl leading-none">
                       {isWinner ? (
                         <Trophy className="w-5 h-5 text-amber-400" />
                       ) : (
-                        <Eye className="w-5 h-5 text-primary" />
+                        <span aria-hidden>{getTeamFlag(entry.assigned_team)}</span>
                       )}
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Your Team</p>
-                      <p className="font-display font-bold text-foreground">{entry.assigned_team}</p>
+                      <p className="font-display font-bold text-foreground">
+                        <span className="mr-1">{getTeamFlag(entry.assigned_team)}</span>
+                        {entry.assigned_team}
+                      </p>
                     </div>
                   </div>
 
