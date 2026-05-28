@@ -43,7 +43,7 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
   const { user, sessionToken } = useAuth();
   const payButtonRef = useRef<HTMLDivElement>(null);
 
-  const [step, setStep] = useState<'info' | 'confirming' | 'reveal'>('info');
+  const [step, setStep] = useState<'info' | 'confirming' | 'reveal' | 'pending'>('info');
   const [assignedTeams, setAssignedTeams] = useState<string[]>([]);
   const [shuffling, setShuffling] = useState(false);
   const [displayTeam, setDisplayTeam] = useState('');
