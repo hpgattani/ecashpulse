@@ -304,8 +304,8 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
                 <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 flex items-start gap-3">
                   <Shuffle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-sm font-medium text-foreground">Random Team Assignment</p>
-                    <p className="text-xs text-muted-foreground mt-1">After payment, you'll be randomly assigned a team. Only you can see your team!</p>
+                    <p className="text-sm font-medium text-foreground">Sealed Random Assignment</p>
+                    <p className="text-xs text-muted-foreground mt-1">Your {teamsPerEntry > 1 ? `${teamsPerEntry} teams are` : 'team is'} assigned at payment, but stays sealed. Teams are revealed to everyone only once all tickets are sold.</p>
                   </div>
                 </div>
 
