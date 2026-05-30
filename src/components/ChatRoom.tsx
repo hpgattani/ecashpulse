@@ -140,11 +140,14 @@ const TipPayButton = ({
           to,
           amount,
           currency: 'XEC',
+          usdPrice: 0.00000771,
           text: `Send ${amount.toLocaleString()} XEC`,
           hoverText: 'Send Tip',
           successText: 'Tip Sent! 💸',
           animation: 'slide',
           hideToasts: true,
+          disablePaymentId: true,
+          disableAltpayment: true,
           onSuccess: (tx) => {
             const extractTxHash = (value: unknown): string => {
               if (!value) return '';
