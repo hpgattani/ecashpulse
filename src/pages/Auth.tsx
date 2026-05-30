@@ -322,10 +322,48 @@ const Auth = () => {
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm mb-4"
+                className="space-y-3 p-3 rounded-lg bg-destructive/10 text-destructive text-sm mb-4"
               >
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                {error}
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{error}</span>
+                </div>
+                {pendingTxHash && pendingSenderAddress && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => verifyAndLogin(pendingTxHash, pendingSenderAddress)}
+                  >
+                    Retry login without paying again
+                  </Button>
+                )}
+              </motion.div>
+            )}
+
+            {paymentWidgetError && !scriptLoaded && !isLoading && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-3 p-3 rounded-lg bg-destructive/10 text-destructive text-sm mb-4"
+              >
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{paymentWidgetError}</span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    setPaymentWidgetError(null);
+                    ensurePayButtonLoaded()
+                      .then(() => setScriptLoaded(true))
+                      .catch((err) => setPaymentWidgetError(err instanceof Error ? err.message : 'Payment widget could not load.'));
+                  }}
+                >
+                  Reload payment button
+                </Button>
               </motion.div>
             )}
 
@@ -342,7 +380,7 @@ const Auth = () => {
                 )}
                 {retryCount > 2 && (
                   <p className="text-xs text-muted-foreground/40 mt-1">
-                     Waiting for secure verification... (step {retryCount + 1}/7)
+                     Waiting for secure verification... (step {Math.min(retryCount + 1, LOGIN_SESSION_POLL_ATTEMPTS + 1)}/{LOGIN_SESSION_POLL_ATTEMPTS + 1})
                   </p>
                 )}
               </div>
