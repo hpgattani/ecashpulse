@@ -23,14 +23,26 @@ const MarketsSection = ({ activeCategory, searchQuery, predictions, loading, err
     return null;
   };
 
+  // Pinned predictions always appear first (highest editorial priority)
+  const PINNED_IDS = ['effb9e52-1230-4f2f-9109-1c53083a9f7b']; // PSG vs Arsenal UCL
+
   const filteredPredictions = useMemo(() => {
-    return predictions.filter((p) => {
+    const filtered = predictions.filter((p) => {
       const matchesCategory = activeCategory === 'all' ? true : p.category === activeCategory;
       const matchesSearch = searchQuery.trim() === ''
         ? true
         : p.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
           p.category.toLowerCase().includes(searchQuery.toLowerCase());
       return matchesCategory && matchesSearch;
+    });
+
+    // Sort: pinned first, then highest volume, then soonest end date as tiebreaker
+    return [...filtered].sort((a, b) => {
+      const aPinned = PINNED_IDS.includes(a.id) ? 1 : 0;
+      const bPinned = PINNED_IDS.includes(b.id) ? 1 : 0;
+      if (aPinned !== bPinned) return bPinned - aPinned;
+      if (b.volume !== a.volume) return b.volume - a.volume;
+      return new Date(a.endDate).getTime() - new Date(b.endDate).getTime();
     });
   }, [predictions, activeCategory, searchQuery]);
 
