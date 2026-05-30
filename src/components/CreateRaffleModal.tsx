@@ -158,11 +158,14 @@ export function CreateRaffleModal({ open, onOpenChange, onSuccess }: CreateRaffl
           to: ESCROW_ADDRESS,
           amount: creationFeeXec,
           currency: 'XEC',
+          usdPrice: 0.00000771,
           text: `Pay ${creationFeeXec.toLocaleString()} XEC (~$1)`,
           hoverText: 'Confirm',
           successText: 'Payment Sent!',
           autoClose: true,
           hideToasts: true,
+          disablePaymentId: true,
+          disableAltpayment: true,
           theme: {
             palette: {
               primary: '#10b981',
