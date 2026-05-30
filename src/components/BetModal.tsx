@@ -343,11 +343,14 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
           to: paymentAddress,
           amount: amount,
           currency: "XEC",
+          usdPrice: xecUsd || 0.00000771,
           text: "Place Bet",
           hoverText: "Confirm",
           successText: "Payment Sent!",
           autoClose: true,
           hideToasts: true,
+          disablePaymentId: true,
+          disableAltpayment: true,
           theme: {
             palette: {
               primary: "#10b981",
