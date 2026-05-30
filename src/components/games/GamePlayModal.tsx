@@ -229,11 +229,14 @@ const GamePlayModal = ({ game, mode, isOpen, onClose }: GamePlayModalProps) => {
         to: ESCROW_ADDRESS,
         amount: lockedEntryFee,
         currency: "XEC",
+        usdPrice: 0.00000771,
         text: `Pay ${lockedEntryFee.toLocaleString()} XEC`,
         hoverText: "Confirm",
         successText: "Payment Sent!",
         autoClose: true,
         hideToasts: true,
+        disablePaymentId: true,
+        disableAltpayment: true,
         theme: {
           palette: {
             primary: mode === "competitive" ? "#f59e0b" : "#3b82f6",

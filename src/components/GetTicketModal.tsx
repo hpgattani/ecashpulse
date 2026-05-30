@@ -192,11 +192,14 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
         to: ESCROW_ADDRESS,
         amount: entryCost,
         currency: 'XEC',
+        usdPrice: 0.00000771,
         text: `Pay ${entryCost.toLocaleString()} XEC`,
         hoverText: 'Confirm',
         successText: 'Payment Sent!',
         autoClose: true,
         hideToasts: true,
+        disablePaymentId: true,
+        disableAltpayment: true,
         theme: {
           palette: {
             primary: '#f59e0b',
