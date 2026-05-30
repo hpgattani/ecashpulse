@@ -20,11 +20,17 @@ const TrendingSection = ({ predictions, loading }: TrendingSectionProps) => {
   const { prices: cryptoPrices } = useCryptoPrices();
   const xecUsd = cryptoPrices.ecash;
   
-  // Show top 5 predictions sorted by highest volume (most bets), only active ones
-  const trendingPredictions = [...predictions]
-    .filter(p => new Date(p.endDate) > new Date()) // Only active predictions
-    .sort((a, b) => b.volume - a.volume) // Highest volume first
-    .slice(0, 5);
+  // Pinned predictions always appear first in Trending (highest editorial priority).
+  const PINNED_IDS = ['effb9e52-1230-4f2f-9109-1c53083a9f7b']; // PSG vs Arsenal UCL — May 30
+
+  const activePredictions = predictions.filter(p => new Date(p.endDate) > new Date());
+  const pinned = PINNED_IDS
+    .map(id => activePredictions.find(p => p.id === id))
+    .filter((p): p is NonNullable<typeof p> => Boolean(p));
+  const rest = activePredictions
+    .filter(p => !PINNED_IDS.includes(p.id))
+    .sort((a, b) => b.volume - a.volume);
+  const trendingPredictions = [...pinned, ...rest].slice(0, 5);
 
   const scrollToIndex = useCallback((index: number) => {
     const container = scrollRef.current;
