@@ -593,14 +593,23 @@ async function syncPredictions(supabase: any): Promise<{ created: number; resolv
     const titleKey = titleLower.slice(0, 50);
     if (existingTitles.has(titleKey)) continue;
 
-    const category: Category = CATEGORIES.includes(market.category as any)
-      ? (market.category as Category)
-      : 'politics';
+    // Only ingest curated categories — skip anything that falls outside crypto/politics/sports.
+    if (!CATEGORIES.includes(market.category as any)) {
+      console.log(`Skipping off-category topic (${market.category}): ${market.title.slice(0, 50)}`);
+      continue;
+    }
+    const category = market.category as Category;
 
     if (shouldBlockAutoMarket(market.title, category)) {
       console.log(`Skipping blocked/miscategorized topic: ${market.title.slice(0, 50)}`);
       continue;
     }
+
+    if (!passesEngagementFilter(market.title, category)) {
+      console.log(`Skipping low-engagement topic: ${market.title.slice(0, 50)}`);
+      continue;
+    }
+
 
     const normalizedEndDate = normalizeAutoEndDate(
       market.endDate || calculateEndDate(category),
