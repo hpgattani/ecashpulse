@@ -63,6 +63,7 @@ const Index = () => {
         <XpulseBanner />
           <main className="pt-8">
             <Hero />
+            <XpulsePromoSection />
             <FeaturedTruthcoinSection />
             <MarketNav 
               activeCategory={activeCategory}
