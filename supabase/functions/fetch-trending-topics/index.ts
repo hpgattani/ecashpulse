@@ -6,9 +6,41 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const CATEGORIES = ['crypto', 'politics', 'sports', 'tech', 'entertainment', 'economics'] as const;
+// Curation: only ingest topics from categories with proven user engagement.
+// Crypto prices, politics/world events, and major sports drive volume; everything else
+// historically created clutter without bettor interest.
+const CATEGORIES = ['crypto', 'politics', 'sports'] as const;
 
 type Category = typeof CATEGORIES[number];
+
+// Major sports leagues/events users actually bet on. Generic "tennis match" or
+// obscure regional leagues are skipped — only the marquee events make it in.
+const HIGH_ENGAGEMENT_SPORTS_KEYWORDS = [
+  'nfl', 'super bowl', 'playoff',
+  'epl', 'premier league', 'champions league', 'la liga', 'serie a', 'bundesliga',
+  'world cup', 'fifa', 'copa america', 'euro',
+  'ufc', 'boxing', 'mma',
+  'nba', 'nba finals',
+  'f1', 'formula 1', 'grand prix',
+  'ipl', 'cricket world cup', 't20 world cup',
+];
+
+// Political/world-event topics worth surfacing. Filters out fringe procedural questions.
+const HIGH_ENGAGEMENT_POLITICS_KEYWORDS = [
+  'election', 'president', 'prime minister', 'putin', 'trump', 'xi jinping',
+  'war', 'ceasefire', 'peace deal', 'sanctions', 'nato',
+  'supreme court', 'congress', 'senate', 'parliament',
+  'nobel', 'g20', 'g7', 'un security',
+];
+
+function passesEngagementFilter(title: string, category: Category): boolean {
+  const t = title.toLowerCase();
+  if (category === 'crypto') return true; // all crypto price markets are kept
+  if (category === 'sports') return HIGH_ENGAGEMENT_SPORTS_KEYWORDS.some((k) => t.includes(k));
+  if (category === 'politics') return HIGH_ENGAGEMENT_POLITICS_KEYWORDS.some((k) => t.includes(k));
+  return false;
+}
+
 
 // Guardrails to prevent low-quality / stale auto-generated markets.
 // - Maximum horizon avoids far-future hype markets
@@ -18,10 +50,8 @@ const AUTO_MAX_END_DAYS_BY_CATEGORY: Record<Category, number> = {
   crypto: 120,
   politics: 365,
   sports: 90,
-  tech: 90,
-  entertainment: 120,
-  economics: 180,
 };
+
 
 const AUTO_BLOCKED_TITLE_KEYWORDS = [
   'openai',
@@ -563,14 +593,23 @@ async function syncPredictions(supabase: any): Promise<{ created: number; resolv
     const titleKey = titleLower.slice(0, 50);
     if (existingTitles.has(titleKey)) continue;
 
-    const category: Category = CATEGORIES.includes(market.category as any)
-      ? (market.category as Category)
-      : 'politics';
+    // Only ingest curated categories — skip anything that falls outside crypto/politics/sports.
+    if (!CATEGORIES.includes(market.category as any)) {
+      console.log(`Skipping off-category topic (${market.category}): ${market.title.slice(0, 50)}`);
+      continue;
+    }
+    const category = market.category as Category;
 
     if (shouldBlockAutoMarket(market.title, category)) {
       console.log(`Skipping blocked/miscategorized topic: ${market.title.slice(0, 50)}`);
       continue;
     }
+
+    if (!passesEngagementFilter(market.title, category)) {
+      console.log(`Skipping low-engagement topic: ${market.title.slice(0, 50)}`);
+      continue;
+    }
+
 
     const normalizedEndDate = normalizeAutoEndDate(
       market.endDate || calculateEndDate(category),

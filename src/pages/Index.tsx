@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 import Header from '@/components/Header';
 import XpulseBanner from '@/components/XpulseBanner';
 import Hero from '@/components/Hero';
+import XpulsePromoSection from '@/components/XpulsePromoSection';
 import FeaturedTruthcoinSection from '@/components/FeaturedTruthcoinSection';
 import MarketNav from '@/components/MarketNav';
 import PendingBetsSection from '@/components/PendingBetsSection';
@@ -62,6 +63,7 @@ const Index = () => {
         <XpulseBanner />
           <main className="pt-8">
             <Hero />
+            <XpulsePromoSection />
             <FeaturedTruthcoinSection />
             <MarketNav 
               activeCategory={activeCategory}
