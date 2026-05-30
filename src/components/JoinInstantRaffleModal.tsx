@@ -134,11 +134,14 @@ export function JoinInstantRaffleModal({ open, onOpenChange, raffle, xecPrice, o
         to: ESCROW_ADDRESS,
         amount: entryCost,
         currency: 'XEC',
+        usdPrice: 0.00000771,
         text: `Pay ${entryCost.toLocaleString()} XEC`,
         hoverText: 'Confirm',
         successText: 'Payment Sent!',
         autoClose: true,
         hideToasts: true,
+        disablePaymentId: true,
+        disableAltpayment: true,
         theme: { palette: { primary: '#a855f7', secondary: '#1e293b', tertiary: '#000000' } },
         onSuccess: (txResult: any) => {
           let txHash: string | undefined;

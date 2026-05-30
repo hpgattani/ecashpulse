@@ -108,11 +108,14 @@ export function SentimentVoteModal({ open, onOpenChange, topic, position, onSucc
         to: ESCROW_ADDRESS,
         amount: voteCost,
         currency: 'XEC',
+        usdPrice: 0.00000771,
         text: `Vote ${isAgree ? 'Agree' : 'Disagree'} – ${voteCost.toLocaleString()} XEC`,
         hoverText: 'Confirm',
         successText: 'Vote Sent!',
         autoClose: true,
         hideToasts: true,
+        disablePaymentId: true,
+        disableAltpayment: true,
         theme: {
           palette: {
             primary: isAgree ? '#22c55e' : '#ef4444',

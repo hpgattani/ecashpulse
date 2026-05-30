@@ -149,11 +149,14 @@ export const CreatePredictionModal = ({ open, onOpenChange }: CreatePredictionMo
         to: ESCROW_ADDRESS,
         amount: feeInXEC,
         currency: "XEC",
+        usdPrice: 0.00000771,
         text: `Pay $${CREATION_FEE_USD} (${feeInXEC.toLocaleString()} XEC)`,
         hoverText: "Confirm",
         successText: "Paid!",
         autoClose: true,
         hideToasts: true,
+        disablePaymentId: true,
+        disableAltpayment: true,
         theme: {
           palette: {
             primary: "#10b981",

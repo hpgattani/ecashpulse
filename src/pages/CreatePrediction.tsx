@@ -145,10 +145,13 @@ const CreatePrediction = () => {
       to: ESCROW_ADDRESS,
       amount: feeInXEC,
       currency: "XEC",
+      usdPrice: prices.ecash || 0.00000771,
       text: `Pay $${CREATION_FEE_USD} (${feeInXEC.toLocaleString()} XEC)`,
       hoverText: "Confirm",
       successText: "Paid!",
       autoClose: true,
+      disablePaymentId: true,
+      disableAltpayment: true,
       theme: {
         palette: {
           primary: "#10b981",
