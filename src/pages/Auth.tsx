@@ -8,10 +8,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { normalizeEcashAddress, coerceAddressString } from '@/lib/ecashAddress';
+import { ensurePayButtonLoaded } from '@/lib/paybuttonLoader';
 
 // Platform auth wallet - receives verification payments
 const AUTH_WALLET = 'ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp';
 const AUTH_AMOUNT = 5.46; // XEC amount for verification
+const LOGIN_SESSION_POLL_ATTEMPTS = 10;
 
 import type { PayButtonTransaction } from '@/types/paybutton.d.ts';
 
@@ -20,25 +22,34 @@ const Auth = () => {
   const [error, setError] = useState<string | null>(null);
   const [authSuccess, setAuthSuccess] = useState(false);
   const [scriptLoaded, setScriptLoaded] = useState(false);
+  const [paymentWidgetError, setPaymentWidgetError] = useState<string | null>(null);
   const [pendingTxHash, setPendingTxHash] = useState<string | null>(null);
+  const [pendingSenderAddress, setPendingSenderAddress] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const payButtonRef = useRef<HTMLDivElement>(null);
+  const handledTxRef = useRef<string | null>(null);
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  // Load PayButton script
+  // Load PayButton script with CDN fallback and timeout handling
   useEffect(() => {
-    const existingScript = document.querySelector('script[src*="paybutton"]');
-    if (existingScript) {
-      setScriptLoaded(true);
-      return;
-    }
+    let cancelled = false;
+    setPaymentWidgetError(null);
 
-    const script = document.createElement('script');
-    script.src = 'https://unpkg.com/@paybutton/paybutton/dist/paybutton.js';
-    script.async = true;
-    script.onload = () => setScriptLoaded(true);
-    document.body.appendChild(script);
+    ensurePayButtonLoaded()
+      .then(() => {
+        if (!cancelled) setScriptLoaded(true);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setScriptLoaded(false);
+          setPaymentWidgetError(err instanceof Error ? err.message : 'Payment widget could not load.');
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Close any PayButton QR/modal overlays for faster UX
@@ -68,6 +79,7 @@ const Auth = () => {
   const verifyAndLogin = useCallback(async (txHash: string, senderAddress: string) => {
     setIsLoading(true);
     setPendingTxHash(txHash);
+    setPendingSenderAddress(senderAddress);
     setError(null);
     setRetryCount(0);
 
@@ -107,9 +119,7 @@ const Auth = () => {
         }
       };
 
-      const sessionPollAttempts = 6;
-
-      for (let attempt = 0; attempt < sessionPollAttempts; attempt++) {
+      for (let attempt = 0; attempt < LOGIN_SESSION_POLL_ATTEMPTS; attempt++) {
         setRetryCount(attempt);
 
         const { data, error: validateError } = await supabase.functions.invoke('validate-session', {
@@ -124,12 +134,12 @@ const Auth = () => {
           return;
         }
 
-        if (attempt < sessionPollAttempts - 1) {
+        if (attempt < LOGIN_SESSION_POLL_ATTEMPTS - 1) {
           await new Promise((r) => setTimeout(r, 1500));
         }
       }
 
-      setRetryCount(sessionPollAttempts);
+      setRetryCount(LOGIN_SESSION_POLL_ATTEMPTS);
 
       const { data, error: sessionError } = await supabase.functions.invoke('create-session', {
         body: {
@@ -164,6 +174,7 @@ const Auth = () => {
       console.error('Verification error:', err);
       setError(err instanceof Error ? err.message : 'Verification failed');
       setIsLoading(false);
+      handledTxRef.current = null;
     }
   }, []);
 
@@ -182,9 +193,6 @@ const Auth = () => {
     payButtonRef.current.innerHTML = '';
 
     const handleSuccess = async (transaction: PayButtonTransaction) => {
-      // Immediately close the PayButton QR/modal for snappy UX
-      closePayButtonModal();
-
       console.log('Auth payment detected:', transaction);
       
       // PayButton sometimes returns sender as { address, amount } instead of a string.
@@ -200,6 +208,12 @@ const Auth = () => {
         setError('No transaction hash received. Please try again.');
         return;
       }
+
+      if (handledTxRef.current === txHash) return;
+      handledTxRef.current = txHash;
+
+      // Immediately close the PayButton QR/modal for snappy UX
+      closePayButtonModal();
 
       // If PayButton didn't provide a usable address, signal the server to extract it from the tx via Chronik.
       if (!senderAddress) {
