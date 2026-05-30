@@ -12,6 +12,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { triggerHaptic } from "@/hooks/useHaptic";
 import { useCryptoPrices } from "@/hooks/useCryptoPrices";
 import { usdNearXec } from "@/lib/xecFormat";
+import { ensurePayButtonLoaded } from "@/lib/paybuttonLoader";
 
 
 const FALLBACK_ESCROW_ADDRESS = "ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp";
@@ -296,60 +297,6 @@ const BetModal = ({ isOpen, onClose, prediction, position, selectedOutcome }: Be
     },
     [user, sessionToken, betAmount, prediction.id, betPosition, selectedOutcome, onClose, closePayButtonModal, t],
   );
-
-  const ensurePayButtonLoaded = useCallback(async () => {
-    if ((window as any).PayButton) return;
-
-    const PRIMARY = "https://unpkg.com/@paybutton/paybutton@5.4.0/dist/paybutton.js";
-    const FALLBACK = "https://cdn.jsdelivr.net/npm/@paybutton/paybutton@5.4.0/dist/paybutton.js";
-
-    const loadFrom = (src: string) =>
-      new Promise<void>((resolve, reject) => {
-        const existing = document.querySelector(
-          `script[src="${src}"]`
-        ) as HTMLScriptElement | null;
-        const script = existing ?? document.createElement("script");
-
-        const cleanup = () => {
-          script.removeEventListener("load", handleLoad);
-          script.removeEventListener("error", handleError);
-        };
-        const handleLoad = () => {
-          script.dataset.loaded = "true";
-          cleanup();
-          resolve();
-        };
-        const handleError = () => {
-          cleanup();
-          reject(new Error(`Failed to load ${src}`));
-        };
-
-        if ((window as any).PayButton) {
-          resolve();
-          return;
-        }
-
-        script.addEventListener("load", handleLoad);
-        script.addEventListener("error", handleError);
-
-        if (!existing) {
-          script.src = src;
-          script.async = true;
-          document.body.appendChild(script);
-        }
-      });
-
-    try {
-      await loadFrom(PRIMARY);
-    } catch (e) {
-      console.warn("[PayButton] unpkg failed, trying jsDelivr fallback", e);
-      await loadFrom(FALLBACK).catch(() => {
-        throw new Error(
-          "Unable to load payment widget. Please check your connection and try again."
-        );
-      });
-    }
-  }, []);
 
   // Render PayButton from scratch with deterministic retries
   useEffect(() => {
