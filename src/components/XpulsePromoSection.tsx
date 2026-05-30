@@ -48,7 +48,7 @@ const XpulsePromoSection = () => {
                 Own a piece of <span className="text-primary">$XPULSE</span>
               </h2>
               <p className="text-sm md:text-base text-muted-foreground max-w-xl mx-auto md:mx-0 mb-4">
-                The official eToken powering eCash Pulse. Fund the platform, earn future revenue share, and qualify for the GNC airdrop.
+                The official eToken powering eCash Pulse. Fund the platform, earn future revenue share — and if GNC funds the platform, all $XPULSE holders qualify for an airdrop.
               </p>
 
               <div className="flex flex-wrap justify-center md:justify-start gap-3 md:gap-5 text-xs md:text-sm">
