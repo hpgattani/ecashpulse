@@ -50,10 +50,8 @@ const AUTO_MAX_END_DAYS_BY_CATEGORY: Record<Category, number> = {
   crypto: 120,
   politics: 365,
   sports: 90,
-  tech: 90,
-  entertainment: 120,
-  economics: 180,
 };
+
 
 const AUTO_BLOCKED_TITLE_KEYWORDS = [
   'openai',
