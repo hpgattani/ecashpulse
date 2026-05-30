@@ -6,9 +6,41 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const CATEGORIES = ['crypto', 'politics', 'sports', 'tech', 'entertainment', 'economics'] as const;
+// Curation: only ingest topics from categories with proven user engagement.
+// Crypto prices, politics/world events, and major sports drive volume; everything else
+// historically created clutter without bettor interest.
+const CATEGORIES = ['crypto', 'politics', 'sports'] as const;
 
 type Category = typeof CATEGORIES[number];
+
+// Major sports leagues/events users actually bet on. Generic "tennis match" or
+// obscure regional leagues are skipped — only the marquee events make it in.
+const HIGH_ENGAGEMENT_SPORTS_KEYWORDS = [
+  'nfl', 'super bowl', 'playoff',
+  'epl', 'premier league', 'champions league', 'la liga', 'serie a', 'bundesliga',
+  'world cup', 'fifa', 'copa america', 'euro',
+  'ufc', 'boxing', 'mma',
+  'nba', 'nba finals',
+  'f1', 'formula 1', 'grand prix',
+  'ipl', 'cricket world cup', 't20 world cup',
+];
+
+// Political/world-event topics worth surfacing. Filters out fringe procedural questions.
+const HIGH_ENGAGEMENT_POLITICS_KEYWORDS = [
+  'election', 'president', 'prime minister', 'putin', 'trump', 'xi jinping',
+  'war', 'ceasefire', 'peace deal', 'sanctions', 'nato',
+  'supreme court', 'congress', 'senate', 'parliament',
+  'nobel', 'g20', 'g7', 'un security',
+];
+
+function passesEngagementFilter(title: string, category: Category): boolean {
+  const t = title.toLowerCase();
+  if (category === 'crypto') return true; // all crypto price markets are kept
+  if (category === 'sports') return HIGH_ENGAGEMENT_SPORTS_KEYWORDS.some((k) => t.includes(k));
+  if (category === 'politics') return HIGH_ENGAGEMENT_POLITICS_KEYWORDS.some((k) => t.includes(k));
+  return false;
+}
+
 
 // Guardrails to prevent low-quality / stale auto-generated markets.
 // - Maximum horizon avoids far-future hype markets
