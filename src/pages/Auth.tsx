@@ -229,10 +229,13 @@ const Auth = () => {
       to: AUTH_WALLET,
       amount: AUTH_AMOUNT,
       currency: 'XEC',
+      usdPrice: 0.00000771,
       text: 'Verify Wallet',
       hoverText: `Pay ${AUTH_AMOUNT} XEC`,
       autoClose: true,
       hideToasts: true,
+      disablePaymentId: true,
+      disableAltpayment: true,
       onSuccess: handleSuccess,
       theme: {
         palette: {
