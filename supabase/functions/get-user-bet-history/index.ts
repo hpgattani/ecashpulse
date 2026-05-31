@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
       .eq('user_id', user_id)
       .maybeSingle();
 
-    // Get all bets for this user with prediction info
+    // Get recent bets for the display list (capped at 50 for UI performance)
     const { data: bets, error: betsError } = await supabase
       .from('bets')
       .select(`
@@ -66,6 +66,32 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: 'Failed to fetch bet history' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Aggregate full totals across ALL bets (not just the 50 shown).
+    // Paginate to bypass the 1000-row limit on heavy users.
+    let totalBets = 0, wins = 0, losses = 0, pending = 0, refunded = 0, totalVolume = 0;
+    let from = 0;
+    const pageSize = 1000;
+    while (true) {
+      const { data: page, error: pageErr } = await supabase
+        .from('bets')
+        .select('amount,status')
+        .eq('user_id', user_id)
+        .in('status', ['confirmed', 'won', 'lost', 'refunded'])
+        .range(from, from + pageSize - 1);
+      if (pageErr) break;
+      if (!page || page.length === 0) break;
+      for (const b of page) {
+        totalBets++;
+        totalVolume += b.amount || 0;
+        if (b.status === 'won') wins++;
+        else if (b.status === 'lost') losses++;
+        else if (b.status === 'confirmed') pending++;
+        else if (b.status === 'refunded') refunded++;
+      }
+      if (page.length < pageSize) break;
+      from += pageSize;
     }
 
     // Format bets for display
@@ -99,6 +125,14 @@ Deno.serve(async (req) => {
           ecash_address: redactAddress(user?.ecash_address || ''),
         },
         bets: formattedBets,
+        totals: {
+          total_bets: totalBets,
+          wins,
+          losses,
+          pending,
+          refunded,
+          total_volume: totalVolume,
+        },
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
