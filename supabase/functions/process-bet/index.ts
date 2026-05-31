@@ -208,8 +208,44 @@ Deno.serve(async (req) => {
       );
     }
 
-    const user_id = sessionResult.userId;
-    console.log(`Processing bet: user=${user_id}, prediction=${prediction_id}, position=${position}, amount=${amount}`);
+    let user_id = sessionResult.userId;
+    let attributionSource: 'session' | 'paying_wallet' = 'session';
+
+    // If a tx_hash is supplied, resolve the actual paying wallet on-chain.
+    // If that wallet is registered (in users.ecash_address OR user_wallets.ecash_address)
+    // and maps to a DIFFERENT user_id, that user owns the bet — paying wallet wins.
+    if (tx_hash && isValidTxHash(tx_hash)) {
+      try {
+        const sender = await getSenderFromTx(tx_hash);
+        if (sender) {
+          const senderAddr = sender.trim().toLowerCase();
+          // Direct user match (e.g. logged-in wallet)
+          const { data: directUser } = await supabase
+            .from('users')
+            .select('id')
+            .eq('ecash_address', senderAddr)
+            .maybeSingle();
+
+          // Alias match (additional wallet linked to a user)
+          const { data: alias } = await supabase
+            .from('user_wallets')
+            .select('user_id')
+            .eq('ecash_address', senderAddr)
+            .maybeSingle();
+
+          const resolvedUser = alias?.user_id || directUser?.id || null;
+          if (resolvedUser && resolvedUser !== user_id) {
+            console.log(`Attribution override: session=${user_id} -> paying_wallet=${resolvedUser} (${senderAddr})`);
+            user_id = resolvedUser;
+            attributionSource = 'paying_wallet';
+          }
+        }
+      } catch (e) {
+        console.warn('Sender lookup failed, falling back to session attribution:', e);
+      }
+    }
+
+    console.log(`Processing bet: user=${user_id} (${attributionSource}), prediction=${prediction_id}, position=${position}, amount=${amount}`);
 
     // Optional: check for duplicate tx_hash to avoid double-recording
     if (tx_hash && isValidTxHash(tx_hash)) {
@@ -366,7 +402,7 @@ Deno.serve(async (req) => {
       amount: betAmount,
       position,
       status: 'confirmed',
-      metadata: { outcome_id, note: sanitizedNote }
+      metadata: { outcome_id, note: sanitizedNote, attribution_source: attributionSource, session_user_id: sessionResult.userId }
     });
 
     // Record platform fee (1%)
