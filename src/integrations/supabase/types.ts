@@ -1010,6 +1010,27 @@ export type Database = {
           },
         ]
       }
+      user_wallets: {
+        Row: {
+          created_at: string
+          ecash_address: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          ecash_address: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          ecash_address?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       users: {
         Row: {
           created_at: string
