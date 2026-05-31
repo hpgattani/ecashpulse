@@ -402,7 +402,7 @@ Deno.serve(async (req) => {
       amount: betAmount,
       position,
       status: 'confirmed',
-      metadata: { outcome_id, note: sanitizedNote }
+      metadata: { outcome_id, note: sanitizedNote, attribution_source: attributionSource, session_user_id: sessionResult.userId }
     });
 
     // Record platform fee (1%)
