@@ -3,7 +3,7 @@ import { Helmet } from "react-helmet-async";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Copy, Coins, TrendingUp, Users, Shield } from "lucide-react";
+import { ExternalLink, Copy, Coins, TrendingUp, Users, Shield, Gift, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import xpulseLogo from "@/assets/xpulse-logo.jpg";
 
@@ -92,7 +92,7 @@ const Token = () => {
               {
                 icon: Users,
                 title: "Revenue Sharing",
-                desc: "Token holders will receive revenue sharing once the decentralised escrow is built.",
+                desc: "Holders receive a quarterly XEC airdrop on a pro-rata basis. The token minter is excluded.",
               },
               {
                 icon: Shield,
@@ -113,6 +113,69 @@ const Token = () => {
               </motion.div>
             ))}
           </div>
+
+          {/* Revenue Share Airdrop */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.45 }}
+            className="glass-card rounded-2xl p-6 md:p-8 mb-8 border border-primary/30"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 rounded-lg bg-primary/15">
+                <Gift className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <h2 className="font-display text-2xl font-bold text-foreground">Quarterly XEC Airdrop</h2>
+                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                  <Calendar className="w-3 h-3" /> Paid every 3 months · Pro-rata to holders
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3 text-sm text-foreground/90 mb-6">
+              <p>
+                Platform revenue is shared with <span className="text-primary font-semibold">$XPULSE holders</span> as a direct <span className="font-semibold">XEC airdrop</span>, distributed
+                <span className="font-semibold"> quarterly</span> on a <span className="font-semibold">pro-rata</span> basis (your share = your tokens ÷ circulating tokens).
+              </p>
+              <p className="text-muted-foreground">
+                The token minter's wallet is <span className="font-semibold text-foreground">excluded</span> from the snapshot — only real community holders qualify.
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-muted/30 border border-border/40 p-4 mb-4">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
+                Tentative airdrop · based on current top-volume bets (XEC per top holder)
+              </p>
+              <div className="divide-y divide-border/30">
+                {[
+                  { addr: "ecash:qqf2xlpd5v6j5hafljat89h9mm0q9lfgksvcz2t804", xec: "29,063.48" },
+                  { addr: "ecash:qr5c57shvuhy3xdgkc9th5se9d6vd9gruclkv8fa22", xec: "1,347.55" },
+                  { addr: "ecash:qqqdv3r5lkh3xg8u3prrm935la7w2m6m7gq96asq43", xec: "1,346.74" },
+                  { addr: "ecash:qz5xnhw8mmu72tnyf3ud2uyyn7940kd7k5fdghl3s7", xec: "974.11" },
+                  { addr: "ecash:qpvnaqtjp6jjmy4sgzgvpvnc29pkjzljxu6rpxsjp5", xec: "445.09" },
+                ].map((r, i) => (
+                  <div key={r.addr} className="flex items-center justify-between gap-3 py-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-xs font-bold text-muted-foreground w-5">#{i + 1}</span>
+                      <code className="text-[11px] md:text-xs font-mono text-foreground/80 truncate">
+                        {r.addr.replace("ecash:", "").slice(0, 10)}…{r.addr.slice(-6)}
+                      </code>
+                    </div>
+                    <div className="text-sm font-semibold text-primary whitespace-nowrap">
+                      {r.xec} XEC
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground italic">
+              Many lower-volume bets aren't included in this preview — the final airdrop amounts will likely be
+              <span className="text-foreground font-semibold"> higher</span> than shown. Figures are tentative and update as new volume is generated.
+            </p>
+          </motion.div>
+
 
           {/* Token ID */}
           <motion.div

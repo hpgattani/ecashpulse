@@ -38,6 +38,7 @@ export const UserBetHistoryModal = ({
   ecashAddress,
 }: UserBetHistoryModalProps) => {
   const [bets, setBets] = useState<UserBet[]>([]);
+  const [totals, setTotals] = useState<{ total_bets: number; wins: number; losses: number; pending: number; refunded: number; total_volume: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [profitStats, setProfitStats] = useState<{ wins: number; losses: number; winRate: number; totalProfit: number; profitCurve: { t: string; v: number }[] } | null>(null);
@@ -96,6 +97,7 @@ export const UserBetHistoryModal = ({
         console.error('Error fetching bet history:', error);
       } else if (data?.bets) {
         setBets(data.bets);
+        if (data.totals) setTotals(data.totals);
       }
     } catch (err) {
       console.error('Bet history error:', err);
@@ -143,7 +145,13 @@ export const UserBetHistoryModal = ({
     // For now navigate to home since we don't have prediction_id in the response
   };
 
-  const stats = {
+  const stats = totals ? {
+    total: totals.total_bets,
+    wins: totals.wins,
+    losses: totals.losses,
+    pending: totals.pending,
+    totalVolume: totals.total_volume,
+  } : {
     total: bets.length,
     wins: bets.filter(b => b.status === 'won').length,
     losses: bets.filter(b => b.status === 'lost').length,
