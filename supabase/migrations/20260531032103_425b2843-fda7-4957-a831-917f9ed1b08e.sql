@@ -1,0 +1,2 @@
+UPDATE public.bets SET user_id='5308286d-a301-49c1-80a6-0f0ab47a380a' WHERE id='5d770267-7047-40bf-b28c-ef8fe98d6cff';
+INSERT INTO public.bet_audit_log (event_type, bet_id, user_id, amount, tx_hash, status, position, metadata) VALUES ('bet_reattributed', '5d770267-7047-40bf-b28c-ef8fe98d6cff', '5308286d-a301-49c1-80a6-0f0ab47a380a', 21300, 'b3ce05596ee9a47ba40b518b6d9df246b6d1ea840c1fa5e2710640ecf103fb69', 'confirmed', 'yes', '{"from_user_id":"8ed52a75-40ed-4c52-a922-758fe50222c6","reason":"paid_from_fator_wallet_qq9txw3su6_misattributed_to_wz5a_session"}'::jsonb);
