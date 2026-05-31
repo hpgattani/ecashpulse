@@ -92,7 +92,7 @@ const Token = () => {
               {
                 icon: Users,
                 title: "Revenue Sharing",
-                desc: "Token holders will receive revenue sharing once the decentralised escrow is built.",
+                desc: "Holders receive a quarterly XEC airdrop on a pro-rata basis. The token minter is excluded.",
               },
               {
                 icon: Shield,
