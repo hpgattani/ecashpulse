@@ -251,6 +251,37 @@ Deno.serve(async (req) => {
 
     const teamsPerEntry = Math.max(1, Math.min(Number(body.teams_per_entry) || 1, 10));
 
+    // Idempotency for official events: if an OPEN raffle for the same event already exists,
+    // reuse it instead of creating a duplicate. Prevents multiple FIFA/NFL/etc. raffles
+    // from being spawned when users arrive via shared deep links.
+    if (isOfficialEvent && !isInstantRaffle) {
+      const { data: existingRaffle } = await supabase
+        .from("raffles")
+        .select("*")
+        .eq("event_name", eventName)
+        .eq("status", "open")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (existingRaffle) {
+        console.log("Reusing existing official raffle:", existingRaffle.id);
+        return new Response(JSON.stringify({
+          success: true,
+          raffle: existingRaffle,
+          raffle_id: existingRaffle.id,
+          is_official: true,
+          is_instant: false,
+          reused: true,
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+
+
     // Create raffle
     const { data: raffle, error: raffleError } = await supabase
       .from("raffles")
