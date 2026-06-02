@@ -50,3 +50,35 @@ export async function validateSession(
 
   return { valid: true, userId: session.user_id };
 }
+
+/**
+ * Returns true when the incoming request is invoked internally with the
+ * service-role key in its Authorization header. Use this to gate edge
+ * functions that should only be called by other edge functions / cron.
+ */
+export function isServiceRoleRequest(req: Request): boolean {
+  const auth = req.headers.get('Authorization') || req.headers.get('authorization') || '';
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+  if (!serviceKey) return false;
+  return auth === `Bearer ${serviceKey}`;
+}
+
+/**
+ * Verify the provided session_token belongs to a user with the 'admin' role.
+ */
+export async function verifyAdminSession(
+  supabase: SupabaseClient,
+  sessionToken: string | null | undefined
+): Promise<boolean> {
+  const result = await validateSession(supabase, sessionToken);
+  if (!result.valid || !result.userId) return false;
+
+  const { data: role } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', result.userId)
+    .eq('role', 'admin')
+    .maybeSingle();
+
+  return !!role;
+}
