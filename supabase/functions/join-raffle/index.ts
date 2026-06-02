@@ -117,13 +117,16 @@ Deno.serve(async (req) => {
 
     const participantHash = await hashAddress(user.ecash_address);
 
-    // Check if user already has an entry (a "ticket" = N team rows for this user)
-    const userHasEntry = existingEntries?.some(e => e.participant_address_hash === participantHash);
-    if (userHasEntry) {
-      return new Response(JSON.stringify({ error: "You already have a ticket in this raffle" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // Multiple tickets per address are allowed — each payment buys a new round.
+    // Prevent reusing the same on-chain tx for two entries.
+    if (tx_hash) {
+      const dup = existingEntries?.some(e => (e as any).tx_hash === tx_hash);
+      if (dup) {
+        return new Response(JSON.stringify({ error: "This transaction has already been credited" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     const takenTeams = existingEntries?.map(e => e.assigned_team) || [];
