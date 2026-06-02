@@ -1,0 +1,1 @@
+DELETE FROM public.sentiment_votes WHERE id = 'f65f1951-a494-4164-8c01-70496d2568be' AND tx_hash = 'c1ddd0f872e16da0ba90d50eb74486f8ccdb29202effbe7483cb276ec5496fc2';
