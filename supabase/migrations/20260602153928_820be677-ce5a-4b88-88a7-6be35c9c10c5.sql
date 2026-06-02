@@ -1,0 +1,1 @@
+UPDATE public.raffles SET total_pot = total_pot + 50000 WHERE id = '9411f054-0e99-4cd5-a4a5-9503682e9273';
