@@ -42,9 +42,19 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Internal-only: must be invoked with the service role key (cron / other edge functions).
+  const authHeader = req.headers.get('Authorization') || req.headers.get('authorization') || '';
+  const serviceKeyHeader = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+  if (!serviceKeyHeader || authHeader !== `Bearer ${serviceKeyHeader}`) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseKey = serviceKeyHeader;
     const escrowWif = Deno.env.get('ESCROW_PRIVATE_KEY_WIF');
     if (!escrowWif) throw new Error('ESCROW_PRIVATE_KEY_WIF not configured');
     
