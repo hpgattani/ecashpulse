@@ -20,16 +20,26 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    const { 
-      title, 
-      description, 
-      category, 
-      end_date, 
-      user_id, 
+    const {
+      title,
+      description,
+      category,
+      end_date,
+      session_token,
       tx_hash,
       fee_amount,
       outcomes // Array of outcome labels for multi-option predictions
     } = await req.json();
+
+    // Authenticate caller and derive user_id server-side. Never trust a client-supplied user_id.
+    const sessionResult = await validateSession(supabase, session_token);
+    if (!sessionResult.valid || !sessionResult.userId) {
+      return new Response(
+        JSON.stringify({ error: sessionResult.error || 'Authentication required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const user_id = sessionResult.userId;
 
     // Validation
     if (!title || typeof title !== 'string') {
@@ -84,13 +94,6 @@ Deno.serve(async (req) => {
     if (endDateParsed <= new Date()) {
       return new Response(
         JSON.stringify({ error: 'End date must be in the future' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (!user_id) {
-      return new Response(
-        JSON.stringify({ error: 'User ID is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
