@@ -1,0 +1,1 @@
+UPDATE public.sentiment_topics SET expires_at = now() + interval '6 months' WHERE status = 'active' AND expires_at < now();
