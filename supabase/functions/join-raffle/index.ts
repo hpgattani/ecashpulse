@@ -104,7 +104,7 @@ Deno.serve(async (req) => {
     // Get existing entries to find available teams
     const { data: existingEntries, error: entriesError } = await supabase
       .from("raffle_entries")
-      .select("assigned_team, participant_address_hash")
+      .select("assigned_team, participant_address_hash, tx_hash")
       .eq("raffle_id", raffle_id);
 
     if (entriesError) {
