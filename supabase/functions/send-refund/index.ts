@@ -7,6 +7,7 @@ import {
   getPublicKey, buildSignedTransaction,
   type TxInput, type TxOutput,
 } from '../_shared/crypto.ts';
+import { verifyAdminSession, isServiceRoleRequest } from '../_shared/auth.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -68,8 +69,20 @@ Deno.serve(async (req) => {
   );
 
   try {
-    const { address, amount_xec, reason } = await req.json();
-    
+    const body = await req.json();
+    const { address, amount_xec, reason, session_token } = body;
+
+    // Authorization: allow internal service-role calls OR admin session tokens.
+    if (!isServiceRoleRequest(req)) {
+      const isAdmin = await verifyAdminSession(supabase, session_token);
+      if (!isAdmin) {
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized: admin session required' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     if (!address || !amount_xec) {
       return new Response(
         JSON.stringify({ error: 'Missing address or amount_xec' }),

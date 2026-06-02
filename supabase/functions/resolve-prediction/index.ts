@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { isServiceRoleRequest } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -184,8 +185,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Require admin session for manual resolution
-    if (session_token) {
+    // MANDATORY authorization: allow internal service-role invocation OR a valid admin session token.
+    const internal = isServiceRoleRequest(req);
+    if (!internal) {
       const isAdmin = await verifyAdminSession(supabase, session_token);
       if (!isAdmin) {
         return new Response(JSON.stringify({ error: "Admin access required" }), {
