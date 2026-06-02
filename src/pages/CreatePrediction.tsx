@@ -195,7 +195,7 @@ const CreatePrediction = () => {
           description: description.trim() || null,
           category,
           end_date: combinedDateTime.toISOString(),
-          user_id: user.id,
+          session_token: sessionToken,
           tx_hash: txHash,
           fee_amount: feeInXEC,
           outcomes: isMultiOptionQuestion ? validOutcomes : null,
