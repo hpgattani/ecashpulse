@@ -57,7 +57,7 @@ const categories = [
 
 const CreatePrediction = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, sessionToken } = useAuth();
   const { t } = useLanguage();
   const { prices } = useCryptoPrices();
   
