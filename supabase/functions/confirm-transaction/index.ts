@@ -224,7 +224,20 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { bet_id, tx_hash } = await req.json();
+    const body = await req.json();
+    const { bet_id, tx_hash, session_token } = body ?? {};
+
+    // Require service-role (internal) OR an authenticated admin session.
+    // Public bet confirmation is handled by the paybutton-webhook flow.
+    if (!isServiceRoleRequest(req)) {
+      const isAdmin = await verifyAdminSession(supabase, session_token);
+      if (!isAdmin) {
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
 
     // Validate bet_id
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
