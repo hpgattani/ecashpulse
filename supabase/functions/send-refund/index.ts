@@ -7,6 +7,7 @@ import {
   getPublicKey, buildSignedTransaction,
   type TxInput, type TxOutput,
 } from '../_shared/crypto.ts';
+import { verifyAdminSession, isServiceRoleRequest } from '../_shared/auth.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
