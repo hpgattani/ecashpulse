@@ -62,7 +62,7 @@ const categories = [
 ];
 
 export const CreatePredictionModal = ({ open, onOpenChange }: CreatePredictionModalProps) => {
-  const { user } = useAuth();
+  const { user, sessionToken } = useAuth();
   const { t } = useLanguage();
   const { prices } = useCryptoPrices();
   
