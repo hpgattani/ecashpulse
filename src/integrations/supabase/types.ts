@@ -611,6 +611,27 @@ export type Database = {
           },
         ]
       }
+      prediction_escrow_secrets: {
+        Row: {
+          created_at: string
+          escrow_privkey_encrypted: string | null
+          escrow_script_hex: string | null
+          prediction_id: string
+        }
+        Insert: {
+          created_at?: string
+          escrow_privkey_encrypted?: string | null
+          escrow_script_hex?: string | null
+          prediction_id: string
+        }
+        Update: {
+          created_at?: string
+          escrow_privkey_encrypted?: string | null
+          escrow_script_hex?: string | null
+          prediction_id?: string
+        }
+        Relationships: []
+      }
       prediction_stats: {
         Row: {
           expires_at: string
@@ -643,8 +664,6 @@ export type Database = {
           description: string | null
           end_date: string
           escrow_address: string
-          escrow_privkey_encrypted: string | null
-          escrow_script_hex: string | null
           id: string
           image_url: string | null
           no_pool: number
@@ -662,8 +681,6 @@ export type Database = {
           description?: string | null
           end_date: string
           escrow_address: string
-          escrow_privkey_encrypted?: string | null
-          escrow_script_hex?: string | null
           id?: string
           image_url?: string | null
           no_pool?: number
@@ -681,8 +698,6 @@ export type Database = {
           description?: string | null
           end_date?: string
           escrow_address?: string
-          escrow_privkey_encrypted?: string | null
-          escrow_script_hex?: string | null
           id?: string
           image_url?: string | null
           no_pool?: number
