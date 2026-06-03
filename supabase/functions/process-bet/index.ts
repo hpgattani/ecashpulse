@@ -104,50 +104,56 @@ const CHRONIK_ENDPOINTS = [
   'https://ecash.coin.dance/api/chronik',
 ];
 
-// Get sender address from transaction using Chronik API with longer timeout and retries
-async function getSenderFromTx(txHash: string): Promise<string | null> {
-  // Try each endpoint with retries
-  for (const endpoint of CHRONIK_ENDPOINTS) {
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        // Increasing delay on retry (500ms, 1000ms)
-        if (attempt > 0) {
-          await new Promise(r => setTimeout(r, 500 * attempt));
-        }
-        
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 12000); // 12 second timeout
-        
-        const response = await fetch(`${endpoint}/tx/${txHash}`, {
-          signal: controller.signal,
-        });
-        clearTimeout(timeout);
-        
-        if (!response.ok) {
-          console.log(`Chronik ${endpoint} returned ${response.status}, attempt ${attempt + 1}`);
-          continue;
-        }
-        
-        const tx = await response.json();
-        
-        // Extract sender address from first input
-        if (tx.inputs && tx.inputs.length > 0 && tx.inputs[0].outputScript) {
-          const address = outputScriptToAddress(tx.inputs[0].outputScript);
-          if (address) {
-            console.log(`Successfully got sender from ${endpoint}`);
-            return address;
-          }
-        }
-        
-        console.log(`Could not extract address from tx at ${endpoint}`);
-      } catch (error) {
-        console.log(`Chronik ${endpoint} error (attempt ${attempt + 1}):`, error instanceof Error ? error.message : error);
-        // Continue to next attempt/endpoint
-      }
+// Per-request and overall timeouts. We race endpoints in parallel so a single slow
+// node never blocks bet recording past the client-side 12s timeout.
+const CHRONIK_PER_REQUEST_TIMEOUT_MS = 3000;
+const CHRONIK_OVERALL_BUDGET_MS = 4000;
+
+async function fetchSenderFromEndpoint(endpoint: string, txHash: string): Promise<string | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), CHRONIK_PER_REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(`${endpoint}/tx/${txHash}`, { signal: controller.signal });
+    if (!response.ok) return null;
+    const tx = await response.json();
+    if (tx?.inputs?.[0]?.outputScript) {
+      return outputScriptToAddress(tx.inputs[0].outputScript);
     }
+    return null;
+  } catch (error) {
+    console.log(`Chronik ${endpoint} error:`, error instanceof Error ? error.message : error);
+    return null;
+  } finally {
+    clearTimeout(timeout);
   }
-  
-  console.error('All Chronik endpoints failed for tx:', txHash);
+}
+
+// Race endpoints in parallel and cap total wait. If nothing returns within the budget,
+// fall back to session-based attribution so the bet is recorded before the client gives up.
+async function getSenderFromTx(txHash: string): Promise<string | null> {
+  const attempts = CHRONIK_ENDPOINTS.map((endpoint) =>
+    fetchSenderFromEndpoint(endpoint, txHash).then((addr) => (addr ? { endpoint, addr } : null))
+  );
+
+  const firstHit = new Promise<{ endpoint: string; addr: string } | null>((resolve) => {
+    let remaining = attempts.length;
+    attempts.forEach((p) =>
+      p.then((res) => {
+        if (res) resolve(res);
+        else if (--remaining === 0) resolve(null);
+      }).catch(() => {
+        if (--remaining === 0) resolve(null);
+      })
+    );
+  });
+
+  const budget = new Promise<null>((resolve) => setTimeout(() => resolve(null), CHRONIK_OVERALL_BUDGET_MS));
+  const result = await Promise.race([firstHit, budget]);
+  if (result) {
+    console.log(`Got sender from ${result.endpoint}`);
+    return result.addr;
+  }
+  console.warn(`Sender lookup budget (${CHRONIK_OVERALL_BUDGET_MS}ms) exceeded for tx ${txHash}; using session attribution`);
   return null;
 }
 
