@@ -1,0 +1,1 @@
+UPDATE public.bets SET amount = 500 WHERE tx_hash = 'd6e057f88d832a01a6387121eede58bd7e8a25beddea21e8a0bdbb3052a577c0';
