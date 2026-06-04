@@ -122,8 +122,16 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { bet_ids } = await req.json();
-    
+    const { bet_ids, session_token } = await req.json();
+
+    const isAdmin = await verifyAdminSession(supabase, session_token);
+    if (!isAdmin) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: admin session required' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     if (!bet_ids || !Array.isArray(bet_ids)) {
       return new Response(
         JSON.stringify({ error: 'bet_ids array required' }),
