@@ -43,6 +43,8 @@ const ESCROW_ADDRESS = "ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp";
 export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecPrice, onSuccess }: GetTicketModalProps) {
   const { user, sessionToken } = useAuth();
   const payButtonRef = useRef<HTMLDivElement>(null);
+  const processedTxRef = useRef<Set<string>>(new Set());
+  const inFlightRef = useRef(false);
 
   const [step, setStep] = useState<'info' | 'confirming' | 'reveal'>('info');
   const [assignedTeams, setAssignedTeams] = useState<string[]>([]);
