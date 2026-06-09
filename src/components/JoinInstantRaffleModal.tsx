@@ -37,6 +37,8 @@ export function JoinInstantRaffleModal({ open, onOpenChange, raffle, xecPrice, o
   const payButtonRef = useRef<HTMLDivElement>(null);
   const renderedRef = useRef(false);
   const retryRef = useRef<ReturnType<typeof setTimeout>>();
+  const processedTxRef = useRef<Set<string>>(new Set());
+  const inFlightRef = useRef(false);
 
   const [step, setStep] = useState<'info' | 'payment' | 'confirming' | 'reveal'>('info');
   const [assignedTeam, setAssignedTeam] = useState<string | null>(null);
@@ -70,6 +72,13 @@ export function JoinInstantRaffleModal({ open, onOpenChange, raffle, xecPrice, o
 
   const handlePaymentSuccess = useCallback(async (txHash?: string) => {
     if (!user || !sessionToken) return;
+    const key = txHash || '__no_tx__';
+    if (inFlightRef.current || processedTxRef.current.has(key)) {
+      console.log('Skipping duplicate onSuccess for tx:', key);
+      return;
+    }
+    inFlightRef.current = true;
+    processedTxRef.current.add(key);
     cleanupPayButton();
     setStep('confirming');
 
@@ -100,7 +109,10 @@ export function JoinInstantRaffleModal({ open, onOpenChange, raffle, xecPrice, o
     } catch (error: any) {
       console.error('Error joining raffle:', error);
       toast.error(error.message || 'Failed to join raffle');
+      processedTxRef.current.delete(key);
       setStep('info');
+    } finally {
+      inFlightRef.current = false;
     }
   }, [user, sessionToken, raffle.id, entryCost, teams, cleanupPayButton]);
 
