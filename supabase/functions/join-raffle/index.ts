@@ -176,8 +176,34 @@ Deno.serve(async (req) => {
       .select();
 
     if (entryError) {
+      // Race condition: another concurrent invocation for the SAME tx already
+      // claimed teams for this user. Return those entries as success (idempotent).
+      const code = (entryError as any).code;
       console.error("Error creating entry:", entryError);
-      return new Response(JSON.stringify({ error: "Failed to join raffle" }), {
+      if (code === "23505" && tx_hash) {
+        const { data: raceEntries } = await supabase
+          .from("raffle_entries")
+          .select("*")
+          .eq("raffle_id", raffle_id)
+          .eq("tx_hash", tx_hash);
+        if (raceEntries && raceEntries.length > 0) {
+          const teams = raceEntries.map((e: any) => e.assigned_team);
+          console.log(`Race resolved for tx ${tx_hash} — returning existing teams: ${teams.join(", ")}`);
+          return new Response(JSON.stringify({
+            success: true,
+            entry: raceEntries[0],
+            entries: raceEntries,
+            assigned_team: teams[0],
+            assigned_teams: teams,
+            remaining_spots: (raffle.teams as string[]).length - (existingEntries?.length || 0) - teams.length,
+            idempotent: true,
+          }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+      return new Response(JSON.stringify({ error: "Failed to join raffle", details: (entryError as any).message }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
