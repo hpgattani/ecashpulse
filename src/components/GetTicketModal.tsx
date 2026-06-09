@@ -156,7 +156,11 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
     } catch (error: any) {
       console.error('Error getting ticket:', error);
       toast.error(error.message || 'Failed to get ticket');
+      // Allow retry for this tx since it didn't succeed.
+      processedTxRef.current.delete(key);
       setStep('info');
+    } finally {
+      inFlightRef.current = false;
     }
   }, [user, sessionToken, raffle, officialEvent, entryCost, teams, closePayButtonModal, createdRaffleId]);
 
