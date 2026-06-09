@@ -31,6 +31,8 @@ export function JoinRaffleModal({ open, onOpenChange, raffle, xecPrice, onSucces
   const payButtonRef = useRef<HTMLDivElement>(null);
   const renderedRef = useRef(false);
   const retryRef = useRef<ReturnType<typeof setTimeout>>();
+  const processedTxRef = useRef<Set<string>>(new Set());
+  const inFlightRef = useRef(false);
 
   const [step, setStep] = useState<'info' | 'payment' | 'confirming' | 'reveal'>('info');
   const [assignedTeam, setAssignedTeam] = useState<string | null>(null);
