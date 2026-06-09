@@ -99,6 +99,14 @@ export function GetTicketModal({ open, onOpenChange, raffle, officialEvent, xecP
 
   const handlePaymentSuccess = useCallback(async (txHash?: string) => {
     if (!user || !sessionToken) return;
+    // Guard against PayButton firing onSuccess multiple times for the same tx.
+    const key = txHash || '__no_tx__';
+    if (inFlightRef.current || processedTxRef.current.has(key)) {
+      console.log('Skipping duplicate onSuccess for tx:', key);
+      return;
+    }
+    inFlightRef.current = true;
+    processedTxRef.current.add(key);
     closePayButtonModal();
     setStep('confirming');
 
