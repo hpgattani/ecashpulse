@@ -117,13 +117,25 @@ Deno.serve(async (req) => {
 
     const participantHash = await hashAddress(user.ecash_address);
 
-    // Multiple tickets per address are allowed — each payment buys a new round.
-    // Prevent reusing the same on-chain tx for two entries.
+    // Idempotency: if this tx_hash already has entries on this raffle (e.g. PayButton
+    // fired onSuccess multiple times, or the client retried), return those entries as
+    // success instead of erroring. Multiple tickets per address are allowed, but each
+    // on-chain tx is credited exactly once.
     if (tx_hash) {
-      const dup = existingEntries?.some(e => (e as any).tx_hash === tx_hash);
-      if (dup) {
-        return new Response(JSON.stringify({ error: "This transaction has already been credited" }), {
-          status: 400,
+      const existingForTx = (existingEntries || []).filter((e: any) => e.tx_hash === tx_hash);
+      if (existingForTx.length > 0) {
+        const teams = existingForTx.map((e: any) => e.assigned_team);
+        console.log(`Idempotent replay for tx ${tx_hash} — returning existing teams: ${teams.join(", ")}`);
+        return new Response(JSON.stringify({
+          success: true,
+          entry: existingForTx[0],
+          entries: existingForTx,
+          assigned_team: teams[0],
+          assigned_teams: teams,
+          remaining_spots: (raffle.teams as string[]).length - (existingEntries?.length || 0),
+          idempotent: true,
+        }), {
+          status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
