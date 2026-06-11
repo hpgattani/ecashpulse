@@ -20,6 +20,7 @@ import Sentiment from "./pages/Sentiment";
 import Raffle from "./pages/Raffle";
 import Token from "./pages/Token";
 import TopVolume from "./pages/TopVolume";
+import Watch from "./pages/Watch";
 import NotFound from "./pages/NotFound";
 
 // Lazy-load Games page (pulls in pixi.js ~129KB)
