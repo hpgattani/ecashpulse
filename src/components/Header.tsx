@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Activity, Menu, X, Wallet, LogOut, TrendingUp, User, BarChart3, MessageCircleHeart, Ticket, Gamepad2, Coins, Flame } from "lucide-react";
+import { Activity, Menu, X, Wallet, LogOut, TrendingUp, User, BarChart3, MessageCircleHeart, Ticket, Gamepad2, Coins, Flame, Tv } from "lucide-react";
 import { ProfileModal } from "./ProfileModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -156,6 +156,12 @@ const Header = () => {
                 <Flame className="w-4 h-4" />
                 Top Volume
               </Link>
+              {user && (
+                <Link to="/watch" className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+                  <Tv className="w-4 h-4" />
+                  Watch
+                </Link>
+              )}
             </nav>
 
             {/* Desktop Actions */}
@@ -296,6 +302,16 @@ const Header = () => {
                   <Flame className="w-4 h-4" />
                   Top Volume
                 </Link>
+                {user && (
+                  <Link
+                    to="/watch"
+                    className="text-foreground/80 hover:text-primary transition-colors flex items-center gap-2 font-medium"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    <Tv className="w-4 h-4" />
+                    Watch Live
+                  </Link>
+                )}
                 <div className="flex items-center justify-between pt-2 border-t border-border/30">
                   <span className="text-sm text-muted-foreground">Theme</span>
                   <ThemeToggle />
