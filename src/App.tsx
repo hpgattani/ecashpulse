@@ -56,6 +56,7 @@ const App = () => (
                     <Route path="/games" element={<Suspense fallback={<div className="min-h-screen bg-background" />}><Games /></Suspense>} />
                     <Route path="/token" element={<Token />} />
                     <Route path="/top-volume" element={<TopVolume />} />
+                    <Route path="/watch" element={<Watch />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </BrowserRouter>
