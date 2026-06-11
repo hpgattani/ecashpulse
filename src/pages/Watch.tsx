@@ -10,7 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 const STREAMS = [
   { id: "tsn", label: "TSN" },
   { id: "fox", label: "FOX" },
-  { id: "bbc", label: "BBC" },
+  { id: "zee-hindi", label: "ZEE" },
   { id: "telemundo", label: "TeleMundo" },
   { id: "benin", label: "beIN Sports" },
 ];
