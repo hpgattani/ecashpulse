@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Activity, Menu, X, Wallet, LogOut, TrendingUp, User, BarChart3, MessageCircleHeart, Ticket, Gamepad2, Coins, Flame } from "lucide-react";
+import { Activity, Menu, X, Wallet, LogOut, TrendingUp, User, BarChart3, MessageCircleHeart, Ticket, Gamepad2, Coins, Flame, Tv } from "lucide-react";
 import { ProfileModal } from "./ProfileModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
