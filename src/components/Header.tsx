@@ -156,6 +156,12 @@ const Header = () => {
                 <Flame className="w-4 h-4" />
                 Top Volume
               </Link>
+              {user && (
+                <Link to="/watch" className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+                  <Tv className="w-4 h-4" />
+                  Watch
+                </Link>
+              )}
             </nav>
 
             {/* Desktop Actions */}
