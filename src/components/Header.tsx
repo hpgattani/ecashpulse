@@ -302,6 +302,16 @@ const Header = () => {
                   <Flame className="w-4 h-4" />
                   Top Volume
                 </Link>
+                {user && (
+                  <Link
+                    to="/watch"
+                    className="text-foreground/80 hover:text-primary transition-colors flex items-center gap-2 font-medium"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    <Tv className="w-4 h-4" />
+                    Watch Live
+                  </Link>
+                )}
                 <div className="flex items-center justify-between pt-2 border-t border-border/30">
                   <span className="text-sm text-muted-foreground">Theme</span>
                   <ThemeToggle />
