@@ -12,7 +12,7 @@ const STREAMS = [
   { id: "fox", label: "FOX" },
   { id: "bbc", label: "BBC" },
   { id: "sky", label: "Sky Sports" },
-  { id: "bein", label: "beIN Sports" },
+  { id: "benin", label: "beIN Sports" },
 ];
 
 const Watch = () => {
@@ -54,9 +54,7 @@ const Watch = () => {
             <h1 className="text-3xl md:text-4xl font-bold mb-2 bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
               FIFA World Cup — Live
             </h1>
-            <p className="text-muted-foreground text-sm">
-              Free for logged-in members. Pick a channel below.
-            </p>
+            <p className="text-muted-foreground text-sm">Free for logged-in members. Pick a channel below.</p>
           </div>
 
           <div className="flex flex-wrap justify-center gap-2 mb-4">
