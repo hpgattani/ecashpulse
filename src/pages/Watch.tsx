@@ -11,7 +11,7 @@ const STREAMS = [
   { id: "tsn", label: "TSN" },
   { id: "fox", label: "FOX" },
   { id: "bbc", label: "BBC" },
-  { id: "sky", label: "Sky Sports" },
+  { id: "telemundo", label: "TeleMundo" },
   { id: "benin", label: "beIN Sports" },
 ];
 
