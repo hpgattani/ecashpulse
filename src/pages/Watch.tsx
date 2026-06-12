@@ -81,7 +81,7 @@ const Watch = () => {
                 allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
                 allowFullScreen
                 referrerPolicy="no-referrer"
-                title="FIFA World Cup Live Stream"
+                title="Live Sports Stream"
               />
             </div>
           </div>
