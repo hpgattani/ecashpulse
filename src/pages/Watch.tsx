@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 
 const STREAMS = [
-  { id: "tsn", label: "TSN" },
+  { id: "HM", label: "HM Sports" },
   { id: "sportv", label: "SportTv" },
   { id: "zee-hindi", label: "ZEE" },
   { id: "telemundo", label: "TeleMundo" },
@@ -17,7 +17,7 @@ const STREAMS = [
 
 const Watch = () => {
   const { user, loading } = useAuth();
-  const [channel, setChannel] = useState("tsn");
+  const [channel, setChannel] = useState("HM");
 
   if (loading) {
     return <div className="min-h-screen bg-background" />;
@@ -28,7 +28,7 @@ const Watch = () => {
     return <Navigate to="/auth" replace />;
   }
 
-  const src = `https://foottball.pages.dev/?id=${channel}`;
+  const src = `https://tushar-stream-liart.vercel.app/?id=${channel}`;
 
   const goFullscreen = () => {
     const el = document.getElementById("watch-iframe") as HTMLIFrameElement | null;
