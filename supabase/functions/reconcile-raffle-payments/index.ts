@@ -53,13 +53,18 @@ Deno.serve(async (req) => {
     // Load open raffles + their existing entries
     const { data: raffles, error: rErr } = await supabase
       .from('raffles')
-      .select('id, entry_cost, teams, total_pot, status, teams_per_entry')
+      .select('id, entry_cost, teams, total_pot, status, teams_per_entry, created_at')
       .in('status', ['open', 'full']);
     if (rErr) throw rErr;
     if (!raffles?.length) {
       return new Response(JSON.stringify({ ok: true, message: 'no raffles' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
+
+    // GLOBAL set of tx hashes already used by ANY raffle entry, across ALL raffles.
+    // A single payment can only ever buy one ticket — never re-credit it to another raffle.
+    const { data: allUsedRows } = await supabase.from('raffle_entries').select('tx_hash');
+    const globalUsedTxs = new Set((allUsedRows || []).map((e: any) => e.tx_hash));
 
     const txs: any[] = await chronikFetchAddressHistory(ESCROW_ADDRESS, 50);
     const seen = new Set(txs.map((t: any) => t.txid));
@@ -80,8 +85,13 @@ Deno.serve(async (req) => {
 
     for (const raffle of raffles) {
       const expected = raffle.entry_cost; // XEC
-      // candidate txs that paid exactly entry_cost to escrow (chronik values are sats)
-      const candidates = txs.filter((tx: any) => txPaysExactly(tx, escrowScript, expected));
+      const raffleCreatedMs = new Date(raffle.created_at).getTime();
+      // candidate txs that paid exactly entry_cost to escrow (chronik values are sats),
+      // are not already credited to ANY raffle, and were sent AFTER this raffle was created.
+      const candidates = txs.filter((tx: any) =>
+        !globalUsedTxs.has(tx.txid) &&
+        Number(tx.timeFirstSeen || 0) * 1000 >= raffleCreatedMs &&
+        txPaysExactly(tx, escrowScript, expected));
       if (!candidates.length) continue;
 
       // existing entries for this raffle
@@ -93,7 +103,7 @@ Deno.serve(async (req) => {
       const takenTeams = new Set((existing || []).map((e: any) => e.assigned_team));
 
       for (const tx of candidates) {
-        if (usedTxs.has(tx.txid)) continue;
+        if (usedTxs.has(tx.txid) || globalUsedTxs.has(tx.txid)) continue;
 
         // Identify sender: take first input's outputScript -> cashaddr
         const senderScript: string | undefined = tx.inputs?.[0]?.outputScript;
@@ -146,6 +156,7 @@ Deno.serve(async (req) => {
 
         pick.forEach((t) => takenTeams.add(t));
         usedTxs.add(tx.txid);
+        globalUsedTxs.add(tx.txid);
         reconciled++;
         actions.push({ raffle_id: raffle.id, tx: tx.txid, user_id: userId, teams: pick });
 
