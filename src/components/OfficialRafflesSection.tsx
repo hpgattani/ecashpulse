@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { OfficialRaffleCard } from './OfficialRaffleCard';
 import { GetTicketModal } from './GetTicketModal';
+import { RaffleParticipantsModal } from './RaffleParticipantsModal';
 import { toast } from 'sonner';
 
 // Country flag emojis for The Voice editions
