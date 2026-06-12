@@ -37,8 +37,8 @@ const Watch = () => {
   return (
     <>
       <Helmet>
-        <title>Watch FIFA World Cup Live | eCash Pulse</title>
-        <meta name="description" content="Watch FIFA World Cup live streams free for logged-in eCash Pulse users." />
+        <title>Watch Live Sports | eCash Pulse</title>
+        <meta name="description" content="Watch live sports streams free for logged-in eCash Pulse users." />
       </Helmet>
 
       <div className="min-h-screen bg-background">
