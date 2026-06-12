@@ -103,7 +103,7 @@ Deno.serve(async (req) => {
       const takenTeams = new Set((existing || []).map((e: any) => e.assigned_team));
 
       for (const tx of candidates) {
-        if (usedTxs.has(tx.txid)) continue;
+        if (usedTxs.has(tx.txid) || globalUsedTxs.has(tx.txid)) continue;
 
         // Identify sender: take first input's outputScript -> cashaddr
         const senderScript: string | undefined = tx.inputs?.[0]?.outputScript;
@@ -156,6 +156,7 @@ Deno.serve(async (req) => {
 
         pick.forEach((t) => takenTeams.add(t));
         usedTxs.add(tx.txid);
+        globalUsedTxs.add(tx.txid);
         reconciled++;
         actions.push({ raffle_id: raffle.id, tx: tx.txid, user_id: userId, teams: pick });
 
