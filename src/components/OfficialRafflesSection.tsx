@@ -287,8 +287,27 @@ export function OfficialRafflesSection({ xecPrice, onRaffleCreated }: OfficialRa
                     Get Ticket
                   </Button>
                 </div>
+              ) : soldOutRaffle ? (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">
+                      {soldOutRaffle.entries_count}/{soldOutRaffle.total_spots} joined
+                    </span>
+                    <span className="text-amber-400 font-medium">
+                      {soldOutRaffle.status === 'resolved' ? 'Resolved' : 'Sold Out'}
+                    </span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="w-full border-amber-500/40 text-amber-300 hover:bg-amber-500/10 text-sm h-9"
+                    onClick={() => setViewParticipantsRaffle(soldOutRaffle)}
+                  >
+                    <Users className="w-4 h-4 mr-2" />
+                    View Participants
+                  </Button>
+                </div>
               ) : (
-                <Button 
+                <Button
                   className="w-full bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-black font-bold text-sm h-9"
                   onClick={() => handleGetTicket(event)}
                   disabled={!user}
