@@ -1,9 +1,21 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { scriptHexToCashAddr } from "../_shared/cashaddr.ts";
+import {
+  addressToOutputScript,
+  chronikFetchAddressHistory,
+  txPaysExactly,
+} from "../_shared/chronik.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+const ESCROW_ADDRESS = "ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp";
+
+// A tx-hash replay is only treated as a genuine duplicate onSuccess if the
+// existing entries belong to the SAME user and were created very recently.
+const REPLAY_WINDOW_MS = 30 * 60 * 1000;
 
 // Hash address for anonymity
 async function hashAddress(address: string): Promise<string> {
@@ -22,6 +34,45 @@ function shuffleArray<T>(array: T[]): T[] {
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
   return shuffled;
+}
+
+// When the client reports a stale tx hash (PayButton sometimes replays an OLD
+// payment from the address history instead of the new one), scan the escrow
+// address for the newest unclaimed payment of exactly entry_cost sent from one
+// of this user's wallets, and use that tx instead.
+async function findUnclaimedPayment(
+  supabase: any,
+  entryCostXec: number,
+  usedTxs: Set<string>,
+  userId: string,
+  userAddress: string,
+): Promise<string | null> {
+  const escrowScript = addressToOutputScript(ESCROW_ADDRESS);
+  if (!escrowScript) return null;
+
+  const txs = await chronikFetchAddressHistory(ESCROW_ADDRESS, 50);
+  if (!txs.length) {
+    console.log("Stale-tx recovery: could not fetch escrow history");
+    return null;
+  }
+
+  const userAddrs = new Set<string>([userAddress]);
+  const { data: wallets } = await supabase
+    .from("user_wallets")
+    .select("ecash_address")
+    .eq("user_id", userId);
+  for (const w of wallets || []) userAddrs.add(w.ecash_address);
+
+  const candidates = txs
+    .filter((tx: any) => !usedTxs.has(tx.txid) && txPaysExactly(tx, escrowScript, entryCostXec))
+    .filter((tx: any) => {
+      const senderScript = tx.inputs?.[0]?.outputScript;
+      const sender = senderScript ? scriptHexToCashAddr(senderScript) : null;
+      return sender ? userAddrs.has(sender) : false;
+    })
+    .sort((a: any, b: any) => Number(b.timeFirstSeen || 0) - Number(a.timeFirstSeen || 0));
+
+  return candidates[0]?.txid || null;
 }
 
 Deno.serve(async (req) => {
@@ -104,7 +155,7 @@ Deno.serve(async (req) => {
     // Get existing entries to find available teams
     const { data: existingEntries, error: entriesError } = await supabase
       .from("raffle_entries")
-      .select("assigned_team, participant_address_hash, tx_hash")
+      .select("assigned_team, participant_address_hash, tx_hash, user_id, created_at")
       .eq("raffle_id", raffle_id);
 
     if (entriesError) {
@@ -117,27 +168,63 @@ Deno.serve(async (req) => {
 
     const participantHash = await hashAddress(user.ecash_address);
 
-    // Idempotency: if this tx_hash already has entries on this raffle (e.g. PayButton
-    // fired onSuccess multiple times, or the client retried), return those entries as
-    // success instead of erroring. Multiple tickets per address are allowed, but each
-    // on-chain tx is credited exactly once.
+    // The tx hash we will record. May be swapped if the client-reported hash is stale.
+    let effectiveTxHash: string | undefined = tx_hash;
+
+    // Idempotency: if this tx_hash already has entries on this raffle, it is only a
+    // genuine duplicate (PayButton firing onSuccess twice) when the entries belong to
+    // THIS user and were created moments ago. Otherwise the wallet/PayButton replayed
+    // an OLD transaction hash from the address history — in that case we must NOT
+    // return someone's old teams; instead we look for the real new payment on-chain.
     if (tx_hash) {
       const existingForTx = (existingEntries || []).filter((e: any) => e.tx_hash === tx_hash);
       if (existingForTx.length > 0) {
-        const teams = existingForTx.map((e: any) => e.assigned_team);
-        console.log(`Idempotent replay for tx ${tx_hash} — returning existing teams: ${teams.join(", ")}`);
-        return new Response(JSON.stringify({
-          success: true,
-          entry: existingForTx[0],
-          entries: existingForTx,
-          assigned_team: teams[0],
-          assigned_teams: teams,
-          remaining_spots: (raffle.teams as string[]).length - (existingEntries?.length || 0),
-          idempotent: true,
-        }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        const sameUser = existingForTx.every((e: any) => e.user_id === user.id);
+        const newestMs = Math.max(...existingForTx.map((e: any) => new Date(e.created_at).getTime()));
+        const isRecent = Date.now() - newestMs < REPLAY_WINDOW_MS;
+
+        if (sameUser && isRecent) {
+          const teams = existingForTx.map((e: any) => e.assigned_team);
+          console.log(`Idempotent replay for tx ${tx_hash} — returning existing teams: ${teams.join(", ")}`);
+          return new Response(JSON.stringify({
+            success: true,
+            entry: existingForTx[0],
+            entries: existingForTx,
+            assigned_team: teams[0],
+            assigned_teams: teams,
+            remaining_spots: (raffle.teams as string[]).length - (existingEntries?.length || 0),
+            idempotent: true,
+          }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Stale hash — recover the actual new payment from the chain.
+        console.log(`Stale tx_hash ${tx_hash} (sameUser=${sameUser}, recent=${isRecent}) — searching chain for unclaimed payment`);
+        const usedTxs = new Set((existingEntries || []).map((e: any) => e.tx_hash));
+        const recovered = await findUnclaimedPayment(
+          supabase,
+          raffle.entry_cost,
+          usedTxs,
+          user.id,
+          user.ecash_address,
+        );
+
+        if (!recovered) {
+          console.log(`Stale tx_hash ${tx_hash}: no unclaimed payment found yet for user ${user.id}`);
+          return new Response(JSON.stringify({
+            success: false,
+            error: "Payment received but not confirmed on-chain yet. Your ticket will be credited automatically within a few minutes — check My Entries shortly.",
+            pending_reconciliation: true,
+          }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        console.log(`Stale tx_hash ${tx_hash} recovered → real payment tx ${recovered}`);
+        effectiveTxHash = recovered;
       }
     }
 
@@ -160,7 +247,7 @@ Deno.serve(async (req) => {
     const assignedTeams = shuffled.slice(0, teamsToAssign);
 
     // Create entry rows (one per assigned team, sharing the same tx_hash)
-    const sharedTxHash = tx_hash || `entry_${Date.now()}`;
+    const sharedTxHash = effectiveTxHash || `entry_${Date.now()}`;
     const rows = assignedTeams.map((team) => ({
       raffle_id,
       user_id: user.id,
@@ -180,15 +267,16 @@ Deno.serve(async (req) => {
       // claimed teams for this user. Return those entries as success (idempotent).
       const code = (entryError as any).code;
       console.error("Error creating entry:", entryError);
-      if (code === "23505" && tx_hash) {
+      if (code === "23505" && sharedTxHash) {
         const { data: raceEntries } = await supabase
           .from("raffle_entries")
           .select("*")
           .eq("raffle_id", raffle_id)
-          .eq("tx_hash", tx_hash);
+          .eq("tx_hash", sharedTxHash)
+          .eq("user_id", user.id);
         if (raceEntries && raceEntries.length > 0) {
           const teams = raceEntries.map((e: any) => e.assigned_team);
-          console.log(`Race resolved for tx ${tx_hash} — returning existing teams: ${teams.join(", ")}`);
+          console.log(`Race resolved for tx ${sharedTxHash} — returning existing teams: ${teams.join(", ")}`);
           return new Response(JSON.stringify({
             success: true,
             entry: raceEntries[0],
@@ -221,7 +309,7 @@ Deno.serve(async (req) => {
       .update({ total_pot: newPot, status: newStatus })
       .eq("id", raffle_id);
 
-    console.log(`User joined raffle ${raffle_id}, assigned teams: ${assignedTeams.join(", ")}`);
+    console.log(`User joined raffle ${raffle_id}, assigned teams: ${assignedTeams.join(", ")} (tx: ${sharedTxHash})`);
 
     return new Response(JSON.stringify({
       success: true,

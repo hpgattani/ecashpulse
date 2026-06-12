@@ -1,8 +1,15 @@
 // Reconciles raffle entry payments by scanning the escrow address on-chain.
-// Catches payments where the PayButton onSuccess callback failed to fire
-// (mobile network drops, Cashtab closed too fast, etc.) so users never lose tickets.
+// Catches payments where the PayButton onSuccess callback failed to fire or
+// fired with a stale/old tx hash, so users never lose tickets.
+// Optional body: { tx_hashes: string[] } — explicitly fetch and reconcile these txs too.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { scriptHexToCashAddr } from '../_shared/cashaddr.ts';
+import {
+  addressToOutputScript,
+  chronikFetchAddressHistory,
+  chronikFetchTx,
+  txPaysExactly,
+} from '../_shared/chronik.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,48 +17,6 @@ const corsHeaders = {
 };
 
 const ESCROW_ADDRESS = 'ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp';
-
-const CHRONIK_ENDPOINTS = [
-  'https://chronik.be.cash/xec',
-  'https://chronik-native1.fabien.cash',
-  'https://chronik-native2.fabien.cash',
-  'https://chronik.pay2stay.com/xec',
-];
-
-function addressToOutputScript(address: string): string | null {
-  const addr = address.replace('ecash:', '');
-  const CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
-  const data: number[] = [];
-  for (let i = 0; i < addr.length; i++) {
-    const idx = CHARSET.indexOf(addr[i].toLowerCase());
-    if (idx === -1) return null;
-    data.push(idx);
-  }
-  const payload5 = data.slice(0, data.length - 8);
-  let acc = 0, bits = 0;
-  const out: number[] = [];
-  for (const v of payload5) {
-    acc = (acc << 5) | v;
-    bits += 5;
-    while (bits >= 8) { bits -= 8; out.push((acc >> bits) & 0xff); }
-  }
-  if (out.length < 21) return null;
-  const hashHex = out.slice(1, 21).map(b => b.toString(16).padStart(2, '0')).join('');
-  return `76a914${hashHex}88ac`;
-}
-
-async function fetchHistory(): Promise<any[]> {
-  const addr = ESCROW_ADDRESS.replace('ecash:', '');
-  for (const base of CHRONIK_ENDPOINTS) {
-    try {
-      const res = await fetch(`${base}/address/${addr}/history?page=0&pageSize=50`);
-      if (!res.ok) continue;
-      const data = await res.json();
-      if (Array.isArray(data?.txs)) return data.txs;
-    } catch (_) { /* try next */ }
-  }
-  return [];
-}
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -64,7 +29,7 @@ function shuffle<T>(arr: T[]): T[] {
 
 async function sha256Hex(s: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 Deno.serve(async (req) => {
@@ -75,6 +40,12 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
+
+    let explicitTxHashes: string[] = [];
+    try {
+      const body = await req.json();
+      if (Array.isArray(body?.tx_hashes)) explicitTxHashes = body.tx_hashes.filter((h: any) => typeof h === 'string');
+    } catch (_) { /* no body */ }
 
     const escrowScript = addressToOutputScript(ESCROW_ADDRESS);
     if (!escrowScript) throw new Error('bad escrow address');
@@ -90,21 +61,27 @@ Deno.serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const txs = await fetchHistory();
-    console.log(`[reconcile] fetched ${txs.length} escrow txs, ${raffles.length} raffles`);
+    const txs: any[] = await chronikFetchAddressHistory(ESCROW_ADDRESS, 50);
+    const seen = new Set(txs.map((t: any) => t.txid));
+    for (const h of explicitTxHashes) {
+      if (seen.has(h)) continue;
+      const tx = await chronikFetchTx(h);
+      if (tx) {
+        txs.unshift(tx);
+        seen.add(h);
+      } else {
+        console.log(`[reconcile] explicit tx ${h} not found on any chronik endpoint`);
+      }
+    }
+    console.log(`[reconcile] fetched ${txs.length} escrow txs (${explicitTxHashes.length} explicit), ${raffles.length} raffles`);
 
     let reconciled = 0;
     const actions: any[] = [];
 
     for (const raffle of raffles) {
-      const expected = raffle.entry_cost;
-      // candidate txs that paid exactly entry_cost to escrow
-      const candidates = txs.filter((tx: any) => {
-        for (const o of tx.outputs || []) {
-          if (o.outputScript === escrowScript && parseInt(o.value) === expected) return true;
-        }
-        return false;
-      });
+      const expected = raffle.entry_cost; // XEC
+      // candidate txs that paid exactly entry_cost to escrow (chronik values are sats)
+      const candidates = txs.filter((tx: any) => txPaysExactly(tx, escrowScript, expected));
       if (!candidates.length) continue;
 
       // existing entries for this raffle
