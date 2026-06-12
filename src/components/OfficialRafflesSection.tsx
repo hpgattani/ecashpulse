@@ -358,6 +358,19 @@ export function OfficialRafflesSection({ xecPrice, onRaffleCreated }: OfficialRa
           }}
         />
       )}
+
+      {/* Participants modal for sold-out / resolved raffles */}
+      {viewParticipantsRaffle && (
+        <RaffleParticipantsModal
+          open={!!viewParticipantsRaffle}
+          onOpenChange={(open) => !open && setViewParticipantsRaffle(null)}
+          raffleId={viewParticipantsRaffle.id}
+          raffleTitle={viewParticipantsRaffle.title || viewParticipantsRaffle.event_name}
+          totalPot={viewParticipantsRaffle.total_pot}
+          status={viewParticipantsRaffle.status}
+          winnerTeam={viewParticipantsRaffle.winner_team}
+        />
+      )}
     </div>
   );
 }
