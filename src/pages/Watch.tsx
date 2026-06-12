@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 
 const STREAMS = [
+  { id: "HM", label: "HM Sports" },
   { id: "D1", label: "D Sports" },
   { id: "CZE2", label: "Craze TV Brasil" },
   { id: "ZHINDI", label: "ZEE" },
@@ -15,7 +16,8 @@ const STREAMS = [
 
 const Watch = () => {
   const { user, loading } = useAuth();
-  const [channel, setChannel] = useState("D1");
+  const [channel, setChannel] = useState("HM");
+
 
   if (loading) {
     return <div className="min-h-screen bg-background" />;
@@ -81,6 +83,7 @@ const Watch = () => {
                 allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
                 allowFullScreen
                 referrerPolicy="no-referrer"
+                sandbox="allow-scripts allow-same-origin allow-presentation allow-popups-to-escape-sandbox"
                 title="Live Sports Stream"
               />
             </div>
