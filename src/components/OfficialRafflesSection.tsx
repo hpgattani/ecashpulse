@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Star, Ticket, Loader2, ChevronRight, Share2 } from 'lucide-react';
+import { Star, Ticket, Loader2, ChevronRight, Share2, Users } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { OfficialRaffleCard } from './OfficialRaffleCard';
