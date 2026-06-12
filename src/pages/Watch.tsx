@@ -8,11 +8,9 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 
 const STREAMS = [
-  { id: "HM", label: "HM Sports" },
-  { id: "sportv", label: "SportTv" },
-  { id: "zee-hindi", label: "ZEE" },
-  { id: "telemundo", label: "TeleMundo" },
-  { id: "benin", label: "beIN Sports" },
+  { id: "D1", label: "D Sports" },
+  { id: "CZE2", label: "Craze TV Brasil" },
+  { id: "ZHINDI", label: "ZEE" },
 ];
 
 const Watch = () => {
