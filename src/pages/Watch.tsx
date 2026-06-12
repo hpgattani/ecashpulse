@@ -8,16 +8,14 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 
 const STREAMS = [
-  { id: "HM", label: "HM Sports" },
-  { id: "sportv", label: "SportTv" },
-  { id: "zee-hindi", label: "ZEE" },
-  { id: "telemundo", label: "TeleMundo" },
-  { id: "benin", label: "beIN Sports" },
+  { id: "D1", label: "D Sports" },
+  { id: "CZE2", label: "Craze TV Brasil" },
+  { id: "ZHINDI", label: "ZEE" },
 ];
 
 const Watch = () => {
   const { user, loading } = useAuth();
-  const [channel, setChannel] = useState("HM");
+  const [channel, setChannel] = useState("D1");
 
   if (loading) {
     return <div className="min-h-screen bg-background" />;
@@ -39,8 +37,8 @@ const Watch = () => {
   return (
     <>
       <Helmet>
-        <title>Watch FIFA World Cup Live | eCash Pulse</title>
-        <meta name="description" content="Watch FIFA World Cup live streams free for logged-in eCash Pulse users." />
+        <title>Watch Live Sports | eCash Pulse</title>
+        <meta name="description" content="Watch live sports streams free for logged-in eCash Pulse users." />
       </Helmet>
 
       <div className="min-h-screen bg-background">
@@ -52,7 +50,7 @@ const Watch = () => {
               <span className="text-sm font-medium">Live Stream</span>
             </div>
             <h1 className="text-3xl md:text-4xl font-bold mb-2 bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
-              FIFA World Cup — Live
+              Live Sports Streams
             </h1>
             <p className="text-muted-foreground text-sm">Free for logged-in members. Pick a channel below.</p>
           </div>
@@ -83,7 +81,7 @@ const Watch = () => {
                 allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
                 allowFullScreen
                 referrerPolicy="no-referrer"
-                title="FIFA World Cup Live Stream"
+                title="Live Sports Stream"
               />
             </div>
           </div>
