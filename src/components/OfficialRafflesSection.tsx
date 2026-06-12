@@ -196,7 +196,7 @@ export function OfficialRafflesSection({ xecPrice, onRaffleCreated }: OfficialRa
       {/* Official Event Cards */}
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
         {OFFICIAL_EVENTS.map((event) => {
-          const { hasRaffle, raffle } = getEventStatus(event.id);
+          const { hasRaffle, raffle, soldOutRaffle } = getEventStatus(event.id);
           const entryCostXec = event.entryCostXec
             ? event.entryCostXec
             : event.entryCostUsd
