@@ -129,6 +129,7 @@ export function OfficialRafflesSection({ xecPrice, onRaffleCreated }: OfficialRa
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<typeof OFFICIAL_EVENTS[0] | null>(null);
   const [selectedRaffle, setSelectedRaffle] = useState<Raffle | null>(null);
+  const [viewParticipantsRaffle, setViewParticipantsRaffle] = useState<Raffle | null>(null);
 
   const fetchOfficialRaffles = async () => {
     try {
@@ -165,15 +166,20 @@ export function OfficialRafflesSection({ xecPrice, onRaffleCreated }: OfficialRa
     }
   };
 
-  // Check which events have active official raffles
+  // Check which events have active official raffles. Prefer an open raffle;
+  // otherwise surface the most recent full/resolved raffle so users can view
+  // participants instead of triggering creation of a duplicate raffle.
   const getEventStatus = (eventId: string) => {
-    const raffle = officialRaffles.find(
-      r => r.event_name === OFFICIAL_EVENTS.find(e => e.id === eventId)?.name && r.status === 'open'
-    );
-    if (raffle) {
-      return { hasRaffle: true, raffle };
-    }
-    return { hasRaffle: false, raffle: null };
+    const eventName = OFFICIAL_EVENTS.find(e => e.id === eventId)?.name;
+    if (!eventName) return { hasRaffle: false, raffle: null, soldOutRaffle: null };
+
+    const matching = officialRaffles.filter(r => r.event_name === eventName);
+    const openRaffle = matching.find(r => r.status === 'open') || null;
+    const soldOutRaffle =
+      matching.find(r => r.status === 'full' || r.status === 'resolved') || null;
+
+    if (openRaffle) return { hasRaffle: true, raffle: openRaffle, soldOutRaffle };
+    return { hasRaffle: false, raffle: null, soldOutRaffle };
   };
 
   return (
