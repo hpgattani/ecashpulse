@@ -1,5 +1,6 @@
-// Minimal Chronik REST helpers (JSON via Accept header) with multi-endpoint failover.
+// Chronik helpers using the official chronik-client (protobuf) with multi-endpoint failover.
 // NOTE: Chronik returns output values in SATOSHIS (1 XEC = 100 sats).
+import { ChronikClient } from 'https://esm.sh/chronik-client@3.6.1';
 
 export const CHRONIK_URLS = [
   'https://chronik.e.cash',
@@ -10,6 +11,8 @@ export const CHRONIK_URLS = [
   'https://chronik1.alitayin.com',
   'https://chronik2.alitayin.com',
 ];
+
+const chronik = new ChronikClient(CHRONIK_URLS);
 
 const CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
 
@@ -53,37 +56,31 @@ export function outputSats(o: any): number {
   return Number(o?.sats ?? o?.value ?? 0);
 }
 
-async function fetchJson(url: string): Promise<any | null> {
+export async function chronikFetchTx(txid: string): Promise<any | null> {
   try {
-    const res = await fetch(url, {
-      headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!res.ok) return null;
-    return await res.json();
-  } catch {
+    return await chronik.tx(txid);
+  } catch (e) {
+    console.log(`chronikFetchTx failed for ${txid}:`, (e as Error)?.message);
     return null;
   }
 }
 
-export async function chronikFetchTx(txid: string): Promise<any | null> {
-  for (const base of CHRONIK_URLS) {
-    const data = await fetchJson(`${base}/tx/${txid}`);
-    if (data?.txid) return data;
-  }
-  return null;
-}
-
 export async function chronikFetchAddressHistory(address: string, pageSize = 50): Promise<any[]> {
-  const hash = addressToHash160Hex(address);
-  const paths: string[] = [];
-  if (hash) paths.push(`/script/p2pkh/${hash}/history`);
-  paths.push(`/address/${address.replace('ecash:', '')}/history`);
-  for (const base of CHRONIK_URLS) {
-    for (const path of paths) {
-      const data = await fetchJson(`${base}${path}?page=0&page_size=${pageSize}&pageSize=${pageSize}`);
-      if (Array.isArray(data?.txs)) return data.txs;
+  // Try address endpoint, then script endpoint as fallback.
+  try {
+    const res = await chronik.address(address).history(0, pageSize);
+    if (Array.isArray(res?.txs)) return res.txs;
+  } catch (e) {
+    console.log('chronik address history failed:', (e as Error)?.message);
+  }
+  try {
+    const hash = addressToHash160Hex(address);
+    if (hash) {
+      const res = await chronik.script('p2pkh', hash).history(0, pageSize);
+      if (Array.isArray(res?.txs)) return res.txs;
     }
+  } catch (e) {
+    console.log('chronik script history failed:', (e as Error)?.message);
   }
   return [];
 }
