@@ -224,6 +224,7 @@ Deno.serve(async (req) => {
           usedTxs,
           user.id,
           user.ecash_address,
+          raffle.created_at,
         );
 
         if (!recovered) {
