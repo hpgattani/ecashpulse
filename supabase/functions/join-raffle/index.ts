@@ -46,6 +46,7 @@ async function findUnclaimedPayment(
   usedTxs: Set<string>,
   userId: string,
   userAddress: string,
+  raffleCreatedAt: string,
 ): Promise<string | null> {
   const escrowScript = addressToOutputScript(ESCROW_ADDRESS);
   if (!escrowScript) return null;
@@ -63,8 +64,12 @@ async function findUnclaimedPayment(
     .eq("user_id", userId);
   for (const w of wallets || []) userAddrs.add(w.ecash_address);
 
+  const raffleCreatedMs = new Date(raffleCreatedAt).getTime();
+
   const candidates = txs
     .filter((tx: any) => !usedTxs.has(tx.txid) && txPaysExactly(tx, escrowScript, entryCostXec))
+    // A valid ticket payment can never predate the raffle itself.
+    .filter((tx: any) => Number(tx.timeFirstSeen || 0) * 1000 >= raffleCreatedMs)
     .filter((tx: any) => {
       const senderScript = tx.inputs?.[0]?.outputScript;
       const sender = senderScript ? scriptHexToCashAddr(senderScript) : null;
@@ -72,7 +77,17 @@ async function findUnclaimedPayment(
     })
     .sort((a: any, b: any) => Number(b.timeFirstSeen || 0) - Number(a.timeFirstSeen || 0));
 
-  return candidates[0]?.txid || null;
+  if (!candidates.length) return null;
+
+  // Exclude txs already credited to ANY raffle (global dedupe — one payment, one ticket).
+  const ids = candidates.map((t: any) => t.txid);
+  const { data: usedGlobal } = await supabase
+    .from("raffle_entries")
+    .select("tx_hash")
+    .in("tx_hash", ids);
+  const globalUsed = new Set((usedGlobal || []).map((e: any) => e.tx_hash));
+
+  return candidates.find((t: any) => !globalUsed.has(t.txid))?.txid || null;
 }
 
 Deno.serve(async (req) => {
