@@ -53,13 +53,18 @@ Deno.serve(async (req) => {
     // Load open raffles + their existing entries
     const { data: raffles, error: rErr } = await supabase
       .from('raffles')
-      .select('id, entry_cost, teams, total_pot, status, teams_per_entry')
+      .select('id, entry_cost, teams, total_pot, status, teams_per_entry, created_at')
       .in('status', ['open', 'full']);
     if (rErr) throw rErr;
     if (!raffles?.length) {
       return new Response(JSON.stringify({ ok: true, message: 'no raffles' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
+
+    // GLOBAL set of tx hashes already used by ANY raffle entry, across ALL raffles.
+    // A single payment can only ever buy one ticket — never re-credit it to another raffle.
+    const { data: allUsedRows } = await supabase.from('raffle_entries').select('tx_hash');
+    const globalUsedTxs = new Set((allUsedRows || []).map((e: any) => e.tx_hash));
 
     const txs: any[] = await chronikFetchAddressHistory(ESCROW_ADDRESS, 50);
     const seen = new Set(txs.map((t: any) => t.txid));
@@ -80,8 +85,13 @@ Deno.serve(async (req) => {
 
     for (const raffle of raffles) {
       const expected = raffle.entry_cost; // XEC
-      // candidate txs that paid exactly entry_cost to escrow (chronik values are sats)
-      const candidates = txs.filter((tx: any) => txPaysExactly(tx, escrowScript, expected));
+      const raffleCreatedMs = new Date(raffle.created_at).getTime();
+      // candidate txs that paid exactly entry_cost to escrow (chronik values are sats),
+      // are not already credited to ANY raffle, and were sent AFTER this raffle was created.
+      const candidates = txs.filter((tx: any) =>
+        !globalUsedTxs.has(tx.txid) &&
+        Number(tx.timeFirstSeen || 0) * 1000 >= raffleCreatedMs &&
+        txPaysExactly(tx, escrowScript, expected));
       if (!candidates.length) continue;
 
       // existing entries for this raffle
