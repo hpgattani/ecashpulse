@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Star, Ticket, Loader2, ChevronRight, Share2 } from 'lucide-react';
+import { Star, Ticket, Loader2, ChevronRight, Share2, Users } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { OfficialRaffleCard } from './OfficialRaffleCard';
 import { GetTicketModal } from './GetTicketModal';
+import { RaffleParticipantsModal } from './RaffleParticipantsModal';
 import { toast } from 'sonner';
 
 // Country flag emojis for The Voice editions
@@ -129,6 +130,7 @@ export function OfficialRafflesSection({ xecPrice, onRaffleCreated }: OfficialRa
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<typeof OFFICIAL_EVENTS[0] | null>(null);
   const [selectedRaffle, setSelectedRaffle] = useState<Raffle | null>(null);
+  const [viewParticipantsRaffle, setViewParticipantsRaffle] = useState<Raffle | null>(null);
 
   const fetchOfficialRaffles = async () => {
     try {
@@ -165,15 +167,20 @@ export function OfficialRafflesSection({ xecPrice, onRaffleCreated }: OfficialRa
     }
   };
 
-  // Check which events have active official raffles
+  // Check which events have active official raffles. Prefer an open raffle;
+  // otherwise surface the most recent full/resolved raffle so users can view
+  // participants instead of triggering creation of a duplicate raffle.
   const getEventStatus = (eventId: string) => {
-    const raffle = officialRaffles.find(
-      r => r.event_name === OFFICIAL_EVENTS.find(e => e.id === eventId)?.name && r.status === 'open'
-    );
-    if (raffle) {
-      return { hasRaffle: true, raffle };
-    }
-    return { hasRaffle: false, raffle: null };
+    const eventName = OFFICIAL_EVENTS.find(e => e.id === eventId)?.name;
+    if (!eventName) return { hasRaffle: false, raffle: null, soldOutRaffle: null };
+
+    const matching = officialRaffles.filter(r => r.event_name === eventName);
+    const openRaffle = matching.find(r => r.status === 'open') || null;
+    const soldOutRaffle =
+      matching.find(r => r.status === 'full' || r.status === 'resolved') || null;
+
+    if (openRaffle) return { hasRaffle: true, raffle: openRaffle, soldOutRaffle };
+    return { hasRaffle: false, raffle: null, soldOutRaffle };
   };
 
   return (
@@ -190,7 +197,7 @@ export function OfficialRafflesSection({ xecPrice, onRaffleCreated }: OfficialRa
       {/* Official Event Cards */}
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
         {OFFICIAL_EVENTS.map((event) => {
-          const { hasRaffle, raffle } = getEventStatus(event.id);
+          const { hasRaffle, raffle, soldOutRaffle } = getEventStatus(event.id);
           const entryCostXec = event.entryCostXec
             ? event.entryCostXec
             : event.entryCostUsd
@@ -281,8 +288,27 @@ export function OfficialRafflesSection({ xecPrice, onRaffleCreated }: OfficialRa
                     Get Ticket
                   </Button>
                 </div>
+              ) : soldOutRaffle ? (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">
+                      {soldOutRaffle.entries_count}/{soldOutRaffle.total_spots} joined
+                    </span>
+                    <span className="text-amber-400 font-medium">
+                      {soldOutRaffle.status === 'resolved' ? 'Resolved' : 'Sold Out'}
+                    </span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="w-full border-amber-500/40 text-amber-300 hover:bg-amber-500/10 text-sm h-9"
+                    onClick={() => setViewParticipantsRaffle(soldOutRaffle)}
+                  >
+                    <Users className="w-4 h-4 mr-2" />
+                    View Participants
+                  </Button>
+                </div>
               ) : (
-                <Button 
+                <Button
                   className="w-full bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-black font-bold text-sm h-9"
                   onClick={() => handleGetTicket(event)}
                   disabled={!user}
@@ -330,6 +356,19 @@ export function OfficialRafflesSection({ xecPrice, onRaffleCreated }: OfficialRa
             onRaffleCreated();
             setSelectedEvent(null);
           }}
+        />
+      )}
+
+      {/* Participants modal for sold-out / resolved raffles */}
+      {viewParticipantsRaffle && (
+        <RaffleParticipantsModal
+          open={!!viewParticipantsRaffle}
+          onOpenChange={(open) => !open && setViewParticipantsRaffle(null)}
+          raffleId={viewParticipantsRaffle.id}
+          raffleTitle={viewParticipantsRaffle.title || viewParticipantsRaffle.event_name}
+          totalPot={viewParticipantsRaffle.total_pot}
+          status={viewParticipantsRaffle.status}
+          winnerTeam={viewParticipantsRaffle.winner_team}
         />
       )}
     </div>
