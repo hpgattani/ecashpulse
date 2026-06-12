@@ -15,7 +15,7 @@ const STREAMS = [
 
 const Watch = () => {
   const { user, loading } = useAuth();
-  const [channel, setChannel] = useState("HM");
+  const [channel, setChannel] = useState("D1");
 
   if (loading) {
     return <div className="min-h-screen bg-background" />;
