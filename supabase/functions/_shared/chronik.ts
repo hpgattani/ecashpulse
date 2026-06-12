@@ -85,12 +85,13 @@ export async function chronikFetchAddressHistory(address: string, pageSize = 50)
   return [];
 }
 
-// True if tx pays exactly `xecAmount` XEC to `outputScript` (chronik values are sats).
+// True if tx pays exactly `xecAmount` XEC to `outputScript`.
+// Chronik values are ALWAYS satoshis (1 XEC = 100 sats) — match strictly.
 export function txPaysExactly(tx: any, outputScript: string, xecAmount: number): boolean {
+  const expectedSats = Math.round(xecAmount * 100);
   for (const o of tx?.outputs || []) {
     if (o.outputScript !== outputScript) continue;
-    const sats = outputSats(o);
-    if (sats === Math.round(xecAmount * 100) || sats === xecAmount) return true;
+    if (outputSats(o) === expectedSats) return true;
   }
   return false;
 }
