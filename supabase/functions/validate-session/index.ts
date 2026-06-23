@@ -70,8 +70,17 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Method 2: Find session by ecash_address (for login after webhook)
+    // Method 2: Find session by the exact authentication transaction.
+    // Never return a session from address alone: addresses are public, so doing so
+    // would let anyone claim another user's active session by knowing their wallet.
     if (ecash_address !== undefined && ecash_address !== null) {
+      if (!tx_hash || typeof tx_hash !== 'string' || !/^[a-f0-9]{64}$/i.test(tx_hash)) {
+        return new Response(
+          JSON.stringify({ valid: false, error: 'Transaction hash required for wallet login' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       // Defensive: ensure ecash_address is a string
       if (typeof ecash_address !== 'string') {
         console.error('Invalid ecash_address type:', typeof ecash_address, ecash_address);
@@ -120,18 +129,57 @@ Deno.serve(async (req) => {
 
       const trimmedAddress = ecash_address.trim().toLowerCase();
       
-      // Find user by address
+      const { data: audit, error: auditError } = await supabase
+        .from('bet_audit_log')
+        .select('id, user_id, metadata, created_at')
+        .eq('event_type', 'auth_tx_used')
+        .eq('tx_hash', tx_hash.toLowerCase())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (auditError) {
+        console.error('Auth audit lookup error:', auditError);
+        return new Response(
+          JSON.stringify({ valid: false, error: 'Failed to validate transaction' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (!audit?.user_id) {
+        console.log('No auth audit found for tx yet:', tx_hash);
+        return new Response(
+          JSON.stringify({ valid: false, error: 'Secure verification still pending' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const auditAddress = String((audit.metadata as Record<string, unknown> | null)?.address || '').trim().toLowerCase();
+
       const { data: user, error: userError } = await supabase
         .from('users')
         .select('*')
-        .eq('ecash_address', trimmedAddress)
+        .eq('id', audit.user_id)
         .maybeSingle();
 
       if (userError || !user) {
-        console.log('User not found for address:', trimmedAddress);
+        console.log('Auth audit user not found:', audit.user_id);
         return new Response(
-          JSON.stringify({ valid: false, error: 'User not found' }),
+          JSON.stringify({ valid: false, error: 'User not found for transaction' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (auditAddress !== trimmedAddress || user.ecash_address !== trimmedAddress) {
+        console.warn('Blocked wallet login mismatch', {
+          tx_hash,
+          requested_address: trimmedAddress,
+          audit_address: auditAddress,
+          audit_user_id: audit.user_id,
+        });
+        return new Response(
+          JSON.stringify({ valid: false, error: 'Transaction does not belong to this wallet' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
@@ -168,7 +216,7 @@ Deno.serve(async (req) => {
         .eq('user_id', user.id)
         .maybeSingle();
 
-      console.log(`Session found for ${trimmedAddress}: ${session.id}`);
+      console.log(`Session found for ${trimmedAddress} via tx ${tx_hash}: ${session.id}`);
 
       return new Response(
         JSON.stringify({

@@ -81,10 +81,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         body: { session_token: storedToken }
       });
 
-      // Important: do NOT log users out on transient network/function errors.
       if (error) {
-        console.warn('Session validation request failed (keeping local session):', error);
-        setSessionToken(storedToken);
+        console.warn('Session validation request failed; clearing local session for safety:', error);
+        localStorage.removeItem('ecash_user');
+        localStorage.removeItem('ecash_profile');
+        localStorage.removeItem('ecash_session_token');
+        setUser(null);
+        setProfile(null);
+        setSessionToken(null);
         return false;
       }
 
@@ -113,8 +117,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       return true;
     } catch (error) {
-      console.error('Session validation error (keeping local session):', error);
-      setSessionToken(storedToken);
+      console.error('Session validation error; clearing local session for safety:', error);
+      localStorage.removeItem('ecash_user');
+      localStorage.removeItem('ecash_profile');
+      localStorage.removeItem('ecash_session_token');
+      setUser(null);
+      setProfile(null);
+      setSessionToken(null);
       return false;
     }
   }, []);
