@@ -80,6 +80,24 @@ Deno.serve(async (req) => {
     const ecashAddress = inputAddresses[0].trim().toLowerCase();
     console.log(`PayButton webhook: tx=${txid}, sender=${ecashAddress}`);
 
+    const normalizedTxid = txid.trim().toLowerCase();
+
+    // Replay protection: a previously used auth payment must never mint a new
+    // session, even if an old signed webhook payload is submitted again.
+    const { data: existingAudit } = await supabase
+      .from("bet_audit_log")
+      .select("id, user_id")
+      .eq("event_type", "auth_tx_used")
+      .eq("tx_hash", normalizedTxid)
+      .maybeSingle();
+
+    if (existingAudit) {
+      console.warn(`PayButton webhook: duplicate auth tx blocked: ${normalizedTxid}`);
+      return new Response(JSON.stringify({ success: true, duplicate: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Find or create user
     let { data: user } = await supabase.from("users").select("*").eq("ecash_address", ecashAddress).maybeSingle();
 
@@ -108,7 +126,7 @@ Deno.serve(async (req) => {
     // Log the tx as used for auth (replay protection + traceability)
     await supabase.from("bet_audit_log").insert({
       event_type: "auth_tx_used",
-      tx_hash: txid,
+      tx_hash: normalizedTxid,
       user_id: user.id,
       metadata: { address: ecashAddress, source: "paybutton_webhook" },
     });

@@ -41,6 +41,7 @@ const CHRONIK_URLS = [
 
 // Platform auth wallet
 const AUTH_WALLET = 'ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp';
+const AUTH_TX_LOGIN_WINDOW_MS = 10 * 60 * 1000;
 
 /**
  * Fetch tx data from Chronik using the official client.
@@ -326,35 +327,67 @@ Deno.serve(async (req) => {
     const POLL_DELAY_MS = 1000;
 
     for (let attempt = 1; attempt <= MAX_WEBHOOK_POLLS; attempt++) {
-      const { data: existingUser } = await supabase
-        .from('users')
-        .select('*')
-        .eq('ecash_address', trimmedAddress)
+      const { data: webhookAudit } = await supabase
+        .from('bet_audit_log')
+        .select('id, user_id, metadata, created_at')
+        .eq('event_type', 'auth_tx_used')
+        .eq('tx_hash', tx_hash.toLowerCase())
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
 
-      if (existingUser) {
-        const { data: existingSession } = await supabase
-          .from('sessions')
+      const webhookAuditAddress = String((webhookAudit?.metadata as Record<string, unknown> | null)?.address || '').trim().toLowerCase();
+      const webhookAuditCreatedAt = webhookAudit?.created_at ? new Date(webhookAudit.created_at).getTime() : NaN;
+
+      if (
+        webhookAudit?.user_id &&
+        webhookAuditAddress === trimmedAddress &&
+        Number.isFinite(webhookAuditCreatedAt) &&
+        Date.now() - webhookAuditCreatedAt <= AUTH_TX_LOGIN_WINDOW_MS
+      ) {
+        const { data: existingUser } = await supabase
+          .from('users')
           .select('*')
-          .eq('user_id', existingUser.id)
-          .gt('expires_at', new Date().toISOString())
-          .order('created_at', { ascending: false })
-          .limit(1)
+          .eq('id', webhookAudit.user_id)
+          .eq('ecash_address', trimmedAddress)
           .maybeSingle();
 
-        if (existingSession) {
-          const { data: profile } = await supabase
-            .from('profiles')
+        if (existingUser) {
+          const { data: existingSession } = await supabase
+            .from('sessions')
             .select('*')
             .eq('user_id', existingUser.id)
+            .gte('created_at', new Date(Date.now() - AUTH_TX_LOGIN_WINDOW_MS).toISOString())
+            .gt('expires_at', new Date().toISOString())
+            .order('created_at', { ascending: false })
+            .limit(1)
             .maybeSingle();
 
-          console.log(`[Attempt ${attempt}] Returning webhook-created session for user: ${existingUser.id}`);
-          return new Response(
-            JSON.stringify({ success: true, user: existingUser, profile, session_token: existingSession.token }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
+          if (existingSession) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('user_id', existingUser.id)
+              .maybeSingle();
+
+            console.log(`[Attempt ${attempt}] Returning tx-bound webhook session for user: ${existingUser.id}`);
+            return new Response(
+              JSON.stringify({ success: true, user: existingUser, profile, session_token: existingSession.token }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
         }
+      } else if (webhookAudit?.user_id) {
+        console.warn('Webhook auth audit address mismatch; refusing session return', {
+          tx_hash,
+          requested_address: trimmedAddress,
+          audit_address: webhookAuditAddress,
+          audit_user_id: webhookAudit.user_id,
+        });
+        return new Response(
+          JSON.stringify({ error: 'Transaction does not belong to this wallet' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
 
       if (attempt < MAX_WEBHOOK_POLLS) {
@@ -380,7 +413,7 @@ Deno.serve(async (req) => {
     // ── Step 3: Check if this tx was already used for a session (replay protection) ──
     const { data: existingAudit } = await supabase
       .from('bet_audit_log')
-      .select('id')
+      .select('id, user_id, metadata, created_at')
       .eq('event_type', 'auth_tx_used')
       .eq('tx_hash', tx_hash)
       .maybeSingle();
@@ -393,30 +426,51 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (existingAudit) {
+      const existingAuditAddress = String((existingAudit.metadata as Record<string, unknown> | null)?.address || '').trim().toLowerCase();
+      const existingAuditCreatedAt = new Date(existingAudit.created_at).getTime();
+
+      if (
+        !fallbackUser ||
+        existingAudit.user_id !== fallbackUser.id ||
+        existingAuditAddress !== trimmedAddress ||
+        !Number.isFinite(existingAuditCreatedAt) ||
+        Date.now() - existingAuditCreatedAt > AUTH_TX_LOGIN_WINDOW_MS
+      ) {
+        console.warn('Auth tx replay/mismatch blocked', {
+          tx_hash,
+          requested_address: trimmedAddress,
+          audit_address: existingAuditAddress,
+          audit_user_id: existingAudit.user_id,
+        });
+        return new Response(
+          JSON.stringify({ error: 'This transaction was already used for another wallet' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       // Tx already used — but if user has a valid session, return it (handles retry scenario)
-      if (fallbackUser) {
-        const { data: retrySession } = await supabase
-          .from('sessions')
+      const { data: retrySession } = await supabase
+        .from('sessions')
+        .select('*')
+        .eq('user_id', fallbackUser.id)
+        .gte('created_at', new Date(Date.now() - AUTH_TX_LOGIN_WINDOW_MS).toISOString())
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (retrySession) {
+        const { data: profile } = await supabase
+          .from('profiles')
           .select('*')
           .eq('user_id', fallbackUser.id)
-          .gt('expires_at', new Date().toISOString())
-          .order('created_at', { ascending: false })
-          .limit(1)
           .maybeSingle();
 
-        if (retrySession) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('user_id', fallbackUser.id)
-            .maybeSingle();
-
-          console.log(`Tx already used but returning existing session for user: ${fallbackUser.id}`);
-          return new Response(
-            JSON.stringify({ success: true, user: fallbackUser, profile, session_token: retrySession.token }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
+        console.log(`Tx already used but returning tx-bound existing session for user: ${fallbackUser.id}`);
+        return new Response(
+          JSON.stringify({ success: true, user: fallbackUser, profile, session_token: retrySession.token }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
 
       return new Response(
