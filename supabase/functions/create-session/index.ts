@@ -41,6 +41,7 @@ const CHRONIK_URLS = [
 
 // Platform auth wallet
 const AUTH_WALLET = 'ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp';
+const AUTH_TX_LOGIN_WINDOW_MS = 10 * 60 * 1000;
 
 /**
  * Fetch tx data from Chronik using the official client.
@@ -328,7 +329,7 @@ Deno.serve(async (req) => {
     for (let attempt = 1; attempt <= MAX_WEBHOOK_POLLS; attempt++) {
       const { data: webhookAudit } = await supabase
         .from('bet_audit_log')
-        .select('id, user_id, metadata')
+        .select('id, user_id, metadata, created_at')
         .eq('event_type', 'auth_tx_used')
         .eq('tx_hash', tx_hash.toLowerCase())
         .order('created_at', { ascending: false })
@@ -336,8 +337,14 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       const webhookAuditAddress = String((webhookAudit?.metadata as Record<string, unknown> | null)?.address || '').trim().toLowerCase();
+      const webhookAuditCreatedAt = webhookAudit?.created_at ? new Date(webhookAudit.created_at).getTime() : NaN;
 
-      if (webhookAudit?.user_id && webhookAuditAddress === trimmedAddress) {
+      if (
+        webhookAudit?.user_id &&
+        webhookAuditAddress === trimmedAddress &&
+        Number.isFinite(webhookAuditCreatedAt) &&
+        Date.now() - webhookAuditCreatedAt <= AUTH_TX_LOGIN_WINDOW_MS
+      ) {
         const { data: existingUser } = await supabase
           .from('users')
           .select('*')
@@ -350,6 +357,7 @@ Deno.serve(async (req) => {
             .from('sessions')
             .select('*')
             .eq('user_id', existingUser.id)
+            .gte('created_at', new Date(Date.now() - AUTH_TX_LOGIN_WINDOW_MS).toISOString())
             .gt('expires_at', new Date().toISOString())
             .order('created_at', { ascending: false })
             .limit(1)
@@ -405,7 +413,7 @@ Deno.serve(async (req) => {
     // ── Step 3: Check if this tx was already used for a session (replay protection) ──
     const { data: existingAudit } = await supabase
       .from('bet_audit_log')
-      .select('id, user_id, metadata')
+      .select('id, user_id, metadata, created_at')
       .eq('event_type', 'auth_tx_used')
       .eq('tx_hash', tx_hash)
       .maybeSingle();
@@ -419,8 +427,15 @@ Deno.serve(async (req) => {
 
     if (existingAudit) {
       const existingAuditAddress = String((existingAudit.metadata as Record<string, unknown> | null)?.address || '').trim().toLowerCase();
+      const existingAuditCreatedAt = new Date(existingAudit.created_at).getTime();
 
-      if (!fallbackUser || existingAudit.user_id !== fallbackUser.id || existingAuditAddress !== trimmedAddress) {
+      if (
+        !fallbackUser ||
+        existingAudit.user_id !== fallbackUser.id ||
+        existingAuditAddress !== trimmedAddress ||
+        !Number.isFinite(existingAuditCreatedAt) ||
+        Date.now() - existingAuditCreatedAt > AUTH_TX_LOGIN_WINDOW_MS
+      ) {
         console.warn('Auth tx replay/mismatch blocked', {
           tx_hash,
           requested_address: trimmedAddress,
@@ -438,6 +453,7 @@ Deno.serve(async (req) => {
         .from('sessions')
         .select('*')
         .eq('user_id', fallbackUser.id)
+        .gte('created_at', new Date(Date.now() - AUTH_TX_LOGIN_WINDOW_MS).toISOString())
         .gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false })
         .limit(1)

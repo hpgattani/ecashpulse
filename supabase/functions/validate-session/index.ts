@@ -5,6 +5,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+const AUTH_TX_LOGIN_WINDOW_MS = 10 * 60 * 1000;
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -154,6 +156,15 @@ Deno.serve(async (req) => {
         );
       }
 
+      const auditCreatedAt = new Date(audit.created_at).getTime();
+      if (!Number.isFinite(auditCreatedAt) || Date.now() - auditCreatedAt > AUTH_TX_LOGIN_WINDOW_MS) {
+        console.warn('Blocked stale auth transaction login', { tx_hash, audit_user_id: audit.user_id });
+        return new Response(
+          JSON.stringify({ valid: false, error: 'Verification transaction expired. Please sign in again.' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       const auditAddress = String((audit.metadata as Record<string, unknown> | null)?.address || '').trim().toLowerCase();
 
       const { data: user, error: userError } = await supabase
@@ -188,6 +199,7 @@ Deno.serve(async (req) => {
         .from('sessions')
         .select('*')
         .eq('user_id', user.id)
+        .gte('created_at', new Date(Date.now() - AUTH_TX_LOGIN_WINDOW_MS).toISOString())
         .gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false })
         .limit(1)
