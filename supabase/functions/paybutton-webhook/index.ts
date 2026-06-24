@@ -118,8 +118,29 @@ Deno.serve(async (req) => {
     // Update last login
     await supabase.from("users").update({ last_login_at: new Date().toISOString() }).eq("id", user.id);
 
-    // Delete old sessions
-    await supabase.from("sessions").delete().eq("user_id", user.id);
+    // Log the tx as used for auth first, then create the tx-bound session.
+    const { error: auditInsertError } = await supabase.from("bet_audit_log").insert({
+      event_type: "auth_tx_used",
+      tx_hash: normalizedTxid,
+      user_id: user.id,
+      metadata: { address: ecashAddress, payment_id: paymentId, source: "paybutton_webhook" },
+    });
+
+    if (auditInsertError) {
+      console.warn("PayButton webhook: duplicate or invalid audit insert", auditInsertError);
+      return new Response(JSON.stringify({ success: true, duplicate: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Delete only stale sessions for this exact auth payment.
+    await supabase
+      .from("sessions")
+      .delete()
+      .eq("user_id", user.id)
+      .eq("tx_hash", normalizedTxid)
+      .eq("payment_id", paymentId)
+      .eq("source", "wallet_auth");
 
     // Create new session
     const token = generateSessionToken();
@@ -129,14 +150,9 @@ Deno.serve(async (req) => {
       user_id: user.id,
       token,
       expires_at: expiresAt.toISOString(),
-    });
-
-    // Log the tx as used for auth (replay protection + traceability)
-    await supabase.from("bet_audit_log").insert({
-      event_type: "auth_tx_used",
       tx_hash: normalizedTxid,
-      user_id: user.id,
-      metadata: { address: ecashAddress, payment_id: paymentId, source: "paybutton_webhook" },
+      payment_id: paymentId,
+      source: "wallet_auth",
     });
 
     console.log(`PayButton webhook: Session created for user ${user.id} (signature-verified)`);
