@@ -551,6 +551,23 @@ Deno.serve(async (req) => {
       .update({ last_login_at: new Date().toISOString() })
       .eq('id', user.id);
 
+    // Log the tx as used before minting a session. The database unique index
+    // makes this replay-safe even under concurrent requests.
+    const { error: auditInsertError } = await supabase.from('bet_audit_log').insert({
+      event_type: 'auth_tx_used',
+      tx_hash: tx_hash,
+      user_id: user.id,
+      metadata: { address: trimmedAddress, payment_id: normalizedPaymentId, source: 'chronik_fallback' },
+    });
+
+    if (auditInsertError) {
+      console.warn('Auth tx audit insert blocked', { tx_hash, error: auditInsertError.message });
+      return new Response(
+        JSON.stringify({ error: 'This transaction was already used for authentication' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Remove only any previous wallet-auth session for this exact payment.
     await supabase
       .from('sessions')
@@ -583,14 +600,6 @@ Deno.serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    // Log the tx as used for auth (replay protection)
-    await supabase.from('bet_audit_log').insert({
-      event_type: 'auth_tx_used',
-      tx_hash: tx_hash,
-      user_id: user.id,
-      metadata: { address: trimmedAddress, payment_id: normalizedPaymentId, source: 'chronik_fallback' },
-    });
 
     // Get profile
     const { data: profile } = await supabase
