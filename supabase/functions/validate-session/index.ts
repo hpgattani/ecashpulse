@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { normalizePaymentId, verifyAuthChallenge } from '../_shared/authChallenge.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,7 +19,7 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const body = await req.json();
-    const { session_token, tx_hash } = body;
+    const { session_token, tx_hash, payment_id, challenge_token } = body;
     let ecash_address = body.ecash_address;
 
     // Method 1: Validate by session token (for session refresh)
@@ -80,6 +81,26 @@ Deno.serve(async (req) => {
         return new Response(
           JSON.stringify({ valid: false, error: 'Transaction hash required for wallet login' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const normalizedPaymentId = normalizePaymentId(payment_id);
+      if (!normalizedPaymentId) {
+        return new Response(
+          JSON.stringify({ valid: false, error: 'Payment id required for wallet login' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const challenge = await verifyAuthChallenge(
+        challenge_token,
+        normalizedPaymentId,
+        supabaseServiceKey,
+      );
+      if (!challenge.valid) {
+        return new Response(
+          JSON.stringify({ valid: false, error: challenge.error || 'Invalid login challenge' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
@@ -165,7 +186,9 @@ Deno.serve(async (req) => {
         );
       }
 
-      const auditAddress = String((audit.metadata as Record<string, unknown> | null)?.address || '').trim().toLowerCase();
+      const auditMetadata = (audit.metadata as Record<string, unknown> | null) || null;
+      const auditAddress = String(auditMetadata?.address || '').trim().toLowerCase();
+      const auditPaymentId = normalizePaymentId(auditMetadata?.payment_id);
 
       const { data: user, error: userError } = await supabase
         .from('users')
@@ -181,11 +204,12 @@ Deno.serve(async (req) => {
         );
       }
 
-      if (auditAddress !== trimmedAddress || user.ecash_address !== trimmedAddress) {
+      if (auditAddress !== trimmedAddress || auditPaymentId !== normalizedPaymentId || user.ecash_address !== trimmedAddress) {
         console.warn('Blocked wallet login mismatch', {
           tx_hash,
           requested_address: trimmedAddress,
           audit_address: auditAddress,
+          audit_payment_id: auditPaymentId,
           audit_user_id: audit.user_id,
         });
         return new Response(
@@ -199,6 +223,9 @@ Deno.serve(async (req) => {
         .from('sessions')
         .select('*')
         .eq('user_id', user.id)
+        .eq('tx_hash', tx_hash.toLowerCase())
+        .eq('payment_id', normalizedPaymentId)
+        .eq('source', 'wallet_auth')
         .gte('created_at', new Date(Date.now() - AUTH_TX_LOGIN_WINDOW_MS).toISOString())
         .gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false })

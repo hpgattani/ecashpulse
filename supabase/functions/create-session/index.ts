@@ -1,6 +1,11 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { ChronikClient } from 'https://esm.sh/chronik-client@3.6.1';
 import { decodeCashAddress, encodeCashAddress } from 'https://esm.sh/ecashaddrjs@2.0.0';
+import {
+  extractPaymentIdFromChronikTx,
+  normalizePaymentId,
+  verifyAuthChallenge,
+} from '../_shared/authChallenge.ts';
 
 // Coerce/normalize untrusted input into a canonical lowercase ecash:q... address.
 // Returns null if the input is not a valid eCash address.
@@ -67,7 +72,8 @@ async function chronikFetchTx(txHash: string): Promise<any> {
  */
 async function verifyTransactionOnChain(
   txHash: string,
-  claimedSenderAddress: string
+  claimedSenderAddress: string,
+  expectedPaymentId: string
 ): Promise<{ valid: boolean; error?: string }> {
   try {
     const tx = await chronikFetchTx(txHash);
@@ -111,6 +117,11 @@ async function verifyTransactionOnChain(
 
     if (!recipientMatch) {
       return { valid: false, error: 'Transaction recipient is not the auth wallet' };
+    }
+
+    const txPaymentId = extractPaymentIdFromChronikTx(tx);
+    if (txPaymentId !== expectedPaymentId) {
+      return { valid: false, error: 'Transaction does not match this login request' };
     }
 
     return { valid: true };
@@ -276,12 +287,33 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    let { ecash_address, tx_hash } = await req.json();
+    let { ecash_address, tx_hash, payment_id, challenge_token } = await req.json();
 
-    if (!tx_hash || typeof tx_hash !== 'string' || tx_hash.length < 60) {
+    if (!tx_hash || typeof tx_hash !== 'string' || !/^[a-f0-9]{64}$/i.test(tx_hash)) {
       return new Response(
         JSON.stringify({ error: 'Valid transaction hash required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    tx_hash = tx_hash.trim().toLowerCase();
+
+    const normalizedPaymentId = normalizePaymentId(payment_id);
+    if (!normalizedPaymentId) {
+      return new Response(
+        JSON.stringify({ error: 'Valid payment id required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const challenge = await verifyAuthChallenge(
+      challenge_token,
+      normalizedPaymentId,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+    if (!challenge.valid) {
+      return new Response(
+        JSON.stringify({ error: challenge.error || 'Invalid login challenge' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -336,12 +368,15 @@ Deno.serve(async (req) => {
         .limit(1)
         .maybeSingle();
 
-      const webhookAuditAddress = String((webhookAudit?.metadata as Record<string, unknown> | null)?.address || '').trim().toLowerCase();
+      const webhookAuditMetadata = (webhookAudit?.metadata as Record<string, unknown> | null) || null;
+      const webhookAuditAddress = String(webhookAuditMetadata?.address || '').trim().toLowerCase();
+      const webhookAuditPaymentId = normalizePaymentId(webhookAuditMetadata?.payment_id);
       const webhookAuditCreatedAt = webhookAudit?.created_at ? new Date(webhookAudit.created_at).getTime() : NaN;
 
       if (
         webhookAudit?.user_id &&
         webhookAuditAddress === trimmedAddress &&
+        webhookAuditPaymentId === normalizedPaymentId &&
         Number.isFinite(webhookAuditCreatedAt) &&
         Date.now() - webhookAuditCreatedAt <= AUTH_TX_LOGIN_WINDOW_MS
       ) {
@@ -357,6 +392,9 @@ Deno.serve(async (req) => {
             .from('sessions')
             .select('*')
             .eq('user_id', existingUser.id)
+            .eq('tx_hash', tx_hash)
+            .eq('payment_id', normalizedPaymentId)
+            .eq('source', 'wallet_auth')
             .gte('created_at', new Date(Date.now() - AUTH_TX_LOGIN_WINDOW_MS).toISOString())
             .gt('expires_at', new Date().toISOString())
             .order('created_at', { ascending: false })
@@ -382,6 +420,7 @@ Deno.serve(async (req) => {
           tx_hash,
           requested_address: trimmedAddress,
           audit_address: webhookAuditAddress,
+          audit_payment_id: webhookAuditPaymentId,
           audit_user_id: webhookAudit.user_id,
         });
         return new Response(
@@ -398,7 +437,7 @@ Deno.serve(async (req) => {
 
     // ── Step 2: Fallback — Server-side transaction verification via Chronik ──
     console.log(`No webhook session found after ${MAX_WEBHOOK_POLLS} quick polls. Falling back to Chronik verification for tx ${tx_hash}...`);
-    const verification = await verifyTransactionOnChain(tx_hash, trimmedAddress);
+    const verification = await verifyTransactionOnChain(tx_hash, trimmedAddress, normalizedPaymentId);
 
     if (!verification.valid) {
       console.warn(`Chronik verification also failed: ${verification.error}`);
@@ -426,13 +465,16 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (existingAudit) {
-      const existingAuditAddress = String((existingAudit.metadata as Record<string, unknown> | null)?.address || '').trim().toLowerCase();
+      const existingAuditMetadata = (existingAudit.metadata as Record<string, unknown> | null) || null;
+      const existingAuditAddress = String(existingAuditMetadata?.address || '').trim().toLowerCase();
+      const existingAuditPaymentId = normalizePaymentId(existingAuditMetadata?.payment_id);
       const existingAuditCreatedAt = new Date(existingAudit.created_at).getTime();
 
       if (
         !fallbackUser ||
         existingAudit.user_id !== fallbackUser.id ||
         existingAuditAddress !== trimmedAddress ||
+        existingAuditPaymentId !== normalizedPaymentId ||
         !Number.isFinite(existingAuditCreatedAt) ||
         Date.now() - existingAuditCreatedAt > AUTH_TX_LOGIN_WINDOW_MS
       ) {
@@ -440,6 +482,7 @@ Deno.serve(async (req) => {
           tx_hash,
           requested_address: trimmedAddress,
           audit_address: existingAuditAddress,
+          audit_payment_id: existingAuditPaymentId,
           audit_user_id: existingAudit.user_id,
         });
         return new Response(
@@ -453,6 +496,9 @@ Deno.serve(async (req) => {
         .from('sessions')
         .select('*')
         .eq('user_id', fallbackUser.id)
+        .eq('tx_hash', tx_hash)
+        .eq('payment_id', normalizedPaymentId)
+        .eq('source', 'wallet_auth')
         .gte('created_at', new Date(Date.now() - AUTH_TX_LOGIN_WINDOW_MS).toISOString())
         .gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false })
@@ -505,8 +551,31 @@ Deno.serve(async (req) => {
       .update({ last_login_at: new Date().toISOString() })
       .eq('id', user.id);
 
-    // Delete old sessions for this user
-    await supabase.from('sessions').delete().eq('user_id', user.id);
+    // Log the tx as used before minting a session. The database unique index
+    // makes this replay-safe even under concurrent requests.
+    const { error: auditInsertError } = await supabase.from('bet_audit_log').insert({
+      event_type: 'auth_tx_used',
+      tx_hash: tx_hash,
+      user_id: user.id,
+      metadata: { address: trimmedAddress, payment_id: normalizedPaymentId, source: 'chronik_fallback' },
+    });
+
+    if (auditInsertError) {
+      console.warn('Auth tx audit insert blocked', { tx_hash, error: auditInsertError.message });
+      return new Response(
+        JSON.stringify({ error: 'This transaction was already used for authentication' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Remove only any previous wallet-auth session for this exact payment.
+    await supabase
+      .from('sessions')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('tx_hash', tx_hash)
+      .eq('payment_id', normalizedPaymentId)
+      .eq('source', 'wallet_auth');
 
     // Generate session token
     const tokenArray = new Uint8Array(32);
@@ -519,6 +588,9 @@ Deno.serve(async (req) => {
       user_id: user.id,
       token,
       expires_at: expiresAt.toISOString(),
+      tx_hash,
+      payment_id: normalizedPaymentId,
+      source: 'wallet_auth',
     });
 
     if (sessionError) {
@@ -528,14 +600,6 @@ Deno.serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    // Log the tx as used for auth (replay protection)
-    await supabase.from('bet_audit_log').insert({
-      event_type: 'auth_tx_used',
-      tx_hash: tx_hash,
-      user_id: user.id,
-      metadata: { address: trimmedAddress },
-    });
 
     // Get profile
     const { data: profile } = await supabase
