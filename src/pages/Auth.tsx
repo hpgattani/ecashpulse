@@ -14,6 +14,13 @@ import { ensurePayButtonLoaded } from '@/lib/paybuttonLoader';
 const AUTH_WALLET = 'ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp';
 const AUTH_AMOUNT = 5.46; // XEC amount for verification
 const LOGIN_SESSION_POLL_ATTEMPTS = 10;
+const AUTH_OP_RETURN_PREFIX = 'ecashpulse-auth';
+
+interface AuthChallenge {
+  payment_id: string;
+  challenge_token: string;
+  expires_at: string;
+}
 
 import type { PayButtonTransaction } from '@/types/paybutton.d.ts';
 
@@ -25,9 +32,13 @@ const Auth = () => {
   const [paymentWidgetError, setPaymentWidgetError] = useState<string | null>(null);
   const [pendingTxHash, setPendingTxHash] = useState<string | null>(null);
   const [pendingSenderAddress, setPendingSenderAddress] = useState<string | null>(null);
+  const [pendingPaymentId, setPendingPaymentId] = useState<string | null>(null);
+  const [pendingChallengeToken, setPendingChallengeToken] = useState<string | null>(null);
+  const [authChallenge, setAuthChallenge] = useState<AuthChallenge | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const payButtonRef = useRef<HTMLDivElement>(null);
   const handledTxRef = useRef<string | null>(null);
+  const expectedPaymentIdRef = useRef<string | null>(null);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -45,6 +56,27 @@ const Auth = () => {
           setScriptLoaded(false);
           setPaymentWidgetError(err instanceof Error ? err.message : 'Payment widget could not load.');
         }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    supabase.functions.invoke('create-auth-challenge', { body: {} })
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error || !data?.payment_id || !data?.challenge_token) {
+          setPaymentWidgetError('Could not prepare secure wallet verification. Please reload.');
+          return;
+        }
+        setAuthChallenge(data as AuthChallenge);
+      })
+      .catch(() => {
+        if (!cancelled) setPaymentWidgetError('Could not prepare secure wallet verification. Please reload.');
       });
 
     return () => {
@@ -76,14 +108,20 @@ const Auth = () => {
   }, []);
 
   // Submit tx to server for verification and session creation
-  const verifyAndLogin = useCallback(async (txHash: string, senderAddress: string) => {
+  const verifyAndLogin = useCallback(async (txHash: string, senderAddress: string, paymentId: string, challengeToken: string) => {
     setIsLoading(true);
     setPendingTxHash(txHash);
     setPendingSenderAddress(senderAddress);
+    setPendingPaymentId(paymentId);
+    setPendingChallengeToken(challengeToken);
     setError(null);
     setRetryCount(0);
 
     try {
+      localStorage.removeItem('ecash_user');
+      localStorage.removeItem('ecash_profile');
+      localStorage.removeItem('ecash_session_token');
+
       const persistSession = (data: any) => {
         localStorage.setItem('ecash_user', JSON.stringify(data.user));
         localStorage.setItem('ecash_session_token', data.session_token);
@@ -126,6 +164,8 @@ const Auth = () => {
           body: {
             ecash_address: senderAddress,
             tx_hash: txHash,
+            payment_id: paymentId,
+            challenge_token: challengeToken,
           },
         });
 
@@ -145,6 +185,8 @@ const Auth = () => {
         body: {
           ecash_address: senderAddress,
           tx_hash: txHash,
+          payment_id: paymentId,
+          challenge_token: challengeToken,
         },
       });
 
@@ -160,6 +202,8 @@ const Auth = () => {
           body: {
             ecash_address: senderAddress,
             tx_hash: txHash,
+            payment_id: paymentId,
+            challenge_token: challengeToken,
           },
         });
 
@@ -188,12 +232,20 @@ const Auth = () => {
       return;
     }
 
-    if (!scriptLoaded || !window.PayButton) return;
+    if (!scriptLoaded || !window.PayButton || !authChallenge) return;
 
     payButtonRef.current.innerHTML = '';
+    expectedPaymentIdRef.current = authChallenge.payment_id;
 
     const handleSuccess = async (transaction: PayButtonTransaction) => {
-      console.log('Auth payment detected:', transaction);
+      const txHash = transaction.hash || transaction.txid;
+      const expectedPaymentId = expectedPaymentIdRef.current;
+
+      if (!expectedPaymentId || transaction.paymentId !== expectedPaymentId) {
+        // PayButton broadcasts payments to anyone watching the same receiving wallet.
+        // Never authenticate unless this payment matches this tab's unique payment id.
+        return;
+      }
       
       // PayButton sometimes returns sender as { address, amount } instead of a string.
       // Normalize via ecashaddrjs (per eCash SKILLS.md) so the server always gets
@@ -201,8 +253,6 @@ const Auth = () => {
       const rawSender: unknown =
         transaction.inputAddresses?.[0] ?? (transaction as { senderAddress?: unknown }).senderAddress;
       let senderAddress = normalizeEcashAddress(rawSender as never);
-
-      const txHash = transaction.hash || transaction.txid;
 
       if (!txHash) {
         setError('No transaction hash received. Please try again.');
@@ -222,7 +272,7 @@ const Auth = () => {
         senderAddress = '__from_tx__';
       }
 
-      verifyAndLogin(txHash, senderAddress);
+      verifyAndLogin(txHash, senderAddress, expectedPaymentId, authChallenge.challenge_token);
     };
 
     window.PayButton.render(payButtonRef.current, {
@@ -230,11 +280,12 @@ const Auth = () => {
       amount: AUTH_AMOUNT,
       currency: 'XEC',
       usdPrice: 0.00000771,
+      paymentId: authChallenge.payment_id,
+      opReturn: AUTH_OP_RETURN_PREFIX,
       text: 'Verify Wallet',
       hoverText: `Pay ${AUTH_AMOUNT} XEC`,
       autoClose: true,
       hideToasts: true,
-      disablePaymentId: true,
       disableAltpayment: true,
       onSuccess: handleSuccess,
       theme: {
@@ -249,7 +300,7 @@ const Auth = () => {
     return () => {
       closePayButtonModal();
     };
-  }, [scriptLoaded, user, isLoading, authSuccess, verifyAndLogin, closePayButtonModal]);
+  }, [scriptLoaded, user, isLoading, authSuccess, authChallenge, verifyAndLogin, closePayButtonModal]);
 
   useEffect(() => {
     if (user) {
@@ -331,12 +382,12 @@ const Auth = () => {
                   <AlertCircle className="w-4 h-4 flex-shrink-0" />
                   <span>{error}</span>
                 </div>
-                {pendingTxHash && pendingSenderAddress && (
+                {pendingTxHash && pendingSenderAddress && pendingPaymentId && pendingChallengeToken && (
                   <Button
                     size="sm"
                     variant="outline"
                     className="w-full"
-                    onClick={() => verifyAndLogin(pendingTxHash, pendingSenderAddress)}
+                    onClick={() => verifyAndLogin(pendingTxHash, pendingSenderAddress, pendingPaymentId, pendingChallengeToken)}
                   >
                     Retry login without paying again
                   </Button>

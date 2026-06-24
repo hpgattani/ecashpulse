@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import * as ed25519 from "https://esm.sh/@noble/ed25519@2.1.0";
+import { normalizePaymentId } from "../_shared/authChallenge.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -42,6 +43,7 @@ interface PayButtonWebhook {
   txid: string;
   amount: number;
   inputAddresses?: string[];
+  paymentId?: string;
 }
 
 Deno.serve(async (req) => {
@@ -73,8 +75,14 @@ Deno.serve(async (req) => {
     const payload: PayButtonWebhook = JSON.parse(rawBody);
     const { txid, inputAddresses } = payload;
 
-    if (!txid || !inputAddresses?.length) {
+    if (!txid || !/^[a-f0-9]{64}$/i.test(txid) || !inputAddresses?.length) {
       return new Response("Invalid payload", { status: 400 });
+    }
+
+    const paymentId = normalizePaymentId(payload.paymentId);
+    if (!paymentId) {
+      console.warn("PayButton webhook: missing payment id; refusing auth session mint");
+      return new Response("Missing payment id", { status: 400 });
     }
 
     const ecashAddress = inputAddresses[0].trim().toLowerCase();
@@ -128,7 +136,7 @@ Deno.serve(async (req) => {
       event_type: "auth_tx_used",
       tx_hash: normalizedTxid,
       user_id: user.id,
-      metadata: { address: ecashAddress, source: "paybutton_webhook" },
+      metadata: { address: ecashAddress, payment_id: paymentId, source: "paybutton_webhook" },
     });
 
     console.log(`PayButton webhook: Session created for user ${user.id} (signature-verified)`);

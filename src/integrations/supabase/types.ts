@@ -967,7 +967,10 @@ export type Database = {
           expires_at: string
           id: string
           last_used_at: string
+          payment_id: string | null
+          source: string | null
           token: string
+          tx_hash: string | null
           user_id: string
         }
         Insert: {
@@ -975,7 +978,10 @@ export type Database = {
           expires_at?: string
           id?: string
           last_used_at?: string
+          payment_id?: string | null
+          source?: string | null
           token: string
+          tx_hash?: string | null
           user_id: string
         }
         Update: {
@@ -983,7 +989,10 @@ export type Database = {
           expires_at?: string
           id?: string
           last_used_at?: string
+          payment_id?: string | null
+          source?: string | null
           token?: string
+          tx_hash?: string | null
           user_id?: string
         }
         Relationships: [
