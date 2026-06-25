@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
   );
 
   try {
-    const { prediction_id } = await req.json();
+    const { prediction_id, payout_message } = await req.json();
     console.log(`Processing payouts for prediction: ${prediction_id || 'all pending'}`);
 
     // Get all won OR refunded bets that haven't been paid out
