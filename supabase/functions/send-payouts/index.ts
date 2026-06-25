@@ -98,17 +98,10 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Parse body first so we can support an admin-secret bypass for one-off admin payouts.
-  let body: any = {};
-  try { body = await req.json(); } catch (_) { body = {}; }
-
-  // Internal-only: must be invoked with the service role key, OR include the admin secret in body.
+  // Internal-only: must be invoked with the service role key (from other edge functions / cron).
   const auth = req.headers.get('Authorization') || req.headers.get('authorization') || '';
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-  const adminSecret = Deno.env.get('ADMIN_SECRET_PASSWORD') ?? '';
-  const hasServiceAuth = !!serviceKey && auth === `Bearer ${serviceKey}`;
-  const hasAdminSecret = !!adminSecret && typeof body?.admin_secret === 'string' && body.admin_secret === adminSecret;
-  if (!hasServiceAuth && !hasAdminSecret) {
+  if (!serviceKey || auth !== `Bearer ${serviceKey}`) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -121,8 +114,9 @@ Deno.serve(async (req) => {
   );
 
   try {
-    const { prediction_id, payout_message } = body;
+    const { prediction_id, payout_message } = await req.json();
     console.log(`Processing payouts for prediction: ${prediction_id || 'all pending'}`);
+
 
 
     // Get all won OR refunded bets that haven't been paid out
