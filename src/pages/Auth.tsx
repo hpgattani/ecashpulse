@@ -16,6 +16,14 @@ const AUTH_AMOUNT = 5.46; // XEC amount for verification
 const LOGIN_SESSION_POLL_ATTEMPTS = 10;
 const AUTH_OP_RETURN_PREFIX = 'ecashpulse-auth';
 
+const authOpReturnForPaymentId = (paymentId: string) => `${AUTH_OP_RETURN_PREFIX}:${paymentId}`;
+
+const normalizePaymentId = (input: unknown): string | null => {
+  if (typeof input !== 'string') return null;
+  const paymentId = input.trim().toLowerCase();
+  return /^[0-9a-f]{2,150}$/.test(paymentId) && paymentId.length % 2 === 0 ? paymentId : null;
+};
+
 interface AuthChallenge {
   payment_id: string;
   challenge_token: string;
@@ -240,10 +248,13 @@ const Auth = () => {
     const handleSuccess = async (transaction: PayButtonTransaction) => {
       const txHash = transaction.hash || transaction.txid;
       const expectedPaymentId = expectedPaymentIdRef.current;
+      const txPaymentId = normalizePaymentId(transaction.paymentId);
+      const expectedMessage = expectedPaymentId ? authOpReturnForPaymentId(expectedPaymentId) : '';
+      const txMessage = (transaction.rawMessage || transaction.message || '').trim().toLowerCase();
 
-      if (!expectedPaymentId || transaction.paymentId !== expectedPaymentId) {
+      if (!expectedPaymentId || (txPaymentId !== expectedPaymentId && txMessage !== expectedMessage)) {
         // PayButton broadcasts payments to anyone watching the same receiving wallet.
-        // Never authenticate unless this payment matches this tab's unique payment id.
+        // Never authenticate unless this payment matches this tab's unique auth marker.
         return;
       }
       
@@ -281,11 +292,12 @@ const Auth = () => {
       currency: 'XEC',
       usdPrice: 0.00000771,
       paymentId: authChallenge.payment_id,
-      opReturn: AUTH_OP_RETURN_PREFIX,
+      opReturn: authOpReturnForPaymentId(authChallenge.payment_id),
       text: 'Verify Wallet',
       hoverText: `Pay ${AUTH_AMOUNT} XEC`,
       autoClose: true,
       hideToasts: true,
+      disablePaymentId: true,
       disableAltpayment: true,
       onSuccess: handleSuccess,
       theme: {

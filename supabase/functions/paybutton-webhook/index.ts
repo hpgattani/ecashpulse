@@ -1,6 +1,11 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { ChronikClient } from "https://esm.sh/chronik-client@3.6.1";
 import * as ed25519 from "https://esm.sh/@noble/ed25519@2.1.0";
-import { normalizePaymentId } from "../_shared/authChallenge.ts";
+import {
+  extractAuthPaymentIdFromMessage,
+  extractPaymentIdFromChronikTx,
+  normalizePaymentId,
+} from "../_shared/authChallenge.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,6 +14,15 @@ const corsHeaders = {
 
 // PayButton public key (DER-encoded Ed25519)
 const PAYBUTTON_PUBLIC_KEY = "302a300506032b6570032100bc0ff6268e2edb1232563603904e40af377243cd806372e427bd05f70bd1759a";
+const CHRONIK_URLS = [
+  "https://chronik.e.cash",
+  "https://chronik.be.cash",
+  "https://xec.paybutton.org",
+  "https://chronik.pay2stay.com/xec",
+  "https://chronik.pay2stay.com/xec2",
+  "https://chronik1.alitayin.com",
+  "https://chronik2.alitayin.com",
+];
 
 function extractEd25519PublicKey(derHex: string): Uint8Array {
   const keyBytes = derHex.slice(-64);
@@ -44,6 +58,22 @@ interface PayButtonWebhook {
   amount: number;
   inputAddresses?: string[];
   paymentId?: string;
+  message?: string;
+  rawMessage?: string;
+}
+
+async function extractPaymentIdFromTx(txid: string): Promise<string | null> {
+  for (const baseUrl of CHRONIK_URLS) {
+    try {
+      const chronik = new ChronikClient([baseUrl]);
+      const tx = await chronik.tx(txid);
+      const paymentId = extractPaymentIdFromChronikTx(tx);
+      if (paymentId) return paymentId;
+    } catch (_) {
+      // Try the next redundant Chronik endpoint.
+    }
+  }
+  return null;
 }
 
 Deno.serve(async (req) => {
@@ -79,7 +109,11 @@ Deno.serve(async (req) => {
       return new Response("Invalid payload", { status: 400 });
     }
 
-    const paymentId = normalizePaymentId(payload.paymentId);
+    const paymentId =
+      normalizePaymentId(payload.paymentId) ||
+      extractAuthPaymentIdFromMessage(payload.rawMessage) ||
+      extractAuthPaymentIdFromMessage(payload.message) ||
+      await extractPaymentIdFromTx(txid.trim().toLowerCase());
     if (!paymentId) {
       console.warn("PayButton webhook: missing payment id; refusing auth session mint");
       return new Response("Missing payment id", { status: 400 });

@@ -1,4 +1,5 @@
 const AUTH_CHALLENGE_TTL_MS = 10 * 60 * 1000;
+const AUTH_OP_RETURN_PREFIX = 'ecashpulse-auth';
 
 function bytesToHex(bytes: Uint8Array): string {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
@@ -44,6 +45,18 @@ export function normalizePaymentId(input: unknown): string | null {
   const paymentId = input.trim().toLowerCase();
   if (!/^[0-9a-f]{2,150}$/.test(paymentId) || paymentId.length % 2 !== 0) return null;
   return paymentId;
+}
+
+export function authOpReturnForPaymentId(paymentId: string): string {
+  return `${AUTH_OP_RETURN_PREFIX}:${paymentId}`;
+}
+
+export function extractAuthPaymentIdFromMessage(input: unknown): string | null {
+  if (typeof input !== 'string') return null;
+  const message = input.trim().toLowerCase();
+  const prefix = `${AUTH_OP_RETURN_PREFIX}:`;
+  if (!message.startsWith(prefix)) return null;
+  return normalizePaymentId(message.slice(prefix.length));
 }
 
 export async function createAuthChallenge(secret: string): Promise<{
@@ -101,7 +114,7 @@ export async function verifyAuthChallenge(
   return { valid: true };
 }
 
-export function extractPayButtonPaymentId(outputScript: unknown): string | null {
+export function extractPayButtonOpReturn(outputScript: unknown): { rawMessage: string; paymentId: string } | null {
   if (typeof outputScript !== 'string') return null;
   const script = outputScript.trim().toLowerCase();
   if (script.length < 16 || script.length % 2 !== 0) return null;
@@ -118,16 +131,36 @@ export function extractPayButtonPaymentId(outputScript: unknown): string | null 
   if (!Number.isFinite(messageByteLength)) return null;
 
   const afterMessage = offset + messageByteLength * 2;
-  if (script.length < afterMessage + 2) return '';
+  if (script.length < afterMessage) return null;
+
+  let rawMessage = '';
+  try {
+    const messageHex = script.slice(offset, afterMessage);
+    const messageBytes = new Uint8Array(messageHex.length / 2);
+    for (let i = 0; i < messageBytes.length; i++) {
+      messageBytes[i] = parseInt(messageHex.slice(i * 2, i * 2 + 2), 16);
+    }
+    rawMessage = new TextDecoder().decode(messageBytes);
+  } catch {
+    rawMessage = '';
+  }
+
+  if (script.length < afterMessage + 2) return { rawMessage, paymentId: '' };
 
   const paymentIdByteLength = parseInt(script.slice(afterMessage, afterMessage + 2), 16);
   if (!Number.isFinite(paymentIdByteLength)) return null;
 
   const paymentIdStart = afterMessage + 2;
   const paymentIdEnd = paymentIdStart + paymentIdByteLength * 2;
-  if (script.length < paymentIdEnd) return '';
+  if (script.length < paymentIdEnd) return { rawMessage, paymentId: '' };
 
-  return script.slice(paymentIdStart, paymentIdEnd).toLowerCase();
+  return { rawMessage, paymentId: script.slice(paymentIdStart, paymentIdEnd).toLowerCase() };
+}
+
+export function extractPayButtonPaymentId(outputScript: unknown): string | null {
+  const opReturn = extractPayButtonOpReturn(outputScript);
+  if (!opReturn) return null;
+  return normalizePaymentId(opReturn.paymentId) || extractAuthPaymentIdFromMessage(opReturn.rawMessage);
 }
 
 export function extractPaymentIdFromChronikTx(tx: any): string | null {
