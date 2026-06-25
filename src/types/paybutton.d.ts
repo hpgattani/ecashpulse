@@ -8,6 +8,7 @@ export interface PayButtonTransaction {
   timestamp: number;
   address: string;
   rawMessage?: string;
+  opReturn?: string;
   inputAddresses?: string[];
   txid?: string;
 }
