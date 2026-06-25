@@ -386,8 +386,10 @@ Deno.serve(async (req) => {
       console.log(`Adjusted total payout after fee redistribution: ${totalPayout} XEC`);
     }
 
-    // OP_RETURN with Cashtab message
-    const congratsMessage = Deno.env.get('PAYOUT_MESSAGE') || 'Congratulations for winning on eCash Pulse!';
+    // OP_RETURN with Cashtab message (caller may override per-payout)
+    const congratsMessage = (typeof payout_message === 'string' && payout_message.trim().length > 0)
+      ? payout_message.trim()
+      : (Deno.env.get('PAYOUT_MESSAGE') || 'Congratulations for winning on eCash Pulse!');
     const opReturnScript = createCashtabMessageScript(congratsMessage);
     outputs.push({ value: 0n, scriptPubKey: opReturnScript });
     console.log(`Added Cashtab message: "${congratsMessage}"`);
