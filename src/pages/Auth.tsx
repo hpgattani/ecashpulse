@@ -175,30 +175,6 @@ const Auth = () => {
         }
       };
 
-      for (let attempt = 0; attempt < LOGIN_SESSION_POLL_ATTEMPTS; attempt++) {
-        setRetryCount(attempt);
-
-        const { data, error: validateError } = await supabase.functions.invoke('validate-session', {
-          body: {
-            ecash_address: senderAddress,
-            tx_hash: txHash,
-            payment_id: paymentId,
-            challenge_token: challengeToken,
-          },
-        });
-
-        if (!validateError && data?.valid && data?.session_token) {
-          persistSession(data);
-          return;
-        }
-
-        if (attempt < LOGIN_SESSION_POLL_ATTEMPTS - 1) {
-          await new Promise((r) => setTimeout(r, 1500));
-        }
-      }
-
-      setRetryCount(LOGIN_SESSION_POLL_ATTEMPTS);
-
       const { data, error: sessionError } = await supabase.functions.invoke('create-session', {
         body: {
           ecash_address: senderAddress,
@@ -215,7 +191,9 @@ const Auth = () => {
 
       const errorMsg = await extractErrorMessage(sessionError, data);
 
-      if (errorMsg.includes('already used')) {
+      for (let attempt = 0; attempt < LOGIN_SESSION_POLL_ATTEMPTS; attempt++) {
+        setRetryCount(attempt + 1);
+
         const { data: existingSession } = await supabase.functions.invoke('validate-session', {
           body: {
             ecash_address: senderAddress,
@@ -228,6 +206,10 @@ const Auth = () => {
         if (existingSession?.valid && existingSession?.session_token) {
           persistSession(existingSession);
           return;
+        }
+
+        if (attempt < LOGIN_SESSION_POLL_ATTEMPTS - 1) {
+          await new Promise((r) => setTimeout(r, 1500));
         }
       }
 
@@ -255,19 +237,23 @@ const Auth = () => {
     payButtonRef.current.innerHTML = '';
     expectedPaymentIdRef.current = authChallenge.payment_id;
 
-    const handleSuccess = async (transaction: PayButtonTransaction) => {
-      const txHash = transaction.hash || transaction.txid;
+    const handleSuccess = async (transaction: PayButtonTransaction | string) => {
+      const txHash = typeof transaction === 'string' ? transaction : transaction.hash || transaction.txid;
       const expectedPaymentId = expectedPaymentIdRef.current;
       const txPaymentId =
-        normalizePaymentId(transaction.paymentId) ||
-        extractAuthPaymentIdFromMessage(transaction.rawMessage) ||
-        extractAuthPaymentIdFromMessage(transaction.message);
+        typeof transaction === 'string'
+          ? null
+          : normalizePaymentId(transaction.paymentId) ||
+            extractAuthPaymentIdFromMessage(transaction.rawMessage) ||
+            extractAuthPaymentIdFromMessage(transaction.message);
       const expectedMessage = expectedPaymentId ? authOpReturnForPaymentId(expectedPaymentId) : '';
-      const txMessage = (transaction.rawMessage || transaction.message || '').trim().toLowerCase();
+      const txMessage = typeof transaction === 'string' ? '' : (transaction.rawMessage || transaction.message || '').trim().toLowerCase();
 
-      if (!expectedPaymentId || (txPaymentId !== expectedPaymentId && txMessage !== expectedMessage)) {
+      if (!expectedPaymentId) return;
+
+      if (txPaymentId && txPaymentId !== expectedPaymentId && txMessage !== expectedMessage) {
         // PayButton broadcasts payments to anyone watching the same receiving wallet.
-        // Never authenticate unless this payment matches this tab's unique auth marker.
+        // If the callback includes a different marker, it belongs to another tab.
         return;
       }
       
@@ -275,7 +261,9 @@ const Auth = () => {
       // Normalize via ecashaddrjs (per eCash SKILLS.md) so the server always gets
       // a clean canonical `ecash:q...` string — never an object.
       const rawSender: unknown =
-        transaction.inputAddresses?.[0] ?? (transaction as { senderAddress?: unknown }).senderAddress;
+        typeof transaction === 'string'
+          ? undefined
+          : transaction.inputAddresses?.[0] ?? (transaction as { senderAddress?: unknown }).senderAddress;
       let senderAddress = normalizeEcashAddress(rawSender as never);
 
       if (!txHash) {
@@ -313,6 +301,7 @@ const Auth = () => {
       disablePaymentId: true,
       disableAltpayment: true,
       onSuccess: handleSuccess,
+      onTransaction: handleSuccess,
       theme: {
         palette: {
           primary: '#0AC18E',
