@@ -24,6 +24,16 @@ const normalizePaymentId = (input: unknown): string | null => {
   return /^[0-9a-f]{2,150}$/.test(paymentId) && paymentId.length % 2 === 0 ? paymentId : null;
 };
 
+const extractAuthPaymentIdFromMessage = (input: unknown): string | null => {
+  if (typeof input !== 'string') return null;
+  const message = input.trim().toLowerCase();
+  const exactPrefix = `${AUTH_OP_RETURN_PREFIX}:`;
+  if (message.startsWith(exactPrefix)) return normalizePaymentId(message.slice(exactPrefix.length));
+
+  const match = message.match(/ecashpulse-auth(?:\s*[,;|/-]?\s*(?:nonce|payment[_\s-]*id)?\s*[:=]?\s*|\s*:\s*)([0-9a-f]{2,150})/i);
+  return normalizePaymentId(match?.[1]);
+};
+
 interface AuthChallenge {
   payment_id: string;
   challenge_token: string;
@@ -248,7 +258,10 @@ const Auth = () => {
     const handleSuccess = async (transaction: PayButtonTransaction) => {
       const txHash = transaction.hash || transaction.txid;
       const expectedPaymentId = expectedPaymentIdRef.current;
-      const txPaymentId = normalizePaymentId(transaction.paymentId);
+      const txPaymentId =
+        normalizePaymentId(transaction.paymentId) ||
+        extractAuthPaymentIdFromMessage(transaction.rawMessage) ||
+        extractAuthPaymentIdFromMessage(transaction.message);
       const expectedMessage = expectedPaymentId ? authOpReturnForPaymentId(expectedPaymentId) : '';
       const txMessage = (transaction.rawMessage || transaction.message || '').trim().toLowerCase();
 
