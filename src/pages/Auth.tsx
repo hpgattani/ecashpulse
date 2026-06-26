@@ -57,6 +57,7 @@ const Auth = () => {
   const payButtonRef = useRef<HTMLDivElement>(null);
   const handledTxRef = useRef<string | null>(null);
   const expectedPaymentIdRef = useRef<string | null>(null);
+  const recoveryPollInFlightRef = useRef(false);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -125,6 +126,25 @@ const Auth = () => {
     }
   }, []);
 
+  const completeLogin = useCallback((data: any) => {
+    localStorage.setItem('ecash_user', JSON.stringify(data.user));
+    localStorage.setItem('ecash_session_token', data.session_token);
+    if (data.profile) {
+      localStorage.setItem('ecash_profile', JSON.stringify(data.profile));
+    } else {
+      localStorage.removeItem('ecash_profile');
+    }
+
+    setAuthSuccess(true);
+    toast.success('Payment Sent!', {
+      description: `Paid ${AUTH_AMOUNT} XEC — wallet verified`,
+    });
+
+    const returnUrl = sessionStorage.getItem('auth_return_url');
+    sessionStorage.removeItem('auth_return_url');
+    setTimeout(() => (window.location.href = returnUrl || '/'), 1500);
+  }, []);
+
   // Submit tx to server for verification and session creation
   const verifyAndLogin = useCallback(async (txHash: string, senderAddress: string, paymentId: string, challengeToken: string) => {
     setIsLoading(true);
@@ -139,25 +159,6 @@ const Auth = () => {
       localStorage.removeItem('ecash_user');
       localStorage.removeItem('ecash_profile');
       localStorage.removeItem('ecash_session_token');
-
-      const persistSession = (data: any) => {
-        localStorage.setItem('ecash_user', JSON.stringify(data.user));
-        localStorage.setItem('ecash_session_token', data.session_token);
-        if (data.profile) {
-          localStorage.setItem('ecash_profile', JSON.stringify(data.profile));
-        } else {
-          localStorage.removeItem('ecash_profile');
-        }
-
-        setAuthSuccess(true);
-        toast.success('Payment Sent!', {
-          description: `Paid ${AUTH_AMOUNT} XEC — wallet verified`,
-        });
-
-        const returnUrl = sessionStorage.getItem('auth_return_url');
-        sessionStorage.removeItem('auth_return_url');
-        setTimeout(() => (window.location.href = returnUrl || '/'), 1500);
-      };
 
       const extractErrorMessage = async (sessionError: unknown, data?: any) => {
         if (data?.error) return data.error as string;
@@ -185,7 +186,7 @@ const Auth = () => {
       });
 
       if (!sessionError && data?.success) {
-        persistSession(data);
+        completeLogin(data);
         return;
       }
 
@@ -204,7 +205,7 @@ const Auth = () => {
         });
 
         if (existingSession?.valid && existingSession?.session_token) {
-          persistSession(existingSession);
+          completeLogin(existingSession);
           return;
         }
 
@@ -220,7 +221,56 @@ const Auth = () => {
       setIsLoading(false);
       handledTxRef.current = null;
     }
-  }, []);
+  }, [completeLogin]);
+
+  // PayButton webhooks/callbacks can be flaky on mobile wallet handoff. Poll the
+  // auth wallet for this tab's unique challenge marker so a paid login registers
+  // even if the browser never receives PayButton's onSuccess event.
+  useEffect(() => {
+    if (!authChallenge || user || isLoading || authSuccess) return;
+
+    let cancelled = false;
+    let attempts = 0;
+    const maxAttempts = 120;
+
+    const pollForChallengePayment = async () => {
+      if (cancelled || recoveryPollInFlightRef.current) return;
+      recoveryPollInFlightRef.current = true;
+
+      try {
+        const { data } = await supabase.functions.invoke('create-session', {
+          body: {
+            ecash_address: '__from_tx__',
+            payment_id: authChallenge.payment_id,
+            challenge_token: authChallenge.challenge_token,
+          },
+        });
+
+        if (!cancelled && data?.success && data?.session_token) {
+          completeLogin(data);
+        }
+      } catch {
+        // Keep the button smooth; visible errors are handled by the direct
+        // payment callback path when a tx hash is available.
+      } finally {
+        recoveryPollInFlightRef.current = false;
+        attempts += 1;
+      }
+    };
+
+    const interval = window.setInterval(() => {
+      if (attempts >= maxAttempts) {
+        window.clearInterval(interval);
+        return;
+      }
+      pollForChallengePayment();
+    }, 3000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [authChallenge, user, isLoading, authSuccess, completeLogin]);
 
   // Render PayButton when script is loaded
   useEffect(() => {
