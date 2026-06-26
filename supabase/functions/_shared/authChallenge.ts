@@ -1,4 +1,4 @@
-const AUTH_CHALLENGE_TTL_MS = 10 * 60 * 1000;
+const AUTH_CHALLENGE_TTL_MS = 60 * 60 * 1000;
 const AUTH_OP_RETURN_PREFIX = 'ecashpulse-auth';
 
 function bytesToHex(bytes: Uint8Array): string {
@@ -55,8 +55,14 @@ export function extractAuthPaymentIdFromMessage(input: unknown): string | null {
   if (typeof input !== 'string') return null;
   const message = input.trim().toLowerCase();
   const prefix = `${AUTH_OP_RETURN_PREFIX}:`;
-  if (!message.startsWith(prefix)) return null;
-  return normalizePaymentId(message.slice(prefix.length));
+  if (message.startsWith(prefix)) return normalizePaymentId(message.slice(prefix.length));
+
+  // Some wallets render PayButton OP_RETURN data as human-readable fields like
+  // "Data: ecashpulse-auth, Nonce: <hex>" instead of preserving our exact
+  // "ecashpulse-auth:<hex>" string. Accept that shape too so the login remains
+  // smooth while still requiring the unique per-tab nonce/payment id.
+  const match = message.match(/ecashpulse-auth(?:\s*[,;|/-]?\s*(?:nonce|payment[_\s-]*id)?\s*[:=]?\s*|\s*:\s*)([0-9a-f]{2,150})/i);
+  return normalizePaymentId(match?.[1]);
 }
 
 export async function createAuthChallenge(secret: string): Promise<{

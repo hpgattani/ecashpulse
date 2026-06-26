@@ -24,6 +24,16 @@ const normalizePaymentId = (input: unknown): string | null => {
   return /^[0-9a-f]{2,150}$/.test(paymentId) && paymentId.length % 2 === 0 ? paymentId : null;
 };
 
+const extractAuthPaymentIdFromMessage = (input: unknown): string | null => {
+  if (typeof input !== 'string') return null;
+  const message = input.trim().toLowerCase();
+  const exactPrefix = `${AUTH_OP_RETURN_PREFIX}:`;
+  if (message.startsWith(exactPrefix)) return normalizePaymentId(message.slice(exactPrefix.length));
+
+  const match = message.match(/ecashpulse-auth(?:\s*[,;|/-]?\s*(?:nonce|payment[_\s-]*id)?\s*[:=]?\s*|\s*:\s*)([0-9a-f]{2,150})/i);
+  return normalizePaymentId(match?.[1]);
+};
+
 interface AuthChallenge {
   payment_id: string;
   challenge_token: string;
@@ -47,6 +57,7 @@ const Auth = () => {
   const payButtonRef = useRef<HTMLDivElement>(null);
   const handledTxRef = useRef<string | null>(null);
   const expectedPaymentIdRef = useRef<string | null>(null);
+  const recoveryPollInFlightRef = useRef(false);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -115,6 +126,25 @@ const Auth = () => {
     }
   }, []);
 
+  const completeLogin = useCallback((data: any) => {
+    localStorage.setItem('ecash_user', JSON.stringify(data.user));
+    localStorage.setItem('ecash_session_token', data.session_token);
+    if (data.profile) {
+      localStorage.setItem('ecash_profile', JSON.stringify(data.profile));
+    } else {
+      localStorage.removeItem('ecash_profile');
+    }
+
+    setAuthSuccess(true);
+    toast.success('Payment Sent!', {
+      description: `Paid ${AUTH_AMOUNT} XEC — wallet verified`,
+    });
+
+    const returnUrl = sessionStorage.getItem('auth_return_url');
+    sessionStorage.removeItem('auth_return_url');
+    setTimeout(() => (window.location.href = returnUrl || '/'), 1500);
+  }, []);
+
   // Submit tx to server for verification and session creation
   const verifyAndLogin = useCallback(async (txHash: string, senderAddress: string, paymentId: string, challengeToken: string) => {
     setIsLoading(true);
@@ -129,25 +159,6 @@ const Auth = () => {
       localStorage.removeItem('ecash_user');
       localStorage.removeItem('ecash_profile');
       localStorage.removeItem('ecash_session_token');
-
-      const persistSession = (data: any) => {
-        localStorage.setItem('ecash_user', JSON.stringify(data.user));
-        localStorage.setItem('ecash_session_token', data.session_token);
-        if (data.profile) {
-          localStorage.setItem('ecash_profile', JSON.stringify(data.profile));
-        } else {
-          localStorage.removeItem('ecash_profile');
-        }
-
-        setAuthSuccess(true);
-        toast.success('Payment Sent!', {
-          description: `Paid ${AUTH_AMOUNT} XEC — wallet verified`,
-        });
-
-        const returnUrl = sessionStorage.getItem('auth_return_url');
-        sessionStorage.removeItem('auth_return_url');
-        setTimeout(() => (window.location.href = returnUrl || '/'), 1500);
-      };
 
       const extractErrorMessage = async (sessionError: unknown, data?: any) => {
         if (data?.error) return data.error as string;
@@ -165,30 +176,6 @@ const Auth = () => {
         }
       };
 
-      for (let attempt = 0; attempt < LOGIN_SESSION_POLL_ATTEMPTS; attempt++) {
-        setRetryCount(attempt);
-
-        const { data, error: validateError } = await supabase.functions.invoke('validate-session', {
-          body: {
-            ecash_address: senderAddress,
-            tx_hash: txHash,
-            payment_id: paymentId,
-            challenge_token: challengeToken,
-          },
-        });
-
-        if (!validateError && data?.valid && data?.session_token) {
-          persistSession(data);
-          return;
-        }
-
-        if (attempt < LOGIN_SESSION_POLL_ATTEMPTS - 1) {
-          await new Promise((r) => setTimeout(r, 1500));
-        }
-      }
-
-      setRetryCount(LOGIN_SESSION_POLL_ATTEMPTS);
-
       const { data, error: sessionError } = await supabase.functions.invoke('create-session', {
         body: {
           ecash_address: senderAddress,
@@ -199,13 +186,15 @@ const Auth = () => {
       });
 
       if (!sessionError && data?.success) {
-        persistSession(data);
+        completeLogin(data);
         return;
       }
 
       const errorMsg = await extractErrorMessage(sessionError, data);
 
-      if (errorMsg.includes('already used')) {
+      for (let attempt = 0; attempt < LOGIN_SESSION_POLL_ATTEMPTS; attempt++) {
+        setRetryCount(attempt + 1);
+
         const { data: existingSession } = await supabase.functions.invoke('validate-session', {
           body: {
             ecash_address: senderAddress,
@@ -216,8 +205,12 @@ const Auth = () => {
         });
 
         if (existingSession?.valid && existingSession?.session_token) {
-          persistSession(existingSession);
+          completeLogin(existingSession);
           return;
+        }
+
+        if (attempt < LOGIN_SESSION_POLL_ATTEMPTS - 1) {
+          await new Promise((r) => setTimeout(r, 1500));
         }
       }
 
@@ -228,7 +221,56 @@ const Auth = () => {
       setIsLoading(false);
       handledTxRef.current = null;
     }
-  }, []);
+  }, [completeLogin]);
+
+  // PayButton webhooks/callbacks can be flaky on mobile wallet handoff. Poll the
+  // auth wallet for this tab's unique challenge marker so a paid login registers
+  // even if the browser never receives PayButton's onSuccess event.
+  useEffect(() => {
+    if (!authChallenge || user || isLoading || authSuccess) return;
+
+    let cancelled = false;
+    let attempts = 0;
+    const maxAttempts = 120;
+
+    const pollForChallengePayment = async () => {
+      if (cancelled || recoveryPollInFlightRef.current) return;
+      recoveryPollInFlightRef.current = true;
+
+      try {
+        const { data } = await supabase.functions.invoke('create-session', {
+          body: {
+            ecash_address: '__from_tx__',
+            payment_id: authChallenge.payment_id,
+            challenge_token: authChallenge.challenge_token,
+          },
+        });
+
+        if (!cancelled && data?.success && data?.session_token) {
+          completeLogin(data);
+        }
+      } catch {
+        // Keep the button smooth; visible errors are handled by the direct
+        // payment callback path when a tx hash is available.
+      } finally {
+        recoveryPollInFlightRef.current = false;
+        attempts += 1;
+      }
+    };
+
+    const interval = window.setInterval(() => {
+      if (attempts >= maxAttempts) {
+        window.clearInterval(interval);
+        return;
+      }
+      pollForChallengePayment();
+    }, 3000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [authChallenge, user, isLoading, authSuccess, completeLogin]);
 
   // Render PayButton when script is loaded
   useEffect(() => {
@@ -245,16 +287,23 @@ const Auth = () => {
     payButtonRef.current.innerHTML = '';
     expectedPaymentIdRef.current = authChallenge.payment_id;
 
-    const handleSuccess = async (transaction: PayButtonTransaction) => {
-      const txHash = transaction.hash || transaction.txid;
+    const handleSuccess = async (transaction: PayButtonTransaction | string) => {
+      const txHash = typeof transaction === 'string' ? transaction : transaction.hash || transaction.txid;
       const expectedPaymentId = expectedPaymentIdRef.current;
-      const txPaymentId = normalizePaymentId(transaction.paymentId);
+      const txPaymentId =
+        typeof transaction === 'string'
+          ? null
+          : normalizePaymentId(transaction.paymentId) ||
+            extractAuthPaymentIdFromMessage(transaction.rawMessage) ||
+            extractAuthPaymentIdFromMessage(transaction.message);
       const expectedMessage = expectedPaymentId ? authOpReturnForPaymentId(expectedPaymentId) : '';
-      const txMessage = (transaction.rawMessage || transaction.message || '').trim().toLowerCase();
+      const txMessage = typeof transaction === 'string' ? '' : (transaction.rawMessage || transaction.message || '').trim().toLowerCase();
 
-      if (!expectedPaymentId || (txPaymentId !== expectedPaymentId && txMessage !== expectedMessage)) {
+      if (!expectedPaymentId) return;
+
+      if (txPaymentId && txPaymentId !== expectedPaymentId && txMessage !== expectedMessage) {
         // PayButton broadcasts payments to anyone watching the same receiving wallet.
-        // Never authenticate unless this payment matches this tab's unique auth marker.
+        // If the callback includes a different marker, it belongs to another tab.
         return;
       }
       
@@ -262,7 +311,9 @@ const Auth = () => {
       // Normalize via ecashaddrjs (per eCash SKILLS.md) so the server always gets
       // a clean canonical `ecash:q...` string — never an object.
       const rawSender: unknown =
-        transaction.inputAddresses?.[0] ?? (transaction as { senderAddress?: unknown }).senderAddress;
+        typeof transaction === 'string'
+          ? undefined
+          : transaction.inputAddresses?.[0] ?? (transaction as { senderAddress?: unknown }).senderAddress;
       let senderAddress = normalizeEcashAddress(rawSender as never);
 
       if (!txHash) {
@@ -300,6 +351,7 @@ const Auth = () => {
       disablePaymentId: true,
       disableAltpayment: true,
       onSuccess: handleSuccess,
+      onTransaction: handleSuccess,
       theme: {
         palette: {
           primary: '#0AC18E',

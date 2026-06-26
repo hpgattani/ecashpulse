@@ -46,7 +46,7 @@ const CHRONIK_URLS = [
 
 // Platform auth wallet
 const AUTH_WALLET = 'ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp';
-const AUTH_TX_LOGIN_WINDOW_MS = 10 * 60 * 1000;
+const AUTH_TX_LOGIN_WINDOW_MS = 60 * 60 * 1000;
 
 /**
  * Fetch tx data from Chronik using the official client.
@@ -64,6 +64,40 @@ async function chronikFetchTx(txHash: string): Promise<any> {
     }
   }
   console.warn(`Chronik: All endpoints failed for tx ${txHash}: ${errors.join(', ')}`);
+  return null;
+}
+
+async function findRecentAuthTxByPaymentId(
+  expectedPaymentId: string,
+): Promise<{ txHash: string; senderAddress: string | null } | null> {
+  const authHash = AUTH_WALLET.replace('ecash:', '').toLowerCase();
+
+  for (const baseUrl of CHRONIK_URLS) {
+    try {
+      const chronik = new ChronikClient([baseUrl]);
+      const history = await chronik.address(AUTH_WALLET).history(0, 50);
+
+      for (const tx of history?.txs || []) {
+        const txPaymentId = extractPaymentIdFromChronikTx(tx);
+        if (txPaymentId !== expectedPaymentId) continue;
+
+        const txTimeSeconds = tx.timeFirstSeen || tx.block?.timestamp || 0;
+        if (!txTimeSeconds || Date.now() - txTimeSeconds * 1000 > AUTH_TX_LOGIN_WINDOW_MS) continue;
+
+        const recipientMatch = (tx.outputs || []).some((output: any) => {
+          const addr = scriptToAddress(output?.outputScript);
+          return addr?.toLowerCase().replace('ecash:', '') === authHash;
+        });
+        if (!recipientMatch) continue;
+
+        const senderAddress = scriptToAddress(tx.inputs?.[0]?.outputScript);
+        return { txHash: String(tx.txid || '').toLowerCase(), senderAddress };
+      }
+    } catch (e) {
+      console.warn(`Chronik: auth history scan failed via ${baseUrl}: ${(e as Error).message}`);
+    }
+  }
+
   return null;
 }
 
@@ -289,14 +323,6 @@ Deno.serve(async (req) => {
 
     let { ecash_address, tx_hash, payment_id, challenge_token } = await req.json();
 
-    if (!tx_hash || typeof tx_hash !== 'string' || !/^[a-f0-9]{64}$/i.test(tx_hash)) {
-      return new Response(
-        JSON.stringify({ error: 'Valid transaction hash required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    tx_hash = tx_hash.trim().toLowerCase();
-
     const normalizedPaymentId = normalizePaymentId(payment_id);
     if (!normalizedPaymentId) {
       return new Response(
@@ -315,6 +341,29 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: challenge.error || 'Invalid login challenge' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    if (tx_hash && typeof tx_hash === 'string' && tx_hash.trim()) {
+      if (!/^[a-f0-9]{64}$/i.test(tx_hash)) {
+        return new Response(
+          JSON.stringify({ error: 'Valid transaction hash required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      tx_hash = tx_hash.trim().toLowerCase();
+    } else {
+      const locatedPayment = await findRecentAuthTxByPaymentId(normalizedPaymentId);
+      if (!locatedPayment?.txHash) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Payment not seen yet' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      tx_hash = locatedPayment.txHash;
+      if (!ecash_address || ecash_address === '__from_tx__') {
+        ecash_address = locatedPayment.senderAddress || '__from_tx__';
+      }
     }
 
     // Defense-in-depth: PayButton may send an object like { address, amount } instead
