@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const AUTH_TX_LOGIN_WINDOW_MS = 10 * 60 * 1000;
+const AUTH_TX_LOGIN_WINDOW_MS = 60 * 60 * 1000;
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {

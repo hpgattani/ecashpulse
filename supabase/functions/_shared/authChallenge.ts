@@ -1,4 +1,4 @@
-const AUTH_CHALLENGE_TTL_MS = 10 * 60 * 1000;
+const AUTH_CHALLENGE_TTL_MS = 60 * 60 * 1000;
 const AUTH_OP_RETURN_PREFIX = 'ecashpulse-auth';
 
 function bytesToHex(bytes: Uint8Array): string {

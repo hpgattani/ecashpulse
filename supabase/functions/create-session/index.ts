@@ -46,7 +46,7 @@ const CHRONIK_URLS = [
 
 // Platform auth wallet
 const AUTH_WALLET = 'ecash:qz6jsgshsv0v2tyuleptwr4at8xaxsakmstkhzc0pp';
-const AUTH_TX_LOGIN_WINDOW_MS = 10 * 60 * 1000;
+const AUTH_TX_LOGIN_WINDOW_MS = 60 * 60 * 1000;
 
 /**
  * Fetch tx data from Chronik using the official client.
