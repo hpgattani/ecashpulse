@@ -7,6 +7,7 @@ import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { LightModeOrbs } from "@/components/LightModeOrbs";
+import { SecurityAnnouncementBanner } from "@/components/SecurityAnnouncementBanner";
 
 import Index from "./pages/Index";
 import AwaitingResolutionPage from "./pages/AwaitingResolution";
