@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
         category: 'crypto',
         end_date: endDate.toISOString(),
           escrow_address: escrow.escrowAddress,
-          escrow_privkey_encrypted: escrow.privkeyHex,
+          escrow_privkey_encrypted: await encryptPrivkey(escrow.privkeyHex),
           escrow_script_hex: escrow.scriptHex,
         status: 'active',
         yes_pool: 0,
