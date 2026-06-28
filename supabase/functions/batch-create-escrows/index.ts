@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
           let repairedAddress = prediction.escrow_script_hex ? scriptHexToCashAddr(prediction.escrow_script_hex) : null;
           let repairedScript = prediction.escrow_script_hex ?? null;
 
-          const repaired = await deriveEscrowMaterialFromPrivateKey(prediction.escrow_privkey_encrypted);
+          const repaired = await deriveEscrowMaterialFromPrivateKey(await decryptPrivkey(prediction.escrow_privkey_encrypted));
           repairedAddress = repaired.escrowAddress;
           repairedScript = repaired.scriptHex;
 
