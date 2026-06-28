@@ -1,41 +1,29 @@
+## Security announcement: site banner + tweet thread
 
+### 1. Dismissible top banner
+- Create `src/components/SecurityAnnouncementBanner.tsx`:
+  - Thin bar above the header, full width, liquid-glass style (matches site design tokens — teal/purple gradient border, subtle blur).
+  - Copy: "🔒 Escrow keys now encrypted at rest with AES-256-GCM. P2SH multisig escrow coming next."
+  - Optional small "Learn more" link → opens a lightweight inline `<details>` or scrolls to nothing for now (link omitted if not needed).
+  - Close (X) button on the right.
+  - Dismissal stored in `localStorage` under key `security-banner-aes-gcm-dismissed` (versioned so future banners can re-show).
+  - Mobile-first: text truncates / wraps cleanly at 360px; close button stays tappable (44px target).
+- Mount once in `src/App.tsx` above `<Header />` so it appears on all routes.
+- No business-logic changes, no backend changes.
 
-# Reply Threading for Comments
+### 2. Tweet thread (text only, for user to copy-paste)
+Delivered in the chat reply — not stored in the app. Three tweets:
 
-## Overview
-Add the ability to reply to specific comments, creating a threaded conversation view within each prediction's comment section.
+1. **What shipped** — short, factual: per-prediction escrow private keys are now encrypted at rest. Stealing a DB dump is no longer enough to move funds.
+2. **Technical detail** — AES-256-GCM, random IV per record, key-encryption-key held outside the database in platform secrets, injected only into server-side functions at runtime. Backward-compatible migration on first use.
+3. **What's next** — P2SH multisig escrow on the roadmap, removing single-key custody entirely. Built on eCash.
 
-## Database Change
-Add a `parent_id` column to the `comments` table (nullable UUID, self-referencing) to link replies to parent comments.
+No bounty, no "crack it" challenge, no "best in class" wording.
 
-**Migration SQL:**
-```sql
-ALTER TABLE public.comments ADD COLUMN parent_id uuid DEFAULT NULL;
-```
+### Files touched
+- New: `src/components/SecurityAnnouncementBanner.tsx`
+- Edit: `src/App.tsx` (mount banner)
 
-## Backend Changes
-
-### 1. `add-comment` Edge Function
-- Accept an optional `parent_id` field in the request body
-- Validate that the parent comment exists and belongs to the same prediction
-- Include `parent_id` in the insert statement
-
-## Frontend Changes
-
-### 2. `CommentsSection.tsx`
-- Update the `Comment` interface to include `parent_id` and `replies` array
-- Fetch `parent_id` alongside other comment fields
-- Build a tree structure: group top-level comments (no parent_id) with their replies nested underneath
-- Add a "Reply" button on each comment that sets a `replyingTo` state
-- When replying, show the parent comment's author name as context (e.g., "Replying to @user...")
-- Pass `parent_id` to the `add-comment` invocation when replying
-- Render replies indented under their parent with a left border for visual hierarchy
-- Limit nesting to 1 level (replies to replies attach to the same parent) to keep mobile UI clean
-- On mobile, delete button uses tap (already works via group-hover fallback)
-
-## Technical Details
-- No new Edge Function needed; `add-comment` is extended with one optional field
-- Comments query already orders by `created_at` ascending, which works for threading
-- Tree building happens client-side after fetching flat comment list
-- Single-level nesting keeps the UI simple on the 420px mobile viewport
-
+### Out of scope
+- No edge function changes, no DB changes, no schema changes.
+- No dedicated `/security` page (can add later if you want).
