@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { deriveEscrowMaterialFromPrivateKey, generateEscrowMaterial, isEscrowMaterialConsistent } from '../_shared/escrow.ts';
 import { scriptHexToCashAddr } from '../_shared/cashaddr.ts';
+import { decryptPrivkey, encryptPrivkey } from '../_shared/escrowCrypto.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
