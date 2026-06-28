@@ -643,7 +643,7 @@ async function syncPredictions(supabase: any): Promise<{ created: number; resolv
       description: (market.description || '').slice(0, 500),
       category,
       escrow_address: escrow.escrowAddress,
-      escrow_privkey_encrypted: escrow.privkeyHex,
+      escrow_privkey_encrypted: await encryptPrivkey(escrow.privkeyHex),
       escrow_script_hex: escrow.scriptHex,
       end_date: normalizedEndDate,
       status: 'active',
