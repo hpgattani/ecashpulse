@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { deriveEscrowMaterialFromPrivateKey, isEscrowMaterialConsistent } from '../_shared/escrow.ts';
+import { decryptPrivkey } from '../_shared/escrowCrypto.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -41,7 +42,7 @@ Deno.serve(async (req) => {
     const results: any[] = [];
 
     for (const pred of predictions || []) {
-      const privKeyHex = pred.escrow_privkey_encrypted;
+      const privKeyHex = await decryptPrivkey(pred.escrow_privkey_encrypted);
       const normalizedHex = fromHex(privKeyHex).length ? privKeyHex : '';
       const escrow = await deriveEscrowMaterialFromPrivateKey(normalizedHex);
 

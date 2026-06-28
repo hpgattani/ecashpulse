@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { generateEscrowMaterial, isEscrowMaterialConsistent } from '../_shared/escrow.ts';
+import { encryptPrivkey } from '../_shared/escrowCrypto.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -64,7 +65,7 @@ Deno.serve(async (req) => {
       .from('predictions')
       .update({
         escrow_address: escrow.escrowAddress,
-        escrow_privkey_encrypted: escrow.privkeyHex,
+        escrow_privkey_encrypted: await encryptPrivkey(escrow.privkeyHex),
         escrow_script_hex: escrow.scriptHex,
       })
       .eq('id', prediction_id);

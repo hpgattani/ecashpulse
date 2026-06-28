@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { deriveEscrowMaterialFromPrivateKey, generateEscrowMaterial, isEscrowMaterialConsistent } from '../_shared/escrow.ts';
 import { scriptHexToCashAddr } from '../_shared/cashaddr.ts';
+import { decryptPrivkey, encryptPrivkey } from '../_shared/escrowCrypto.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -81,7 +82,7 @@ Deno.serve(async (req) => {
           let repairedAddress = prediction.escrow_script_hex ? scriptHexToCashAddr(prediction.escrow_script_hex) : null;
           let repairedScript = prediction.escrow_script_hex ?? null;
 
-          const repaired = await deriveEscrowMaterialFromPrivateKey(prediction.escrow_privkey_encrypted);
+          const repaired = await deriveEscrowMaterialFromPrivateKey(await decryptPrivkey(prediction.escrow_privkey_encrypted));
           repairedAddress = repaired.escrowAddress;
           repairedScript = repaired.scriptHex;
 
@@ -150,7 +151,7 @@ Deno.serve(async (req) => {
           .from('predictions')
           .update({
             escrow_address: escrow.escrowAddress,
-            escrow_privkey_encrypted: escrow.privkeyHex,
+            escrow_privkey_encrypted: await encryptPrivkey(escrow.privkeyHex),
             escrow_script_hex: escrow.scriptHex,
           })
           .eq('id', prediction.id);

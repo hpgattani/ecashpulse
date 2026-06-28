@@ -8,6 +8,7 @@ import {
   getPublicKey, signECDSA, bip143Sighash, buildSignedTransaction,
   type TxInput, type TxOutput,
 } from '../_shared/crypto.ts';
+import { decryptAndMaybeUpgrade } from '../_shared/escrowCrypto.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -165,7 +166,11 @@ Deno.serve(async (req) => {
         .single();
 
       if (predData?.escrow_privkey_encrypted) {
-        const testKey = fromHex(predData.escrow_privkey_encrypted);
+        const { privkeyHex, upgradedCiphertext } = await decryptAndMaybeUpgrade(predData.escrow_privkey_encrypted);
+        if (upgradedCiphertext) {
+          await supabase.from('predictions').update({ escrow_privkey_encrypted: upgradedCiphertext }).eq('id', prediction_id);
+        }
+        const testKey = fromHex(privkeyHex);
         const testPub = await getPublicKey(testKey, true);
         const testHash = await hash160(testPub);
         const addrHash = cashAddrToHash160(predData.escrow_address);

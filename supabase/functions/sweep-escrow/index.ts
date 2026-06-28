@@ -6,6 +6,7 @@ import {
   getPublicKey, buildSignedTransaction,
   type TxInput, type TxOutput,
 } from '../_shared/crypto.ts';
+import { decryptAndMaybeUpgrade } from '../_shared/escrowCrypto.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -50,7 +51,11 @@ Deno.serve(async (req) => {
     }
 
     const escrowAddress = pred.escrow_address;
-    const privateKey = fromHex(pred.escrow_privkey_encrypted);
+    const { privkeyHex, upgradedCiphertext } = await decryptAndMaybeUpgrade(pred.escrow_privkey_encrypted);
+    if (upgradedCiphertext) {
+      await supabase.from('predictions').update({ escrow_privkey_encrypted: upgradedCiphertext }).eq('id', prediction_id);
+    }
+    const privateKey = fromHex(privkeyHex);
     const compressed = true;
 
     // Verify key matches address
