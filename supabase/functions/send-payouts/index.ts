@@ -8,6 +8,7 @@ import {
   getPublicKey, signECDSA, bip143Sighash, buildSignedTransaction,
   type TxInput, type TxOutput,
 } from '../_shared/crypto.ts';
+import { decryptAndMaybeUpgrade } from '../_shared/escrowCrypto.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
