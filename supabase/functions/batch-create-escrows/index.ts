@@ -151,7 +151,7 @@ Deno.serve(async (req) => {
           .from('predictions')
           .update({
             escrow_address: escrow.escrowAddress,
-            escrow_privkey_encrypted: escrow.privkeyHex,
+            escrow_privkey_encrypted: await encryptPrivkey(escrow.privkeyHex),
             escrow_script_hex: escrow.scriptHex,
           })
           .eq('id', prediction.id);
