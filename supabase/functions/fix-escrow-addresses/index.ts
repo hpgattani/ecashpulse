@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
     const results: any[] = [];
 
     for (const pred of predictions || []) {
-      const privKeyHex = pred.escrow_privkey_encrypted;
+      const privKeyHex = await decryptPrivkey(pred.escrow_privkey_encrypted);
       const normalizedHex = fromHex(privKeyHex).length ? privKeyHex : '';
       const escrow = await deriveEscrowMaterialFromPrivateKey(normalizedHex);
 
