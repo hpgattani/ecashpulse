@@ -43,6 +43,7 @@ const App = () => (
               <div className="relative z-10">
                 <Sonner />
                 <BrowserRouter>
+                  <SecurityAnnouncementBanner />
                   <Routes>
                     <Route path="/" element={<Index />} />
                     <Route path="/awaiting" element={<AwaitingResolutionPage />} />
