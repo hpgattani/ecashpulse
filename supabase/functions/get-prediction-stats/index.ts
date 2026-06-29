@@ -166,18 +166,19 @@ const buildSearchConfig = (prediction: PredictionRow) => {
         analysisType,
         recency: "month",
         domainFilter: [
-          "lmarena.ai", "chat.lmsys.org", "huggingface.co", "openai.com",
-          "anthropic.com", "deepmind.google", "ai.google.dev",
+          "openrouter.ai", "artificialanalysis.ai",
+          "lmarena.ai", "chat.lmsys.org", "huggingface.co",
+          "openai.com", "anthropic.com", "deepmind.google", "ai.google.dev",
           "techcrunch.com", "theverge.com", "arstechnica.com", "wired.com",
-          "artificialanalysis.ai", "scale.com",
         ],
         query: [
           `Prediction market: ${prediction.title}`,
           `Description: ${prediction.description ?? "N/A"}`,
-          "Find the CURRENT Chatbot Arena (LMArena) leaderboard top-ranked AI models with their providers and Elo scores.",
-          "List the top 5 models by current rank, including the company that built each one.",
-          "Include any recent model releases or score changes from the last 30 days.",
-          "Cite lmarena.ai or other authoritative AI benchmark sources.",
+          "PRIMARY SOURCE: OpenRouter rankings at https://openrouter.ai/rankings (and the per-category pages: /rankings/programming, /rankings/roleplay, /rankings/marketing, /rankings/technology, /rankings/science, /rankings/translation, /rankings/finance, /rankings/academia, /rankings/legal, /rankings/health). These rank LLMs by real production token usage.",
+          "Identify the CURRENT top-ranked AI models and the companies (OpenAI, Anthropic, Google, xAI, Meta, DeepSeek, Mistral, Alibaba, Moonshot, etc.) behind each model on the relevant OpenRouter ranking.",
+          "Cross-reference with artificialanalysis.ai and LMArena Elo when useful, but treat OpenRouter usage rank as authoritative for 'best/leading model' questions.",
+          "List the top 5 models for the relevant category with their provider and ranking metric.",
+          "Include any model releases or rank changes from the last 30 days.",
         ].join("\n"),
       };
     default:
