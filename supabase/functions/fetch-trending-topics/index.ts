@@ -124,7 +124,13 @@ const TRIVIALLY_TRUE_PATTERNS: RegExp[] = [
 
 // Keywords that belong to a specific category - reject if detected category doesn't match
 const CATEGORY_KEYWORD_MAP: Record<string, string[]> = {
-  economics: ['inflation', 'gdp', 'interest rate', 'unemployment', 'recession', 'cpi', 'fed rate'],
+  economics: [
+    'inflation', 'gdp', 'interest rate', 'unemployment', 'recession', 'cpi', 'fed rate',
+    // Commodities belong in economics, not politics
+    'crude oil', 'wti', 'brent', '(cl)', 'natural gas', 'heating oil', 'gasoline',
+    'gold', 'xauusd', 'silver', 'xagusd', 'copper', 'platinum', 'palladium',
+    'commodity', 'commodities',
+  ],
   // Include athlete names + tennis tour terms to prevent "Serena Williams" being misrouted.
   sports: [
     'nfl', 'nba', 'mlb', 'nhl', 'super bowl', 'playoffs', 'championship', 'ipl', 'cricket', 'world cup',
@@ -336,7 +342,13 @@ function detectCategory(question: string): string {
     q.includes('largest company') || q.includes('market value') || q.includes('valuation') ||
     q.includes('trillion') || q.includes('billion') || q.includes('stock price') || q.includes('ipo') ||
     q.includes('earnings') || q.includes('revenue') || q.includes('profit') || q.includes('market share') ||
-    q.includes('company worth') || q.includes('most valuable')
+    q.includes('company worth') || q.includes('most valuable') ||
+    // Commodities (oil, metals, energy) — economics, never politics
+    q.includes('crude oil') || q.includes('wti') || q.includes('brent') || q.includes('(cl)') ||
+    q.includes('natural gas') || q.includes('heating oil') || q.includes('gasoline') ||
+    q.includes('gold') || q.includes('xauusd') || q.includes('silver') || q.includes('xagusd') ||
+    q.includes('copper') || q.includes('platinum') || q.includes('palladium') ||
+    q.includes('commodity') || q.includes('commodities')
   ) {
     return 'economics';
   }
