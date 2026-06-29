@@ -330,7 +330,16 @@ function detectCategory(question: string): string {
     q.includes('house of the dragon') || q.includes('game of thrones') || q.includes('stranger things') ||
     q.includes('the last of us') || q.includes('mandalorian') || q.includes('rings of power') ||
     q.includes('marvel') || q.includes('star wars') || q.includes('series finale') ||
-    q.includes('streaming') || q.includes('box office') || q.includes('concert')
+    q.includes('streaming') || q.includes('box office') || q.includes('concert') ||
+    // Celebrity / personal-life events — entertainment, never politics
+    q.includes('divorce') || q.includes('divorced') || q.includes('engaged') || q.includes('engagement') ||
+    q.includes('married') || q.includes('marriage') || q.includes('wedding') || q.includes('breakup') ||
+    q.includes('break up') || q.includes('dating') || q.includes('pregnant') || q.includes('baby') ||
+    q.includes('celebrity') || q.includes('influencer') || q.includes('streamer') || q.includes('twitch') ||
+    q.includes('onlyfans') || q.includes('kardashian') || q.includes('amouranth') || q.includes('mrbeast') ||
+    q.includes('drake') || q.includes('taylor swift') || q.includes('kanye') || q.includes('rihanna') ||
+    q.includes('beyonce') || q.includes('jay-z') || q.includes('actor') || q.includes('actress') ||
+    q.includes('singer') || q.includes('rapper') || q.includes('podcast')
   ) {
     return 'entertainment';
   }
