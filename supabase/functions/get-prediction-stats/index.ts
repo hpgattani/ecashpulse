@@ -914,7 +914,7 @@ serve(async (req) => {
           `- For SPORTS: ALWAYS provide head_to_head with records (Total meetings, wins, draws, last meeting) and form_guide with last 3-5 results per team. Never leave them empty.`,
         ] : []),
         ...(isAi ? [
-          `- For AI markets: name the current top-ranked AI models on Chatbot Arena / LMArena and the companies behind them. Include Elo scores when known.`,
+          `- For AI markets: use OpenRouter rankings (openrouter.ai/rankings) as the PRIMARY benchmark for "best/leading AI model" questions — it ranks models by real production token usage across categories (programming, roleplay, marketing, technology, science, translation, finance, academia, legal, health). Name the current top-ranked models and the companies behind them. Include OpenRouter rank, and optionally LMArena Elo when known.`,
         ] : []),
       ] : [
         `- ONLY use facts that appear in the search results. Do NOT add anything from your own knowledge.`,
