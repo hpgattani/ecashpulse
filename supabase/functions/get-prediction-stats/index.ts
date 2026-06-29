@@ -74,6 +74,7 @@ const CRYPTO_KEYWORDS = [
 
 const AI_KEYWORDS = [
   "ai model", "ai models", "best ai", "llm", "large language model",
+  "openrouter", "openrouter rankings", "openrouter leaderboard",
   "chatbot arena", "lmarena", "lmsys", "gpt-", "claude", "gemini",
   "openai", "anthropic", "deepmind", "mistral", "llama", "grok",
   "ai leaderboard", "ai benchmark", "mmlu", "humaneval", "swe-bench",
@@ -165,18 +166,19 @@ const buildSearchConfig = (prediction: PredictionRow) => {
         analysisType,
         recency: "month",
         domainFilter: [
-          "lmarena.ai", "chat.lmsys.org", "huggingface.co", "openai.com",
-          "anthropic.com", "deepmind.google", "ai.google.dev",
+          "openrouter.ai", "artificialanalysis.ai",
+          "lmarena.ai", "chat.lmsys.org", "huggingface.co",
+          "openai.com", "anthropic.com", "deepmind.google", "ai.google.dev",
           "techcrunch.com", "theverge.com", "arstechnica.com", "wired.com",
-          "artificialanalysis.ai", "scale.com",
         ],
         query: [
           `Prediction market: ${prediction.title}`,
           `Description: ${prediction.description ?? "N/A"}`,
-          "Find the CURRENT Chatbot Arena (LMArena) leaderboard top-ranked AI models with their providers and Elo scores.",
-          "List the top 5 models by current rank, including the company that built each one.",
-          "Include any recent model releases or score changes from the last 30 days.",
-          "Cite lmarena.ai or other authoritative AI benchmark sources.",
+          "PRIMARY SOURCE: OpenRouter rankings at https://openrouter.ai/rankings (and the per-category pages: /rankings/programming, /rankings/roleplay, /rankings/marketing, /rankings/technology, /rankings/science, /rankings/translation, /rankings/finance, /rankings/academia, /rankings/legal, /rankings/health). These rank LLMs by real production token usage.",
+          "Identify the CURRENT top-ranked AI models and the companies (OpenAI, Anthropic, Google, xAI, Meta, DeepSeek, Mistral, Alibaba, Moonshot, etc.) behind each model on the relevant OpenRouter ranking.",
+          "Cross-reference with artificialanalysis.ai and LMArena Elo when useful, but treat OpenRouter usage rank as authoritative for 'best/leading model' questions.",
+          "List the top 5 models for the relevant category with their provider and ranking metric.",
+          "Include any model releases or rank changes from the last 30 days.",
         ].join("\n"),
       };
     default:
@@ -912,7 +914,7 @@ serve(async (req) => {
           `- For SPORTS: ALWAYS provide head_to_head with records (Total meetings, wins, draws, last meeting) and form_guide with last 3-5 results per team. Never leave them empty.`,
         ] : []),
         ...(isAi ? [
-          `- For AI markets: name the current top-ranked AI models on Chatbot Arena / LMArena and the companies behind them. Include Elo scores when known.`,
+          `- For AI markets: use OpenRouter rankings (openrouter.ai/rankings) as the PRIMARY benchmark for "best/leading AI model" questions — it ranks models by real production token usage across categories (programming, roleplay, marketing, technology, science, translation, finance, academia, legal, health). Name the current top-ranked models and the companies behind them. Include OpenRouter rank, and optionally LMArena Elo when known.`,
         ] : []),
       ] : [
         `- ONLY use facts that appear in the search results. Do NOT add anything from your own knowledge.`,
