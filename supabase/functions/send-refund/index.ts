@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { address, amount_xec, reason, session_token } = body;
+    const { address, amount_xec, reason, session_token, silent } = body;
 
     // Authorization: allow internal service-role calls OR admin session tokens.
     if (!isServiceRoleRequest(req)) {
@@ -139,8 +139,10 @@ Deno.serve(async (req) => {
     const outputs: TxOutput[] = [];
     outputs.push({ value: BigInt(amountSats), scriptPubKey: createP2PKHScript(recipientHash) });
 
-    const refundMessage = reason || 'Refund from eCash Pulse';
-    outputs.push({ value: 0n, scriptPubKey: createCashtabMessageScript(refundMessage) });
+    if (!silent) {
+      const refundMessage = reason || 'Refund from eCash Pulse';
+      outputs.push({ value: 0n, scriptPubKey: createCashtabMessageScript(refundMessage) });
+    }
 
     const outputTotal = outputs.reduce((a, b) => a + b.value, 0n);
     const change = inputTotal - outputTotal - BigInt(estimatedFee);
