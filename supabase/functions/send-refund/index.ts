@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { address, amount_xec, reason, session_token } = body;
+    const { address, amount_xec, reason, session_token, silent } = body;
 
     // Authorization: allow internal service-role calls OR admin session tokens.
     if (!isServiceRoleRequest(req)) {
