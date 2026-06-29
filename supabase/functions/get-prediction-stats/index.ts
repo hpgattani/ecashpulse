@@ -74,6 +74,7 @@ const CRYPTO_KEYWORDS = [
 
 const AI_KEYWORDS = [
   "ai model", "ai models", "best ai", "llm", "large language model",
+  "openrouter", "openrouter rankings", "openrouter leaderboard",
   "chatbot arena", "lmarena", "lmsys", "gpt-", "claude", "gemini",
   "openai", "anthropic", "deepmind", "mistral", "llama", "grok",
   "ai leaderboard", "ai benchmark", "mmlu", "humaneval", "swe-bench",
