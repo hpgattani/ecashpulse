@@ -787,20 +787,16 @@ Deno.serve(async (req) => {
       // Determine if this oracle type uses AI credits (expensive)
       const needsAI = !isSpread && !titleLower.includes('flippen') && !isStock && !isCrypto && !isNFL;
       
-      // Skip AI resolution for predictions with no bets (save credits!)
-      if (needsAI && !hasBets) {
-        console.log(`💰 Skipping AI resolution (no bets): ${pred.title.slice(0, 40)}`);
-        // Auto-cancel zero-bet predictions after 7 days past end date
-        const daysSinceEnd = (now.getTime() - new Date(pred.end_date).getTime()) / 86400000;
-        if (daysSinceEnd > 7) {
-          await supabase
-            .from('predictions')
-            .update({ status: 'cancelled', resolved_at: now.toISOString() })
-            .eq('id', pred.id);
-          console.log(`🗑️ Auto-cancelled (no bets, 7d expired): ${pred.title.slice(0, 40)}`);
-        }
+      // Auto-cancel any zero-bet prediction once end_date has passed (no AI cost)
+      if (!hasBets) {
+        await supabase
+          .from('predictions')
+          .update({ status: 'cancelled', resolved_at: now.toISOString() })
+          .eq('id', pred.id);
+        console.log(`🗑️ Auto-cancelled (no bets, expired): ${pred.title.slice(0, 50)}`);
         continue;
       }
+
       
       if (isSpread) {
         oracleResult = await checkSpreadPrediction(pred.title);
