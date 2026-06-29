@@ -124,7 +124,13 @@ const TRIVIALLY_TRUE_PATTERNS: RegExp[] = [
 
 // Keywords that belong to a specific category - reject if detected category doesn't match
 const CATEGORY_KEYWORD_MAP: Record<string, string[]> = {
-  economics: ['inflation', 'gdp', 'interest rate', 'unemployment', 'recession', 'cpi', 'fed rate'],
+  economics: [
+    'inflation', 'gdp', 'interest rate', 'unemployment', 'recession', 'cpi', 'fed rate',
+    // Commodities belong in economics, not politics
+    'crude oil', 'wti', 'brent', '(cl)', 'natural gas', 'heating oil', 'gasoline',
+    'gold', 'xauusd', 'silver', 'xagusd', 'copper', 'platinum', 'palladium',
+    'commodity', 'commodities',
+  ],
   // Include athlete names + tennis tour terms to prevent "Serena Williams" being misrouted.
   sports: [
     'nfl', 'nba', 'mlb', 'nhl', 'super bowl', 'playoffs', 'championship', 'ipl', 'cricket', 'world cup',
