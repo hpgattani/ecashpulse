@@ -61,7 +61,7 @@ const Index = () => {
       <div className="min-h-screen">
         <Header />
         <XpulseBanner />
-          <main className="pt-8">
+          <main className="pt-[calc(var(--security-banner-height,0px)+2rem)]">
             <Hero />
             <XpulsePromoSection />
             <FeaturedTruthcoinSection />
