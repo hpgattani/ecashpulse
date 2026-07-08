@@ -27,9 +27,10 @@ const Header = () => {
   const getHeaderOffset = () => {
     // motion.header renders a real <header> element
     const headerEl = document.querySelector('header');
-    const height = headerEl?.getBoundingClientRect().height ?? 80;
-    // a little extra breathing room so headings never sit under the header
-    return Math.ceil(height + 16);
+    const rect = headerEl?.getBoundingClientRect();
+    if (!rect) return 96;
+    // include the top offset created by the security banner plus breathing room
+    return Math.ceil(rect.top + rect.height + 16);
   };
 
   const scrollToIdWithRetry = (sectionId: string) => {
