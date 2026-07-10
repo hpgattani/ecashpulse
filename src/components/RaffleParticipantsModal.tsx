@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Trophy, Users } from 'lucide-react';
+import { Loader2, Skull, Trophy, Users } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { isEliminated } from '@/lib/eliminatedTeams';
 import { getTeamFlag } from '@/lib/teamFlags';
