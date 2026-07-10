@@ -137,18 +137,25 @@ export function RaffleParticipantsModal({
                   <div className="flex flex-wrap gap-1.5">
                     {p.teams.map((t, ti) => {
                       const isWinner = status === 'resolved' && winnerTeam === t;
+                      const eliminated = !isWinner && isEliminated(t);
+                      const flag = getTeamFlag(t);
                       return (
                         <Badge
                           key={ti}
                           variant="outline"
+                          title={eliminated ? `${t} — eliminated` : t}
                           className={
                             isWinner
                               ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                              : eliminated
+                              ? 'bg-destructive/10 text-muted-foreground/70 border-destructive/30 line-through decoration-destructive decoration-2'
                               : 'bg-background/40'
                           }
                         >
                           {isWinner && <Trophy className="w-3 h-3 mr-1" />}
+                          <span className="mr-1">{flag}</span>
                           {t}
+                          {eliminated && <span className="ml-1 no-underline">❌</span>}
                         </Badge>
                       );
                     })}
