@@ -1,12 +1,18 @@
-// FIFA World Cup 2026 — eliminated teams tracker.
-// Update this list as teams get knocked out. Names must match those used
-// in raffle entries / TEAM_FLAGS (case-sensitive).
-export const ELIMINATED_TEAMS: ReadonlySet<string> = new Set([
-  // Group stage / Round of 32 / Round of 16 exits go here…
-  // Quarter-final exits:
-  'Morocco',
+// FIFA World Cup 2026 — teams still alive in the knockout stage.
+// Update this list as more teams get knocked out.
+// Names must match those used in raffle entries / TEAM_FLAGS (case-sensitive).
+export const ALIVE_TEAMS: ReadonlySet<string> = new Set([
+  // Quarter-finalists still in the tournament:
+  'France',
+  'Spain',
+  'Belgium',
+  'Norway',
+  'England',
+  'Argentina',
+  'Switzerland',
+  // Morocco lost to France (2-0) → eliminated.
 ]);
 
 export function isEliminated(team: string): boolean {
-  return ELIMINATED_TEAMS.has(team);
+  return !ALIVE_TEAMS.has(team);
 }
