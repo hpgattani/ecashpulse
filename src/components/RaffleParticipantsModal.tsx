@@ -125,6 +125,30 @@ export function RaffleParticipantsModal({
             </div>
           )}
 
+          {status !== 'resolved' && eliminatedTeams.length > 0 && (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-2">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-destructive/90">
+                <Skull className="w-3.5 h-3.5" />
+                Bites the Dust
+                <span className="ml-auto font-mono text-muted-foreground">
+                  {eliminatedTeams.length}/{uniqueTeams.length}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {eliminatedTeams.map(t => (
+                  <Badge
+                    key={t}
+                    variant="outline"
+                    className="bg-background/40 border-destructive/30 text-muted-foreground"
+                  >
+                    <span className="mr-1">{getTeamFlag(t)}</span>
+                    <span className="line-through decoration-destructive decoration-2">{t}</span>
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
           {loading ? (
             <div className="flex justify-center py-8">
               <Loader2 className="w-6 h-6 animate-spin text-primary" />
