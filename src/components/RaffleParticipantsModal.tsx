@@ -89,6 +89,11 @@ export function RaffleParticipantsModal({
   }, {});
   const participants = Object.values(grouped);
 
+  const uniqueTeams = Array.from(new Set(entries.map(e => e.assigned_team)));
+  const eliminatedTeams = uniqueTeams
+    .filter(t => isEliminated(t) && t !== winnerTeam)
+    .sort();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
