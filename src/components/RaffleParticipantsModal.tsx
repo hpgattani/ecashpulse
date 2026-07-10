@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Trophy, Users } from 'lucide-react';
+import { Loader2, Skull, Trophy, Users } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { isEliminated } from '@/lib/eliminatedTeams';
 import { getTeamFlag } from '@/lib/teamFlags';
@@ -89,6 +89,11 @@ export function RaffleParticipantsModal({
   }, {});
   const participants = Object.values(grouped);
 
+  const uniqueTeams = Array.from(new Set(entries.map(e => e.assigned_team)));
+  const eliminatedTeams = uniqueTeams
+    .filter(t => isEliminated(t) && t !== winnerTeam)
+    .sort();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
@@ -116,6 +121,30 @@ export function RaffleParticipantsModal({
               <div>
                 <div className="text-xs text-muted-foreground">Winning Team</div>
                 <div className="font-semibold text-foreground">{winnerTeam}</div>
+              </div>
+            </div>
+          )}
+
+          {status !== 'resolved' && eliminatedTeams.length > 0 && (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-2">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-destructive/90">
+                <Skull className="w-3.5 h-3.5" />
+                Bites the Dust
+                <span className="ml-auto font-mono text-muted-foreground">
+                  {eliminatedTeams.length}/{uniqueTeams.length}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {eliminatedTeams.map(t => (
+                  <Badge
+                    key={t}
+                    variant="outline"
+                    className="bg-background/40 border-destructive/30 text-muted-foreground"
+                  >
+                    <span className="mr-1">{getTeamFlag(t)}</span>
+                    <span className="line-through decoration-destructive decoration-2">{t}</span>
+                  </Badge>
+                ))}
               </div>
             </div>
           )}
@@ -148,14 +177,21 @@ export function RaffleParticipantsModal({
                             isWinner
                               ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
                               : eliminated
-                              ? 'bg-destructive/10 text-muted-foreground/70 border-destructive/30 line-through decoration-destructive decoration-2'
+                              ? 'bg-destructive/5 border-destructive/30 text-muted-foreground/80'
                               : 'bg-background/40'
                           }
                         >
                           {isWinner && <Trophy className="w-3 h-3 mr-1" />}
                           <span className="mr-1">{flag}</span>
-                          {t}
-                          {eliminated && <span className="ml-1 no-underline">❌</span>}
+                          <span
+                            className={
+                              eliminated
+                                ? 'line-through decoration-destructive decoration-2'
+                                : ''
+                            }
+                          >
+                            {t}
+                          </span>
                         </Badge>
                       );
                     })}
