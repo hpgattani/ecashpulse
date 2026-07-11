@@ -5,7 +5,7 @@ export const ALIVE_TEAMS: ReadonlySet<string> = new Set([
   // Quarter-finalists still in the tournament:
   'France',
   'Spain',
-  'Belgium',
+  
   'Norway',
   'England',
   'Argentina',
