@@ -6,7 +6,6 @@ export const ALIVE_TEAMS: ReadonlySet<string> = new Set([
   'France',
   'Spain',
   
-  'Norway',
   'England',
   'Argentina',
   'Switzerland',
