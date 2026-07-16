@@ -89,6 +89,7 @@ export function RaffleParticipantsModal({
   }, {});
   const participants = Object.values(grouped);
 
+  const { isEliminated } = useAliveTeams();
   const uniqueTeams = Array.from(new Set(entries.map(e => e.assigned_team)));
   const eliminatedTeams = uniqueTeams
     .filter(t => isEliminated(t) && t !== winnerTeam)
