@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Skull, Trophy, Users } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { isEliminated } from '@/lib/eliminatedTeams';
+import { useAliveTeams } from '@/hooks/useAliveTeams';
 import { getTeamFlag } from '@/lib/teamFlags';
 
 interface RaffleParticipantsModalProps {
