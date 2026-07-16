@@ -2,12 +2,12 @@
 // Update this list as more teams get knocked out.
 // Names must match those used in raffle entries / TEAM_FLAGS (case-sensitive).
 export const ALIVE_TEAMS: ReadonlySet<string> = new Set([
-  // Quarter-finalists still in the tournament:
+  // Semi-finalists: Spain vs Argentina
   'Spain',
-  'England',
   'Argentina',
-  // France lost to Spain (0-2) in the semi-final → eliminated.
-  // Switzerland eliminated in quarter-finals.
+  // Third-place play-off: France vs England
+  'France',
+  'England',
 ]);
 
 export function isEliminated(team: string): boolean {
