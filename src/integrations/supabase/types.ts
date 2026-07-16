@@ -1011,6 +1011,30 @@ export type Database = {
           },
         ]
       }
+      tournament_status: {
+        Row: {
+          alive_teams: Json
+          id: string
+          last_synced_at: string
+          source: string | null
+          updated_at: string
+        }
+        Insert: {
+          alive_teams?: Json
+          id: string
+          last_synced_at?: string
+          source?: string | null
+          updated_at?: string
+        }
+        Update: {
+          alive_teams?: Json
+          id?: string
+          last_synced_at?: string
+          source?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
