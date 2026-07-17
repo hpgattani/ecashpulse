@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 // Fallback if the DB row is missing or stale — matches current WC 2026 state.
-const FALLBACK_ALIVE: ReadonlyArray<string> = ['Spain', 'Argentina', 'France', 'England'];
+const FALLBACK_ALIVE: ReadonlyArray<string> = ['Spain', 'Argentina'];
 
 export const TOURNAMENT_ID = 'fifa_wc_2026';
 
