@@ -48,10 +48,14 @@ Deno.serve(async (req) => {
     for (const m of matches) {
       const home = m.homeTeam?.name ?? null;
       const away = m.awayTeam?.name ?? null;
+      // Third-place playoff teams cannot win the trophy — treat as eliminated.
+      const isThirdPlace = m.stage === 'THIRD_PLACE' || m.stage === '3RD_PLACE_FINAL';
       if (m.status !== 'FINISHED') {
         allFinished = false;
-        if (home) aliveSet.add(home);
-        if (away) aliveSet.add(away);
+        if (!isThirdPlace) {
+          if (home) aliveSet.add(home);
+          if (away) aliveSet.add(away);
+        }
       }
       if (m.stage === 'FINAL' && m.status === 'FINISHED') {
         const w = m.score?.winner;
